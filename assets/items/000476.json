@@ -1,0 +1,13 @@
+{
+  "id": "time_slow_scroll",
+  "name": "Свиток: Замедление времени",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Замедление времени» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "time_slow"
+  }
+}

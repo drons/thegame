@@ -590,7 +590,7 @@ test('SB8: canDoAction «spellbook» — ok / «заклинаний нет» / 
 // SB9: JSON-каталог — icon + icon_prompt, schema
 // ---------------------------------------------------------------------------
 
-test('SB9: 117 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149)', () => {
+test('SB9: 142 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149)', () => {
   const files = fs.readdirSync(SPELLS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
   // 000163 (ребейз 000149): в каталог вошло 000017.json (resurrect) —
@@ -599,8 +599,9 @@ test('SB9: 117 JSON — непустые icon/icon_prompt; оба поля в sc
   // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
   // Ре-пин 000235.09: +25 заклинаний волны Тень — 67 → 92.
   // Ре-пин 000235.10: +25 заклинаний волны Исцеление — 92 → 117.
-  assert.equal(files.length, 117,
-    'каталог: 117 файлов (RED: 92 — файлов волны Исцеление нет)');
+  // Ре-пин 000235.11: +25 заклинаний волны Защита — 117 → 142.
+  assert.equal(files.length, 142,
+    'каталог: 142 файла (RED: 117 — файлов волны Защита нет)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(SPELLS_DIR, 'schema.json'), 'utf8'));
   assert.ok(schema.required.includes('icon'),
@@ -654,7 +655,7 @@ test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; 
 // SB11: все новые SVG проходят checkSvg (000120) ДО каталога
 // ---------------------------------------------------------------------------
 
-test('SB11: 118 SVG (117 иконок + кнопка) существуют и проходят checkSvg (000149)', () => {
+test('SB11: 143 SVG (142 иконок + кнопка) существуют и проходят checkSvg (000149)', () => {
   const checkSvg = loadCheckSvg();
   const { SPELLS } = require('../src/spells-data.js');
   const rels = SPELLS.map((s) => 'assets/spell-icons/' + s.id + '.svg');
@@ -664,8 +665,10 @@ test('SB11: 118 SVG (117 иконок + кнопка) существуют и п
   // Ре-пин 000235.08: +25 иконок волны Лёд — 43 → 68.
   // Ре-пин 000235.09: +25 иконок волны Тень — 68 → 93.
   // Ре-пин 000235.10: +25 иконок волны Исцеление — 93 → 118.
-  assert.equal(rels.length, 118,
-    '117 иконок заклинаний + иконка кнопки (RED: 93 — 92 иконки + кнопка)');
+  // Ре-пин 000235.11: +25 иконок волны Защита — 118 → 143.
+  assert.equal(rels.length, 143,
+    '142 иконки заклинаний + иконка кнопки (RED: 118 — 117 иконок + '
+    + 'кнопка)');
   for (const rel of rels) {
     const abs = path.join(ROOT, rel);
     assert.ok(fs.existsSync(abs),

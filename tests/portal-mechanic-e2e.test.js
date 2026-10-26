@@ -598,17 +598,13 @@ function assertSpawn(g) {
 // --- E1: stone_anchor (метка на тайле каста) + recall (возврат) +
 // reload (метка в сейве) ---
 
-test('000235.04 E1. e2e: stone_anchor — метка {x, y, day} тайла каста (0,0) в state-зеркале, герой НЕ сдвинут, записей нет, mp −5; уход (0,0)→…→(−5,0) без боя; recall — возврат на метку (0,0), день не сместился; reload (сейв) — метка восстановлена', async () => {
+test('000235.04 E1. e2e: stone_anchor — метка {x, y, day} тайла каста (0,0) в state-зеркале, герой НЕ сдвинут, записей нет, mp −7; уход (0,0)→…→(−5,0) без боя; recall — возврат на метку (0,0), день не сместился; reload (сейв) — метка восстановлена (ре-пин 000235.11: НА РЕАЛЬНОМ каталоге, mp 7+7)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   assertSpawn(g);
   assert.equal(g.state.day, 1, 'фикстура: день 1');
   dismissStartWindow(h);
-  injectGuests(h, [
-    portalGuest({ id: 'stone_anchor', параметры: { mode: 'метка_установить' } }),
-    portalGuest({ id: 'recall', параметры: { mode: 'метка_вернуться' } }),
-  ]);
   learn(h, ['stone_anchor', 'recall']);
   const mp0 = saveHero(h).mp;
   assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -624,7 +620,7 @@ test('000235.04 E1. e2e: stone_anchor — метка {x, y, day} тайла ка
   assert.ok(g.state.player.x === 0, 'каст метки — герой НЕ сдвинут (x)');
   assert.ok(g.state.player.y === 0,
     'каст метки — герой НЕ сдвинут (y; findSpawn даёт −0 — === 0)');
-  assert.equal(saveHero(h).mp, mp0 - 5, 'mp ровно «мани» (16 − 5)');
+  assert.equal(saveHero(h).mp, mp0 - 7, 'mp ровно «мани» (16 − 7)');
   // Маршрут без групп/зон (E1-гоlden): (0,0)→…→(−5,0).
   const walk = makeWalker(h);
   walk(-1, 0);
@@ -640,7 +636,7 @@ test('000235.04 E1. e2e: stone_anchor — метка {x, y, day} тайла ка
   assert.ok(g.state.player.y === 0,
     'RED: возврат на метку — y (метка с тайла спавна несёт −0 — === 0)');
   assert.equal(g.state.day, 1, 'телепорт — день НЕ сместился');
-  assert.equal(saveHero(h).mp, mp0 - 10, 'два каста — mp 16 − 10');
+  assert.equal(saveHero(h).mp, mp0 - 14, 'два каста — mp 16 − 14 (7+7)');
   const savedRaw = h.storage.getItem(S.SAVE_KEY);
   assert.ok(savedRaw, 'сейв после возврата (saveNow/ saveHero)');
   const h2 = await boot(JSON.parse(savedRaw));
@@ -654,7 +650,7 @@ test('000235.04 E1. e2e: stone_anchor — метка {x, y, day} тайла ка
 
 // --- E2: gate — телепорт в ближайший built-город + контроль отказа ---
 
-test('000235.04 E2. e2e: gate — seed cities (якорь (20,−16) с постройками; (30,10) без built — НЕ кандидат) → телепорт героя (0,0) на тайл КОЛЬЦА вокруг непроходимого якоря — (19,−17) (findSpawn-порядок (−1,−1)), mp −5, без боя; КОНТРОЛЬ (без городов с постройками) — отказ «нет города с постройками»: книга открыта, герой не сдвинут, mp не потрачен, flash в #hud', async () => {
+test('000235.04 E2. e2e: gate — seed cities (якорь (20,−16) с постройками; (30,10) без built — НЕ кандидат) → телепорт героя (0,0) на тайл КОЛЬЦА вокруг непроходимого якоря — (19,−17) (findSpawn-порядок (−1,−1)), mp −12, без боя; КОНТРОЛЬ (без городов с постройками) — отказ «нет города с постройками»: книга открыта, герой не сдвинут, mp не потрачен, flash в #hud (ре-пин 000235.11: НА РЕАЛЬНОМ каталоге, mp 12)', async () => {
   const cities = {
     '20,-16': {
       name: 'Деревня',
@@ -667,7 +663,6 @@ test('000235.04 E2. e2e: gate — seed cities (якорь (20,−16) с пост
   const g = h.sandbox.__game;
   assertSpawn(g);
   dismissStartWindow(h);
-  injectGuests(h, [portalGuest({ id: 'gate' })]);
   learn(h, ['gate']);
   const mp0 = saveHero(h).mp;
   assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -679,7 +674,7 @@ test('000235.04 E2. e2e: gate — seed cities (якорь (20,−16) с пост
   assert.equal(g.state.player.y, -17,
     'RED: якорь (20,−16) непроходим → первая клетка кольца r=1 '
     + '(findSpawn-порядок (−1,−1)) — (19,−17)');
-  assert.equal(saveHero(h).mp, mp0 - 5, 'mp ровно «мани» (16 − 5)');
+  assert.equal(saveHero(h).mp, mp0 - 12, 'mp ровно «мани» (16 − 12)');
   assert.equal(G.combatUI.isActive(), false, 'телепорт — без боя');
   assert.equal(cap.calls, 0, 'телепорт — startCombat 0 вызовов');
 
@@ -689,7 +684,6 @@ test('000235.04 E2. e2e: gate — seed cities (якорь (20,−16) с пост
   const g2 = h2.sandbox.__game;
   assertSpawn(g2);
   dismissStartWindow(h2);
-  injectGuests(h2, [portalGuest({ id: 'gate' })]);
   learn(h2, ['gate']);
   const mp02 = saveHero(h2).mp;
   assert.equal(mp02, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -716,15 +710,12 @@ test('000235.04 E2. e2e: gate — seed cities (якорь (20,−16) с пост
 
 // --- E3: recall БЕЗ метки — отказ «метка не установлена» ---
 
-test('000235.04 E3. e2e: recall БЕЗ метки — отказ «метка не установлена» (проверка ПЕРВАЯ, до skeleton — D16): книга остаётся открыта, герой не сдвинут, mp не потрачен, flash в #hud', async () => {
+test('000235.04 E3. e2e: recall БЕЗ метки — отказ «метка не установлена» (проверка ПЕРВАЯ, до skeleton — D16): книга остаётся открыта, герой не сдвинут, mp не потрачен, flash в #hud (ре-пин 000235.11: НА РЕАЛЬНОМ каталоге)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   assertSpawn(g);
   dismissStartWindow(h);
-  injectGuests(h, [
-    portalGuest({ id: 'recall', параметры: { mode: 'метка_вернуться' } }),
-  ]);
   learn(h, ['recall']);
   const mp0 = saveHero(h).mp;
   assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -751,7 +742,7 @@ test('000235.04 E3. e2e: recall БЕЗ метки — отказ «метка н
 // --- E4: warding_circle — супрессия зоны + истечение + зона
 // триггерится после ---
 
-test('000235.04 E4. e2e: warding_circle (radius 5, days 1) — каст → запись {spellId, expiresDay:2} (generic-ядро .02), mp −5; (0,0)→(0,1) (d=2 от (2,3), Чебышёв(зона, герой) ≤ 5) — боя НЕТ (супрессия зоны); setDay(2) — запись вылетела (день-хук .02) → (0,0)→(0,1) — ЗОНА-БОЙ (groupType 4, seed hash2(2,3,salt), тайл/terrain группы)', async () => {
+test('000235.04 E4. e2e: warding_circle (radius 5, days 1) — каст → запись {spellId, expiresDay:2} (generic-ядро .02), mp −10; (0,0)→(0,1) (d=2 от (2,3), Чебышёв(зона, герой) ≤ 5) — боя НЕТ (супрессия зоны); setDay(2) — запись вылетела (день-хук .02) → (0,0)→(0,1) — ЗОНА-БОЙ (groupType 4, seed hash2(2,3,salt), тайл/terrain группы) (ре-пин 000235.11: НА РЕАЛЬНОМ каталоге, mp 10, radius 5 из каталога)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -759,11 +750,6 @@ test('000235.04 E4. e2e: warding_circle (radius 5, days 1) — каст → за
   assertSpawn(g);
   assert.equal(g.state.day, 1, 'фикстура: день 1');
   dismissStartWindow(h);
-  injectGuests(h, [portalGuest({
-    id: 'warding_circle',
-    действие: 'внебой',
-    параметры: { days: 1, radius: 5 },
-  })]);
   learn(h, ['warding_circle']);
   const mp0 = saveHero(h).mp;
   assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -772,7 +758,7 @@ test('000235.04 E4. e2e: warding_circle (radius 5, days 1) — каст → за
   assert.deepEqual(host(g.state.hero.outOfCombatEffects),
     [{ spellId: 'warding_circle', expiresDay: 2 }],
     'запись generic-ядром .02 (внебой, days 1 → expiresDay day+1)');
-  assert.equal(saveHero(h).mp, mp0 - 5, 'mp ровно «мани» (16 − 5)');
+  assert.equal(saveHero(h).mp, mp0 - 10, 'mp ровно «мани» (16 − 10)');
   const cap = spyStartCombat(G);
   assert.equal(G.combatUI.isActive(), false, 'фикстура: спавн без боя');
   const walk = makeWalker(h);
@@ -808,7 +794,7 @@ test('000235.04 E4. e2e: warding_circle (radius 5, days 1) — каст → за
 // --- E5: арифметика радиуса (из каталога, ленивый lookup): d ≤ r —
 // супрессия, d > r — зона-бой ---
 
-test('000235.04 E5. e2e: warding_circle r=1 (радиус ИЗ КАТАЛОГА): (a) seed (3,2) + каст → шаг (3,3) (d=1 ≤ r=1) — боя НЕТ; (b) КОНТРОЛЬ seed (3,2) БЕЗ каста → шаг (3,3) — зона-бой (существующее 000135); (c) seed (4,1) + каст → шаг (4,2) (d=2 > r=1) — зона-бой (гард от over-супрессии: зона НЕ подавляется за радиусом)', async () => {
+test('000235.04 E5. e2e: warding_circle — (a) РЕАЛЬНЫЙ каталог r=5: seed (3,2) + каст → шаг (3,3) (d=1 ≤ r=5) — боя НЕТ; (b) КОНТРОЛЬ seed (3,2) БЕЗ каста → шаг (3,3) — зона-бой (существующее 000135); (c) ЕДИНСТВЕННЫЙ оставшийся ГОСТЬ r=1 (при каталоговом r=5 весь фолбэк-мир в радиусе): seed (4,1) + каст → шаг (4,2) (d=2 > r=1) — зона-бой (гард от over-супрессии: зона НЕ подавляется за радиусом) (ре-пин 000235.11: (a)/(b) НА РЕАЛЬНОМ каталоге)', async () => {
   // (a) d=1 ≤ r=1 — подавляется.
   const h = await boot(seedSave({ day: 1, position: { x: 3, y: 2 } }));
   const G = h.sandbox.Game;
@@ -816,25 +802,20 @@ test('000235.04 E5. e2e: warding_circle r=1 (радиус ИЗ КАТАЛОГА)
   assert.equal(g.state.player.x, 3, 'seed-позиция — x (в зоне, d=1)');
   assert.equal(g.state.player.y, 2, 'seed-позиция — y');
   dismissStartWindow(h);
-  injectGuests(h, [portalGuest({
-    id: 'warding_circle',
-    действие: 'внебой',
-    параметры: { days: 1, radius: 1 },
-  })]);
   learn(h, ['warding_circle']);
   assert.ok(castViaBook(h, 'warding_circle'),
-    'каст круга r=1 → книга ЗАКРЫТА (ok)');
+    'каст круга r=5 (реальный каталог) → книга ЗАКРЫТА (ok)');
   assert.deepEqual(host(g.state.hero.outOfCombatEffects),
     [{ spellId: 'warding_circle', expiresDay: 2 }],
-    'круг r=1 активен (день 1)');
+    'круг r=5 активен (день 1)');
   const cap = spyStartCombat(G);
   assert.equal(G.combatUI.isActive(), false,
     'старт ВНУТРИ зоны — без боя (stарт tile-only)');
   const walk = makeWalker(h);
-  walk(3, 3); // (2,3) — d=1 ≤ r=1 — подавляется
+  walk(3, 3); // (2,3) — d=1 ≤ r=5 — подавляется
   assert.equal(G.combatUI.isActive(), false,
-    'RED: (3,3) в радиусе круга (d=1 ≤ r=1) — боя НЕТ (master: '
-    + 'зона-бой 000135 — супрессии нет)');
+    'RED: (3,3) в радиусе круга (d=1 ≤ r=5, реальный каталог) — '
+    + 'боя НЕТ (master: зона-бой 000135 — супрессии нет)');
   assert.equal(cap.calls, 0, 'RED: startCombat 0 вызовов (d ≤ r)');
 
   // (b) КОНТРОЛЬ: без каста — зона-бой (существующее поведение).
@@ -897,7 +878,7 @@ test('000235.04 E5. e2e: warding_circle r=1 (радиус ИЗ КАТАЛОГА)
 // добавления (пин существующего поведения 5a21d89). НЕ входит:
 // зона-нога (супрессия — E4/E5), подземельная нога (контракт D-03).
 
-test('000235.04.01 E6. e2e: D6-гард — тайл-бой НЕ подавляется кругом защиты: warding_circle r=5 активен → шаг (0,0)→(1,0) (тайл neutral g2) → ТАЙЛ-БОЙ стартует (isActive true, groupType 2, cap.calls 1); запись warding ЖИВА после старта (P-d: вступление в бой круг НЕ снимает — контраст с невидимостью IV-E3)', async () => {
+test('000235.04.01 E6. e2e: D6-гард — тайл-бой НЕ подавляется кругом защиты: warding_circle r=5 активен → шаг (0,0)→(1,0) (тайл neutral g2) → ТАЙЛ-БОЙ стартует (isActive true, groupType 2, cap.calls 1); запись warding ЖИВА после старта (P-d: вступление в бой круг НЕ снимает — контраст с невидимостью IV-E3) (ре-пин 000235.11: НА РЕАЛЬНОМ каталоге, mp 10, r=5)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -905,11 +886,6 @@ test('000235.04.01 E6. e2e: D6-гард — тайл-бой НЕ подавля�
   assertSpawn(g);
   assert.equal(g.state.day, 1, 'фикстура: день 1');
   dismissStartWindow(h);
-  injectGuests(h, [portalGuest({
-    id: 'warding_circle',
-    действие: 'внебой',
-    параметры: { days: 1, radius: 5 },
-  })]);
   learn(h, ['warding_circle']);
   const mp0 = saveHero(h).mp;
   assert.equal(mp0, 16, 'фикстура: новый герой mp = maxMP 16');
@@ -918,7 +894,7 @@ test('000235.04.01 E6. e2e: D6-гард — тайл-бой НЕ подавля�
   assert.deepEqual(host(g.state.hero.outOfCombatEffects),
     [{ spellId: 'warding_circle', expiresDay: 2 }],
     'круг r=5 активен (запись generic-ядром .02)');
-  assert.equal(saveHero(h).mp, mp0 - 5, 'mp ровно «мани» (16 − 5)');
+  assert.equal(saveHero(h).mp, mp0 - 10, 'mp ровно «мани» (16 − 10)');
   const cap = spyStartCombat(G);
   assert.equal(G.combatUI.isActive(), false, 'фикстура: спавн без боя');
   const walk = makeWalker(h);

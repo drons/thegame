@@ -1,0 +1,13 @@
+{
+  "id": "stone_golem_scroll",
+  "name": "Свиток: Каменный голем",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Каменный голем» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "stone_golem"
+  }
+}

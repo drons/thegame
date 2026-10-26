@@ -1,0 +1,13 @@
+{
+  "id": "stalwart_scroll",
+  "name": "Свиток: Непоколебимость",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Непоколебимость» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "stalwart"
+  }
+}

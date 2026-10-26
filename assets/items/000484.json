@@ -1,0 +1,13 @@
+{
+  "id": "warding_circle_scroll",
+  "name": "Свиток: Круг защиты",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Круг защиты» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "warding_circle"
+  }
+}

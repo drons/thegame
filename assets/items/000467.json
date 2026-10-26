@@ -1,0 +1,13 @@
+{
+  "id": "resilience_scroll",
+  "name": "Свиток: Стойкость",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Стойкость» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "resilience"
+  }
+}

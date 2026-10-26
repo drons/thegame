@@ -1,0 +1,13 @@
+{
+  "id": "stone_wall_scroll",
+  "name": "Свиток: Каменная стена",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Каменная стена» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "stone_wall"
+  }
+}

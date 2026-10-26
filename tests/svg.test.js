@@ -496,12 +496,13 @@ const EXPECTED_SVG_BY_DIR = {
                                       // (кнопки «Каст»/«Лечение»)
                                       // 000227: +combat_lastspell
                                       // (кнопка «Последнее заклинание»)
-  'spell-icons': 117,                 // иконки заклинаний (задача 000149,
+  'spell-icons': 142,                 // иконки заклинаний (задача 000149,
                                       // по одной на JSON каталога; 000163:
                                       // +resurrect; 000235.07: +25 волны
                                       // Огонь; 000235.08: +25 волны Лёд;
                                       // 000235.09: +25 волны Тень;
-                                      // 000235.10: +25 волны Исцеление)
+                                      // 000235.10: +25 волны Исцеление;
+                                      // 000235.11: +25 волны Защита)
   portraits: 8,                       // портреты партии (задача 000142)
   logo: 1,                            // assets/logo.svg
 };
@@ -680,7 +681,7 @@ const FIRE07_ICON_IDS = [
   'phoenix', 'firelight', 'hearthfire', 'flame_step',
 ];
 
-test('W-05. 000235.07: 25 иконок волны Огонь — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 117 spell-icons парно-уникальны (sha256) (ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление)', () => {
+test('W-05. 000235.07: 25 иконок волны Огонь — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 142 spell-icons парно-уникальны (sha256) (ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление)', () => {
   const crypto = require('node:crypto');
   const dir = path.join(ROOT, 'assets', 'spell-icons');
   for (const id of FIRE07_ICON_IDS) {
@@ -697,9 +698,10 @@ test('W-05. 000235.07: 25 иконок волны Огонь — 24×24/#e8dcc0/
   }
   const all = fs.readdirSync(dir)
     .filter((f) => f.endsWith('.svg')).sort();
-  assert.equal(all.length, 117,
-    'spell-icons — 117 файла (ре-пин 000235.09: +25 волны Тень; '
-    + 'ре-пин 000235.10: +25 волны Исцеление; RED: ' + all.length + ')');
+  assert.equal(all.length, 142,
+    'spell-icons — 142 файла (ре-пин 000235.09: +25 волны Тень; '
+    + 'ре-пин 000235.10: +25 волны Исцеление; '
+    + 'ре-пин 000235.11: +25 волны Защита; RED: ' + all.length + ')');
   const byHash = new Map();
   for (const f of all) {
     const h = crypto.createHash('sha256')
@@ -725,7 +727,7 @@ const ICE08_ICON_IDS = [
   'frozen_stillness',
 ];
 
-test('W-05. 000235.08: 25 иконок волны Лёд — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 117 spell-icons парно-уникальны (sha256) (ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление)', () => {
+test('W-05. 000235.08: 25 иконок волны Лёд — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 142 spell-icons парно-уникальны (sha256) (ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление)', () => {
   const crypto = require('node:crypto');
   const dir = path.join(ROOT, 'assets', 'spell-icons');
   for (const id of ICE08_ICON_IDS) {
@@ -742,9 +744,10 @@ test('W-05. 000235.08: 25 иконок волны Лёд — 24×24/#e8dcc0/xmln
   }
   const all = fs.readdirSync(dir)
     .filter((f) => f.endsWith('.svg')).sort();
-  assert.equal(all.length, 117,
-    'spell-icons — 117 файлов (ре-пин 000235.09: +25 волны Тень; '
-    + 'ре-пин 000235.10: +25 волны Исцеление; RED: ' + all.length + ')');
+  assert.equal(all.length, 142,
+    'spell-icons — 142 файла (ре-пин 000235.09: +25 волны Тень; '
+    + 'ре-пин 000235.10: +25 волны Исцеление; '
+    + 'ре-пин 000235.11: +25 волны Защита; RED: ' + all.length + ')');
   const byHash = new Map();
   for (const f of all) {
     const h = crypto.createHash('sha256')
@@ -769,7 +772,7 @@ const SHADOW09_ICON_IDS = [
   'invisibility', 'shroud_of_night', 'dark_presence',
 ];
 
-test('W-05. 000235.09: 25 иконок волны Тень — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 117 spell-icons парно-уникальны (sha256) (ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление)', () => {
+test('W-05. 000235.09: 25 иконок волны Тень — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 142 spell-icons парно-уникальны (sha256) (ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление)', () => {
   const crypto = require('node:crypto');
   const dir = path.join(ROOT, 'assets', 'spell-icons');
   for (const id of SHADOW09_ICON_IDS) {
@@ -786,9 +789,10 @@ test('W-05. 000235.09: 25 иконок волны Тень — 24×24/#e8dcc0/xm
   }
   const all = fs.readdirSync(dir)
     .filter((f) => f.endsWith('.svg')).sort();
-  assert.equal(all.length, 117,
-    'spell-icons — 117 файлов (ре-пин 000235.09: +25 волны Тень; '
-    + 'ре-пин 000235.10: +25 волны Исцеление; RED: ' + all.length + ')');
+  assert.equal(all.length, 142,
+    'spell-icons — 142 файла (ре-пин 000235.09: +25 волны Тень; '
+    + 'ре-пин 000235.10: +25 волны Исцеление; '
+    + 'ре-пин 000235.11: +25 волны Защита; RED: ' + all.length + ')');
   const byHash = new Map();
   for (const f of all) {
     const h = crypto.createHash('sha256')
@@ -813,7 +817,7 @@ const HEAL10_ICON_IDS = [
   'holy_light', 'miracle',
 ];
 
-test('W-05. 000235.10: 25 иконок волны Исцеление — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 117 spell-icons парно-уникальны (sha256)', () => {
+test('W-05. 000235.10: 25 иконок волны Исцеление — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 142 spell-icons парно-уникальны (sha256)', () => {
   const crypto = require('node:crypto');
   const dir = path.join(ROOT, 'assets', 'spell-icons');
   for (const id of HEAL10_ICON_IDS) {
@@ -830,9 +834,51 @@ test('W-05. 000235.10: 25 иконок волны Исцеление — 24×24/
   }
   const all = fs.readdirSync(dir)
     .filter((f) => f.endsWith('.svg')).sort();
-  assert.equal(all.length, 117,
-    'spell-icons — 117 файлов (ре-пин 000235.10: +25 волны '
-    + 'Исцеление; RED: ' + all.length + ')');
+  assert.equal(all.length, 142,
+    'spell-icons — 142 файла (ре-пин 000235.10: +25 волны '
+    + 'Исцеление; ре-пин 000235.11: +25 волны Защита; '
+    + 'RED: ' + all.length + ')');
+  const byHash = new Map();
+  for (const f of all) {
+    const h = crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(dir, f))).digest('hex');
+    assert.ok(!byHash.has(h),
+      f + ' == ' + byHash.get(h) + ': дубль иконки (копия)');
+    byHash.set(h, f);
+  }
+});
+
+// --- Задача 000235.11: волна Защита — 25 иконок (TDD) ---
+const PROT11_ICON_IDS = [
+  'iron_bulwark', 'aegis', 'shield_wall', 'magical_barrier',
+  'stony_hide', 'iron_bastion', 'bulwark_ward', 'resilience',
+  'thorns', 'fortitude', 'guardian_oath', 'stalwart',
+  'aura_of_protection', 'weaken_defense', 'corrode',
+  'stone_grasp', 'time_slow', 'stone_wall', 'guardian_field',
+  'stone_golem', 'iron_sentinel', 'stone_anchor', 'recall',
+  'gate', 'warding_circle',
+];
+
+test('W-05. 000235.11: 25 иконок волны Защита — 24×24/#e8dcc0/xmlns/viewBox; ВСЕ 142 spell-icons парно-уникальны (sha256)', () => {
+  const crypto = require('node:crypto');
+  const dir = path.join(ROOT, 'assets', 'spell-icons');
+  for (const id of PROT11_ICON_IDS) {
+    const f = path.join(dir, id + '.svg');
+    assert.ok(fs.existsSync(f), id + '.svg: файл существует (RED: нет)');
+    const s = fs.readFileSync(f, 'utf8');
+    assert.ok(s.includes('xmlns="http://www.w3.org/2000/svg"'),
+      id + ': xmlns svg');
+    assert.ok(s.includes('width="24"') && s.includes('height="24"'),
+      id + ': width/height 24');
+    assert.ok(s.includes('viewBox="0 0 24 24"'),
+      id + ': viewBox 0 0 24 24');
+    assert.ok(s.includes('fill="#e8dcc0"'), id + ': fill #e8dcc0');
+  }
+  const all = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.svg')).sort();
+  assert.equal(all.length, 142,
+    'spell-icons — 142 файла (ре-пин 000235.11: +25 волны Защита; '
+    + 'RED: ' + all.length + ')');
   const byHash = new Map();
   for (const f of all) {
     const h = crypto.createHash('sha256')

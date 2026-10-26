@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000459.json);
+  // Предметы (assets/items/000001.json … 000484.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -5970,6 +5970,281 @@
       set: "mystic",
       affixes: [{ type: "skill", skill: "meditation", amount: 0.15 }],
       set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }] },
+    },
+    // 000460.json
+    {
+      id: "iron_bulwark_scroll",
+      name: "Свиток: Железный бастион",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Железный бастион» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "iron_bulwark" },
+    },
+    // 000461.json
+    {
+      id: "aegis_scroll",
+      name: "Свиток: Эгида",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Эгида» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "aegis" },
+    },
+    // 000462.json
+    {
+      id: "shield_wall_scroll",
+      name: "Свиток: Стена щитов",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Стена щитов» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "shield_wall" },
+    },
+    // 000463.json
+    {
+      id: "magical_barrier_scroll",
+      name: "Свиток: Магический барьер",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Магический барьер» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "magical_barrier" },
+    },
+    // 000464.json
+    {
+      id: "stony_hide_scroll",
+      name: "Свиток: Каменный панцирь",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Каменный панцирь» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "stony_hide" },
+    },
+    // 000465.json
+    {
+      id: "iron_bastion_scroll",
+      name: "Свиток: Железная твердыня",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Железная твердыня» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "iron_bastion" },
+    },
+    // 000466.json
+    {
+      id: "bulwark_ward_scroll",
+      name: "Свиток: Ограда бастиона",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Ограда бастиона» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "bulwark_ward" },
+    },
+    // 000467.json
+    {
+      id: "resilience_scroll",
+      name: "Свиток: Стойкость",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Стойкость» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "resilience" },
+    },
+    // 000468.json
+    {
+      id: "thorns_scroll",
+      name: "Свиток: Шипы",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 45,
+      tier: 1,
+      desc: "Свиток: изучает «Шипы» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "thorns" },
+    },
+    // 000469.json
+    {
+      id: "fortitude_scroll",
+      name: "Свиток: Крепость духа",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Крепость духа» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "fortitude" },
+    },
+    // 000470.json
+    {
+      id: "guardian_oath_scroll",
+      name: "Свиток: Клятва хранителя",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Клятва хранителя» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "guardian_oath" },
+    },
+    // 000471.json
+    {
+      id: "stalwart_scroll",
+      name: "Свиток: Непоколебимость",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Непоколебимость» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "stalwart" },
+    },
+    // 000472.json
+    {
+      id: "aura_of_protection_scroll",
+      name: "Свиток: Аура защиты",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Аура защиты» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "aura_of_protection" },
+    },
+    // 000473.json
+    {
+      id: "weaken_defense_scroll",
+      name: "Свиток: Ослабление защиты",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Ослабление защиты» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "weaken_defense" },
+    },
+    // 000474.json
+    {
+      id: "corrode_scroll",
+      name: "Свиток: Коррозия",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Коррозия» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "corrode" },
+    },
+    // 000475.json
+    {
+      id: "stone_grasp_scroll",
+      name: "Свиток: Каменная хватка",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Каменная хватка» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "stone_grasp" },
+    },
+    // 000476.json
+    {
+      id: "time_slow_scroll",
+      name: "Свиток: Замедление времени",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Замедление времени» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "time_slow" },
+    },
+    // 000477.json
+    {
+      id: "stone_wall_scroll",
+      name: "Свиток: Каменная стена",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Каменная стена» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "stone_wall" },
+    },
+    // 000478.json
+    {
+      id: "guardian_field_scroll",
+      name: "Свиток: Хранительное поле",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Хранительное поле» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "guardian_field" },
+    },
+    // 000479.json
+    {
+      id: "stone_golem_scroll",
+      name: "Свиток: Каменный голем",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Каменный голем» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "stone_golem" },
+    },
+    // 000480.json
+    {
+      id: "iron_sentinel_scroll",
+      name: "Свиток: Железный страж",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 240,
+      tier: 4,
+      desc: "Свиток: изучает «Железный страж» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "iron_sentinel" },
+    },
+    // 000481.json
+    {
+      id: "stone_anchor_scroll",
+      name: "Свиток: Каменный якорь",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Каменный якорь» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "stone_anchor" },
+    },
+    // 000482.json
+    {
+      id: "recall_scroll",
+      name: "Свиток: Возврат",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Возврат» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "recall" },
+    },
+    // 000483.json
+    {
+      id: "gate_scroll",
+      name: "Свиток: Врата",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Врата» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "gate" },
+    },
+    // 000484.json
+    {
+      id: "warding_circle_scroll",
+      name: "Свиток: Круг защиты",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Круг защиты» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "warding_circle" },
     },
   ];
 

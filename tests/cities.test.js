@@ -1590,6 +1590,11 @@ const SHOP_GOLDEN = {
   // не сдвинулись (node-симуляция: seed/старые стоки
   // byte-identical). Прочие 2 голдены (weapon / potion+food пулы)
   // — без изменений (новые предметы — kind armor).
+  // Ре-пин 000235.11: свитки волны Защита (000460-000484) —
+  // КОНЕЦ каталога, rng-хвост пула allItems → += 24 свитка
+  // (stone_anchor на этой клетке не выпал), 383 → 407 ключа;
+  // старые ключи не сдвинулись (node-симуляция: seed/старые
+  // стоки byte-identical). Прочие 2 голдены — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1691,7 +1696,15 @@ const SHOP_GOLDEN = {
     copper_boots: 1, silver_boots: 4, stone_sandals: 3, obsidian_sandals: 1,
     amethyst_boots: 4, mystic_sandals: 2, frost_sandals: 3, emerald_boots: 5,
     storm_sandals: 5, rune_boots: 2, swift_boots: 4, traveler_cloak: 3,
-    mystic_sutan: 1 } },
+    mystic_sutan: 1, iron_bulwark_scroll: 2, aegis_scroll: 4,
+    shield_wall_scroll: 3, magical_barrier_scroll: 2, stony_hide_scroll: 1,
+    iron_bastion_scroll: 3, bulwark_ward_scroll: 3, resilience_scroll: 5,
+    thorns_scroll: 1, fortitude_scroll: 2, guardian_oath_scroll: 5,
+    stalwart_scroll: 1, aura_of_protection_scroll: 5, weaken_defense_scroll: 2,
+    corrode_scroll: 3, stone_grasp_scroll: 3, time_slow_scroll: 1,
+    stone_wall_scroll: 1, guardian_field_scroll: 5, stone_golem_scroll: 5,
+    iron_sentinel_scroll: 5, recall_scroll: 1, gate_scroll: 4,
+    warding_circle_scroll: 1 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,

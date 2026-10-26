@@ -1,0 +1,13 @@
+{
+  "id": "magical_barrier_scroll",
+  "name": "Свиток: Магический барьер",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Магический барьер» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "magical_barrier"
+  }
+}

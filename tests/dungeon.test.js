@@ -797,7 +797,7 @@ test('000258 golden: CAVE (37, −12) — закреплённые стены {x
 // «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
 // ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
 
-test('S3. 000133: пулы подземелий — 108 свитков, каждый ровно в одном', () => {
+test('S3. 000133: пулы подземелий — 133 свитка, каждый ровно в одном', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
   // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
   // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ). Ре-пин 000235.07:
@@ -807,7 +807,9 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
   // (CRYPT). Ре-пин 000235.10: +25 свитков волны Исцеление КОНЦОМ
   // пула 000002 (CRYPT). Ре-пин 000251: −chainmail (000002, CRYPT),
   // −knight_plate (000003, RUINS) — фантомные legacy-брони (явный
-  // slot → chest-equip всегда заменяет) убраны из пулов.
+  // slot → chest-equip всегда заменяет) убраны из пулов. Ре-пин
+  // 000235.11: +25 свитков волны Защита КОНЦОМ пула 000004
+  // (DROWNED) — 6 legacy + 25 = 31 предмет.
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll',
@@ -858,7 +860,18 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
       'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
       'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll'],
     '000004.json': ['mana_elixir', 'hunting_bow', 'moonstone',
-      'nature_scroll', 'magic_shield_scroll', 'blueprint_runecraft'],
+      'nature_scroll', 'magic_shield_scroll', 'blueprint_runecraft',
+      'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
+      'magical_barrier_scroll', 'stony_hide_scroll',
+      'iron_bastion_scroll', 'bulwark_ward_scroll',
+      'resilience_scroll', 'thorns_scroll', 'fortitude_scroll',
+      'guardian_oath_scroll', 'stalwart_scroll',
+      'aura_of_protection_scroll', 'weaken_defense_scroll',
+      'corrode_scroll', 'stone_grasp_scroll', 'time_slow_scroll',
+      'stone_wall_scroll', 'guardian_field_scroll',
+      'stone_golem_scroll', 'iron_sentinel_scroll',
+      'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
+      'warding_circle_scroll'],
     '000005.json': ['war_hammer', 'phoenix_feather', 'greater_healing',
       'heavy_tome', 'fire_spellbook', 'flame_burst_scroll',
       'blizzard_scroll', 'blueprint_enchant'],
@@ -907,6 +920,17 @@ test('S3. 000133: пулы подземелий — 108 свитков, кажд
     'holy_ground_scroll', 'prayer_scroll',
     'divine_protection_scroll', 'holy_light_scroll',
     'miracle_scroll',
+    'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
+    'magical_barrier_scroll', 'stony_hide_scroll',
+    'iron_bastion_scroll', 'bulwark_ward_scroll',
+    'resilience_scroll', 'thorns_scroll', 'fortitude_scroll',
+    'guardian_oath_scroll', 'stalwart_scroll',
+    'aura_of_protection_scroll', 'weaken_defense_scroll',
+    'corrode_scroll', 'stone_grasp_scroll', 'time_slow_scroll',
+    'stone_wall_scroll', 'guardian_field_scroll',
+    'stone_golem_scroll', 'iron_sentinel_scroll',
+    'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
+    'warding_circle_scroll',
   ]);
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
@@ -2630,9 +2654,21 @@ const DUN_REF_PREV = {
   '000004.json': {
     мобы: ['water_elemental', 'scorpion', 'spider', 'imp'],
     постройки_id: 34,
-    // Ре-пин 000232: приложенный чертёж (концом массива).
+    // Ре-пин 000232: приложенный чертёж (концом массива). Ре-пин
+    // 000235.11: +25 свитков волны Защита КОНЦОМ пула (6 → 31).
     предметы: ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll',
-      'magic_shield_scroll', 'blueprint_runecraft'],
+      'magic_shield_scroll', 'blueprint_runecraft',
+      'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
+      'magical_barrier_scroll', 'stony_hide_scroll',
+      'iron_bastion_scroll', 'bulwark_ward_scroll',
+      'resilience_scroll', 'thorns_scroll', 'fortitude_scroll',
+      'guardian_oath_scroll', 'stalwart_scroll',
+      'aura_of_protection_scroll', 'weaken_defense_scroll',
+      'corrode_scroll', 'stone_grasp_scroll', 'time_slow_scroll',
+      'stone_wall_scroll', 'guardian_field_scroll',
+      'stone_golem_scroll', 'iron_sentinel_scroll',
+      'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
+      'warding_circle_scroll'],
     руда: [
       ['sulfur', 'минерал'], ['stone_chunk', 'минерал'],
       ['quartz', 'минерал'], ['silver_ore', 'руда'], ['emerald', 'самоцвет'],
@@ -3768,5 +3804,89 @@ test('W-07. 000235.10: пул CRYPT 000002 — 57 предметов (7 + 25 + 2
     rec.предметы.filter((id) => tierOf(id) <= 1).length, 14,
     'баланс: 14 предметов T1 из 57 (ре-пин 000251: −chainmail, '
     + 'T1; RED: '
+    + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
+});
+
+// --- Задача 000235.11: волна Защита — пул DROWNED 000004 (W-07) ---
+//
+// Контракт memory/000235.11-protection-wave-content.md §1.8/§3/§4.2:
+// пул 000004 (DROWNED) = 6 legacy byte-identical + 25 свитков волны
+// Защита КОНЦОМ (порядок таблицы ТЗ, path-формы 000460…000484);
+// каждый из 25 новых РОВНО в одном пуле (скан ВСЕХ 5
+// assets/dungeons; пул .12 — 000003, не пересекается); ПИН: 26
+// свитков в пуле (25 волны + legacy magic_shield_scroll);
+// FALLBACK_DUNGEONS DROWNED (id 3, file://-ветка dungeon.js) — 1:1 с
+// каталогом; баланс: 31 предмет, T1 = 9/31 (6 legacy без tier = T1 +
+// 3 свитка T1: iron_bulwark/resilience/thorns).
+const PROT11_SCROLLS = [
+  'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
+  'magical_barrier_scroll', 'stony_hide_scroll',
+  'iron_bastion_scroll', 'bulwark_ward_scroll',
+  'resilience_scroll', 'thorns_scroll', 'fortitude_scroll',
+  'guardian_oath_scroll', 'stalwart_scroll',
+  'aura_of_protection_scroll', 'weaken_defense_scroll',
+  'corrode_scroll', 'stone_grasp_scroll', 'time_slow_scroll',
+  'stone_wall_scroll', 'guardian_field_scroll',
+  'stone_golem_scroll', 'iron_sentinel_scroll',
+  'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
+  'warding_circle_scroll',
+];
+
+test('W-07. 000235.11: пул DROWNED 000004 — 31 предмет (6 + 25 свитков КОНЦОМ), ПИН 26 свитков в пуле, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 9/31', () => {
+  const cat = loadDungeonCatalog();
+  const drowned = cat.find(({ file }) => file === '000004.json');
+  assert.ok(drowned, '000004.json (DROWNED) в каталоге');
+  assert.equal(drowned.data.id, 3, '000004.json — DROWNED (id 3)');
+  const rec = resolvedDungeonRecord(drowned.data, drowned.file);
+  assert.deepEqual(rec.предметы,
+    ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll',
+      'magic_shield_scroll', 'blueprint_runecraft',
+      ...PROT11_SCROLLS],
+    'DROWNED: 31 предмет = 6 (legacy, byte-identical) + 25 (Защита) '
+    + 'КОНЦОМ (RED: ' + rec.предметы.length
+    + ' — свитков волны Защита нет)');
+  const waveSet = new Set(PROT11_SCROLLS.concat(['magic_shield_scroll']));
+  assert.equal(rec.предметы.filter((id) => waveSet.has(id)).length,
+    26, 'ПИН: 26 свитков в пуле DROWNED (25 волны Защита + legacy '
+    + 'magic_shield_scroll; RED: '
+    + rec.предметы.filter((id) => waveSet.has(id)).length + ')');
+  const poolCount = new Map();
+  for (const { file, data } of cat) {
+    const r2 = resolvedDungeonRecord(data, file);
+    for (const id of r2.предметы)
+      poolCount.set(id, (poolCount.get(id) || 0) + 1);
+  }
+  for (const id of PROT11_SCROLLS) {
+    assert.equal(poolCount.get(id) || 0, 1,
+      id + ': РОВНО в одном пуле (RED: '
+      + (poolCount.get(id) || 0) + ')');
+  }
+  const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js',
+    'src/map.js'];
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.deepEqual(
+    [...sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.DROWNED]],
+    rec.предметы,
+    'FALLBACK_DUNGEONS DROWNED — 1:1 с каталогом (RED: fallback на '
+    + sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.DROWNED].length
+    + ', каталог на ' + rec.предметы.length + ')');
+  const I = require(path.join(ROOT, 'src', 'items.js'));
+  const tierOf = (id) => {
+    const it = I.getItem(id);
+    return (it && it.tier) || 1;
+  };
+  assert.equal(rec.предметы.length, 31,
+    'баланс: 31 предмет (RED: ' + rec.предметы.length + ')');
+  assert.equal(
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 9,
+    'баланс: 9 предметов T1 из 31 (6 legacy без tier + 3 свитка T1; '
+    + 'RED: '
     + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });

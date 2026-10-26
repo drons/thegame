@@ -1,0 +1,13 @@
+{
+  "id": "stony_hide_scroll",
+  "name": "Свиток: Каменный панцирь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Каменный панцирь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "stony_hide"
+  }
+}

@@ -254,12 +254,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (ровно 117 заклинаний — ре-пин 000235.10: +25 волны Исцеление)', () => {
+test('spells-data.js: точное зеркало каталога JSON (ровно 142 заклинания — ре-пин 000235.11: +25 волны Защита)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 117, 'каталог: 117 файлов (RED: 92)');
-  assert.equal(SPELLS.length, 117, 'SPELLS — 117 заклинаний (RED: 92)');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 117, 'SPELLS_BY_ID — 117 id (RED: 92)');
+  assert.equal(files.length, 142, 'каталог: 142 файла (RED: 117)');
+  assert.equal(SPELLS.length, 142, 'SPELLS — 142 заклинания (RED: 117)');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 142, 'SPELLS_BY_ID — 142 id (RED: 117)');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно
   // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
@@ -1353,7 +1353,7 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
-  assert.equal(SPELLS.length, 117, 'зеркало: 117 заклинаний (ре-пин 000235.10: +25 волны Исцеление; RED: 92)');
+  assert.equal(SPELLS.length, 142, 'зеркало: 142 заклинания (ре-пин 000235.11: +25 волны Защита; RED: 117)');
   assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
     'SPELLS[16] — зеркало 000017.json');
   assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
@@ -1849,9 +1849,9 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     '«здания»[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000211.04 R2: 117 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 26/114/151 — ре-пин 000235.10: +25 волны Исцеление)', () => {
+test('000211.04 R2: 142 заклинания — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 29/139/226 — ре-пин 000235.11: +25 волны Защита)', () => {
   const files = listSpellFiles();
-  assert.equal(files.length, 117, 'каталог: 117 файлов (ре-пин 000235.10: +25 волны Исцеление; RED: 92)');
+  assert.equal(files.length, 142, 'каталог: 142 файла (ре-пин 000235.11: +25 волны Защита; RED: 117)');
   const { byId } = loadCatalog();
   const { SPELLS } = loadSpellsData();
   let baseRefs = 0;
@@ -1908,22 +1908,23 @@ test('000211.04 R2: 117 заклинаний — база/предметы/зд�
       `${f}: id целей «здания» = прежним значениям (зеркало)`);
   });
   // Анти-вакуум: точные счётчики ссылок (контракт §1/§2; ре-пин
-  // 000235.10: +25 волны Исцеление — 3 новых base-ссылки/цели
-  // (holy_mending→greater_heal, divine_favor→blessing,
-  // swift_prayer→divine_favor), 25 item-ссылок/целей (свои свитки),
-  // 50 building-ссылок без новых целей (000019/000021 — уже цели);
-  // 000235.09: +25 волны Тень — 6 base, 25 item, 25 building).
-  assert.equal(baseRefs, 26, 'анти-вакуум: ровно 26 base-ссылок (91 null) (ре-пин 000235.10: RED 23)');
-  assert.equal(itemRefs, 114, 'анти-вакуум: 114 item-ссылок (ре-пин 000235.10: RED 89)');
-  assert.equal(buildingRefs, 151, 'анти-вакуум: 151 building-ссылок (ре-пин 000235.10: RED 101)');
-  assert.equal(baseRefs + itemRefs + buildingRefs, 291,
-    'всего ссылок: 291 (26 + 114 + 151) (ре-пин 000235.10: RED 213)');
-  assert.equal(filesWithItems, 111,
-    'анти-вакуум: 111 файлов с «предметы» (6 без ключа) (ре-пин 000235.10: RED 86)');
-  assert.equal(baseTargets.size, 26,
-    'уникальные цели: 26 spells (23 прежних + greater_heal, blessing, divine_favor) (ре-пин 000235.10: RED 23)');
-  assert.equal(itemTargets.size, 103, 'уникальные цели: 103 items (ре-пин 000235.10: RED 78)');
-  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000019/000021 уже цели)');
+  // 000235.11: +25 волны Защита — 3 новые base-ссылки/цели
+  // (shield_wall→iron_bulwark, magical_barrier→ward,
+  // iron_bastion→shield_wall), 25 item-ссылок/целей (свои свитки),
+  // 75 building-ссылок без новых целей (000019/000021/000038 —
+  // уже цели); 000235.10: +25 волны Исцеление — 3 base, 25 item,
+  // 50 building; 000235.09: +25 волны Тень — 6 base, 25 item, 25 building).
+  assert.equal(baseRefs, 29, 'анти-вакуум: ровно 29 base-ссылок (113 null) (ре-пин 000235.11: RED 26)');
+  assert.equal(itemRefs, 139, 'анти-вакуум: 139 item-ссылок (ре-пин 000235.11: RED 114)');
+  assert.equal(buildingRefs, 226, 'анти-вакуум: 226 building-ссылок (ре-пин 000235.11: RED 151)');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 394,
+    'всего ссылок: 394 (29 + 139 + 226) (ре-пин 000235.11: RED 291)');
+  assert.equal(filesWithItems, 136,
+    'анти-вакуум: 136 файлов с «предметы» (6 без ключа) (ре-пин 000235.11: RED 111)');
+  assert.equal(baseTargets.size, 29,
+    'уникальные цели: 29 spells (26 прежних + iron_bulwark, ward, shield_wall) (ре-пин 000235.11: RED 26)');
+  assert.equal(itemTargets.size, 128, 'уникальные цели: 128 items (ре-пин 000235.11: RED 103)');
+  assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000019/000021/000038 уже цели)');
 });
 
 test('000211.04 R3: membership — здания: города 51–54 проходят, id вне каталога — нет; все building-ссылки — члены каталога', () => {
@@ -3348,15 +3349,16 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 117 / items-data 459 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление (+25 заклинаний); ре-пин 000230.11: +50 руки; ре-пин 000230.12: +25 «правая рука»; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 torso-набора); sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 142 / items-data 484 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление (+25 заклинаний); ре-пин 000230.11: +50 руки; ре-пин 000230.12: +25 «правая рука»; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 torso-набора; ре-пин 000235.11: +25 волны Защита (+25 заклинаний)); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
-  assert.equal(SPELLS.length, 117, 'spells-data: 117 записей (RED: 92)');
+  assert.equal(SPELLS.length, 142, 'spells-data: 142 записей (RED: 117)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 459,
-    'items-data: 459 (каталог после мержа: 182 на базе 000230.09 '
+  assert.equal(itemsData.ITEMS.length, 484,
+    'items-data: 484 (каталог после мержа: 182 на базе 000230.09 '
     + '+ 25 свитков волны Лёд (000235.08) + 25 torso (000230.10) '
     + '+ 25 свитков волны Тень (000235.09) '
     + '+ 25 свитков волны Исцеление (000235.10) '
+    + '+ 25 свитков волны Защита (000235.11) '
     + '+ 50 рук (000230.11) + 25 «правая рука» (000230.12) '
     + '+ 25 left_hand (000230.13) + 25 колец (000230.14) '
     + '+ 50 ног/ступней (000230.15) '
@@ -4601,7 +4603,7 @@ test('000235.09 W-15: drain_life/soul_drain {value:0.5} в каталоге (п�
     n += 1;
   }
   assert.equal(n, 29,
-    'урон-заклинаний в каталоге: 29 из 117 (ре-пин 000235.10: +25 волны Исцеление; урона НЕТ — smite/unholy_wrath = «дебаф»; RED: 29 из 92)');
+    'урон-заклинаний в каталоге: 29 из 142 (ре-пин 000235.11: +25 волны Защита; урона НЕТ; RED: 29 из 117)');
 });
 
 // --- Задача 000235.10: волна Исцеление — 25 заклинаний + 25 свитков (TDD) ---
@@ -5943,6 +5945,628 @@ test('000235.10 W-16: divine_protection — castOutOfCombat {ok, запись da
     'main.js: buffMods.incomingMult (RED: нет)');
   assert.ok(mainSrc.includes('0.85'),
     'main.js: калибровка 0.85 (−15%) (RED: нет)');
+});
+
+// --- Задача 000235.11: волна Защита — 25 заклинаний + 25 свитков (TDD) ---
+//
+// Контракт: memory/000235.11-protection-wave-content.md. RED: записи/
+// зеркала/гейты отсутствуют (ENOENT / undefined / count / отсутствие
+// гейта) — осмысленно, не синтаксис. Таблица ТЗ дословно (кроме
+// stony_hide — переименование §11.2); нумерация append-only: spells
+// 000118–000142, свитки items 000460–000484 (тот же порядок).
+// W-08 = ре-пин fire W-08 (spells-data 117→142 / items-data 459→484 —
+// выше в файле).
+
+const PROT11 = [
+  // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
+  ['iron_bulwark', 'Железный бастион', 'защита', 1, 1, null, 4, false],
+  ['aegis', 'Эгида', 'защита', 2, 1, null, 8, false],
+  ['shield_wall', 'Стена щитов', 'защита', 2, 2,
+    'assets/spells/000118.json', 7, false],
+  ['magical_barrier', 'Магический барьер', 'защита', 3, 3,
+    'assets/spells/000014.json', 13, false],
+  ['stony_hide', 'Каменный панцирь', 'защита', 3, 1, null, 12, false],
+  ['iron_bastion', 'Железная твердыня', 'защита', 4, 3,
+    'assets/spells/000120.json', 20, false],
+  ['bulwark_ward', 'Ограда бастиона', 'защита', 4, 1, null, 20, false],
+  ['resilience', 'Стойкость', 'баф', 1, 1, null, 3, false],
+  ['thorns', 'Шипы', 'баф', 1, 1, null, 4, false],
+  ['fortitude', 'Крепость духа', 'баф', 2, 1, null, 6, false],
+  ['guardian_oath', 'Клятва хранителя', 'баф', 2, 1, null, 7, false],
+  ['stalwart', 'Непоколебимость', 'баф', 3, 1, null, 13, false],
+  ['aura_of_protection', 'Аура защиты', 'баф', 3, 1, null, 12, false],
+  ['weaken_defense', 'Ослабление защиты', 'дебаф', 2, 1, null, 6, false],
+  ['corrode', 'Коррозия', 'дебаф', 3, 1, null, 11, false],
+  ['stone_grasp', 'Каменная хватка', 'контроль', 2, 1, null, 6, false],
+  ['time_slow', 'Замедление времени', 'контроль', 3, 1, null, 12, false],
+  ['stone_wall', 'Каменная стена', 'создание', 2, 1, null, 7, false],
+  ['guardian_field', 'Хранительное поле', 'создание', 3, 1, null, 12, false],
+  ['stone_golem', 'Каменный голем', 'призыв', 3, 1, null, 14, false],
+  ['iron_sentinel', 'Железный страж', 'призыв', 4, 1, null, 20, false],
+  ['stone_anchor', 'Каменный якорь', 'телепорт', 2, 1, null, 7, true],
+  ['recall', 'Возврат', 'телепорт', 2, 1, null, 7, true],
+  ['gate', 'Врата', 'телепорт', 3, 1, null, 12, true],
+  ['warding_circle', 'Круг защиты', 'внебой', 3, 1, null, 10, true],
+];
+const PROT11_IDS = PROT11.map((r) => r[0]);
+const PROT11_OC = ['stone_anchor', 'recall', 'gate', 'warding_circle'];
+
+function protSpellFile(i) {
+  return path.join(DIR, String(118 + i).padStart(6, '0') + '.json');
+}
+function protScrollFile(i) {
+  return `assets/items/${String(460 + i).padStart(6, '0')}.json`;
+}
+
+test('000235.11 W-01: пин переименования — stony_hide (000122) = «Каменный панцирь» (id НЕ менять; имя «Каменная кожа» занято stone_skin 000013 — тот её ХРАНИТ, регрессия); sweep уникальности `название` по ВСЕМУ каталогу — 142 без дублей', () => {
+  const dataMod = loadSpellsData();
+  const s = dataMod.SPELLS_BY_ID['stony_hide'];
+  assert.ok(s,
+    'W-01: stony_hide — запись в зеркале (RED: нет — файла/регена нет)');
+  assert.equal(s.название, 'Каменный панцирь',
+    'stony_hide: название «Каменный панцирь» (переименование §11.2)');
+  assert.equal(s.id, 'stony_hide', 'stony_hide: id НЕ менять');
+  const legacy = dataMod.SPELLS_BY_ID['stone_skin'];
+  assert.ok(legacy, 'фикстура: 000013 stone_skin (регрессия)');
+  assert.equal(legacy.название, 'Каменная кожа',
+    'stone_skin: «Каменная кожа» НЕ тронута (регрессия — чужое имя)');
+  const names = dataMod.SPELLS.map((x) => x.название);
+  assert.equal(names.length, 142,
+    'каталог: 142 заклинания (RED: ' + names.length + ')');
+  const seen = new Set();
+  for (const n of names) {
+    assert.ok(!seen.has(n), 'дубль названия: «' + n + '» (sweep)');
+    seen.add(n);
+  }
+});
+
+test('000235.11 W-02: 25 записей spells — id/название/школа=защита/атрибут=wisdom/действие/уровень/степень/база/мани/icon/icon_prompt/описание/здания [000019,000021,000038]/предметы = СВОЙ свиток (000460–000484, тот же порядок)/вне_боя РОВНО у 4 (stone_anchor/recall/gate/warding_circle)', () => {
+  let ocCount = 0;
+  PROT11.forEach((row, i) => {
+    const [id, name, action, level, degree, base, mana, oc] = row;
+    const f = protSpellFile(i);
+    assert.ok(fs.existsSync(f),
+      `W-02: запись отсутствует — ${path.basename(f)} (${id}) (RED: файл нет)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.equal(d.id, id, `${id}: id`);
+    assert.equal(d.название, name, `${id}: название`);
+    assert.equal(d.школа, 'защита', `${id}: школа`);
+    assert.equal(d.атрибут, 'wisdom', `${id}: атрибут`);
+    assert.equal(d.действие, action, `${id}: действие`);
+    assert.equal(d.уровень, level, `${id}: уровень`);
+    assert.equal(d.степень, degree, `${id}: степень`);
+    assert.equal(d.база, base, `${id}: база`);
+    assert.equal(d.мани, mana, `${id}: мани`);
+    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.ok(typeof d.icon_prompt === 'string'
+      && d.icon_prompt.trim().length > 0,
+      `${id}: icon_prompt непустое`);
+    assert.ok(typeof d.описание === 'string'
+      && d.описание.trim().length > 0,
+      `${id}: описание непустое`);
+    assert.deepEqual(d.здания,
+      ['assets/buildings/000019.json', 'assets/buildings/000021.json',
+       'assets/buildings/000038.json'],
+      `${id}: здания = [19, 21, 38] (D12)`);
+    assert.deepEqual(d.предметы, [protScrollFile(i)],
+      `${id}: предметы = [свой свиток ${protScrollFile(i)}]`);
+    assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
+    if (oc) ocCount += 1;
+  });
+  assert.equal(ocCount, 4,
+    'вне_боя — ровно 4 (stone_anchor, recall, gate, warding_circle)');
+});
+
+test('000235.11 W-03: параметры — точный deepEqual на 23 (таблица §1.5); БЕЗ «параметры» — ровно 2: stone_grasp/time_slow; цепочки C1 (magical_barrier ст3 = ward 000014 ст2 + 1; регрессия magic_shield→ward цела) / C2 (shield_wall ст2 на 000118, iron_bastion ст3 на 000120); мани — точные значения §1.2 + полосы 000119 (L1 3–5 / L2 6–8 / L3 10–15 / L4 20)', () => {
+  const P = {
+    iron_bulwark: { value: 1, turns: 3 },
+    aegis: { stat: 'отражение', value: 0.25, turns: 3 },
+    shield_wall: { value: 1, turns: 3 },
+    magical_barrier: { value: 3, turns: 3 },
+    stony_hide: { stat: 'иммунитет_контроля', value: 1, turns: 3 },
+    iron_bastion: { value: 2, turns: 3 },
+    bulwark_ward: { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+    resilience: { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+    thorns: { stat: 'отражение', value: 0.25, turns: 3 },
+    fortitude: { stat: 'иммунитет_контроля', value: 1, turns: 3 },
+    guardian_oath: { stat: 'броня', value: 1, turns: 3 },
+    stalwart: { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+    aura_of_protection: { stat: 'броня', value: 1, turns: 3 },
+    weaken_defense: { stat: 'броня_вниз', value: 0.5, turns: 3 },
+    corrode: { stat: 'урон_вниз', value: 0.15, turns: 3 },
+    stone_wall: { object: 'стена', turns: 5 },
+    guardian_field: { object: 'зона', stat: 'получаемый_урон',
+      value: 0.15, turns: 3, radius: 2 },
+    stone_golem: { summon: 'stone_golem', turns: 4 },
+    iron_sentinel: { summon: 'bone_coloss', turns: 4 },
+    stone_anchor: { mode: 'метка_установить' },
+    recall: { mode: 'метка_вернуться' },
+    gate: { mode: 'город' },
+    warding_circle: { days: 1, radius: 5 },
+  };
+  const NO_PARAMS = new Set(['stone_grasp', 'time_slow']);
+  assert.equal(NO_PARAMS.size, 2, 'фикстура: 2 без параметров');
+  PROT11.forEach((row, i) => {
+    const id = row[0];
+    const f = protSpellFile(i);
+    assert.ok(fs.existsSync(f), `W-03: запись отсутствует — ${id} (RED)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const expected = P[id];
+    if (expected !== undefined) {
+      assert.deepEqual(d.параметры, expected, `${id}: параметры по таблице`);
+    } else {
+      assert.equal(d.параметры, undefined,
+        `${id}: БЕЗ «параметры» (${NO_PARAMS.has(id)
+          ? 'таблица §1.5' : 'ошибка таблицы'})`);
+    }
+  });
+  // C1 — расширение СУЩЕСТВУЮЩЕЙ цепочки magic_shield→ward:
+  // magical_barrier ст3 = ward (000014) ст2 + 1.
+  {
+    const row = PROT11.find((r) => r[0] === 'magical_barrier');
+    const parent = JSON.parse(
+      fs.readFileSync(path.join(DIR, '000014.json'), 'utf8'));
+    assert.equal(parent.id, 'ward', 'фикстура: 000014 = ward');
+    assert.equal(parent.степень, 2, 'фикстура: ward ст2');
+    assert.equal(parent.уровень, 3, 'фикстура: ward ур3');
+    assert.equal(parent.школа, 'защита', 'фикстура: одна школа');
+    assert.equal(row[4], parent.степень + 1,
+      'C1: magical_barrier ст3 = ward ст2 + 1');
+    assert.ok(row[3] >= parent.уровень, 'C1: уровень не ниже предка');
+    assert.ok(row[6] >= parent.мани, 'C1: мани не ниже предка (13 ≥ 12)');
+    assert.equal(row[5], 'assets/spells/000014.json',
+      'C1: база = файл предка (таблица)');
+    const f = protSpellFile(PROT11_IDS.indexOf('magical_barrier'));
+    if (fs.existsSync(f)) {
+      const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+      assert.equal(d.база, 'assets/spells/000014.json',
+        'C1: база = файл предка (файл)');
+    }
+    const base = JSON.parse(
+      fs.readFileSync(path.join(DIR, '000012.json'), 'utf8'));
+    assert.equal(base.id, 'magic_shield',
+      'фикстура: 000012 = magic_shield');
+    assert.equal(parent.база, 'assets/spells/000012.json',
+      'C1 регрессия: ward.база = 000012 (цепочка цела)');
+  }
+  // C2 — новая цепочка iron_bulwark → shield_wall → iron_bastion.
+  const byId = new Map(PROT11.map((r) => [r[0], r]));
+  const CHAINS = [
+    ['shield_wall', 'iron_bulwark'],
+    ['iron_bastion', 'shield_wall'],
+  ];
+  for (const [child, parent] of CHAINS) {
+    const ci = PROT11_IDS.indexOf(child);
+    const pi = PROT11_IDS.indexOf(parent);
+    assert.ok(ci >= 0 && pi >= 0, `цепочка: ${child}/${parent} в таблице`);
+    const childDegree = byId.get(child)[4];
+    const parentDegree = byId.get(parent)[4];
+    assert.equal(childDegree, parentDegree + 1,
+      `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
+    assert.equal(byId.get(child)[5],
+      `assets/spells/${String(118 + pi).padStart(6, '0')}.json`,
+      `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
+  }
+  for (const [child, parent] of CHAINS) {
+    const ci = PROT11_IDS.indexOf(child);
+    const f = protSpellFile(ci);
+    if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const parentFile = String(118 + PROT11_IDS.indexOf(parent))
+      .padStart(6, '0') + '.json';
+    assert.equal(d.база, 'assets/spells/' + parentFile,
+      `цепочка ${parent} → ${child}: база = файл предка`);
+  }
+  // Мани — в полосах по уровню + точные значения §1.2 (таблица PROT11).
+  const BANDS = { 1: [3, 5], 2: [6, 8], 3: [10, 15], 4: [20, 20] };
+  PROT11.forEach(([id, , , level, , , mana]) => {
+    const [lo, hi] = BANDS[level];
+    assert.ok(mana >= lo && mana <= hi,
+      `${id}: мани ${mana} в полосе L${level} [${lo}..${hi}]`);
+  });
+});
+
+test('000235.11 W-04: case «защита» params-aware — legacy три (magic_shield/stone_skin/ward — ключа «параметры» НЕТ) бит-в-бит {armor: 1+степень, turns: 3}, c.ps.buff нетронут; плоская (value без stat) — armor = value (iron_bulwark 1 / magical_barrier 3); hasStat — armor 1+степень + вторичный баф (aegis {отражение,0.25,3} / stony_hide {иммунитет_контроля,1,3} — NO-OP: пишутся, потребителя нет, краха нет)', () => {
+  const dataMod = loadSpellsData();
+  const { castSpell } = loadSpells();
+  // (a) legacy — бит-в-бит (регрессия, «параметры» нет).
+  for (const [id, armor, mana] of [
+    ['magic_shield', 2, 5], ['stone_skin', 2, 8], ['ward', 3, 12]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 30 });
+    const c = soloCombat(p, 'wolf');
+    const poolBefore = c.ps.spellWis;
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.deepEqual(c.ps.shield, { armor, turns: 3 },
+      `${id}: legacy — бит-в-бит {armor: 1+степень, turns: 3}`);
+    assert.equal(c.ps.buff, null,
+      `${id}: legacy — c.ps.buff нетронут (стата нет)`);
+    assert.equal(c.ps.spellWis, poolBefore - 1, `${id}: пул −1`);
+    assert.equal(p.mp, 30 - mana, `${id}: мана −${mana}`);
+  }
+  // (b) плоская — value без stat → armor = value.
+  for (const [id, armor, mana] of [
+    ['iron_bulwark', 1, 4], ['magical_barrier', 3, 13]]) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} (RED: нет)`);
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 30 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.deepEqual(c.ps.shield, { armor, turns: 3 },
+      `${id}: плоская — armor = value (${armor})`);
+    assert.equal(c.ps.buff, null,
+      `${id}: плоская — c.ps.buff нетронут (стата нет)`);
+    assert.equal(p.mp, 30 - mana, `${id}: мана −${mana}`);
+  }
+  // (c) hasStat — armor 1+степень + вторичный баф (NO-OP-статы).
+  for (const [id, stat, value] of [
+    ['aegis', 'отражение', 0.25],
+    ['stony_hide', 'иммунитет_контроля', 1]]) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} (RED: нет)`);
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 30 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 },
+      `${id}: hasStat — armor 1+степень(1) = 2`);
+    assert.deepEqual(c.ps.buff, { stat, value, turns: 3 },
+      `${id}: вторичный баф {${stat}, ${value}, 3} (NO-OP: краха нет)`);
+  }
+});
+
+test('000235.11 W-04b: PARTY_DEFENSE_IDS — shield_wall/iron_bastion/bulwark_ward: игрок + ВСЕ живые союзники, СВОЙ объект щита/бафа на КАЖДУЮ цель (общей ссылки НЕТ — blocker .10 W-12a.1); тик — turns 3→2→1→0 у ВСЕХ носителей (ровно 3 активных раунда, включая каст)', () => {
+  const dataMod = loadSpellsData();
+  const { castSpell } = loadSpells();
+  const CASES = [
+    ['shield_wall', 1, null],
+    ['iron_bastion', 2, null],
+    ['bulwark_ward', 2,
+      { stat: 'получаемый_урон', value: 0.15, turns: 3 }],
+  ];
+  for (const [id, armor, buff] of CASES) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04b: ${id} (RED: нет)`);
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const allies = [];
+    for (let i = 0; i < 3; i++) {
+      allies.push({ name: 'Союзник' + i, role: 'melee', level: 1,
+        dmg: 1, hp: 1, skills: [], spells: [] });
+    }
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 7, allies });
+    const w = c.units.find((u) => u.side === 'mob');
+    w.x = 0; w.y = 0; // далеко — без вмешательства
+    c._rng = () => 0.99; // удар волка всегда мимо
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.buffed, 'party', `${id}: out.buffed = 'party'`);
+    assert.deepEqual(r.shield, { armor, turns: 3 }, `${id}: out.shield`);
+    assert.deepEqual(c.ps.shield, { armor, turns: 3 },
+      `${id}: c.ps.shield (игрок)`);
+    const a = c.units.filter((u) => u.side === 'ally');
+    assert.equal(a.length, 3, `${id}: партия — 3 живых союзника`);
+    for (const x of a) {
+      assert.deepEqual(x.shield, { armor, turns: 3 },
+        `${id}: союзник ${x.name} — a.shield`);
+      if (buff) {
+        assert.deepEqual(x.buff, buff,
+          `${id}: союзник ${x.name} — a.buff`);
+      } else {
+        assert.equal(x.buff, undefined,
+          `${id}: союзник ${x.name} — a.buff нетронут (стата нет)`);
+      }
+    }
+    if (buff) {
+      assert.deepEqual(c.ps.buff, buff,
+        `${id}: c.ps.buff (игрок, партия-стат)`);
+    } else {
+      assert.equal(c.ps.buff, null,
+        `${id}: c.ps.buff нетронут (стата нет)`);
+    }
+    // Свои объекты: общих ссылок между носителями НЕТ.
+    const sseq = [c.ps.shield, a[0].shield, a[1].shield, a[2].shield];
+    for (let i = 0; i < sseq.length - 1; i++) {
+      assert.notStrictEqual(sseq[i], sseq[i + 1],
+        `${id}: объекты щитов РАЗНЫЕ (носитель ${i})`);
+    }
+    let bseq = null;
+    if (buff) {
+      bseq = [c.ps.buff, a[0].buff, a[1].buff, a[2].buff];
+      for (let i = 0; i < bseq.length - 1; i++) {
+        assert.notStrictEqual(bseq[i], bseq[i + 1],
+          `${id}: объекты бафов РАЗНЫЕ (носитель ${i})`);
+      }
+    }
+    // Очередь: игрок → 3 союзника → волк: раунд = 4 endTurn
+    // (startRound — по исчерпании последнего слота).
+    const round = () => {
+      c.endTurn(); c.endTurn(); c.endTurn(); c.endTurn();
+    };
+    round(); // тик 1: 3 → 2 — активен во 2-м раунде
+    for (const e of sseq) {
+      assert.equal(e.turns, 2, `${id}: тик 1 — 3 → 2`);
+    }
+    if (bseq) for (const e of bseq) {
+      assert.equal(e.turns, 2, `${id}: тик 1 баф — 3 → 2`);
+    }
+    round(); // тик 2: 2 → 1 — активен в 3-м раунде
+    for (const e of sseq) {
+      assert.equal(e.turns, 1, `${id}: тик 2 — 2 → 1`);
+    }
+    if (bseq) for (const e of bseq) {
+      assert.equal(e.turns, 1, `${id}: тик 2 баф — 2 → 1`);
+    }
+    round(); // тик 3: 1 → 0 — с 4-го раунда истёк
+    for (const e of sseq) {
+      assert.equal(e.turns, 0,
+        `${id}: тик 3 — 1 → 0 (ровно 3 активных раунда, включая каст)`);
+    }
+    if (bseq) for (const e of bseq) {
+      assert.equal(e.turns, 0, `${id}: тик 3 баф — 1 → 0`);
+    }
+  }
+});
+
+test('000235.11 W-05: fail-closed гейт «защита» С «параметрами» (000235.01-паттерн «баф»/«дебаф»/«создание»): stat вне union → «неполные параметры: stat»; value не число → «неполные параметры: value»; turns 0 → «неполные параметры: turns» — все отказы ДО расхода пула/маны, canCastSpell — зеркало (одна причина, 000037); legacy БЕЗ ключа «параметры» — гейта НЕТ, каст ok (бит-в-бит)', () => {
+  const dataMod = loadSpellsData();
+  const { castSpell, canCastSpell } = loadSpells();
+  for (const [tag, params] of [
+    ['stat', { stat: 'плохой_стат', value: 1, turns: 3 }],
+    ['value', { stat: 'отражение', value: 'много', turns: 3 }],
+    ['turns', { stat: 'отражение', value: 0.25, turns: 0 }]]) {
+    const g = ocGuest0235('w05_11_' + tag, {
+      школа: 'защита', действие: 'защита', вне_боя: false,
+      атрибут: 'wisdom', параметры: params,
+    });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const p = spellHero({ spells: [g.id], wisdom: 10, mp: 40 });
+      const c = soloCombat(p, 'wolf');
+      const poolBefore = c.ps.spellWis;
+      const mirror = canCastSpell(c, g.id);
+      const core = castSpell(c, g.id);
+      assert.equal(core.ok, false,
+        `гейт ${tag}: отказ (RED: гейта для «защита» нет — каст ok)`);
+      assert.equal(core.reason, 'неполные параметры: ' + tag,
+        `гейт ${tag}: причина`);
+      assert.equal(mirror.ok, false,
+        `гейт ${tag}: зеркало — тот же отказ`);
+      assert.equal(mirror.reason, core.reason,
+        `гейт ${tag}: одна причина (зеркало 000037)`);
+      assert.equal(c.ps.spellWis, poolBefore,
+        `гейт ${tag}: пул при отказе не тратится`);
+      assert.equal(p.mp, 40, `гейт ${tag}: мана при отказе не тратится`);
+      assert.deepEqual(c.ps.shield, { armor: 0, turns: 0 },
+        `гейт ${tag}: отказ — щит не записан (боевой первичный {0,0})`);
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  // Ревью 000235.11: stat, присутствующий, но НЕ строка — отказ
+  // (строже старого гейта, который трактовал его как плоскую броню;
+  // строго как «баф»/«дебаф» 000235.01; плоская броня БЕЗ ключа
+  // stat — легальна — legacy-блок ниже).
+  {
+    const g = ocGuest0235('w05_11_stat_num', {
+      школа: 'защита', действие: 'защита', вне_боя: false,
+      атрибут: 'wisdom', параметры: { stat: 42, value: 1, turns: 3 },
+    });
+    try {
+      pushOcGuests(dataMod, [g]);
+      const p = spellHero({ spells: [g.id], wisdom: 10, mp: 40 });
+      const c = soloCombat(p, 'wolf');
+      const poolBefore = c.ps.spellWis;
+      const mirror = canCastSpell(c, g.id);
+      const core = castSpell(c, g.id);
+      assert.equal(core.ok, false,
+        'гейт stat не-строка: отказ (было бы: плоская броня)');
+      assert.equal(core.reason, 'неполные параметры: stat',
+        'гейт stat не-строка: причина');
+      assert.equal(mirror.ok, false,
+        'гейт stat не-строка: зеркало — тот же отказ');
+      assert.equal(mirror.reason, core.reason,
+        'гейт stat не-строка: одна причина (зеркало 000037)');
+      assert.equal(c.ps.spellWis, poolBefore,
+        'гейт stat не-строка: пул при отказе не тратится');
+      assert.equal(p.mp, 40,
+        'гейт stat не-строка: мана при отказе не тратится');
+      assert.deepEqual(c.ps.shield, { armor: 0, turns: 0 },
+        'гейт stat не-строка: отказ — щит не записан');
+    } finally {
+      popOcGuests(dataMod, [g]);
+    }
+  }
+  // Legacy БЕЗ ключа «параметры» — гейта нет (фикстура magic_shield).
+  {
+    const p = spellHero({ spells: ['magic_shield'], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, 'magic_shield');
+    assert.equal(r.ok, true, 'legacy: каст ok (' + r.reason + ')');
+    assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 },
+      'legacy: бит-в-бит {armor: 1+степень, 3}');
+  }
+});
+
+test('000235.11 W-06: guardian_oath — СТАНДАРТНЫЙ путь «баф»: targetId (живой союзник) → t.buff {броня,1,3} (out.buffed = id союзника), без targetId → c.ps.buff (out.buffed «player»); PARTY_BUFF_IDS += stalwart/aura_of_protection — эффект на ВСЮ партию (c.ps.buff + a.buff каждого союзника, out.buffed «party»)', () => {
+  const dataMod = loadSpellsData();
+  const { castSpell } = loadSpells();
+  for (const id of ['guardian_oath', 'stalwart', 'aura_of_protection']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-06: ${id} (RED: нет)`);
+  }
+  // (a) guardian_oath: союзник-цель — t.buff.
+  {
+    const p = spellHero({ spells: ['guardian_oath'], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 7, allies: [{ name: 'Вольк', role: 'melee', level: 1,
+        dmg: 1.2, hp: 1.1, skills: [], spells: [] }] });
+    const a = c.units.find((u) => u.side === 'ally');
+    const r = castSpell(c, 'guardian_oath', a.id);
+    assert.equal(r.ok, true, 'guardian_oath: каст ok (' + r.reason + ')');
+    assert.equal(r.buffed, a.id, 'guardian_oath: out.buffed = id союзника');
+    assert.deepEqual(a.buff, { stat: 'броня', value: 1, turns: 3 },
+      'guardian_oath: t.buff {броня,1,3}');
+    assert.equal(c.ps.buff, null,
+      'guardian_oath: c.ps.buff нетронут (цель — союзник, не сам)');
+  }
+  // (b) guardian_oath: без targetId — c.ps.buff.
+  {
+    const p = spellHero({ spells: ['guardian_oath'], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, 'guardian_oath');
+    assert.equal(r.ok, true, 'guardian_oath: каст ok (' + r.reason + ')');
+    assert.equal(r.buffed, 'player', 'guardian_oath: out.buffed = player');
+    assert.deepEqual(c.ps.buff, { stat: 'броня', value: 1, turns: 3 },
+      'guardian_oath: c.ps.buff {броня,1,3}');
+  }
+  // (c) PARTY_BUFF_IDS += stalwart/aura_of_protection — вся партия.
+  for (const [id, stat, value] of [
+    ['stalwart', 'получаемый_урон', 0.15],
+    ['aura_of_protection', 'броня', 1]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 7, allies: [
+        { name: 'Союзник0', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+        { name: 'Союзник1', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+      ] });
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.buffed, 'party', `${id}: out.buffed = 'party'`);
+    const eff = { stat, value, turns: 3 };
+    assert.deepEqual(c.ps.buff, eff, `${id}: c.ps.buff`);
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      assert.deepEqual(a.buff, eff, `${id}: союзник ${a.name} — u.buff`);
+    }
+  }
+});
+
+test('000235.11 W-07: контроль/создание/дебаф — stone_grasp/time_slow t.bind {turns:1} (t.debuff НЕТ — «контроль» пишет ТОЛЬКО bind); weaken_defense t.debuff {броня_вниз,0.5,3} / corrode {урон_вниз,0.15,3} (потребители ЕСТЬ); stone_wall — c.walls {cells, turns:5}, клетки в c.obstacles, тик 5→4; guardian_field — СТАНДАРТНАЯ зона c.zone {radius 2, «получаемый_урон»}, союзники u.buff, игрок НЕ в зоне (личная ссылка c.ps.buff нетронута), тик зоны 3→2', () => {
+  const dataMod = loadSpellsData();
+  const { castSpell } = loadSpells();
+  for (const id of ['stone_grasp', 'time_slow', 'weaken_defense',
+    'corrode', 'stone_wall', 'guardian_field']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-07: ${id} (RED: нет)`);
+  }
+  // (a) контроль — t.bind {turns:1}, тик/урона нет.
+  for (const [id, mana] of [['stone_grasp', 6], ['time_slow', 12]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const r = castSpell(c, id, w.id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.bound, w.id, `${id}: out.bound`);
+    assert.deepEqual(w.bind, { turns: 1 }, `${id}: t.bind {turns:1}`);
+    assert.equal(w.debuff, undefined,
+      `${id}: t.debuff НЕТ («контроль» пишет только bind)`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана −${mana}`);
+  }
+  // (b) дебаф — t.debuff {stat, value, 3}.
+  for (const [id, stat, value, mana] of [
+    ['weaken_defense', 'броня_вниз', 0.5, 6],
+    ['corrode', 'урон_вниз', 0.15, 11]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const r = castSpell(c, id, w.id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.debuffed, w.id, `${id}: out.debuffed`);
+    assert.deepEqual(w.debuff, { stat, value, turns: 3 },
+      `${id}: t.debuff {${stat}, ${value}, 3}`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана −${mana}`);
+  }
+  // (c) stone_wall — c.walls + obstacles + тик.
+  {
+    const p = spellHero({ spells: ['stone_wall'], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    w.x = 0; w.y = 0; // ряд стены (py−2) чист
+    c._rng = () => 0.99;
+    const r = castSpell(c, 'stone_wall');
+    assert.equal(r.ok, true, 'stone_wall: каст ok (' + r.reason + ')');
+    assert.equal(c.walls.length, 1, 'stone_wall: c.walls — 1 запись');
+    const wl = c.walls[0];
+    assert.equal(wl.turns, 5, 'stone_wall: turns 5 (таблица §1.5)');
+    assert.ok(Array.isArray(wl.cells) && wl.cells.length > 0,
+      'stone_wall: cells — непустой массив');
+    assert.equal(r.wall, wl.cells.length,
+      'stone_wall: out.wall = cells.length');
+    for (const [x, y] of wl.cells) {
+      assert.ok(c.obstacles.has(x + ',' + y),
+        'stone_wall: клетка (' + x + ',' + y + ') в c.obstacles');
+    }
+    c.endTurn(); // раунд 2: тик startRound (solo: игрок + волк = 1 слот)
+    assert.equal(c.walls[0].turns, 4, 'stone_wall: тик 5 → 4');
+  }
+  // (d) guardian_field — стандартная зона.
+  {
+    const p = spellHero({ spells: ['guardian_field'], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13, allies: [{ name: 'Вольк', role: 'melee', level: 1,
+        dmg: 1.2, hp: 1.1, skills: [], spells: [] }] });
+    const w = c.units.find((u) => u.side === 'mob');
+    w.x = 0; w.y = 0;
+    const a = c.units.find((u) => u.side === 'ally');
+    const personal = { stat: 'урон', value: 0.10, turns: 3 };
+    c.ps.buff = personal;
+    c._rng = () => 0.99;
+    const r = castSpell(c, 'guardian_field');
+    assert.equal(r.ok, true, 'guardian_field: каст ok (' + r.reason + ')');
+    assert.deepEqual(c.zone,
+      { x: c.px, y: c.py, radius: 2, stat: 'получаемый_урон',
+        value: 0.15, turns: 3 },
+      'guardian_field: c.zone — стандартная зона (radius 2)');
+    assert.equal(r.zone, 2, 'guardian_field: out.zone = radius');
+    assert.deepEqual(a.buff,
+      { stat: 'получаемый_урон', value: 0.15, turns: 3 },
+      'guardian_field: союзник в радиусе — u.buff');
+    assert.equal(c.ps.buff, personal,
+      'guardian_field: личный баф игрока НЕ ИЗМЕНЁН (та же ссылка — слот зоны не стирает; игрок не в зоне)');
+    c.endTurn(); c.endTurn();
+    assert.equal(c.zone.turns, 2, 'guardian_field: тик зоны 3 → 2');
+  }
+});
+
+test('000235.11 W-08: призывы — stone_golem → «Каменный голем» (assets/mobs/000033, shield) level 3 / iron_sentinel → «Костяной колосс» (summon bone_coloss 000015, shield) level 4: level = уровень спелла, summonTurns 4, статы из makeAlly (deepEqual); u.spells [] (HEAL_SUMMON_IDS НЕ расширяется — source-пин)', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['stone_golem', 'iron_sentinel']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-08: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  function summonCase(spellId, level, name, stats, mana) {
+    const p = spellHero({ spells: [spellId], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст призыва ok (${r.reason})`);
+    assert.ok(r.summoned, `${spellId}: r.summoned`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный в c.units`);
+    assert.equal(a.kind, 'summon', `${spellId}: kind summon`);
+    assert.equal(a.summonTurns, 4, `${spellId}: summonTurns 4`);
+    assert.equal(a.level, level, `${spellId}: level = уровень спелла`);
+    assert.deepEqual(
+      { name: a.name, role: a.role, maxHP: a.maxHP, damage: a.damage,
+        armor: a.armor, mp: a.mp },
+      { name, role: 'shield', ...stats },
+      `${spellId}: имя/роль/статы из MOB_TYPES (makeAlly level ${level})`);
+    assert.deepEqual(a.spells, [],
+      `${spellId}: u.spells [] (HEAL_SUMMON_IDS не расширен)`);
+    assert.equal(p.mp, 40 - mana, `${spellId}: мана −${mana}`);
+  }
+  // makeAlly: maxHP = round((8+4L)·hp·1.8 (shield)); damage =
+  // round((2+0.7L)·dmg); armor = mob.armor + floor(L/10); mp = 5+Int.
+  // stone_golem (000033: hp 2.5, dmg 1.2, armor 2, int 1) L3;
+  // bone_coloss (000015: hp 2.5, dmg 1.3, armor 2, int 1) L4.
+  summonCase('stone_golem', 3, 'Каменный голем',
+    { maxHP: 90, damage: 5, armor: 2, mp: 6 }, 14);
+  summonCase('iron_sentinel', 4, 'Костяной колосс',
+    { maxHP: 108, damage: 6, armor: 2, mp: 6 }, 20);
+  // Source-пин: HEAL_SUMMON_IDS НЕ расширяется (големы без книг хила
+  // — ТЗ их не обещает).
+  const spellsSrc = fs.readFileSync(
+    path.join(__dirname, '..', 'src', 'spells.js'), 'utf8');
+  assert.ok(spellsSrc.includes(
+    "new Set(['light_sprite', 'spirit_healer'])"),
+    'HEAL_SUMMON_IDS — без призывов .11 (RED: расширен)');
 });
 
 // Задача 000240: flame_step × free_cast (000230.17) — пин (tests-only,

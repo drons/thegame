@@ -1,0 +1,13 @@
+{
+  "id": "iron_bulwark_scroll",
+  "name": "Свиток: Железный бастион",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Железный бастион» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "iron_bulwark"
+  }
+}

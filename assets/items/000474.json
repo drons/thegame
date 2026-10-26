@@ -1,0 +1,13 @@
+{
+  "id": "corrode_scroll",
+  "name": "Свиток: Коррозия",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Коррозия» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "corrode"
+  }
+}

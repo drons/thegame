@@ -9194,6 +9194,18 @@ const SCROLL_IDS_000235 = [
   'holy_ground_scroll', 'prayer_scroll',
   'divine_protection_scroll', 'holy_light_scroll',
   'miracle_scroll',
+  // ре-пин 000235.11: +25 свитков волны Защита 000460–000484
+  'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
+  'magical_barrier_scroll', 'stony_hide_scroll',
+  'iron_bastion_scroll', 'bulwark_ward_scroll',
+  'resilience_scroll', 'thorns_scroll', 'fortitude_scroll',
+  'guardian_oath_scroll', 'stalwart_scroll',
+  'aura_of_protection_scroll', 'weaken_defense_scroll',
+  'corrode_scroll', 'stone_grasp_scroll', 'time_slow_scroll',
+  'stone_wall_scroll', 'guardian_field_scroll',
+  'stone_golem_scroll', 'iron_sentinel_scroll',
+  'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
+  'warding_circle_scroll',
 ];
 // Каталог ТЗ: id → {school, tier} (тиры = уровни заклинаний:
 // fireball L2, flame_burst L3, frost_bolt L1, blizzard L3, chill L1,

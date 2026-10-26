@@ -1,0 +1,13 @@
+{
+  "id": "shield_wall_scroll",
+  "name": "Свиток: Стена щитов",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Стена щитов» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "shield_wall"
+  }
+}

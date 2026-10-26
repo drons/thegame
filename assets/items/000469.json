@@ -1,0 +1,13 @@
+{
+  "id": "fortitude_scroll",
+  "name": "Свиток: Крепость духа",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Крепость духа» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "fortitude"
+  }
+}

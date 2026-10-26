@@ -1,0 +1,13 @@
+{
+  "id": "recall_scroll",
+  "name": "Свиток: Возврат",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Возврат» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "recall"
+  }
+}

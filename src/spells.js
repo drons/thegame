@@ -564,6 +564,30 @@
         };
       }
     }
+    // 000235.11: «защита» С «параметрами» — fail-closed ДО расхода
+    // (000235.01-паттерн «баф»/«дебаф»); legacy без ключа — гейта нет
+    // (бит-в-бит). stat без ключа — легален (плоская броня
+    // {value, turns}); stat, присутствующий, но не строка, — отказ
+    // (ревью 000235.11: строгость как у «баф»/«дебаф»).
+    if (spell.действие === 'защита' && spell.параметры) {
+      const pa = spell.параметры;
+      if (pa.stat !== undefined
+          && (typeof pa.stat !== 'string' || !EFFECT_STATS.has(pa.stat))) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: stat' },
+        };
+      }
+      if (typeof pa.value !== 'number' || !Number.isFinite(pa.value)) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: value' },
+        };
+      }
+      if (!Number.isInteger(pa.turns) || pa.turns < 1) {
+        return {
+          fail: { ok: false, reason: 'неполные параметры: turns' },
+        };
+      }
+    }
     return { ok: true, spell, p, t, poolKey, free };
   }
 
@@ -675,10 +699,33 @@
       }
       case 'защита': {
         // Временная броня (тик — в начале хода игрока, combat.js):
-        // держится ровно 3 раунда, включая раунд каста.
-        c.ps.shield = { armor: 1 + spell.степень, turns: 3 };
-        log(c, `${spell.название}: +${c.ps.shield.armor} брони на 3 раунда.`);
-        out.shield = { armor: c.ps.shield.armor, turns: c.ps.shield.turns };
+        // держится ровно `turns` раундов, включая раунд каста.
+        // 000235.11: `параметры` — плоская броня (value без stat) или
+        // вторичный баф (stat — aegis/stony_hide/bulwark_ward); legacy
+        // без «параметры» — бит-в-бит (1+степень, 3). PARTY_DEFENSE_IDS
+        // — игрок + ВСЕ живые союзники, СВОЙ объект на каждую цель
+        // (blocker .10 W-12a.1).
+        const pa = spell.параметры;
+        const hasStat = !!(pa && typeof pa.stat === 'string');
+        const armor = (!hasStat && pa && typeof pa.value === 'number')
+          ? pa.value : 1 + spell.степень;
+        const turns = (pa && typeof pa.turns === 'number') ? pa.turns : 3;
+        if (PARTY_DEFENSE_IDS.has(spellId)) {
+          c.ps.shield = { armor, turns };
+          if (hasStat) c.ps.buff = { stat: pa.stat, value: pa.value, turns };
+          for (const a of livingAllies(c)) {
+            a.shield = { armor, turns };
+            if (hasStat) a.buff = { stat: pa.stat, value: pa.value, turns };
+          }
+          log(c, `${spell.название}: +${armor} брони на ${turns} ходов (партия).`);
+          out.buffed = 'party';
+          out.shield = { armor, turns };
+          break;
+        }
+        c.ps.shield = { armor, turns };
+        if (hasStat) c.ps.buff = { stat: pa.stat, value: pa.value, turns };
+        log(c, `${spell.название}: +${armor} брони на ${turns} раунда.`);
+        out.shield = { armor, turns };
         break;
       }
       case 'ослабление': {
@@ -1080,9 +1127,15 @@
   const PORTAL_SEARCH_RADIUS = 25;
   const WARDING_SPELL_IDS = new Set(['warding_circle']);
   const PARTY_HEAL_IDS = new Set(['mass_heal', 'mass_holy_light']);
+  // 000235.11: +stalwart/aura_of_protection (волна Защита, «баф»).
   const PARTY_BUFF_IDS = new Set([
     'blessing', 'divine_favor', 'guardian_blessing', 'swift_prayer',
-    'faith_shield',
+    'faith_shield', 'stalwart', 'aura_of_protection',
+  ]);
+  // 000235.11: «защита» на партию — игрок + ВСЕ живые союзники,
+  // СВОЙ объект щита/бафа на каждую цель (blocker .10 W-12a.1).
+  const PARTY_DEFENSE_IDS = new Set([
+    'shield_wall', 'iron_bastion', 'bulwark_ward',
   ]);
   const ALLY_HEAL_IDS = new Set(['life_bloom', 'purify', 'regeneration']);
   const HEAL_SUMMON_IDS = new Set(['light_sprite', 'spirit_healer']);
