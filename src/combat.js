@@ -1675,7 +1675,7 @@
     return { ok: true, slot: s, item: r.name };
   }
 
-  // «Вытащить предмет» (SPEC: Удача) из инвентаря: 1 действие за ход.
+  // «Вытащить предмет» из инвентаря: 1 действие за ход.
   function playerInvItem(c, itemId) {
     const why = checkTurn(c);
     if (why) return { ok: false, reason: why };
