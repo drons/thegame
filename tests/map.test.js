@@ -39,6 +39,12 @@ const { generateSeedPixels, MAP_PNG_SIZE, MAP_PNG_SEED } = require('../src/mapse
 const { decodePng } = require('./png.js');
 const fs = require('node:fs');
 const vm = require('node:vm');
+const os = require('node:os');
+
+// Задача 000282: бюджеты perf-теста «160k tileAt» ниже; контракт и
+// замеры — memory/000282-tileat-load-gate.md.
+const TILEAT_BUDGET_MS = 5000;
+const TILEAT_BUDGET_RELAXED_MS = 30000;
 
 // «Браузерный» путь UMD: исполняем файл в чистом контексте без module/exports
 // (паттерн tests/global-settings.test.js).
@@ -1945,6 +1951,10 @@ test('перформанс: 160k tileAt (±200, реальный map.png, тёп
   // (окно 3x3); с окном 7x7 ожидается <1 с. 5000 мс покрывает медленный
   // CI. Тест на ТЕПЛОМ кэше (fpCache учитывается): прогрев отдельным
   // проходом.
+  // Задача 000282: load-aware гейт — memory/000282-tileat-load-gate.md.
+  const nproc = os.cpus().length;
+  const load = os.loadavg()[0];
+  const budget = load > nproc ? TILEAT_BUDGET_RELAXED_MS : TILEAT_BUDGET_MS;
   const { width, height, data } = decodePng('assets/map.png');
   const map = createMap({ width, height, data });
   for (let x = -200; x < 200; x++) {
@@ -1955,7 +1965,10 @@ test('перформанс: 160k tileAt (±200, реальный map.png, тёп
     for (let y = -200; y < 200; y++) map.tileAt(x, y);
   }
   const ms = Date.now() - t0;
-  assert.ok(ms < 5000, `160k tileAt за ${ms} мс — превышен бюджет 5000 мс`);
+  if (load > nproc) {
+    console.log(`000282 load-aware гейт: loadavg ${load} > ${nproc} (nproc) — расслабленный бюджет ${budget} мс, замер ${ms} мс`);
+  }
+  assert.ok(ms < budget, `160k tileAt за ${ms} мс — превышен бюджет ${budget} мс`);
 });
 
 test('фолбэк: vm без global-settings.js — города не генерируются, слотовой hash инвариант (перlin+map+buildings)', () => {
