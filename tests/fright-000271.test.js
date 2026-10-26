@@ -122,7 +122,7 @@ test('000271-FR-1: «Застращивание»: моб уровнем НИЖ�
     'checkVictory: одиночная группа fled — бой кончился');
 });
 
-test('000271-FR-2: вся группа fled — result {fled, xp:0, gold:0, defeated:0} и ровно 2 c._rng (красный)', () => {
+test('000271-FR-2: вся группа fled — result {fled, by:«mobs», xp:0, gold:0, defeated:0} и ровно 2 c._rng (красный)', () => {
   const p = fearHero(15);
   const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 1, seed: 13 });
   const w = c.units[0];
@@ -134,10 +134,13 @@ test('000271-FR-2: вся группа fled — result {fled, xp:0, gold:0, defe
   const atk = c.attack(w.id);
   assert.equal(atk.ok, true, 'удар — ok');
   assert.equal(w.fled, true, 'RED: моб сбежал');
-  // РОВНО 4 поля: items/allyXp/efirXp НЕТ (обработчик конца боя
-  // гвардит outcome === 'victory').
-  assert.deepEqual(c.result, { outcome: 'fled', xp: 0, gold: 0, defeated: 0 },
-    'fled — без лута/опыта (TIMID-семантика, checkVictory)');
+  // РОВНО 5 ПОЛЕЙ (000278: +by — происхождение 'fled'-исхода):
+  // items/allyXp/efirXp НЕТ (обработчик конца боя гвардит
+  // outcome === 'victory').
+  assert.deepEqual(c.result,
+    { outcome: 'fled', by: 'mobs', xp: 0, gold: 0, defeated: 0 },
+    'fled — без лута/опыта (TIMID-семантика, checkVictory); '
+    + 'by:«mobs» — сбежали ВРАГИ (000278)');
   assert.ok(c.log.includes('Противники разбежались.'),
     'лог: «Противники разбежались.»');
   assert.equal(calls, 2,
@@ -284,4 +287,46 @@ test('000271-FR-8: одно попадание — вампиризм ПЕРЕД
   assert.ok(iPanic >= 0, 'лог: «…в панике убегает!»');
   assert.ok(iVamp < iPanic,
     'порядок: хил ПЕРЕД паникой (вставка ПОСЛЕ вамп-блока)');
+});
+
+test('000271-FR-9: endTurn с fled-мобом — 0 атак/действий (гвард mobAct + серый слот advanceQueue; абсолютный пин, которого FR-7 не ловит) (зелёный)', () => {
+  const p = fearHero(15);
+  const c = createCombat({ player: p, mobs: ['wolf', 'wolf'], mobLevel: 1, seed: 13 });
+  c.obstacles.clear();
+  const w1 = c.units[0], w2 = c.units[1];
+  // Позиции ЭКСПЛИЦИТНО (фикстура FR-3): оба волка в ближней дальности.
+  w1.x = 3; w1.y = 2;
+  w2.x = 4; w2.y = 2;
+  standNextTo(c, w1);
+  standNextToPlayer(c, w2);
+  w1.maxHP = 200; w1.hp = 200;
+  w2.maxHP = 200; w2.hp = 200;
+  c._rng = () => 0.01;
+  const atk1 = c.attack(w1.id);
+  assert.equal(atk1.ok, true, 'удар 1 — ok');
+  assert.equal(atk1.hit, true, 'попадание');
+  assert.equal(w1.fled, true, 'w1 сбежал (000271)');
+  assert.equal(c.result, null, 'бой жив: остался w2');
+  // Очередь: «серый» слот w1 — ВТОРОЙ (после игрока). w2 выведен
+  // ОСОЗНАННО: живой w2 в том же endTurn зашумил бы hp-ассерт;
+  // startRound перестроит очередь (w1 исключится как fled).
+  c.turnOrder = ['player', w1.id];
+  c.turnIndex = 0;
+  c.phase = 'player';
+  const hp0 = p.hp;
+  const x0 = w1.x, y0 = w1.y;
+  const n0 = c.log.length;
+  const round0 = c.round;
+  c.endTurn();
+  assert.equal(c.phase, 'player', 'очередь вернулась к игроку');
+  assert.equal(c.round, round0 + 1,
+    'обход дошёл до startRound (round +1)');
+  assert.equal(p.hp, hp0,
+    '0 урона по игроку: fled-w1 НЕ атаковал (вплотную к игроку)');
+  assert.deepEqual([w1.x, w1.y], [x0, y0],
+    'w1 не сдвинулся (fled — из очереди)');
+  assert.ok(c.log.slice(n0).every((s) => !s.includes(w1.name)),
+    'строки лога w1 НЕТ — 0 действий: ' + JSON.stringify(c.log.slice(n0)));
+  assert.equal(w1.fled, true, 'w1 по-прежнему fled');
+  assert.equal(w1.alive, true, 'w1 жив (fled ≠ смерть)');
 });

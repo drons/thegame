@@ -1425,7 +1425,7 @@
       log(c, `Победа! +${xp} опыта, +${gold} золота.`);
     } else {
       // Все сбежали — лута нет.
-      c.result = { outcome: 'fled', xp: 0, gold: 0, defeated: 0 };
+      c.result = { outcome: 'fled', by: 'mobs', xp: 0, gold: 0, defeated: 0 };
       log(c, 'Противники разбежались.');
     }
   }
@@ -1629,7 +1629,7 @@
     const chance = clamp(0.45 + 0.03 * (c.player.level - avg) + 0.02 * c.player.primary.dexterity, 0.25, 0.9);
     if (c._rng() < chance) {
       c.phase = 'over';
-      c.result = { outcome: 'fled' };
+      c.result = { outcome: 'fled', by: 'player' };
       log(c, 'Вы сбежали из боя.');
       return { ok: true, fled: true };
     }

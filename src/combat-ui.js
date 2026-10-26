@@ -2587,7 +2587,7 @@
       const r = c.result;
       const texts = {
         victory: `ПОБЕДА!\n+${r.xp} опыта, +${r.gold} золота`,
-        fled: 'Вы ушли из боя.',
+        fled: r.by === 'mobs' ? 'Противники разбежались.' : 'Вы ушли из боя.',
         dead: 'Вы погибли.\n−20% золота, возвращение к точке боя.',
       };
       bannerEl.textContent = texts[r.outcome] || r.outcome;
