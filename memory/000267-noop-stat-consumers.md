@@ -196,8 +196,8 @@ Z4. Тики ТИШЕ (без log) — паттерн молчащего щит�
   true} получает поведение; winter_elemental → water_elemental
   {regen: true} — traits.regen у ПРИЗЫВНОГО: выполнено 000272
   (baf3116) — потребитель существует: startRound, livingAllies-цикл
-  src/combat.js:3043-3044 (коммент :3042) — моб-паттерн +10% maxHP
-  (моб-зеркало mobAct :2136-2139 НЕ тронуто), молча, ПЕРВЫЙ тик
+  src/combat.js:3047-3048 (коммент :3046) — моб-паттерн +10% maxHP
+  (моб-зеркало mobAct :2140-2143 НЕ тронуто), молча, ПЕРВЫЙ тик
   round 2, ровно 3 тика за 4 раунда жизни; контракт
   memory/000272-summon-regen.md; пины tests/summon-regen-000272.
   test.js (000272-REG-1/DISP-1 + 000281-DEAD-1/DBL-1); прочие 7 —
@@ -340,7 +340,7 @@ Word-пин: tests/spec-000267-wording.test.js (T3) — includes на
   (RETRO §9.6). «ход»/«ход_вниз» — без потребителей до 000235.08.01.
 - u.buff союзника «вампиризм» — потребителя НЕТ (осознанно, §2.2).
 - traits.regen призывного (winter_elemental) — выполнено 000272
-  (baf3116): потребитель существует — src/combat.js:3043-3044
+  (baf3116): потребитель существует — src/combat.js:3047-3048
   (startRound, livingAllies-цикл; моб-паттерн +10% maxHP, молча;
   НЕ +1/тик — не путать; контракт memory/000272-summon-regen.md;
   пины tests/summon-regen-000272.test.js).
