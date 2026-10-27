@@ -375,3 +375,21 @@ test('000280 V8: fright (000037) — effectType «Бой» + desc «5% за ур
   assert.equal(d.desc, '5% за уровень шанс напугать моба уровнем ниже',
     `fright: desc ожидало «5% за уровень шанс напугать моба уровнем ниже», факт «${d.desc}»`);
 });
+
+// 000286 A1/A2 — антидрейф-пины двусторонних (контракт 000280 «НЕ ТРОГАТЬ»;
+// allow-лист effectType :133 ловит только вне-enum-дрейф, value-пин — и
+// смену на легитимное enum-значение; desc НЕ пинится — ТЗ просит ровно
+// effectType; консьюмеры: potionPowerMult items.js:870/880 + craft.js:262,
+// runePowerMult building-effects.js:975 + craft.js:263).
+
+test('000286 A1: alchemy (000025) — effectType «Бой/Карта» (двусторонние, антидрейф)', () => {
+  const d = loadCatalog().byNumber.get(25).data;
+  assert.equal(d.effectType, 'Бой/Карта',
+    `alchemy: effectType ожидало «Бой/Карта», факт «${d.effectType}»`);
+});
+
+test('000286 A2: runes (000027) — effectType «Бой/Карта» (двусторонние, антидрейф)', () => {
+  const d = loadCatalog().byNumber.get(27).data;
+  assert.equal(d.effectType, 'Бой/Карта',
+    `runes: effectType ожидало «Бой/Карта», факт «${d.effectType}»`);
+});
