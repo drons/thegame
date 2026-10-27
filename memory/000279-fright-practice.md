@@ -101,18 +101,37 @@ craft.js = 0) → хук для fright no-op автоматически. Доп�
 
 ### 2.4 Считалки c._rng (D6) — НОВЫХ БРОСКОВ 0
 
-skillPractice → sheet.practice (sheet.js:364-420) — ЧИСТАЯ
+skillPractice → sheet.practice (sheet.js:364-425) — ЧИСТАЯ
 арифметика/банки, 0 c._rng (прочитано по коду; reprocessCraftXp
-craft.js:332 — тоже без RNG, единственный rng в craft.js — rollCraft
-:663, другой путь). Гейт страха (&&, :1498-1499) НЕ ТРОГАЕТСЯ.
-Поток: без навыка / ровный-выший уровень (гейт закрыт) — ровно 1
-c._rng (hit-ролл); навык есть + fear-ролл (промах ИЛИ успех) —
-ровно 2 (hit + fear); практика — 0 в обоих случаях. Базовые
-голдены (000076/000081/000082/000113/000205) БИТ-В-БИТ: боевой
-фикстуры с fright вне tests/fright-000271.test.js НЕТ (grep-факт a3
-§1: fright в tests/ — только items.test.js:8211/8263 каталог,
-ui.test.js:2162+ T8 без боя) → fear-ветка не входит ни в один
-существующий прогон.
+craft.js:330 — тоже без RNG; rollCraft — ФАНТОМ, удалена;
+единственный rng в craft.js — в `craft(c, recipeId, opts)` :658
+(`const rng` :663, qRoll/yRoll :665-666), другой путь). Гейт
+страха (&&, :1499-1500) НЕ ТРОГАЕТСЯ. Поток: без навыка /
+ровный-выший уровень (гейт закрыт) — ровно 1 c._rng (hit-ролл);
+навык есть + fear-ролл (промах ИЛИ успех) — ровно 2 (hit +
+fear); практика — 0 в обоих случаях. Базовые голдены
+(000076/000081/000082/000113/000205) БИТ-В-БИТ: боевой фикстуры
+с fright вне tests/fright-000271.test.js НЕТ (re-grep 000285,
+c803b16: fright в tests/ — items.test.js:8308/8360 каталог,
+ui.test.js:2166+ T8 без боя (c.secondary.fright=10 :2181,
+ассерт fearChance 0.675 :2258-2259)) → fear-ветка не входит ни
+в один прогон node-сьюта; ПОСЛЕ 000278 fear-ветку исполняет и
+tests/fled-banner-000278.test.js FLB-1 — vm-e2e полной
+цепочки combat-ui (удар → паника → checkVictory → баннер) —
+второй независимый исполнитель вне node-сьюта (прогоняет и
+P.skillPractice 000279 в том же попадании).
+
+ПРЕЦЕДЕНТ — НОРМА (000285, ретро-инфо 000279): «практика
+начисляется даже при бой-финише в том же попадании» — вызовы
+практик ПОСЛЕ возможного checkVictory (fright :1503-1505 —
+внутри fear-ветки, ПОСЛЕ checkVictory :1503; weapon :1507-1509
+— после блока): удар, завершивший бой (kill → victory внутри
+dealDamageToMob; паника → fled в ветке) — практики ВСЁ РАВНО
+начислены (удар был). Weapon-практик — тот же паттерн
+(прецедент ДО 000279) — НОРМА, не баг. Будущим задачам НЕ
+«чинить» порядок в combat.js:1503-1509 в сторону «практика до
+checkVictory». Пины: FP-1/FP-2 (паника — бой окончен, ОБЕ
+записи) + FP-7 (kill — weapon на месте, fright-нет).
 
 ### 2.5 Границы — КОГДА практик НЕ начисляется
 
@@ -216,6 +235,7 @@ bank/полю.
 | FP-4 | fear-ролл ПРОМАХ — граница: fright 15, seq [0.01, 0.9] → ровно 2 c._rng (hit + fear); w.fled falsy, w.alive true; p.skillXp.fright absent; !('frightPractice' in atk); atk.practice.skill === 'fists' и applied === 3 (weapon-практика ЕСТЬ — удар был) | GREEN-guard |
 | FP-5 | гейт уровня: mobLevel 5 (равный) и 6 (выше), fright 15 → ровно 1 c._rng (уровневый предикат ДО броска — практики ТОЖЕ нет); w.fled falsy, w.alive true; 0 XP, ключа нет | GREEN-guard |
 | FP-6 | без навыка: fright 0 (ассерт derived(p).fearChance === 0) → ровно 1 c._rng (fear-ветки НЕТ — бит-в-бит с до-000271); w.alive true, w.fled falsy; 0 XP, ключа нет — ядро ТЗ «c._rng бит-в-бит без навыка» на unit-уровне | GREEN-guard |
+| FP-7 (000285) | guard «летальный удар → нет практик fright»: panicFixture(15) + w.hp = 1 (удар 13 летален) + defineProperty-ловушка на c.result → «0 c._rng ПОСЛЕ c.result» (семантика ТЗ «гейт t.alive ДО fear-броска»; общий голден 9 = hit+gold+loot — лут-стрим, НЕ голденится — memory/000285-fled-hudflash.md §2.3); p.skillXp.fright undefined; !('frightPractice' in atk); w.alive === false; !w.fled; atk.killed true; c.result.outcome === 'victory'; atk.practice deepEqual { skill: 'fists', xp: 3, applied: 3, level: 0 } — прецедент «практика при бой-финише в том же попадании» (бой кончился в том же попадании: weapon-запись ЕСТЬ, fright-НЕТ) | GREEN-guard с RED-стадии (красный ТОЛЬКО при мутации: t.alive убран из гейта / P.skillPractice вынесен за гейт — late-ролл/ключ/XP) |
 
 expectedRedCount (файл) = 3 (FP-1, FP-2(а), FP-3) — осмысленная
 краснота «отсутствием поведения». GREEN-guards FP-4…FP-6 зелёны с

@@ -6,7 +6,7 @@ const { createCharacter, derived } = require('../src/player.js');
 // 000279: красные тесты практик-XP «Застращивание»: успешная паника
 // (t.fled в playerAttack) — P.skillPractice(p, 'fright', PRACTICE_XP.hit)
 // + аддитивное поле frightPractice в результате (shape 1:1 с practice).
-// Контракт: memory/000279-fright-practice.md §5 (карта FP-1…FP-6);
+// Контракт: memory/000279-fright-practice.md §5 (карта FP-1…FP-7);
 // ТЗ «Тесты» — tasks/pending/000279.md.
 
 // Сильный персонаж для контролируемых сценариев (не умирает сам).
@@ -18,7 +18,7 @@ function strongHero() {
   return c;
 }
 
-// Герой фикстуры FP-1…FP-6: L5; инициатива 12 (Ловкость 1 + Интеллект
+// Герой фикстуры FP-1…FP-7: L5; инициатива 12 (Ловкость 1 + Интеллект
 // 11) > волк 3 — игрок первый; Сила 10 — базовый урон без оружия
 // 3 + floor(10·0.8) + floor(5·0.5) = 13; харизма НЕ задана → 1 →
 // потолок «Застращивание» 2 (уровень 15 — НА ПОТОЛКЕ, C1-перелив).
@@ -198,4 +198,47 @@ test('000279-FP-6: без навыка (fright 0) — бит-в-бит: ровн
     'ровно 1 c._rng (hit-ролл) — fear-ветки НЕТ: бит-в-бит с до-000271');
   assert.equal(p.skillXp.fright, undefined, '0 XP «fright»');
   assert.equal('frightPractice' in atk, false, 'ключа НЕТ в результате');
+});
+
+// 000285 (FP-7): guard «летальный удар → нет практик fright».
+// Ловушка defineProperty на c.result фиксирует счётчик c._rng в
+// момент постановки результата: ассерт «0 ролей ПОСЛЕ c.result» —
+// семантика ТЗ «гейт t.alive ДО fear-броска» (fear-ролл на трупе
+// был бы поздним; общий голден — лут-стрим, недостижим —
+// memory/000285-fled-hudflash.md §2.3). GREEN с RED-стадии: красный
+// ТОЛЬКО при мутации (t.alive убран из гейта / P.skillPractice
+// вынесен за гейт).
+test('000279-FP-7: летальное попадание — практик «fright» НЕТ: гейт t.alive ДО fear-броска; победа в том же попадании (guard)', () => {
+  const { p, c, w } = panicFixture(15);
+  w.hp = 1; // удар 13 летален — моб умирает в том же попадании
+  let calls = 0;
+  c._rng = () => { calls += 1; return 0.01; };
+  let resultSetAt = -1;
+  let stored;
+  Object.defineProperty(c, 'result', {
+    configurable: true,
+    get() { return stored; },
+    set(v) { stored = v; resultSetAt = calls; },
+  });
+  const atk = c.attack(w.id);
+  assert.equal(atk.ok, true, 'удар — ok');
+  assert.equal(atk.hit, true, 'попадание (0.01 < 0.67)');
+  assert.equal(atk.killed, true, 'удар летален (w.hp 1, урон 13)');
+  assert.equal(w.alive, false, 'моб мёртв');
+  assert.ok(!w.fled,
+    'мёртвый моб НЕ «паникует»: гейт t.alive ДО fear-броска');
+  assert.ok(resultSetAt >= 0,
+    'c.result поставлен (checkVictory в dealDamageToMob)');
+  assert.equal(calls, resultSetAt,
+    '0 c._rng ПОСЛЕ постановки c.result — fear-ролла на трупе нет');
+  assert.equal(p.skillXp.fright, undefined,
+    '0 XP «fright» — практика только за успешную панику');
+  assert.equal('frightPractice' in atk, false,
+    'ключа frightPractice НЕТ — «практики за убийство» нет');
+  assert.ok(c.result && c.result.outcome === 'victory',
+    'победа в том же попадании (checkVictory в dealDamageToMob)');
+  assert.deepEqual(atk.practice, {
+    skill: 'fists', xp: PRACTICE_XP.hit, applied: 3, level: 0,
+  }, 'прецедент «практика при бой-финише»: бой кончился в том же '
+    + 'попадании — weapon-практика начислена (удар был)');
 });
