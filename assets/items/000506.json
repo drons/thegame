@@ -1,0 +1,13 @@
+{
+  "id": "root_grasp_scroll",
+  "name": "Свиток: Корневая хватка",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Корневая хватка» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "root_grasp"
+  }
+}

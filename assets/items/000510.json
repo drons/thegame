@@ -1,0 +1,13 @@
+{
+  "id": "beast_friend_scroll",
+  "name": "Свиток: Зверь-приятель",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зверь-приятель» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "beast_friend"
+  }
+}

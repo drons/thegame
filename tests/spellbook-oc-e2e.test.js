@@ -2053,3 +2053,274 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
     { ok: false, reason: 'воскрешение недоступно здесь' },
     'гейт: opts без miracle — деградация (mana не списана: 30 ≥ 20)');
 });
+
+// =====================================================================
+// 000235.12 — Волна Природа: W-11/W-12/W-13 — e2e вне_боя
+//
+// Контракт memory/000235.12-nature-wave-content.md §4.3.
+//
+// Краснота: в каталоге spells записей волны Природа НЕТ (142) —
+// строк beast_friend/wild_growth/path_of_vines в книге нет
+// (render-фильтр вне_боя по SPELLS_BY_ID) — clickRow падает на
+// «строка … в книге». Дальние ассерты — пины Зелёной стадии.
+// =====================================================================
+
+// Волчиные drawImage на 2d-канве (#sprites — мир; оверлей-канва —
+// подземелье): кадр-список drawCalls + src-префикс спрайта волка.
+function wolfDraws12(el) {
+  const calls = el && el.drawCalls;
+  const list = Array.isArray(calls) ? calls : [];
+  return list.filter((c) => c[0] === 'drawImage' && c[1][0] &&
+    String(c[1][0].src || '').startsWith('assets/sprites/mobs/wolf'))
+    .length;
+}
+
+test('000235.12 W-11: e2e beast_friend (книга + мир + подземелье) — каст: mp −7, запись {beast_friend, expiresDay: D+3}; зверь рядом: мир — diff +1 кадр на #sprites, подземелье — спутник + дальний волк (дист. Чебышёва 7; dungeon-vision +3, база 5 — скрыт; контроль — 0); день 4 — запись и зверь ушли (оверлей 0); сейв/рестор', async () => {
+  // Фикстура (ПРОБА, детерминированная): HILL → RUINS dseed
+  // 820179115, вход (8,22), 31×31; (15,16) — FLOOR, Чебышёв 7 от
+  // входа (вне базового радиуса 5, внутри 5+3). Мир у спавна
+  // содержит волков (world-wolf-draws > 0 ДО каста) — мир-спутник
+  // пинован diff'ом одного кадра, не нулём.
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      hp: 1, mp: 15,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const sprites = h.sandbox.document.getElementById('sprites');
+  learn(h, ['beast_friend']);
+  assert.equal(saveHero(h).mp, 15, 'фикстура: mp 15');
+  h.frameFn(NOW + 16); await drain();
+  const c0 = wolfDraws12(sprites);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'beast_friend');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'beast_friend', expiresDay: 4 }],
+    'запись {beast_friend, expiresDay: 4} (день 1 + days 3)');
+  assert.equal(saveHero(h).mp, 8, 'mp ровно «мани» (15 − 7)');
+  const rawSave = h.storage.getItem(S.SAVE_KEY);
+  assert.ok(rawSave, 'сейв после каста (beforeunload)');
+  // Мир: зверь рядом — НОВЫЙ волчий спрайт (diff одного кадра).
+  h.frameFn(NOW + 32); await drain();
+  const c1 = wolfDraws12(sprites);
+  assert.ok(c1 - c0 >= 1,
+    'мир: спутник-волк рисуется (diff +1 кадр: c0=' + c0
+    + ', c1=' + c1 + ')');
+  // Подземелье: спутник + дальний волк (dungeon-vision +3).
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds && ds.kind === 'dungeon', 'подземелье открыто');
+  assert.equal(ds.dg.type, G.DUNGEON_TYPES.RUINS, 'HILL → RUINS');
+  assert.equal(ds.dg.seed, 820179115, 'dseed (фикстура)');
+  assert.equal(ds.x, 8, 'фикстура: вход x');
+  assert.equal(ds.y, 22, 'фикстура: вход y');
+  const d = ds.dg;
+  assert.equal(d.cells[16 * d.width + 15], G.CELL_FLOOR,
+    'фикстура: (15,16) — FLOOR');
+  const dist = Math.max(Math.abs(15 - ds.x), Math.abs(16 - ds.y));
+  assert.ok(dist >= 6 && dist <= 8,
+    'фикстура: дальний моб на Чебышёве 6–8 (факт: ' + dist + ')');
+  ds.contents = {
+    mobs: [{ id: 'g0', mobIds: ['wolf'], x: 15, y: 16, level: 1,
+      defeated: false }],
+    chests: [], deposits: [], seed: 1, step: 0,
+  };
+  // Кадры подземелья — rAF-цикл dungeon-ui (последний отложенный
+  // колбэк — tick; main.js frame НЕ рендерит оверлей — мир за
+  // кадром; паттерн tests/dungeon-vision.test.js FOG-E1). drawCalls
+  // оверлея копятся (контекст кэширован в build()): в первичном
+  // render'е на входе уже 1 волк (спутник) + 2 кадра × 2 (спутник
+  // + дальний) = 5 ≥ 4.
+  h.raf[h.raf.length - 1](NOW + 48); await drain();
+  h.raf[h.raf.length - 1](NOW + 64); await drain();
+  const oc = (ov) => (ov ? ov.querySelector('canvas') : null);
+  let ov = dungeonOverlayOf(h);
+  assert.ok(oc(ov), 'оверлей подземелья — canvas');
+  assert.ok(wolfDraws12(oc(ov)) >= 4,
+    'подземелье: спутник + дальний волк (vision +3; 2 кадра ≥ 4 '
+    + 'draw, факт: ' + wolfDraws12(oc(ov)) + ')');
+  // Контроль: то же подземелье БЕЗ эффекта — 0 волков (нет
+  // спутника; базовый радиус 5 — дальний моб скрыт, mask ≠ 2).
+  const h2 = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      hp: 1, mp: 15,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h2);
+  const g2 = h2.sandbox.__game;
+  const G2 = h2.sandbox.Game;
+  learn(h2, ['beast_friend']);
+  const ds2 = g2.actions.enterDungeon(G2.TERRAIN.HILL);
+  assert.equal(ds2.dg.seed, 820179115, 'контроль: тот же dseed');
+  assert.equal(ds2.x, 8, 'контроль: вход x');
+  assert.equal(ds2.y, 22, 'контроль: вход y');
+  assert.equal(ds2.dg.cells[16 * ds2.dg.width + 15], G2.CELL_FLOOR,
+    'контроль: (15,16) — FLOOR');
+  ds2.contents = {
+    mobs: [{ id: 'g0', mobIds: ['wolf'], x: 15, y: 16, level: 1,
+      defeated: false }],
+    chests: [], deposits: [], seed: 1, step: 0,
+  };
+  h2.raf[h2.raf.length - 1](NOW + 80); await drain();
+  h2.raf[h2.raf.length - 1](NOW + 96); await drain();
+  const oc2 = oc(dungeonOverlayOf(h2));
+  assert.ok(oc2, 'контроль: оверлей — canvas');
+  assert.equal(wolfDraws12(oc2), 0,
+    'контроль: 0 волков в оверлее (нет спутника, базовый радиус 5)');
+  // УТРО D+3 (день 4): запись purged (4 <= 4, строгое >), зверь
+  // ушёл: 0 НОВЫХ волчьих draw'ов в оверлее (дальний моб вне
+  // базового радиуса; explored ≠ visible — mask ≠ 2). drawCalls
+  // копятся с входного render'а (спутник рисовался, пока эффект
+  // жив) — ассертим ДЕЛЬТУ по 2 кадрам, а не абсолют.
+  const wBefore4 = wolfDraws12(oc(dungeonOverlayOf(h)));
+  g.actions.setDay(4);
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'день 4: запись вылетела (expiresDay <= day)');
+  h.raf[h.raf.length - 1](NOW + 112); await drain();
+  h.raf[h.raf.length - 1](NOW + 128); await drain();
+  ov = dungeonOverlayOf(h);
+  assert.ok(oc(ov), 'день 4: оверлей открыт');
+  assert.equal(wolfDraws12(oc(ov)) - wBefore4, 0,
+    'день 4: 0 новых волков в оверлее (спутник ушёл, базовый '
+    + 'радиус 5; дельта 2 кадров = ' + (wolfDraws12(oc(ov))
+      - wBefore4) + ')');
+  // Сейв/рестор: запись round-trip через v1.
+  const h3 = await boot(JSON.parse(rawSave));
+  dismissStartWindow(h3);
+  const g3 = h3.sandbox.__game;
+  assert.equal(g3.state.day, 1, 'рестор: день 1');
+  assert.equal(saveHero(h3).mp, 8, 'рестор: mp 8 (через сейв, CP-11)');
+  assert.ok(g3.state.hero.spells.includes('beast_friend'),
+    'рестор: hero.spells — beast_friend');
+  assert.deepEqual(host(g3.state.hero.outOfCombatEffects),
+    [{ spellId: 'beast_friend', expiresDay: 4 }],
+    'рестор: запись в state');
+});
+
+test('000235.12 W-12: e2e wild_growth (книга) — лагерь: ровно ОДИН усиленный реген-день (days 1: restoreDay ×1.1 на уТРО D+1, запись вылетает), дальше базовый; mp −4', async () => {
+  // maxHP 70 / maxMP 70 (con 10, int 10, wis 10); реген 0.10.
+  //   день 2: 1 + round(7.7) = 9 / 11 + round(7.7) = 19
+  //   день 3: 9 + round(7.0) = 16 / 19 + round(7.0) = 26
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      hp: 1, mp: 15,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(g.state.day, 1, 'фикстура: день 1 (сид)');
+  assert.equal(g.state.hero.hp, 1, 'фикстура: hp 1 (сид)');
+  assert.equal(saveHero(h).mp, 15, 'фикстура: mp 15 (сид)');
+  learn(h, ['wild_growth']);
+  h.frameFn(NOW + 16);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'wild_growth');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'wild_growth', expiresDay: 2 }],
+    'запись {wild_growth, expiresDay: 2} (день 1 + days 1)');
+  assert.equal(saveHero(h).mp, 11, 'mp ровно «мани» (15 − 4)');
+  // День 2: запись ЕЩЁ в массиве (2 >= 2) → restoreDay ×1.1;
+  // ПОСЛЕ restoreDay — expire (2 <= 2) → запись вылетает.
+  g.actions.setDay(2);
+  assert.equal(g.state.hero.hp, 9,
+    'день 2: hp 1 + round(70×0.1×1.1) = 1 + 8 — УСИЛЕННЫЙ (×1.1)');
+  assert.equal(saveHero(h).mp, 19,
+    'день 2: mp 11 + 8 = 19 — УСИЛЕННЫЙ (×1.1)');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'день 2: запись вылетела (expiresDay <= day)');
+  // День 3: базовый реген.
+  g.actions.setDay(3);
+  assert.equal(g.state.hero.hp, 16,
+    'день 3: hp 9 + round(70×0.1) = 9 + 7 — базовый');
+  assert.equal(saveHero(h).mp, 26,
+    'день 3: mp 19 + 7 = 26 — базовый');
+});
+
+test('000235.12 W-13: e2e path_of_vines (книга) — состояние-пин: каст mp 20→5, запись {path_of_vines, expiresDay: 2}; предикат G.Spells.isHeroPathOfVines: день каста true, уТРО D+1 true (ГРАНИЦА >=), после expire false; NO-OP — derived.moveCells без изменений, герой без сдвига, ошибок нет; D+2 — базовый; сейв-пин', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    hero: mkHero07({
+      hp: 1, mp: 20,
+      primary: {
+        strength: 1, dexterity: 1, constitution: 10,
+        intelligence: 10, wisdom: 10, charisma: 1,
+      },
+    }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(g.state.day, 1, 'фикстура: день 1 (сид)');
+  assert.equal(saveHero(h).mp, 20, 'фикстура: mp 20 (сид)');
+  learn(h, ['path_of_vines']);
+  // state.hero — СНИМОК БЕЗ secondary (main.js:4098) → derived
+  // ЧЕРЕЗ СЕЙВ (live-JSON героя, CP-11).
+  const dc0 = G.derived(saveHero(h)).moveCells;
+  const errBefore = h.errors.length;
+  // state.player — getter-СНИМОК (паттерн W-10b) — позиция-пин.
+  const posBefore = host({ x: g.state.player.x, y: g.state.player.y });
+  h.frameFn(NOW + 16);
+  key(h, 'KeyB');
+  assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
+  clickRow(h, 'path_of_vines');
+  assert.equal(G.spellbookOC.isOpen(), false, 'успех → книга закрыта');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects),
+    [{ spellId: 'path_of_vines', expiresDay: 2 }],
+    'запись {path_of_vines, expiresDay: 2} (день 1 + days 1)');
+  assert.equal(saveHero(h).mp, 5, 'mp ровно «мани» (20 − 15)');
+  // NO-OP (контракт §2.6: замедления в движке нет): стат/позиция/
+  // рендер без изменений.
+  assert.equal(G.derived(saveHero(h)).moveCells, dc0,
+    'NO-OP: derived.moveCells без изменений (' + dc0 + ')');
+  h.frameFn(NOW + 32); await drain();
+  assert.deepEqual(host({ x: g.state.player.x, y: g.state.player.y }),
+    posBefore, 'NO-OP: позиция героя без сдвига');
+  assert.equal(h.errors.length, errBefore,
+    'NO-OP: без новых console.error: '
+    + h.errors.slice(errBefore).join('; '));
+  // Предикат: день каста (1) — активен (expiresDay 2 >= 1).
+  assert.equal(G.Spells.isHeroPathOfVines(g.state.hero, 1), true,
+    'предикат: день каста — true');
+  // Сейв-пин ДО смене дня.
+  const savedRec = host(saveHero(h).outOfCombatEffects);
+  assert.deepEqual(savedRec, [{ spellId: 'path_of_vines', expiresDay: 2 }],
+    'сейв: запись {path_of_vines, 2}');
+  // ГРАНИЦА (expiresDay 2 >= day 2): предикат true, пока запись жива;
+  // day — аргумент предиката, реальный день пока 1 (до onDay D+1).
+  assert.equal(G.Spells.isHeroPathOfVines(g.state.hero, 2), true,
+    'предикат: ГРАНИЦА expiresDay >= day (2 >= 2) — true, запись жива');
+  // УТРО D+1 (день 2): onDay — restoreDay ДО expire, затем expire (2 <= 2)
+  // вылетает запись; после onDay запись мёртвая — предикат false.
+  g.actions.setDay(2);
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'день 2: запись вылетела (expiresDay <= day)');
+  assert.equal(G.Spells.isHeroPathOfVines(g.state.hero, 2), false,
+    'предикат: уТРО D+1 после onDay — false (запись вылетела)');
+  // D+2 (день 3): базовый — предикат false.
+  g.actions.setDay(3);
+  assert.equal(G.Spells.isHeroPathOfVines(g.state.hero, 3), false,
+    'предикат: D+2 — false (истёк)');
+  assert.equal(G.derived(saveHero(h)).moveCells, dc0,
+    'D+2: derived.moveCells по-прежнему базовый');
+});

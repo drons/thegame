@@ -797,7 +797,7 @@ test('000258 golden: CAVE (37, −12) — закреплённые стены {x
 // «предметы» (золотые значения DUNGEON_ITEMS ре-пинятся на стадии
 // ЗЕЛЁНОЙ — §5, здесь фиксируется целевой состав).
 
-test('S3. 000133: пулы подземелий — 133 свитка, каждый ровно в одном', () => {
+test('S3. пулы подземелий — 158 свитков, каждый ровно в одном (ре-пин 000235.12: 133 + 25 волны Природа)', () => {
   // Целевые пулы (текущий состав + приложенные свитки).
   // Ре-пин 000232: приложенные чертежи (каждый РОВНО в одном пуле;
   // простая пещера 000001.json — БЕЗ ИЗМЕНЕНИЙ). Ре-пин 000235.07:
@@ -809,7 +809,8 @@ test('S3. 000133: пулы подземелий — 133 свитка, кажды
   // −knight_plate (000003, RUINS) — фантомные legacy-брони (явный
   // slot → chest-equip всегда заменяет) убраны из пулов. Ре-пин
   // 000235.11: +25 свитков волны Защита КОНЦОМ пула 000004
-  // (DROWNED) — 6 legacy + 25 = 31 предмет.
+  // (DROWNED) — 6 legacy + 25 = 31 предмет. Ре-пин 000235.12:
+  // +25 свитков волны Природа КОНЦОМ пула 000003 (RUINS) — 32 → 57.
   const EXPECTED = {
     '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll',
@@ -858,7 +859,16 @@ test('S3. 000133: пулы подземелий — 133 свитка, кажды
       'heat_shield_scroll', 'sunfire_scroll', 'scorch_scroll',
       'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
       'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
-      'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll'],
+      'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
+      'acid_splash_scroll', 'thorn_whip_scroll', 'poison_spore_scroll',
+      'vine_lash_scroll', 'thorn_storm_scroll', 'nature_wrath_scroll',
+      'hurricane_scroll', 'poison_cloud_scroll', 'thorn_field_scroll',
+      'wall_of_thorns_scroll', 'life_force_scroll', 'barkskin_scroll',
+      'heart_of_forest_scroll', 'nature_haste_scroll', 'vitality_scroll',
+      'poison_scroll', 'rot_scroll', 'paralyzing_spore_scroll',
+      'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
+      'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
+      'path_of_vines_scroll'],
     '000004.json': ['mana_elixir', 'hunting_bow', 'moonstone',
       'nature_scroll', 'magic_shield_scroll', 'blueprint_runecraft',
       'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
@@ -931,6 +941,15 @@ test('S3. 000133: пулы подземелий — 133 свитка, кажды
     'stone_golem_scroll', 'iron_sentinel_scroll',
     'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
     'warding_circle_scroll',
+    'acid_splash_scroll', 'thorn_whip_scroll', 'poison_spore_scroll',
+    'vine_lash_scroll', 'thorn_storm_scroll', 'nature_wrath_scroll',
+    'hurricane_scroll', 'poison_cloud_scroll', 'thorn_field_scroll',
+    'wall_of_thorns_scroll', 'life_force_scroll', 'barkskin_scroll',
+    'heart_of_forest_scroll', 'nature_haste_scroll', 'vitality_scroll',
+    'poison_scroll', 'rot_scroll', 'paralyzing_spore_scroll',
+    'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
+    'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
+    'path_of_vines_scroll',
   ]);
   const cat = loadDungeonCatalog();
   assert.equal(cat.length, 5, '5 подземелий (регрессия)');
@@ -2640,6 +2659,7 @@ const DUN_REF_PREV = {
     // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
     // 000235.07: +25 свитков волны Огонь КОНЦОМ пула (8 → 33).
     // Ре-пин 000251: −knight_plate (фантом, явный slot) — 33 → 32.
+    // Ре-пин 000235.12: +25 свитков волны Природа КОНЦОМ пула (32 → 57).
     предметы: ['steel_sword', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
@@ -2651,7 +2671,16 @@ const DUN_REF_PREV = {
       'heat_shield_scroll', 'sunfire_scroll', 'scorch_scroll',
       'cinder_scroll', 'ashen_debilitation_scroll', 'lava_snare_scroll',
       'burning_cage_scroll', 'flame_imp_scroll', 'phoenix_scroll',
-      'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll'],
+      'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
+      'acid_splash_scroll', 'thorn_whip_scroll', 'poison_spore_scroll',
+      'vine_lash_scroll', 'thorn_storm_scroll', 'nature_wrath_scroll',
+      'hurricane_scroll', 'poison_cloud_scroll', 'thorn_field_scroll',
+      'wall_of_thorns_scroll', 'life_force_scroll', 'barkskin_scroll',
+      'heart_of_forest_scroll', 'nature_haste_scroll', 'vitality_scroll',
+      'poison_scroll', 'rot_scroll', 'paralyzing_spore_scroll',
+      'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
+      'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
+      'path_of_vines_scroll'],
     руда: [
       ['iron_ore', 'руда'], ['copper_ore', 'руда'], ['coal', 'минерал'],
       ['silver_ore', 'руда'], ['quartz', 'минерал'], ['gold_ore', 'руда'],
@@ -3257,13 +3286,20 @@ const CH5_CRYPT_CHESTS = [
   { id: 'c1', x: 13, y: 19, opened: false, gold: 14, item: 'dark_presence_scroll' },
 ];
 const CH5_RUINS_CHESTS = [
-  { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'firelight_scroll' },
-  // Ре-пин 000251 (фикстурный сценарий): c1 blueprint_forge →
-  // blueprint_woodwork.
-  { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blueprint_woodwork' },
+  // Ре-пин 000235.12: T1-пул RUINS 10 → 15 (+5 свитков T1 волны
+  // Природа) → rоллы сундуков сдвинулись (node-пересимуляция,
+  // seed 801567646): c0 firelight → heart_of_forest_scroll,
+  // c1 blueprint_woodwork → blazing_speed_scroll,
+  // c4 blueprint_woodwork → firelight_scroll. c3 НЕ ИЗМЕНЁН
+  // (remap-триггер на той же c3 → wool_sutan, rare — те же r1/r2
+  // потока rng_eq: ЕДИНСТВЕННЫЙ триггернутый сундук).
+  // Фикстура — ПОЗИЦИЯ 2 (бывш. iron_hide_tome, без slot), см.
+  // idx ниже.
+  { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'heart_of_forest_scroll' },
+  { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blazing_speed_scroll' },
   { id: 'c2', x: 14, y: 13, opened: false, gold: 16, item: null },
   { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'wool_sutan' },
-  { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'blueprint_woodwork' },
+  { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'firelight_scroll' },
 ];
 
 test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сундук с бронёй (in-pool-фикстура: CRYPT chainmail / RUINS knight_plate) → предмет роулнутой редкости из EQUIP_POOLS; БЕЗ slot броня остаётся; main-rng/mobs/deposits/позиции/gold — бит-в-бит (сценарий фикстурный: фантомы удалены из реального пула в 000251; реальный триггер RUINS — war_hammer/steel_sword (000230.12), CRYPT — dormant (000251-P1))', () => {
@@ -3287,7 +3323,14 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сун�
   ];
   for (const cs of cases) {
     const pool = D.DUNGEON_ITEMS[cs.type];
-    const idx = cs.type === 1 ? 0 : 1;
+    // Ре-пин 000235.12: RUINS-фикстура 1 → 2 (бывш. war_hammer →
+    // iron_hide_tome, БЕЗ slot). T1-пул RUINS вырос 10 → 15
+    // (+5 свитков T1 волны Природа): ролл c3 теперь падает на
+    // T1-позицию 2, а не 1 (r ∈ [0.1333, 0.2) → floor(r·15)=2,
+    // node-пересимуляция seed 801567646). Позиция 1 (war_hammer,
+    // slot) при idx=2 в сундуки НЕ роулнится — триггер остаётся
+    // ЕДИНСТВЕННЫМ (c3), r1/r2/tier/replaced — без изменений.
+    const idx = cs.type === 1 ? 0 : 2;
     const saved = pool[idx];
     pool[idx] = cs.trigger;
     const it = ITEMS.find((x) => x.id === cs.trigger);
@@ -3346,7 +3389,8 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сун�
           } else {
             assert.equal(ch.item, a.item,
               cs.name + ': ' + ch.id + ' — предмет без изменений '
-              + '(в пуле нет других предметов со slot)');
+              + '(со slot в сундуки роулнится только '
+              + armorChest.id + ' — node-пересимуляция)');
           }
         }
       } finally {
@@ -3530,7 +3574,19 @@ const FIRE07_SCROLLS = [
   'firelight_scroll', 'hearthfire_scroll', 'flame_step_scroll',
 ];
 
-test('W-07. 000235.07: пул RUINS 000003 — 32 предмета (7 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, баланс 27/32 (ре-пин 000251: −knight_plate)', () => {
+const NATURE12_SCROLLS = [
+  'acid_splash_scroll', 'thorn_whip_scroll', 'poison_spore_scroll',
+  'vine_lash_scroll', 'thorn_storm_scroll', 'nature_wrath_scroll',
+  'hurricane_scroll', 'poison_cloud_scroll', 'thorn_field_scroll',
+  'wall_of_thorns_scroll', 'life_force_scroll', 'barkskin_scroll',
+  'heart_of_forest_scroll', 'nature_haste_scroll', 'vitality_scroll',
+  'poison_scroll', 'rot_scroll', 'paralyzing_spore_scroll',
+  'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
+  'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
+  'path_of_vines_scroll',
+];
+
+test('W-07. 000235.07: пул RUINS 000003 — 57 предметов (7 + 25 свитков Огонь + 25 свитков Природа КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, баланс 52/57 (ре-пин 000235.12: +25 волны Природа)', () => {
   const cat = loadDungeonCatalog();
   const ruins = cat.find(({ file }) => file === '000003.json');
   assert.ok(ruins, '000003.json (RUINS) в каталоге');
@@ -3540,10 +3596,12 @@ test('W-07. 000235.07: пул RUINS 000003 — 32 предмета (7 + 25 св�
     ['steel_sword', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
-      ...FIRE07_SCROLLS],
-    'RUINS: 32 предмета = 7 (000133/000232; ре-пин 000251: '
-    + '−knight_plate) + 25 свитков волны Огонь КОНЦОМ (RED: '
-    + rec.предметы.length + ' — свитков волны нет)');
+      ...FIRE07_SCROLLS,
+      ...NATURE12_SCROLLS],
+    'RUINS: 57 предметов = 7 (000133/000232; ре-пин 000251: '
+    + '−knight_plate) + 25 свитков волны Огонь + 25 свитков волны '
+    + 'Природа КОНЦОМ (ре-пин 000235.12; RED: '
+    + rec.предметы.length + ')');
   const poolCount = new Map();
   for (const { file, data } of cat) {
     const r2 = resolvedDungeonRecord(data, file);
@@ -3572,11 +3630,11 @@ test('W-07. 000235.07: пул RUINS 000003 — 32 предмета (7 + 25 св�
     + 'каталог на ' + rec.предметы.length + ')');
   const nScrolls = rec.предметы.filter(
     (id) => id.endsWith('_scroll')).length;
-  assert.equal(rec.предметы.length, 32,
-    'баланс: 32 предмета (ре-пин 000251: −knight_plate; RED: '
-    + rec.предметы.length + ')');
-  assert.equal(nScrolls, 27,
-    'баланс: 27 свитков из 32 (ре-пин 000251; RED: ' + nScrolls + ')');
+  assert.equal(rec.предметы.length, 57,
+    'баланс: 57 предметов (ре-пин 000235.12: +25 волны Природа; '
+    + 'RED: ' + rec.предметы.length + ')');
+  assert.equal(nScrolls, 52,
+    'баланс: 52 свитка из 57 (ре-пин 000235.12; RED: ' + nScrolls + ')');
 });
 
 // --- Задача 000235.08: волна Лёд — пул CAVE 000001 (W-07) ---
@@ -3904,5 +3962,75 @@ test('W-07. 000235.11: пул DROWNED 000004 — 31 предмет (6 + 25 св�
     rec.предметы.filter((id) => tierOf(id) <= 1).length, 9,
     'баланс: 9 предметов T1 из 31 (6 legacy без tier + 3 свитка T1; '
     + 'RED: '
+    + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
+});
+
+// --- Задача 000235.12: волна Природа — пул RUINS 000003 (W-07) ---
+//
+// Контракт memory/000235.12-nature-wave-content.md §3/§7: пул
+// 000003 (RUINS) = 7 legacy + 25 свитков волны Огонь + 25 свитков
+// волны Природа КОНЦОМ (порядок таблицы ТЗ, path-формы
+// 000487…000511); каждый из 25 новых РОВНО в одном пуле (скан ВСЕХ 5
+// assets/dungeons); ПИН: 50 свитков волн (Огонь+Природа) в пуле
+// (25+25; legacy-свитки fireball/vine не входят); FALLBACK_DUNGEONS
+// RUINS (id 2, file://-ветка dungeon.js) — 1:1 с каталогом; баланс: 57
+// предметов, T1 = 15/57 (10 прежних + 5 свитков T1: acid_splash/
+// thorn_whip/heart_of_forest/wild_growth/poison).
+test('W-07. 000235.12: пул RUINS 000003 — 57 предметов (7 + 25 + 25 свитков КОНЦОМ), ПИН 50 свитков волн в пуле, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 15/57', () => {
+  const cat = loadDungeonCatalog();
+  const ruins = cat.find(({ file }) => file === '000003.json');
+  assert.ok(ruins, '000003.json (RUINS) в каталоге');
+  assert.equal(ruins.data.id, 2, '000003.json — RUINS (id 2)');
+  const rec = resolvedDungeonRecord(ruins.data, ruins.file);
+  assert.deepEqual(rec.предметы,
+    ['steel_sword', 'war_hammer',
+      'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
+      'blueprint_forge', 'blueprint_woodwork',
+      ...FIRE07_SCROLLS,
+      ...NATURE12_SCROLLS],
+    'RUINS: 57 предметов = 7 legacy + 25 (Огонь) + 25 (Природа) '
+    + 'КОНЦОМ (RED: ' + rec.предметы.length
+    + ' — свитков волны Природа нет)');
+  const waveSet = new Set(FIRE07_SCROLLS.concat(NATURE12_SCROLLS));
+  assert.equal(rec.предметы.filter((id) => waveSet.has(id)).length,
+    50, 'ПИН пула: 50 свитков волн (Огонь+Природа) в 000003 (RED: '
+    + rec.предметы.filter((id) => waveSet.has(id)).length + ')');
+  const poolCount = new Map();
+  for (const { file, data } of cat) {
+    const r2 = resolvedDungeonRecord(data, file);
+    for (const id of r2.предметы)
+      poolCount.set(id, (poolCount.get(id) || 0) + 1);
+  }
+  for (const id of NATURE12_SCROLLS) {
+    assert.equal(poolCount.get(id) || 0, 1,
+      id + ': РОВНО в одном пуле (RED: '
+      + (poolCount.get(id) || 0) + ')');
+  }
+  const DUNGEON_CORE = ['src/global-settings.js', 'src/perlin.js',
+    'src/map.js'];
+  const sandbox = { console };
+  sandbox.Game = {};
+  vm.createContext(sandbox);
+  for (const f of DUNGEON_CORE.concat('src/dungeon.js')) {
+    vm.runInContext(
+      fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox,
+      { filename: f });
+  }
+  assert.deepEqual(
+    [...sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.RUINS]],
+    rec.предметы,
+    'FALLBACK_DUNGEONS RUINS — 1:1 с каталогом (RED: fallback на '
+    + sandbox.Game.DUNGEON_ITEMS[D.DUNGEON_TYPES.RUINS].length
+    + ', каталог на ' + rec.предметы.length + ')');
+  const I = require(path.join(ROOT, 'src', 'items.js'));
+  const tierOf = (id) => {
+    const it = I.getItem(id);
+    return (it && it.tier) || 1;
+  };
+  assert.equal(rec.предметы.length, 57,
+    'баланс: 57 предметов (RED: ' + rec.предметы.length + ')');
+  assert.equal(
+    rec.предметы.filter((id) => tierOf(id) <= 1).length, 15,
+    'баланс: 15 предметов T1 из 57 (10 прежних + 5 свитков T1; RED: '
     + rec.предметы.filter((id) => tierOf(id) <= 1).length + ')');
 });

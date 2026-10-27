@@ -1,0 +1,13 @@
+{
+  "id": "entangle_scroll",
+  "name": "Свиток: Упутать",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Упутать» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "entangle"
+  }
+}

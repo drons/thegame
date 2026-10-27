@@ -1652,7 +1652,9 @@
       G.restoreDay(hero, ((G.Spells && G.Spells.isHeroCamped
         && G.Spells.isHeroCamped(hero, day)) || (G.Spells
         && G.Spells.isHeroPrayer
-        && G.Spells.isHeroPrayer(hero, day))) ? 1.1 : 1);
+        && G.Spells.isHeroPrayer(hero, day)) || (G.Spells
+        && G.Spells.isHeroWildGrowth
+        && G.Spells.isHeroWildGrowth(hero, day))) ? 1.1 : 1);
       const due = G.dueForRespawn(defeatedAt, day);
       for (const k of due) defeatedAt.delete(k);
       // 000158.04: респаун природного лута — ТОТ ЖЕ параметр
@@ -2911,6 +2913,17 @@
         }
         return floorR;
       },
+      visionRadiusBonus: () => {
+        if (G.Spells && G.Spells.isHeroBeastFriend
+            && G.Spells.isHeroBeastFriend(hero, clock.day)) {
+          const sp = G.Spells.getSpell('beast_friend');
+          const r = sp && sp.параметры ? sp.параметры.radius : null;
+          if (typeof r === 'number' && r >= 1) return r;
+        }
+        return 0;
+      },
+      beastFriend: () => (G.Spells && G.Spells.isHeroBeastFriend
+        ? G.Spells.isHeroBeastFriend(hero, clock.day) : false),
     });
   }
   // 000170 (D6): исключение в день-цепи (exitDungeon → clock.event
@@ -3899,6 +3912,19 @@
       const pp = toPt(rp.x + 0.5, rp.y + 0.5);
       const px = pp.x, py = pp.y;
       s2.drawImage(pi, px - size / 2, py - size / 2, size, size);
+    }
+    if (G.Spells && typeof G.Spells.isHeroBeastFriend === 'function'
+        && G.Spells.isHeroBeastFriend(hero, clock.day)
+        && spriteLoader && typeof spriteLoader.image === 'function') {
+      const wf = 'assets/sprites/mobs/wolf_move_1.svg';
+      const wi = (typeof spriteLoader.isReady === 'function'
+        ? spriteLoader.isReady(wf) : true) && spriteLoader.image(wf)
+        || null;
+      if (wi) {
+        const ws = zoom * 0.9;
+        const wp = toPt(rp.x + 1.5, rp.y + 0.5);
+        s2.drawImage(wi, wp.x - ws / 2, wp.y - ws / 2, ws, ws);
+      }
     }
   }
 

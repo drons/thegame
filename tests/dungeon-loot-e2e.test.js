@@ -812,7 +812,12 @@ test('000235.05 E1: сундук → свиток → изучение → се�
 // /tmp/thegame-wf-000235.07/sim-ruins.js на прототипе пула): dseed
 // 820179115, c0 (19,4) gold 29; 970/3000 значений xp дают свиток огня
 // в c0 — при xp=1 уже hearthfire_scroll.
-test('000235.07 W-09: сундук RUINS → свиток огня → изучение → сейв (HILL, dseed 820179115, c0 = hearthfire_scroll)', async () => {
+// Ре-пин 000235.12: пул RUINS 33 → 57 (+25 свитков волны Природа
+// КОНЦОМ, T1-пул 9 → 15) → ролл c0 сдвинулся: hearthfire_scroll →
+// poison_scroll (node-пересимуляция, dseed 820179115, xp=1;
+// позиция/gold 19/4/29 — без изменений). Путь (b)-(d) — фикстурный
+// (ember_scroll) — не тронут.
+test('000235.07 W-09: сундук RUINS → свиток огня → изучение → сейв (HILL, dseed 820179115, c0 = poison_scroll — ре-пин 000235.12)', async () => {
   const h = await boot(seedSave({
     day: 2,
     hero: mkHero({
@@ -827,8 +832,9 @@ test('000235.07 W-09: сундук RUINS → свиток огня → изуч�
     'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
-  // (a) Генерационный пин (красный драйвер): RUINS-пул (8 + 25 свитков
-  //     волны) на глубине 1 (T=1) — c0 = hearthfire_scroll.
+  // (a) Генерационный пин (красный драйвер): RUINS-пул (57 предметов,
+  //     T1-фильтр на глубине 1) — c0 = poison_scroll (ре-пин
+  //     000235.12: пул 33 → 57).
   const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
   assert.ok(ds, 'enterDungeon(HILL) — состояние подземелья');
   assert.equal(ds.dg.type, G.DUNGEON_TYPES.RUINS,
@@ -838,8 +844,8 @@ test('000235.07 W-09: сундук RUINS → свиток огня → изуч�
   assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
   assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold,
     item: c0.item },
-    { x: 19, y: 4, opened: false, gold: 29, item: 'hearthfire_scroll' },
-    'c0: RUINS-пул +25 свитков волны — hearthfire_scroll (краснота: '
+    { x: 19, y: 4, opened: false, gold: 29, item: 'poison_scroll' },
+    'c0: RUINS-пул 57 — poison_scroll (ре-пин 000235.12; краснота: '
     + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold, item: c0.item })
     + ')');
   // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
@@ -1181,5 +1187,110 @@ test('000235.10 W-09: сундук CRYPT → свиток исцеления →
   assert.ok(Array.isArray(parsed.data.hero.spells)
     && parsed.data.hero.spells.includes('radiant_heal'),
     'сейв: hero.spells содержит radiant_heal (saveNow при смене дня); '
+    + 'факт: ' + JSON.stringify(parsed.data.hero.spells));
+});
+
+// --- Задача 000235.12: W-09 — полный путь «сундук RUINS → свиток волны
+// Природа → изучение → сейв» (контракт
+// memory/000235.12-nature-wave-content.md §3.11/§4.1; паттерн
+// 000235.07 W-09).
+//
+// КРАСНОЕ (генерационный пин): пул RUINS (000003.json) = 32 предмета,
+// свитков волны НЕТ — c0 (сценарий HILL, totalXp=1, dseed 820179115) =
+// hearthfire_scroll ∉ NATURE12_SCROLL_SET; свиток фиксированного
+// сундука acid_splash_scroll не существует в каталоге. ЗЕЛЁНОЕ:
+// +25 свитков КОНЦОМ пула (32 → 57) → c0 = свиток волны Природа
+// (dseed — §3.11, перебор на стадии исполнения, фиксируется в
+// отчёте); позиция/gold c0 — сид-инварианты (19, 4, 29).
+const NATURE12_SCROLL_SET = new Set([
+  'acid_splash_scroll', 'thorn_whip_scroll', 'poison_spore_scroll',
+  'vine_lash_scroll', 'thorn_storm_scroll', 'nature_wrath_scroll',
+  'hurricane_scroll', 'poison_cloud_scroll', 'thorn_field_scroll',
+  'wall_of_thorns_scroll', 'life_force_scroll', 'barkskin_scroll',
+  'heart_of_forest_scroll', 'nature_haste_scroll', 'vitality_scroll',
+  'poison_scroll', 'rot_scroll', 'paralyzing_spore_scroll',
+  'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
+  'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
+  'path_of_vines_scroll',
+]);
+
+test('000235.12 W-09: сундук RUINS → свиток природы → изучение → сейв (HILL, dseed 820179115, c0 = свиток волны Природа)', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: mkHero({
+      totalXp: 1,
+      primary: {
+        strength: 2, dexterity: 1, constitution: 1,
+        intelligence: 11, wisdom: 1, charisma: 1,
+      },
+    }),
+  }));
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  // (a) Генерационный пин (красный драйвер): RUINS-пул (7 + 25 Огонь +
+  //     25 Природа) на глубине 1 (T=1) — c0 = свиток волны Природа.
+  const ds = g.actions.enterDungeon(G.TERRAIN.HILL);
+  assert.ok(ds, 'enterDungeon(HILL) — состояние подземелья');
+  assert.equal(ds.dg.type, G.DUNGEON_TYPES.RUINS,
+    'HILL → RUINS (синтетические пиксели, alpha 255)');
+  assert.equal(ds.dg.seed, 820179115, 'dseed (сценарий: HILL, totalXp=1)');
+  const c0 = ds.contents.chests[0];
+  assert.ok(c0, 'сундук c0 сгенерирован: ' + JSON.stringify(ds.contents.chests));
+  assert.deepEqual({ x: c0.x, y: c0.y, opened: c0.opened, gold: c0.gold },
+    { x: 19, y: 4, opened: false, gold: 29 },
+    'c0: позиция/gold — сид-инварианты (RED: '
+    + JSON.stringify({ x: c0.x, y: c0.y, gold: c0.gold }) + ')');
+  assert.ok(NATURE12_SCROLL_SET.has(c0.item),
+    'c0: RUINS-пул +25 свитков волны Природа — свиток волны (RED: '
+    + c0.item + ' ∉ набора Природа)');
+  // (b) Путь «сундук → инвентарь»: фиксированный сундук на клетке-
+  //     соседе входа (паттерн E1/000191.12 — без pathfinding).
+  const cell = asideDir(G, ds.dg);
+  assert.ok(cell, 'FLOOR-клетка-сосед входа найдена');
+  ds.contents = {
+    mobs: [],
+    chests: [{ id: 'c0', x: cell.x, y: cell.y, opened: false, gold: 29,
+      item: 'acid_splash_scroll' }],
+    seed: 1, step: 0,
+  };
+  stepTo(h, cell.x, cell.y); // шаг на сундук → openChest
+  const line = ds.log.find((l) => l.startsWith('Сундук: +'));
+  assert.ok(line, 'строка сундука в ds.log: ' + JSON.stringify(ds.log));
+  const it = G.getItem('acid_splash_scroll');
+  assert.ok(it, 'acid_splash_scroll в каталоге items (RED: нет)');
+  assert.equal(line, 'Сундук: +29 золота, ' + it.name,
+    'строка сундука побайтово: ' + line);
+  assert.deepEqual(host(g.state.hero.inventory),
+    [{ id: 'acid_splash_scroll', qty: 1 }],
+    'свиток в инвентаре (qty 1)');
+  // (c) Изучение: wisdom 1 → Ученик (tier 1) ≥ acid_splash (L1) → ok;
+  //     мост — живые spells/inventory + первичные атрибуты (паттерн E1).
+  const liveSlots = g.state.hero.inventory;
+  const bridge = {
+    level: g.state.hero.level,
+    hp: g.state.hero.hp,
+    primary: {
+      strength: 2, dexterity: 1, constitution: 1,
+      intelligence: 11, wisdom: 1, charisma: 1,
+    },
+    secondary: {},
+    spells: g.state.hero.spells,
+    inventory: { slots: liveSlots, quick: [] },
+  };
+  const res = G.useItem(bridge, 'acid_splash_scroll');
+  assert.equal(res.ok, true,
+    'useItem acid_splash_scroll ok (wisdom 1 ≥ L1): ' + JSON.stringify(res));
+  assert.ok(g.state.hero.spells.includes('acid_splash'),
+    'hero.spells += acid_splash (мост — живая ссылка)');
+  assert.equal(G.totalQty(bridge, 'acid_splash_scroll'), 0,
+    'свиток потрачен (живой инвентарь)');
+  // (d) Сейв: rest → onDay → saveNow — acid_splash в hero.spells сейва.
+  g.actions.setDay(3);
+  const parsed = JSON.parse(h.storage.getItem(SAVE_KEY));
+  assert.ok(Array.isArray(parsed.data.hero.spells)
+    && parsed.data.hero.spells.includes('acid_splash'),
+    'сейв: hero.spells содержит acid_splash (saveNow при смене дня); '
     + 'факт: ' + JSON.stringify(parsed.data.hero.spells));
 });

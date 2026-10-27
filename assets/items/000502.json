@@ -1,0 +1,13 @@
+{
+  "id": "poison_scroll",
+  "name": "Свиток: Яд",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Яд» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "poison"
+  }
+}

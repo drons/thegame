@@ -665,8 +665,19 @@
         floorR = 0;
       }
       floorR = Math.floor(floorR);
+      const vbRaw = ctx.visionRadiusBonus;
+      let bonusR = 0;
+      if (typeof vbRaw === 'function') {
+        try { bonusR = vbRaw(); } catch (err) { bonusR = 0; }
+      } else if (typeof vbRaw === 'number') {
+        bonusR = vbRaw;
+      }
+      if (typeof bonusR !== 'number' || !Number.isFinite(bonusR)
+          || bonusR < 0) {
+        bonusR = 0;
+      }
       mask = maskFor(d.width, d.height, pos.x, pos.y,
-        Math.max(radiusFor(mult), floorR), explored);
+        Math.max(radiusFor(mult), floorR) + Math.floor(bonusR), explored);
       for (let i = 0; i < mask.length; i++) {
         if (mask[i] === 2) {
           explored.add((i % d.width) + ',' + Math.floor(i / d.width));
@@ -1200,6 +1211,18 @@
       g2.lineTo(pp.x - r, pp.y);
       g2.closePath();
       g2.fill();
+    }
+    if (!isCity && typeof ctx.beastFriend === 'function'
+        && ctx.beastFriend()
+        && loader && typeof loader.image === 'function') {
+      const wf = 'assets/sprites/mobs/wolf_move_1.svg';
+      const wfImg = (typeof loader.isReady === 'function'
+        ? loader.isReady(wf) : true) && loader.image(wf) || null;
+      if (wfImg) {
+        const wpp = proj(pos.x + 1.5, pos.y + 0.5);
+        const wps = zoom * 0.9;
+        g2.drawImage(wfImg, wpp.x - wps / 2, wpp.y - wps / 2, wps, wps);
+      }
     }
   }
 

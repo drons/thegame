@@ -1600,6 +1600,12 @@ const SHOP_GOLDEN = {
   // (traveler_bracer/mystic_wraps), 407 → 409 ключа; старые ключи
   // не сдвинулись (node-симуляция: seed/старые стоки
   // byte-identical). Прочие 3 голдены — без изменений.
+  // Ре-пин 000235.12: свитки волны Природа (000487-000511) —
+  // КОНЕЦ каталога, rng-хвост пула allItems → += 17 свитков
+  // (не выпали: poison_spore/life_force/barkskin/heart_of_forest/
+  // entangle/forest_beast/treant), 409 → 426 ключа; старые ключи
+  // не сдвинулись (node-симуляция: seed/старые стоки
+  // byte-identical). Прочие 3 голдены — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1709,7 +1715,13 @@ const SHOP_GOLDEN = {
     corrode_scroll: 3, stone_grasp_scroll: 3, time_slow_scroll: 1,
     stone_wall_scroll: 1, guardian_field_scroll: 5, stone_golem_scroll: 5,
     iron_sentinel_scroll: 5, recall_scroll: 1, gate_scroll: 4,
-    warding_circle_scroll: 1, traveler_bracer: 1, mystic_wraps: 4 } },
+    warding_circle_scroll: 1, traveler_bracer: 1, mystic_wraps: 4,
+    acid_splash_scroll: 3, thorn_whip_scroll: 5, vine_lash_scroll: 4,
+    thorn_storm_scroll: 5, nature_wrath_scroll: 2, hurricane_scroll: 3,
+    poison_cloud_scroll: 4, thorn_field_scroll: 1, wall_of_thorns_scroll: 2,
+    nature_haste_scroll: 1, vitality_scroll: 2, poison_scroll: 2,
+    rot_scroll: 3, paralyzing_spore_scroll: 3, wild_growth_scroll: 4,
+    beast_friend_scroll: 3, path_of_vines_scroll: 5 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,

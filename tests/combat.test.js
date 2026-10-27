@@ -9206,6 +9206,16 @@ const SCROLL_IDS_000235 = [
   'stone_golem_scroll', 'iron_sentinel_scroll',
   'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
   'warding_circle_scroll',
+  // ре-пин 000235.12: +25 свитков волны Природа 000487–000511
+  'acid_splash_scroll', 'thorn_whip_scroll', 'poison_spore_scroll',
+  'vine_lash_scroll', 'thorn_storm_scroll', 'nature_wrath_scroll',
+  'hurricane_scroll', 'poison_cloud_scroll', 'thorn_field_scroll',
+  'wall_of_thorns_scroll', 'life_force_scroll', 'barkskin_scroll',
+  'heart_of_forest_scroll', 'nature_haste_scroll', 'vitality_scroll',
+  'poison_scroll', 'rot_scroll', 'paralyzing_spore_scroll',
+  'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
+  'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
+  'path_of_vines_scroll',
 ];
 // Каталог ТЗ: id → {school, tier} (тиры = уровни заклинаний:
 // fireball L2, flame_burst L3, frost_bolt L1, blizzard L3, chill L1,

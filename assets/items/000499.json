@@ -1,0 +1,13 @@
+{
+  "id": "heart_of_forest_scroll",
+  "name": "Свиток: Сердце леса",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Сердце леса» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "heart_of_forest"
+  }
+}

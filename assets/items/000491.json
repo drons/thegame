@@ -1,0 +1,13 @@
+{
+  "id": "thorn_storm_scroll",
+  "name": "Свиток: Шиповый шторм",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Шиповый шторм» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "thorn_storm"
+  }
+}

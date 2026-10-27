@@ -1,0 +1,13 @@
+{
+  "id": "acid_splash_scroll",
+  "name": "Свиток: Кислотное швыряние",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Кислотное швыряние» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "acid_splash"
+  }
+}

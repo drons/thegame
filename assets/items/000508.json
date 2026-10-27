@@ -1,0 +1,13 @@
+{
+  "id": "treant_scroll",
+  "name": "Свиток: Трент",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Трент» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "treant"
+  }
+}

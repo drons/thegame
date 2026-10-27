@@ -1,0 +1,13 @@
+{
+  "id": "wild_growth_scroll",
+  "name": "Свиток: Дикий рост",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Дикий рост» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "wild_growth"
+  }
+}

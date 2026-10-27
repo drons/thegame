@@ -291,6 +291,12 @@
     return eff && eff.stat === stat && eff.turns > 0 ? eff.value : 0;
   }
 
+  function unitMaxHPCap(c, u) {
+    const base = u === c.player ? P.derived(u).maxHP : u.maxHP;
+    const v = unitBuffValue(c, u, 'maxHP');
+    return v > 0 ? Math.round(base * (1 + v)) : base;
+  }
+
   // Множитель сложности (задача 000027): { hp, damage } из
   // settings.SETTINGS.combat_difficulties[difficulty].
   function makeMob(mobId, level, idx, hasLeader, diff) {
@@ -1154,9 +1160,14 @@
   function healAlly(c, unit, amount) {
     const before = unit.hp;
     if (unit === c.player) {
-      P.heal(unit, amount);
+      const cap = unitMaxHPCap(c, unit);
+      if (cap <= P.derived(unit).maxHP) {
+        P.heal(unit, amount);
+      } else {
+        unit.hp = Math.min(cap, unit.hp + amount);
+      }
     } else {
-      unit.hp = Math.min(unit.maxHP, unit.hp + amount);
+      unit.hp = Math.min(unitMaxHPCap(c, unit), unit.hp + amount);
     }
     return unit.hp - before;
   }
@@ -1172,8 +1183,7 @@
   // turnOrder с начала следующего раунда (пересчёт buildTurnOrder).
   function resurrectAlly(c, t) {
     t.alive = true;
-    const maxHP = t === c.player ? P.derived(t).maxHP : t.maxHP;
-    t.hp = Math.round(maxHP / 2);
+    t.hp = Math.round(unitMaxHPCap(c, t) / 2);
     log(c, 'Возвращён в бой.');
     return t.hp;
   }
@@ -1878,7 +1888,9 @@
       if (p.mp < 3) return { ok: false, reason: 'не хватает маны (3)' };
       // Задача 000037: при полном HP заклинание бесполезно (P.heal
       // восстановил бы 0) — дизейбл с фиксированной причиной.
-      if (p.hp >= P.derived(p).maxHP) return { ok: false, reason: 'здоровье полное' };
+      if (p.hp >= unitMaxHPCap(c, p)) {
+        return { ok: false, reason: 'здоровье полное' };
+      }
       return { ok: true };
     }
     if (action === 'spellbook') {
@@ -2222,6 +2234,10 @@
     if (u.traits && u.traits.lifesteal) {
       const healed = healAlly(c, u, r.dmg);
       if (healed > 0) log(c, `${u.name} высасывает здоровье.`);
+    }
+    if (u.traits && u.traits.rootOnAttack && t.alive) {
+      t.bind = { turns: 1 };
+      log(c, `${t.name} опутан корнями (трент).`);
     }
   }
 

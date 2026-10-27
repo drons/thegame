@@ -1,0 +1,13 @@
+{
+  "id": "thorn_whip_scroll",
+  "name": "Свиток: Шиповая плеть",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Шиповая плеть» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "thorn_whip"
+  }
+}

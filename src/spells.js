@@ -340,12 +340,13 @@
     'урон_вниз', 'броня_вниз', 'попадание_вниз', 'получаемый_урон_вверх',
     'dot', 'ход_вниз',
   ]);
-  // 9 баф-статов ТЗ (union схемы «stat» = баф ∪ дебаф).
+  // 10 баф-статов ТЗ (union схемы «stat» = баф ∪ дебаф; maxHP —
+  // 000235.12).
   const BUFF_STATS = new Set([
     'урон', 'броня', 'ход', 'реген', 'вампиризм', 'отражение',
-    'попадание', 'получаемый_урон', 'иммунитет_контроля',
+    'попадание', 'получаемый_урон', 'иммунитет_контроля', 'maxHP',
   ]);
-  // 000235.01 ревью: все 15 stat — fail-closed «баф»/«дебаф»/
+  // 000235.01 ревью: все 16 stat — fail-closed «баф»/«дебаф»/
   // «создание» (зона): stat вне union — мусор (мутированный
   // каталог), отказ ДО расхода (000045, зеркало 000037).
   const EFFECT_STATS = new Set([...BUFF_STATS, ...DEBUFF_STATS]);
@@ -662,9 +663,8 @@
         if (spellId === 'life_bloom') {
           const pa = spell.параметры;
           const before = t ? t.hp : p.hp;
-          const healed = t
-            ? healAlly(c, t, amount)
-            : P.heal(p, amount) - before;
+          healAlly(c, t || p, amount);
+          const healed = (t ? t.hp : p.hp) - before;
           const eff = { stat: pa.stat, value: pa.value, turns: pa.turns };
           if (t) t.buff = eff; else c.ps.buff = eff;
           log(c, t
@@ -690,7 +690,8 @@
           break;
         }
         const hpBefore = p.hp;
-        const hp = P.heal(p, amount);
+        healAlly(c, p, amount);
+        const hp = p.hp;
         // Задача 000037: логим фактически восстановленную величину.
         log(c, `${spell.название}: ${hp - hpBefore}.`);
         out.hp = hp;
@@ -805,7 +806,11 @@
           },
           // 000267: трейты каталога (lifesteal — 000087 shadow_wraith);
           // makeAlly копирует (константа каталога не шарится).
-          traits: mt.traits,
+          traits: ROOT_ON_ATTACK_SUMMON_IDS.has(spellId)
+            ? Object.assign(
+                mt.traits ? Object.assign({}, mt.traits) : {},
+                { rootOnAttack: true })
+            : mt.traits,
           kind: 'summon',
         }, c.units.length);
         u.summonTurns = pa.turns;
@@ -1131,6 +1136,7 @@
   const PARTY_BUFF_IDS = new Set([
     'blessing', 'divine_favor', 'guardian_blessing', 'swift_prayer',
     'faith_shield', 'stalwart', 'aura_of_protection',
+    'heart_of_forest', 'nature_haste', 'vitality',
   ]);
   // 000235.11: «защита» на партию — игрок + ВСЕ живые союзники,
   // СВОЙ объект щита/бафа на каждую цель (blocker .10 W-12a.1).
@@ -1139,6 +1145,7 @@
   ]);
   const ALLY_HEAL_IDS = new Set(['life_bloom', 'purify', 'regeneration']);
   const HEAL_SUMMON_IDS = new Set(['light_sprite', 'spirit_healer']);
+  const ROOT_ON_ATTACK_SUMMON_IDS = new Set(['treant']);
 
   function isPlainObject(v) {
     return !!v && typeof v === 'object' && !Array.isArray(v);
@@ -1429,6 +1436,45 @@
     return false;
   }
 
+  function isHeroWildGrowth(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'wild_growth') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay >= day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function isHeroBeastFriend(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'beast_friend') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay >= day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function isHeroPathOfVines(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'path_of_vines') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay >= day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function isHeroDivineProtected(p, day) {
     if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
     for (const e of p.outOfCombatEffects) {
@@ -1492,6 +1538,7 @@
     sanitizeOutOfCombatEffects,
     isHeroInvisible, clearInvisibility,
     isHeroLit, isHeroCamped, isHeroPrayer, isHeroDivineProtected,
+    isHeroWildGrowth, isHeroBeastFriend, isHeroPathOfVines,
     holyLightRadius,
     nearestBuiltCity, nearestPassableTile, wardRadius,
     sanitizePortalMarker, PORTAL_SEARCH_RADIUS,

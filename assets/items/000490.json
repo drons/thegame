@@ -1,0 +1,13 @@
+{
+  "id": "vine_lash_scroll",
+  "name": "Свиток: Витие лоз",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Витие лоз» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "vine_lash"
+  }
+}

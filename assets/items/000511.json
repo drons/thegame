@@ -1,0 +1,13 @@
+{
+  "id": "path_of_vines_scroll",
+  "name": "Свиток: Тропа лоз",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Тропа лоз» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "path_of_vines"
+  }
+}

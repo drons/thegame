@@ -254,12 +254,12 @@ function loadSpellsData() { return require('../src/spells-data.js'); }
 
 // --- Модуль-зеркало src/spells-data.js ---
 
-test('spells-data.js: точное зеркало каталога JSON (ровно 142 заклинания — ре-пин 000235.11: +25 волны Защита)', () => {
+test('spells-data.js: точное зеркало каталога JSON (ровно 167 заклинаний — ре-пин 000235.11: +25 волны Защита; ре-пин 000235.12: +25 волны Природа)', () => {
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   const files = listSpellFiles();
-  assert.equal(files.length, 142, 'каталог: 142 файла (RED: 117)');
-  assert.equal(SPELLS.length, 142, 'SPELLS — 142 заклинания (RED: 117)');
-  assert.equal(Object.keys(SPELLS_BY_ID).length, 142, 'SPELLS_BY_ID — 142 id (RED: 117)');
+  assert.equal(files.length, 167, 'каталог: 167 файла (ре-пин 000235.12: RED 142)');
+  assert.equal(SPELLS.length, 167, 'SPELLS — 167 заклинания (ре-пин 000235.12: RED 142)');
+  assert.equal(Object.keys(SPELLS_BY_ID).length, 167, 'SPELLS_BY_ID — 167 id (ре-пин 000235.12: RED 142)');
   // Порядок SPELLS = порядок файлов каталога; данные — дословно
   // (в id-форме: ссылки резолвятся в id целевого файла, 000211.04).
   files.forEach((f, i) => {
@@ -1353,7 +1353,7 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
-  assert.equal(SPELLS.length, 142, 'зеркало: 142 заклинания (ре-пин 000235.11: +25 волны Защита; RED: 117)');
+  assert.equal(SPELLS.length, 167, 'зеркало: 167 заклинания (ре-пин 000235.11: +25 волны Защита; ре-пин 000235.12: +25 волны Природа; RED: 117)');
   assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
     'SPELLS[16] — зеркало 000017.json');
   assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
@@ -1849,9 +1849,9 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     '«здания»[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000211.04 R2: 142 заклинания — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 29/139/226 — ре-пин 000235.11: +25 волны Защита)', () => {
+test('000211.04 R2: 167 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 34/164/276 — ре-пин 000235.11: +25 волны Защита; ре-пин 000235.12: +25 волны Природа)', () => {
   const files = listSpellFiles();
-  assert.equal(files.length, 142, 'каталог: 142 файла (ре-пин 000235.11: +25 волны Защита; RED: 117)');
+  assert.equal(files.length, 167, 'каталог: 167 файла (ре-пин 000235.12: RED 142)');
   const { byId } = loadCatalog();
   const { SPELLS } = loadSpellsData();
   let baseRefs = 0;
@@ -1914,16 +1914,16 @@ test('000211.04 R2: 142 заклинания — база/предметы/зд�
   // 75 building-ссылок без новых целей (000019/000021/000038 —
   // уже цели); 000235.10: +25 волны Исцеление — 3 base, 25 item,
   // 50 building; 000235.09: +25 волны Тень — 6 base, 25 item, 25 building).
-  assert.equal(baseRefs, 29, 'анти-вакуум: ровно 29 base-ссылок (113 null) (ре-пин 000235.11: RED 26)');
-  assert.equal(itemRefs, 139, 'анти-вакуум: 139 item-ссылок (ре-пин 000235.11: RED 114)');
-  assert.equal(buildingRefs, 226, 'анти-вакуум: 226 building-ссылок (ре-пин 000235.11: RED 151)');
-  assert.equal(baseRefs + itemRefs + buildingRefs, 394,
-    'всего ссылок: 394 (29 + 139 + 226) (ре-пин 000235.11: RED 291)');
-  assert.equal(filesWithItems, 136,
-    'анти-вакуум: 136 файлов с «предметы» (6 без ключа) (ре-пин 000235.11: RED 111)');
-  assert.equal(baseTargets.size, 29,
-    'уникальные цели: 29 spells (26 прежних + iron_bulwark, ward, shield_wall) (ре-пин 000235.11: RED 26)');
-  assert.equal(itemTargets.size, 128, 'уникальные цели: 128 items (ре-пин 000235.11: RED 103)');
+  assert.equal(baseRefs, 34, 'анти-вакуум: ровно 34 base-ссылок (133 null) (ре-пин 000235.12: +5 волны Природа; RED 29)');
+  assert.equal(itemRefs, 164, 'анти-вакуум: 164 item-ссылок (ре-пин 000235.12: +25 волны Природа; RED 139)');
+  assert.equal(buildingRefs, 276, 'анти-вакуум: 276 building-ссылок (ре-пин 000235.12: +50 волны Природа; RED 226)');
+  assert.equal(baseRefs + itemRefs + buildingRefs, 474,
+    'всего ссылок: 474 (34 + 164 + 276) (ре-пин 000235.12: RED 394)');
+  assert.equal(filesWithItems, 161,
+    'анти-вакуум: 161 файлов с «предметы» (6 без ключа) (ре-пин 000235.12: RED 136)');
+  assert.equal(baseTargets.size, 34,
+    'уникальные цели: 34 spells (29 прежних + vine, nature_blessing, entangle, thorn_whip, vine_lash) (ре-пин 000235.12: RED 29)');
+  assert.equal(itemTargets.size, 153, 'уникальные цели: 153 items (ре-пин 000235.12: +25 своих свитков; RED 128)');
   assert.equal(buildingTargets.size, 7, 'уникальные цели: 7 buildings (000019/000021/000038 уже цели)');
 });
 
@@ -2142,13 +2142,15 @@ test('000235.01 S2: «параметры» — опционально; additiona
     'карта — ровно 8 ключей (контракт D1)');
   assert.ok(!schema.required.includes('параметры'),
     '«параметры» — опционально (не в required)');
-  // Под-схемы 8 ключей (контракт §2): union 15 stat, границы.
+  // Под-схемы 8 ключей (контракт §2): union 16 stat, границы.
   const stats = ['урон', 'броня', 'ход', 'реген', 'вампиризм', 'отражение',
     'попадание', 'получаемый_урон', 'иммунитет_контроля',
     'урон_вниз', 'броня_вниз', 'попадание_вниз', 'получаемый_урон_вверх',
-    'dot', 'ход_вниз'];
+    'dot', 'ход_вниз', 'maxHP'];
   assert.deepEqual(params.properties.stat.enum.slice().sort(),
-    stats.slice().sort(), 'stat — union 15 статов (9 баф + 6 дебаф)');
+    stats.slice().sort(),
+    'stat — union 16 статов (10 баф + 6 дебаф; ре-пин 000235.12: '
+    + '+maxHP — heal-кап vitality)');
   assert.equal(params.properties.value.type, 'number', 'value — number');
   assert.equal(params.properties.value.minimum, 0, 'value ≥ 0');
   assert.equal(params.properties.turns.type, 'integer', 'turns — integer');
@@ -3349,16 +3351,17 @@ test('000235.07 W-04: кастабельность вне боя — firelight/h
   }
 });
 
-test('000235.07 W-08: зеркала в синке — spells-data 142 / items-data 486 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление (+25 заклинаний); ре-пин 000230.11: +50 руки; ре-пин 000230.12: +25 «правая рука»; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 torso-набора; ре-пин 000235.11: +25 волны Защита (+25 заклинаний); ре-пин 000277: +2 set); sync:check exit 0', () => {
+test('000235.07 W-08: зеркала в синке — spells-data 167 / items-data 511 (ре-пин 000235.07: +25 свитков; ре-пин 000235.08: +25 волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso; ре-пин 000235.09: +25 волны Тень; ре-пин 000235.10: +25 волны Исцеление (+25 заклинаний); ре-пин 000230.11: +50 руки; ре-пин 000230.12: +25 «правая рука»; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 torso-набора; ре-пин 000235.11: +25 волны Защита (+25 заклинаний); ре-пин 000277: +2 set; ре-пин 000235.12: +25 волны Природа (+25 заклинаний)); sync:check exit 0', () => {
   const { SPELLS } = loadSpellsData();
-  assert.equal(SPELLS.length, 142, 'spells-data: 142 записей (RED: 117)');
+  assert.equal(SPELLS.length, 167, 'spells-data: 167 записей (ре-пин 000235.12: RED 142)');
   const itemsData = require('../src/items-data.js');
-  assert.equal(itemsData.ITEMS.length, 486,
-    'items-data: 486 (каталог после мержа: 182 на базе 000230.09 '
+  assert.equal(itemsData.ITEMS.length, 511,
+    'items-data: 511 (каталог после мержа: 182 на базе 000230.09 '
     + '+ 25 свитков волны Лёд (000235.08) + 25 torso (000230.10) '
     + '+ 25 свитков волны Тень (000235.09) '
     + '+ 25 свитков волны Исцеление (000235.10) '
     + '+ 25 свитков волны Защита (000235.11) '
+    + '+ 25 свитков волны Природа (000235.12) '
     + '+ 50 рук (000230.11) + 25 «правая рука» (000230.12) '
     + '+ 25 left_hand (000230.13) + 25 колец (000230.14) '
     + '+ 50 ног/ступней (000230.15) '
@@ -4603,8 +4606,8 @@ test('000235.09 W-15: drain_life/soul_drain {value:0.5} в каталоге (п�
     assert.equal(r.dmg, expected, `${s.id}: формула урона инвариантна`);
     n += 1;
   }
-  assert.equal(n, 29,
-    'урон-заклинаний в каталоге: 29 из 142 (ре-пин 000235.11: +25 волны Защита; урона НЕТ; RED: 29 из 117)');
+  assert.equal(n, 36,
+    'урон-заклинаний в каталоге: 36 из 167 (ре-пин 000235.11: +25 волны Защита; урона НЕТ; ре-пин 000235.12: +7 волны Природа; RED: 29 из 142)');
 });
 
 // --- Задача 000235.10: волна Исцеление — 25 заклинаний + 25 свитков (TDD) ---
@@ -5846,8 +5849,8 @@ test('000235.10 W-15: NO-OP data-pins + регрессия — {реген} (reg
     assert.equal(r.dmg, expected, `${s.id}: формула урона инвариантна`);
     n += 1;
   }
-  assert.equal(n, 29,
-    'урон-заклинаний: 29 — волна Исцеление урона НЕ добавляет (инвариант)');
+  assert.equal(n, 36,
+    'урон-заклинаний: 36 из 167 (ре-пин 000235.12: +7 волны Природа; RED: 29)');
 });
 
 test('000235.10 W-16: divine_protection — castOutOfCombat {ok, запись day+1, mp −7}; бой в день эффекта: buffMods {incomingMult:0.85} (форма main.js currentBuffMods) — урон по герою 100→85 и по союзнику 20→17 (РЕАЛЬНЫЙ); день+1 — запись истекла (isHeroDivineProtected false); неактивен — ×1 бит-в-бит; normalizeBuffMods: мусор incomingMult → 1; prayer+divine_protection — одна запись на id; source-пин main.js (isHeroDivineProtected/incomingMult/0.85)', () => {
@@ -5999,7 +6002,7 @@ function protScrollFile(i) {
   return `assets/items/${String(460 + i).padStart(6, '0')}.json`;
 }
 
-test('000235.11 W-01: пин переименования — stony_hide (000122) = «Каменный панцирь» (id НЕ менять; имя «Каменная кожа» занято stone_skin 000013 — тот её ХРАНИТ, регрессия); sweep уникальности `название` по ВСЕМУ каталогу — 142 без дублей', () => {
+test('000235.11 W-01: пин переименования — stony_hide (000122) = «Каменный панцирь» (id НЕ менять; имя «Каменная кожа» занято stone_skin 000013 — тот её ХРАНИТ, регрессия); sweep уникальности `название` по ВСЕМУ каталогу — 167 без дублей (ре-пин 000235.12: +25 волны Природа)', () => {
   const dataMod = loadSpellsData();
   const s = dataMod.SPELLS_BY_ID['stony_hide'];
   assert.ok(s,
@@ -6012,8 +6015,8 @@ test('000235.11 W-01: пин переименования — stony_hide (000122
   assert.equal(legacy.название, 'Каменная кожа',
     'stone_skin: «Каменная кожа» НЕ тронута (регрессия — чужое имя)');
   const names = dataMod.SPELLS.map((x) => x.название);
-  assert.equal(names.length, 142,
-    'каталог: 142 заклинания (RED: ' + names.length + ')');
+  assert.equal(names.length, 167,
+    'каталог: 167 заклинаний (ре-пин 000235.12: +25 волны Природа; RED: ' + names.length + ')');
   const seen = new Set();
   for (const n of names) {
     assert.ok(!seen.has(n), 'дубль названия: «' + n + '» (sweep)');
@@ -6738,4 +6741,807 @@ test('000267-DRN-1: drain-самохил — case «урон» + парамет�
     'контроль: параметров.value НЕТ — лечения нет (обе стадии)');
   assert.equal(r.healed, undefined,
     'контроль: out.healed отсутствует (обе стадии)');
+});
+
+// --- Задача 000235.12: волна Природа — 25 заклинаний + 25 свитков (TDD) ---
+//
+// Контракт: memory/000235.12-nature-wave-content.md. RED: записи/
+// зеркала/экспорты/ветки отсутствуют (ENOENT / undefined / count) —
+// осмысленно, не синтаксис. Таблица ТЗ дословно; нумерация
+// append-only: spells 000143–000167, свитки items 000487–000511
+// (тот же порядок). Вне_боя — ровно 3 (000165/000166/000167).
+
+const NATURE12 = [
+  // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
+  ['acid_splash', 'Кислотное швыряние', 'урон', 1, 1, null, 4, false],
+  ['thorn_whip', 'Шиповая плеть', 'урон', 1, 1, null, 3, false],
+  ['poison_spore', 'Ядовитый спор', 'урон', 2, 1, null, 7, false],
+  ['vine_lash', 'Витие лоз', 'урон', 3, 2, 'assets/spells/000144.json',
+    11, false],
+  ['thorn_storm', 'Шиповый шторм', 'урон', 3, 3,
+    'assets/spells/000146.json', 12, false],
+  ['nature_wrath', 'Гнев природы', 'урон', 4, 1, null, 20, false],
+  ['hurricane', 'Ураган', 'урон', 4, 1, null, 20, false],
+  ['poison_cloud', 'Ядовитое облако', 'создание', 2, 1, null, 7, false],
+  ['thorn_field', 'Поле шипов', 'создание', 2, 1, null, 7, false],
+  ['wall_of_thorns', 'Стена шипов', 'создание', 3, 1, null, 12, false],
+  ['life_force', 'Живая сила', 'баф', 2, 1, null, 8, false],
+  ['barkskin', 'Коростенная кожа', 'баф', 2, 2,
+    'assets/spells/000016.json', 7, false],
+  ['heart_of_forest', 'Сердце леса', 'баф', 1, 1, null, 4, false],
+  ['nature_haste', 'Стремительность дикаря', 'баф', 3, 1, null,
+    12, false],
+  ['vitality', 'Живучесть', 'баф', 3, 1, null, 13, false],
+  ['poison', 'Яд', 'дебаф', 1, 1, null, 3, false],
+  ['rot', 'Гниль', 'дебаф', 2, 1, null, 8, false],
+  ['paralyzing_spore', 'Парализующий спор', 'дебаф', 3, 1, null, 11,
+    false],
+  ['entangle', 'Упутать', 'контроль', 2, 2, 'assets/spells/000015.json',
+    8, false],
+  ['root_grasp', 'Корневая хватка', 'контроль', 3, 3,
+    'assets/spells/000161.json', 12, false],
+  ['forest_beast', 'Лесной зверь', 'призыв', 2, 1, null, 7, false],
+  ['treant', 'Трент', 'призыв', 3, 1, null, 14, false],
+  ['wild_growth', 'Дикий рост', 'внебой', 1, 1, null, 4, true],
+  ['beast_friend', 'Зверь-приятель', 'внебой', 2, 1, null, 7, true],
+  ['path_of_vines', 'Тропа лоз', 'внебой', 3, 1, null, 15, true],
+];
+const NATURE12_IDS = NATURE12.map((r) => r[0]);
+const NATURE12_OC = ['wild_growth', 'beast_friend', 'path_of_vines'];
+const NATURE12_SCROLLS = NATURE12.map((r) => r[0] + '_scroll');
+
+function natureSpellFile(i) {
+  return path.join(DIR, String(143 + i).padStart(6, '0') + '.json');
+}
+function natureScrollFile(i) {
+  return `assets/items/${String(487 + i).padStart(6, '0')}.json`;
+}
+
+test('000235.12 W-02: 25 записей spells — id/название/школа=природа/атрибут=wisdom/действие/уровень (L1×5/L2×9/L3×9/L4×2)/степень/база/мани (полосы L1 3–5, L2 6–8, L3 10–15, L4 20)/icon/icon_prompt/описание/здания [000021, 000038]/предметы = СВОЙ свиток (000487–000511, тот же порядок)/вне_боя РОВНО у 3; зеркало ≡ JSON (resolveSpell); name-uniqueness 167', () => {
+  const dataMod = loadSpellsData();
+  assert.equal(dataMod.SPELLS.length, 167,
+    'каталог: 167 заклинаний (ре-пин 000235.12: RED '
+    + dataMod.SPELLS.length + ')');
+  const levels = { 1: 0, 2: 0, 3: 0, 4: 0 };
+  const bands = { 1: [3, 5], 2: [6, 8], 3: [10, 15], 4: [20, 20] };
+  let ocCount = 0;
+  NATURE12.forEach((row, i) => {
+    const [id, name, action, level, degree, base, mana, oc] = row;
+    const f = natureSpellFile(i);
+    assert.ok(fs.existsSync(f),
+      `W-02: запись отсутствует — ${path.basename(f)} (${id}) (RED: файл нет)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.equal(d.id, id, `${id}: id`);
+    assert.equal(d.название, name, `${id}: название`);
+    assert.equal(d.школа, 'природа', `${id}: школа`);
+    assert.equal(d.атрибут, 'wisdom', `${id}: атрибут`);
+    assert.equal(d.действие, action, `${id}: действие`);
+    assert.equal(d.уровень, level, `${id}: уровень`);
+    assert.equal(d.степень, degree, `${id}: степень`);
+    assert.equal(d.база, base, `${id}: база (сырая ссылка — файл)`);
+    assert.equal(d.мани, mana, `${id}: мани`);
+    const [lo, hi] = bands[level];
+    assert.ok(d.мани >= lo && d.мани <= hi,
+      `${id}: мани в полосе L${level} [${lo}–${hi}] (000119)`);
+    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
+      `${id}: icon_prompt непустое`);
+    assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
+      `${id}: описание непустое`);
+    assert.deepEqual(d.здания,
+      ['assets/buildings/000021.json', 'assets/buildings/000038.json'],
+      `${id}: здания = [000021 (Храм исцеления), 000038 (Храм горы)]`);
+    assert.deepEqual(d.предметы, [natureScrollFile(i)],
+      `${id}: предметы = [свой свиток ${natureScrollFile(i)}]`);
+    assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
+    assert.ok(dataMod.SPELLS_BY_ID[id],
+      `W-02: ${id} — запись в зеркале (RED: нет)`);
+    const fname = String(143 + i).padStart(6, '0') + '.json';
+    assert.deepEqual(dataMod.SPELLS_BY_ID[id], resolveSpell(d, fname),
+      `${id}: зеркало ≡ JSON (resolveSpell)`);
+    levels[level] += 1;
+    if (oc) ocCount += 1;
+  });
+  assert.deepEqual(levels, { 1: 5, 2: 9, 3: 9, 4: 2 },
+    'уровни: L1×5 / L2×9 / L3×9 / L4×2 (таблица ТЗ)');
+  assert.equal(ocCount, 3,
+    'вне_боя — ровно 3 (wild_growth/beast_friend/path_of_vines)');
+  const names = dataMod.SPELLS.map((x) => x.название);
+  assert.equal(names.length, 167,
+    'name-uniqueness: 167 (ре-пин 000235.12: RED ' + names.length + ')');
+  const seen = new Set();
+  for (const n of names) {
+    assert.ok(!seen.has(n), 'дубль названия: «' + n + '» (sweep 167)');
+    seen.add(n);
+  }
+});
+
+test('000235.12 W-03: параметры deepEqual (§1.5) — ровно 18 с «параметры»; 7 урон БЕЗ «параметры» СОВСЕМ (value у урона = drain — категорически нет); цепочки C1/C2/C3 (база id, степень = база+1, школа = школа базы, уровень/мана ≥ базы)', () => {
+  const P12 = {
+    poison_cloud: { object: 'зона', radius: 2, stat: 'dot', value: 1,
+      turns: 3 },
+    thorn_field: { object: 'зона', radius: 2, stat: 'dot', value: 2,
+      turns: 3 },
+    wall_of_thorns: { object: 'стена', turns: 5 },
+    life_force: { stat: 'реген', value: 2, turns: 3 },
+    barkskin: { stat: 'броня', value: 1, turns: 3 },
+    heart_of_forest: { stat: 'реген', value: 1, turns: 3 },
+    nature_haste: { stat: 'ход', value: 1, turns: 3 },
+    vitality: { stat: 'maxHP', value: 0.1, turns: 3 },
+    poison: { stat: 'dot', value: 1, turns: 3 },
+    rot: { stat: 'урон_вниз', value: 0.2, turns: 3 },
+    paralyzing_spore: { stat: 'попадание_вниз', value: 0.2, turns: 3 },
+    entangle: { turns: 1 },
+    root_grasp: { turns: 1 },
+    forest_beast: { summon: 'wolf', turns: 4 },
+    treant: { summon: 'earth_elemental', turns: 4 },
+    wild_growth: { days: 1 },
+    beast_friend: { days: 3, radius: 3 },
+    path_of_vines: { days: 1 },
+  };
+  const NO_PARAMS12 = new Set([
+    'acid_splash', 'thorn_whip', 'poison_spore', 'vine_lash',
+    'thorn_storm', 'nature_wrath', 'hurricane',
+  ]);
+  assert.equal(Object.keys(P12).length, 18, 'таблица: 18 с параметрами');
+  NATURE12.forEach((row, i) => {
+    const id = row[0];
+    const f = natureSpellFile(i);
+    assert.ok(fs.existsSync(f), `W-03: запись отсутствует — ${id} (RED)`);
+    const d = JSON.parse(fs.readFileSync(f, 'utf8'));
+    const expected = P12[id];
+    if (expected !== undefined) {
+      assert.deepEqual(d.параметры, expected, `${id}: параметры по §1.5`);
+    } else {
+      assert.equal(d.параметры, undefined,
+        `${id}: БЕЗ «параметры» (урон — drain-ловушка 000267)`);
+    }
+  });
+  const dataMod = loadSpellsData();
+  const byId = dataMod.SPELLS_BY_ID;
+  const CHAINS12 = [
+    ['entangle', 'vine'],
+    ['root_grasp', 'entangle'],
+    ['barkskin', 'nature_blessing'],
+    ['vine_lash', 'thorn_whip'],
+    ['thorn_storm', 'vine_lash'],
+  ];
+  for (const [childId, baseId] of CHAINS12) {
+    const c = byId[childId];
+    const b = byId[baseId];
+    assert.ok(c && b,
+      `W-03 цепь ${childId} ← ${baseId}: обе в каталоге (RED: нет)`);
+    assert.equal(c.база, baseId,
+      `${childId}: база = ${baseId} (id-форма зеркала)`);
+    assert.equal(c.степень, b.степень + 1,
+      `${childId}: степень = степень ${baseId} + 1`);
+    assert.equal(c.школа, b.школа,
+      `${childId}: школа = школа ${baseId}`);
+    assert.ok(c.уровень >= b.уровень,
+      `${childId}: уровень >= уровня ${baseId}`);
+    assert.ok(c.мани >= b.мани,
+      `${childId}: мана >= маны ${baseId}`);
+  }
+});
+
+test('000235.12 W-04: урон — 7 новых + 29 старых: legacy-формула бит-в-байт round((4+0.5·attr)·(1+0.15·(степень−1))) (n = 36 из 167), доп. эффекты ТЗ-колонки НЕ меняют r.dmg и НЕ ставят вторичные эффекты (t.bind/t.debuff у цели нет), drain НЕТ (r.healed undefined)', () => {
+  const dataMod = loadSpellsData();
+  for (const id of NATURE12_IDS) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  const newDmg = NATURE12.map((r) => r[0]).filter((id) => {
+    const s = dataMod.SPELLS_BY_ID[id];
+    return s && s.действие === 'урон';
+  });
+  assert.deepEqual(newDmg,
+    ['acid_splash', 'thorn_whip', 'poison_spore', 'vine_lash',
+      'thorn_storm', 'nature_wrath', 'hurricane'],
+    'ровно 7 новых урон-заклинаний');
+  for (const [id, mana, degree] of [
+    ['acid_splash', 4, 1], ['thorn_whip', 3, 1], ['poison_spore', 7, 1],
+    ['vine_lash', 11, 2], ['thorn_storm', 12, 3], ['nature_wrath', 20, 1],
+    ['hurricane', 20, 1]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const r = castSpell(c, id, w.id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.dmg,
+      Math.round((4 + 0.5 * 10) * (1 + 0.15 * (degree - 1))),
+      `${id}: r.dmg = legacy-формула (wisdom 10, степень ${degree})`);
+    assert.equal(r.healed, undefined,
+      `${id}: drain НЕТ (параметров.value у урона нет — 000267)`);
+    assert.equal(w.bind, undefined,
+      `${id}: «root» из колонки «ЭФФЕКТ» не реализован (t.bind нет)`);
+    assert.equal(w.debuff, undefined,
+      `${id}: «броня_вниз/dot» из колонки «ЭФФЕКТ» не реализован (t.debuff нет)`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана −${mana}`);
+  }
+  let n = 0;
+  for (const s of dataMod.SPELLS) {
+    if (s.действие !== 'урон') continue;
+    const p = spellHero({ spells: [s.id], intelligence: 1, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, s.id, c.units[0].id);
+    assert.equal(r.ok, true, `${s.id}: каст (${r.reason})`);
+    const expected = Math.round(
+      (4 + 0.5 * p.primary[s.атрибут]) *
+      (1 + 0.15 * (s.степень - 1)));
+    assert.equal(r.dmg, expected, `${s.id}: формула урона инвариантна`);
+    n += 1;
+  }
+  assert.equal(n, 36,
+    'урон-заклинаний в каталоге: 36 из 167 (ре-пин 000235.12: '
+    + '29 + 7 волны Природа; RED: 29)');
+});
+
+test('000235.12 W-04b: PARTY_BUFF_IDS += heart_of_forest/nature_haste/vitality — эффект на ВСЮ партию (out.buffed «party», c.ps.buff + u.buff каждого живого союзника, СВОЙ объект на каждую цель — общей ссылки НЕТ); тик 3→2→1→0 (ровно 3 активных раунда, включая каст); hp при касте НЕ меняется; vitality — хил до buffed-кэпа round(70×1.1)=77 (r.healed 7), на turns 0 кэп = база (хил 0 при полном hp); nature_haste — стат «ход» пишется, moveCells не меняется (NO-OP)', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['heart_of_forest', 'nature_haste', 'vitality']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-04b: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  const { derived: pDer } = require('../src/player.js');
+  const CASES = [
+    ['heart_of_forest', { stat: 'реген', value: 1, turns: 3 }],
+    ['nature_haste', { stat: 'ход', value: 1, turns: 3 }],
+    ['vitality', { stat: 'maxHP', value: 0.1, turns: 3 }],
+  ];
+  for (const [id, eff] of CASES) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 7, allies: [
+        { name: 'Союзник0', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+        { name: 'Союзник1', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+        { name: 'Союзник2', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+      ] });
+    c._rng = () => 0.99;
+    const hp0 = p.hp;
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.buffed, 'party',
+      `${id}: out.buffed = 'party' (PARTY_BUFF_IDS, 000235.12)`);
+    assert.deepEqual(c.ps.buff, eff, `${id}: c.ps.buff (игрок)`);
+    const a = c.units.filter((u) => u.side === 'ally');
+    assert.equal(a.length, 3, `${id}: партия — 3 живых союзника`);
+    for (const x of a) {
+      assert.deepEqual(x.buff, eff,
+        `${id}: союзник ${x.name} — u.buff`);
+    }
+    assert.equal(p.hp, hp0,
+      `${id}: hp при касте НЕ изменился (ТЗ: «без изменения HP сверх текущих»)`);
+    const bseq = [c.ps.buff, a[0].buff, a[1].buff, a[2].buff];
+    for (let i = 0; i < bseq.length - 1; i++) {
+      assert.notStrictEqual(bseq[i], bseq[i + 1],
+        `${id}: объекты бафов РАЗНЫЕ (носитель ${i} и ${i + 1})`);
+    }
+    // Очередь [моб, игрок, a0, a1, a2]: 4 endTurn — 1 startRound
+    // (тик бафов). Волк бьёт с rng 0.99 — всегда мимо (hitChance ≤ 0.95).
+    const round = () => { c.endTurn(); c.endTurn(); c.endTurn(); c.endTurn(); };
+    round();
+    for (const e of bseq) assert.equal(e.turns, 2,
+      `${id}: тик 1 — 3 → 2`);
+    round();
+    for (const e of bseq) assert.equal(e.turns, 1,
+      `${id}: тик 2 — 2 → 1`);
+    round();
+    for (const e of bseq) assert.equal(e.turns, 0,
+      `${id}: тик 3 — 1 → 0 (ровно 3 активных раунда, включая каст)`);
+  }
+  // vitality: maxHP-кап (D-VIT) — хил сверх базового кэпа до +10%.
+  {
+    const p = spellHero({ spells: ['vitality', 'mend'], wisdom: 10,
+      mp: 60 });
+    p.primary.constitution = 10;
+    const pMax = pDer(p).maxHP;
+    assert.equal(pMax, 70, 'фикстура: базовый maxHP 70 (Тело 10)');
+    p.hp = pMax;
+    const c = soloCombat(p, 'wolf');
+    c._rng = () => 0.99; // удары волка — мимо (hitChance ≤ 0.95)
+    const r1 = castSpell(c, 'vitality');
+    assert.equal(r1.ok, true, 'vitality: каст ok (' + r1.reason + ')');
+    assert.equal(p.hp, pMax,
+      'vitality: при касте hp НЕ растёт (кап stateless, ТЗ)');
+    const r2 = castSpell(c, 'mend');
+    assert.equal(r2.ok, true, 'mend: каст ok (' + r2.reason + ')');
+    assert.equal(p.hp, 77,
+      'vitality: хил до buffed-кэпа round(70 × 1.1) = 77 (RED: 70 — кэпа нет)');
+    assert.equal(r2.healed, 7,
+      'vitality: r.healed = 7 (сверх базового кэпа)');
+    const round = () => c.endTurn(); // соло: 1 endTurn = 1 startRound
+    round(); round(); round();
+    assert.equal(c.ps.buff.turns, 0, 'vitality: тик 3 → 0');
+    p.hp = pMax;
+    const r3 = castSpell(c, 'mend');
+    assert.equal(r3.healed, 0,
+      'vitality: turns 0 — кэп = база (70), hp полный → хил 0');
+    assert.equal(p.hp, pMax,
+      'vitality: turns 0 — hp не выше базового кэпа');
+  }
+  // vitality + воскрешение (контракт §2.1, крайний случай): игрок
+  // воскрешён при АКТИВНОМ бафе — hp = round(buffed-кэпа / 2) =
+  // round(77/2) = 39 (сверх базового round(70/2) = 35).
+  {
+    const p = spellHero({ spells: ['vitality', 'resurrect'],
+      wisdom: 10, mp: 40 });
+    p.primary.constitution = 10;
+    const pMax = pDer(p).maxHP;
+    assert.equal(pMax, 70, 'фикстура: базовый maxHP 70 (Тело 10)');
+    p.hp = 1;
+    const c = soloCombat(p, 'wolf');
+    const r1 = castSpell(c, 'vitality');
+    assert.equal(r1.ok, true,
+      'vitality+resurrect: каст ok (' + r1.reason + ')');
+    p.alive = false;
+    p.hp = 0;
+    const r2 = castSpell(c, 'resurrect');
+    assert.equal(r2.ok, true,
+      'vitality+resurrect: воскрешение ok (' + r2.reason + ')');
+    assert.equal(p.alive, true,
+      'vitality+resurrect: игрок возвращён в бой');
+    assert.equal(p.hp, 39,
+      'vitality+resurrect: hp = round(round(70×1.1)/2) = 39 '
+      + '(RED: 35 — кэп не учитывается)');
+  }
+  // nature_haste: «ход» — NO-OP (потребителя нет; 000267 стоп-лист;
+  // потребитель — 000235.08.01): стат пишется, moveCells не меняется.
+  {
+    const p = spellHero({ spells: ['nature_haste'], wisdom: 10, mp: 40 });
+    const move0 = pDer(p).moveCells;
+    const c = soloCombat(p, 'wolf');
+    c._rng = () => 0.99;
+    const r = castSpell(c, 'nature_haste');
+    assert.equal(r.ok, true, 'nature_haste: каст ok (' + r.reason + ')');
+    assert.deepEqual(c.ps.buff,
+      { stat: 'ход', value: 1, turns: 3 },
+      'nature_haste: стат «ход» в c.ps.buff (записан)');
+    assert.equal(pDer(p).moveCells, move0,
+      'nature_haste: moveCells не меняется («ход» — потребителя нет)');
+  }
+});
+
+test('000235.12 W-05: fail-closed гейты волны — ранг (canLearn: L4 nature_wrath «нужен ранг школы «Аркимаг»» при wisdom 10, ok при wisdom 51; L1 wild_growth ok при wisdom 1; цепочка barkskin без nature_blessing — «нужно базовое заклинание»), здания ВСЕХ 25 = [21, 38] (id-форма), не изучено («заклинание не изучено» — мана/пул не тратятся), вне_боя-в-бою (wild_growth в бою → «внебоевое заклинание» до расхода), боевое-вне-боя (acid_splash вне боя → «боевое заклинание» до расхода), мана (mp/пул не тратятся, мутаций нет) + OOC-recast in place', () => {
+  const dataMod = loadSpellsData();
+  for (const id of NATURE12_IDS) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-05: ${id} (RED: нет)`);
+  }
+  const { castSpell, castOutOfCombat, canLearn } = loadSpells();
+  {
+    const p1 = spellHero({ spells: [], wisdom: 1, mp: 60 });
+    assert.equal(canLearn(p1, 'wild_growth').ok, true,
+      'ранг: L1 wild_growth — Ученик (wisdom 1) — ok');
+    const p4 = spellHero({ spells: [], wisdom: 10, mp: 60 });
+    const r4 = canLearn(p4, 'nature_wrath');
+    assert.equal(r4.ok, false, 'ранг: L4 nature_wrath — отказ');
+    assert.equal(r4.reason, 'нужен ранг школы «Аркимаг»',
+      'ранг: причина дословно (wisdom 10 = Ученик < tier 4)');
+    const p4b = spellHero({ spells: [], wisdom: 51, mp: 60 });
+    assert.equal(canLearn(p4b, 'nature_wrath').ok, true,
+      'ранг: wisdom 51 = Аркимаг — ok');
+    const pc = spellHero({ spells: [], wisdom: 11, mp: 60 });
+    const rc = canLearn(pc, 'barkskin');
+    assert.equal(rc.ok, false, 'цепочка: barkskin без nature_blessing — отказ');
+    assert.ok(rc.reason.startsWith('нужно базовое заклинание:'),
+      'цепочка: причина — базовое заклинание; факт: ' + rc.reason);
+    const pc2 = spellHero({ spells: ['nature_blessing'], wisdom: 11, mp: 60 });
+    assert.equal(canLearn(pc2, 'barkskin').ok, true,
+      'цепочка: с nature_blessing — ok');
+  }
+  for (const s of dataMod.SPELLS) {
+    if (!NATURE12_IDS.includes(s.id)) continue;
+    assert.deepEqual(s.здания, [21, 38],
+      s.id + ': здания = [21 (Храм исцеления), 38 (Храм горы)] (id-форма)');
+  }
+  {
+    const p = spellHero({ spells: [], mp: 30 });
+    const r = castOutOfCombat(p, 'wild_growth', 10);
+    assert.equal(r.ok, false, 'не изучено (вне боя) — отказ');
+    assert.equal(r.reason, 'заклинание не изучено',
+      'не изучено: причина (гейт книги, второй по порядку)');
+    assert.equal(p.mp, 30, 'не изучено: мана не тратится');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'не изучено: мутаций нет');
+    const p2 = spellHero({ spells: [], wisdom: 10, mp: 30 });
+    const c = soloCombat(p2, 'wolf');
+    const poolBefore = c.ps.spellWis;
+    const r2 = castSpell(c, 'wild_growth');
+    assert.equal(r2.ok, false, 'не изучено (в бою) — отказ');
+    assert.equal(r2.reason, 'заклинание не изучено',
+      'не изучено: причина (в бою)');
+    assert.equal(c.ps.spellWis, poolBefore,
+      'не изучено: пул Мудрости не тратится');
+    assert.equal(p2.mp, 30, 'не изучено: мана не тратится');
+  }
+  {
+    const p = spellHero({ spells: ['wild_growth'], wisdom: 10, mp: 30 });
+    const c = soloCombat(p, 'wolf');
+    const poolBefore = c.ps.spellWis;
+    const r = castSpell(c, 'wild_growth');
+    assert.equal(r.ok, false, 'внебой в бою — отказ');
+    assert.equal(r.reason, 'внебоевое заклинание',
+      'внебой в бою: причина по действию (до расхода)');
+    assert.equal(c.ps.spellWis, poolBefore,
+      'внебой в бою: пул не тратится');
+    assert.equal(p.mp, 30, 'внебой в бою: мана не тратится');
+  }
+  {
+    const p = spellHero({ spells: ['acid_splash'], mp: 30 });
+    const r = castOutOfCombat(p, 'acid_splash', 10);
+    assert.equal(r.ok, false, 'боевое вне боя — отказ');
+    assert.equal(r.reason, 'боевое заклинание',
+      'боевое вне боя: причина по флагу вне_боя');
+    assert.equal(p.mp, 30, 'боевое вне боя: мана не тратится');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'боевое вне боя: мутаций нет');
+  }
+  {
+    const p = spellHero({ spells: ['beast_friend'], mp: 6 });
+    const r = castOutOfCombat(p, 'beast_friend', 10);
+    assert.equal(r.ok, false, 'маны нет (вне боя) — отказ');
+    assert.equal(r.reason, 'не хватает маны',
+      'маны нет (вне боя): причина (форма 000037)');
+    assert.equal(p.mp, 6, 'маны нет: mp не тратится');
+    assert.equal(p.outOfCombatEffects, undefined,
+      'маны нет: мутаций нет');
+    const p2 = spellHero({ spells: ['acid_splash'], wisdom: 10, mp: 3 });
+    const c = soloCombat(p2, 'wolf');
+    const poolBefore = c.ps.spellWis;
+    const r2 = castSpell(c, 'acid_splash', c.units[0].id);
+    assert.equal(r2.ok, false, 'маны нет (в бою) — отказ');
+    assert.equal(r2.reason, 'не хватает маны (4)',
+      'маны нет (в бою): причина с числом (4)');
+    assert.equal(c.ps.spellWis, poolBefore,
+      'маны нет: пул не тратится');
+    assert.equal(p2.mp, 3, 'маны нет: mp не тратится');
+  }
+  {
+    const p = spellHero({ spells: ['wild_growth'], mp: 30 });
+    const r1 = castOutOfCombat(p, 'wild_growth', 10);
+    assert.equal(r1.ok, true, 'первый каст ok (' + r1.reason + ')');
+    assert.equal(r1.expiresDay, 11,
+      'r.expiresDay = 10 + days 1 (generic-ядро)');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: 'wild_growth', expiresDay: 11 }],
+      'запись {wild_growth, expiresDay: 11}');
+    const r2 = castOutOfCombat(p, 'wild_growth', 11);
+    assert.equal(r2.ok, true, 'перекат (день 11) ok');
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: 'wild_growth', expiresDay: 12 }],
+      'recast — ОБНОВЛЕНИЕ in place (expiresDay 12), дубля НЕТ');
+    assert.equal(p.mp, 30 - 8, 'recast: мана списана снова (4 + 4)');
+  }
+});
+
+test('000235.12 W-06: создание — poison_cloud/thorn_field: СТАНДАРТНАЯ зона c.zone {x: px, y: py, radius: 2, stat: dot, value, turns: 3}, применение ОДНОКРАТНО в момент каста (mob-цели в радиусе Чебышёва — u.debuff; союзники НЕ затрагиваются; игрок НЕ в зоне), out.zone = radius; wall_of_thorns: c.walls {cells, turns: 5}, клетки в c.obstacles, out.wall = cells.length, тик стены 5→4, зоны 3→2', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['poison_cloud', 'thorn_field', 'wall_of_thorns']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-06: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  for (const [id, dot, mana] of [
+    ['poison_cloud', 1, 7],
+    ['thorn_field', 2, 7]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = createCombat({ player: p, mobs: ['wolf'], mobLevel: 2,
+      seed: 13, allies: [
+        { name: 'Союзник0', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+        { name: 'Союзник1', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+        { name: 'Союзник2', role: 'melee', level: 1, dmg: 1, hp: 1,
+          skills: [], spells: [] },
+      ] });
+    const personal = { stat: 'урон', value: 0.1, turns: 3 };
+    c.ps.buff = personal;
+    c._rng = () => 0.99;
+    const r = castSpell(c, id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.deepEqual(c.zone,
+      { x: c.px, y: c.py, radius: 2, stat: 'dot', value: dot, turns: 3 },
+      `${id}: c.zone — стандартная зона (radius 2, dot ${dot})`);
+    assert.equal(r.zone, 2, `${id}: out.zone = radius`);
+    for (const a of c.units.filter((u) => u.side === 'ally')) {
+      assert.equal(a.buff, undefined,
+        `${id}: союзник ${a.name} НЕ в зоне-дебафе (u.buff нет)`);
+    }
+    assert.equal(c.ps.buff, personal,
+      `${id}: баф игрока НЕ ИЗМЕНЁН (игрок не в зоне, та же ссылка)`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана −${mana}`);
+    // очередь [моб, игрок, a0, a1, a2]: 4 endTurn = 1 startRound (тик)
+    c.endTurn(); c.endTurn(); c.endTurn(); c.endTurn();
+    assert.equal(c.zone.turns, 2, `${id}: тик зоны 3 → 2`);
+  }
+  {
+    const p = spellHero({ spells: ['poison_cloud'], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0]; // вплотную (py−1) — Чебышёв 1 ≤ 2
+    const r = castSpell(c, 'poison_cloud');
+    assert.equal(r.ok, true, 'poison_cloud: каст ok (' + r.reason + ')');
+    assert.deepEqual(w.debuff,
+      { stat: 'dot', value: 1, turns: 3 },
+      'poison_cloud: моб в радиусе — u.debuff {dot, 1, 3} (момент каста)');
+  }
+  {
+    const p = spellHero({ spells: ['wall_of_thorns'], wisdom: 10,
+      mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    w.x = 0; w.y = 0; // ряд стены (y = py−2 = 4) чист
+    c._rng = () => 0.99;
+    const r = castSpell(c, 'wall_of_thorns');
+    assert.equal(r.ok, true, 'wall_of_thorns: каст ok (' + r.reason + ')');
+    assert.equal(c.walls.length, 1, 'wall_of_thorns: c.walls — 1 запись');
+    const wl = c.walls[0];
+    assert.equal(wl.turns, 5, 'wall_of_thorns: turns 5 (§1.5)');
+    assert.ok(Array.isArray(wl.cells) && wl.cells.length > 0,
+      'wall_of_thorns: cells — непустой массив');
+    assert.equal(r.wall, wl.cells.length,
+      'wall_of_thorns: out.wall = cells.length');
+    for (const [x, y] of wl.cells) {
+      assert.ok(c.obstacles.has(x + ',' + y),
+        'wall_of_thorns: клетка (' + x + ',' + y + ') в c.obstacles');
+    }
+    assert.equal(p.mp, 40 - 12, 'wall_of_thorns: мана −12');
+    c.endTurn();
+    assert.equal(c.walls[0].turns, 4,
+      'wall_of_thorns: тик 5 → 4 (startRound)');
+  }
+});
+
+test('000235.12 W-07: дебафы/контроль — poison t.debuff {dot,1,3} / rot {урон_вниз,0.2,3} / paralyzing_spore {попадание_вниз,0.2,3}: стат записан, out.debuffed, тик 3→2 (dot — в начале хода цели, не-dot — startRound), t.bind нет; entangle/root_grasp — t.bind {turns:1} и ТОЛЬКО (t.debuff нет — «контроль» пишет только bind)', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['poison', 'rot', 'paralyzing_spore', 'entangle',
+    'root_grasp']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-07: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  for (const [id, stat, value, mana] of [
+    ['poison', 'dot', 1, 3],
+    ['rot', 'урон_вниз', 0.2, 8],
+    ['paralyzing_spore', 'попадание_вниз', 0.2, 11]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    c._rng = () => 0.99;
+    const r = castSpell(c, id, w.id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.debuffed, w.id, `${id}: out.debuffed`);
+    assert.deepEqual(w.debuff, { stat, value, turns: 3 },
+      `${id}: t.debuff {${stat}, ${value}, 3}`);
+    assert.equal(w.bind, undefined,
+      `${id}: t.bind НЕТ (дебаф ≠ контроль)`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана −${mana}`);
+    c.endTurn();
+    assert.equal(w.debuff.turns, 2, `${id}: тик 3 → 2`);
+  }
+  for (const [id, mana] of [['entangle', 8], ['root_grasp', 12]]) {
+    const p = spellHero({ spells: [id], wisdom: 10, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    c._rng = () => 0.99;
+    const r = castSpell(c, id, w.id);
+    assert.equal(r.ok, true, `${id}: каст ok (${r.reason})`);
+    assert.equal(r.bound, w.id, `${id}: out.bound`);
+    assert.deepEqual(w.bind, { turns: 1 }, `${id}: t.bind {turns:1}`);
+    assert.equal(w.debuff, undefined,
+      `${id}: t.debuff НЕТ («контроль» пишет только bind)`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана −${mana}`);
+  }
+});
+
+test('000235.12 W-08: призывы — forest_beast → «Волк» (000016, melee) L2: maxHP 13, damage 2, armor 0, mp 6, summonTurns 4; treant → «Земляной стихийник» (000029, shield) L3: maxHP 108, damage 4, armor 2, mp 6 + u.traits {rootOnAttack:true} (override — MOB_TYPES не мутируется); allyAttack трента: ПОПАДАНИЕ → t.bind {turns:1} + лог «опутан корнями (трент)», ПРОМАХ → bind/лог нет, ЛЕТАЛЬНЫЙ удар → мёртвой цели bind/лог нет (t.alive-гард); без трейта (forest_beast) — бит-в-бит (bind нет); u.spells [] (HEAL_SUMMON_IDS не расширен)', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['forest_beast', 'treant']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-08: ${id} (RED: нет)`);
+  }
+  const { castSpell } = loadSpells();
+  function summonCase(spellId, level, name, role, stats, mana) {
+    const p = spellHero({ spells: [spellId], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст призыва ok (${r.reason})`);
+    assert.ok(r.summoned, `${spellId}: r.summoned`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный в c.units`);
+    assert.equal(a.kind, 'summon', `${spellId}: kind 'summon'`);
+    assert.equal(a.summonTurns, 4, `${spellId}: summonTurns 4`);
+    assert.equal(a.level, level, `${spellId}: level = уровень спелла`);
+    assert.deepEqual(
+      { name: a.name, role: a.role, maxHP: a.maxHP, damage: a.damage,
+        armor: a.armor, mp: a.mp },
+      { name, role, ...stats },
+      `${spellId}: имя/роль/статы из каталога мобов (makeAlly L${level})`);
+    assert.deepEqual(a.spells, [],
+      `${spellId}: u.spells [] (HEAL_SUMMON_IDS = light_sprite/spirit_healer)`);
+    assert.equal(p.mp, 40 - mana, `${spellId}: мана −${mana}`);
+    return { c, a };
+  }
+  // wolf (000016: melee, hp 0.8, dmg 0.7, без armor, int 1) L2:
+  // maxHP round(16·0.8)=13, damage round(3.4·0.7)=2, armor 0, mp 5+1.
+  summonCase('forest_beast', 2, 'Волк', 'melee',
+    { maxHP: 13, damage: 2, armor: 0, mp: 6 }, 7);
+  // earth_elemental (000029: shield, hp 3, dmg 1, armor 2, int 1) L3:
+  // maxHP round(20·3·1.8)=108, damage round(4.1·1)=4, armor 2, mp 5+1.
+  const t = summonCase('treant', 3, 'Земляной стихийник', 'shield',
+    { maxHP: 108, damage: 4, armor: 2, mp: 6 }, 14);
+  assert.deepEqual(t.a.traits, { rootOnAttack: true },
+    'treant: u.traits {rootOnAttack:true} (override case «призыв»)');
+  function attackRound(spellId, endTurns) {
+    const p = spellHero({ spells: [spellId], wisdom: 11, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const r = castSpell(c, spellId);
+    assert.equal(r.ok, true, `${spellId}: каст ok (${r.reason})`);
+    const a = c.units.find((u) => u.id === r.summoned);
+    assert.ok(a, `${spellId}: призванный`);
+    c.obstacles.clear();
+    w.x = a.x + 1; w.y = a.y;
+    c._rng = () => 0.9999;
+    // round 2: treant (s1 init 2, тай-брейк за игроком) — 2 endTurn
+    // (волк действует первым, игрок, затем s1); forest_beast (s1 init 3,
+    // тай-брейк союзник до моба) — 1 endTurn (s1 сразу активен).
+    for (let i = 0; i < endTurns; i++) c.endTurn();
+    return { c, a, w };
+  }
+  {
+    const { c, w } = attackRound('treant', 2);
+    c._rng = () => 0.0001;
+    const atk = c.attack(w.id);
+    assert.ok(atk && atk.ok === true,
+      'treant: c.attack на ходу трента ok: ' + JSON.stringify(atk));
+    assert.equal(atk.hit, true,
+      'treant: гарантированное попадание (rng 0.0001 < hitChance)');
+    const line = c.log.find((l) => l.includes('опутан корнями (трент)'));
+    assert.ok(line,
+      'treant: ПОПАДАНИЕ → лог «опутан корнями (трент).» (факт: '
+      + JSON.stringify(c.log.slice(-4)) + ')');
+    assert.deepEqual(w.bind, { turns: 1 },
+      'treant: ПОПАДАНИЕ → t.bind {turns:1}');
+  }
+  {
+    const { c, w } = attackRound('treant', 2);
+    c._rng = () => 0.9999;
+    const atk = c.attack(w.id);
+    assert.ok(atk && atk.ok === true,
+      'treant: c.attack ok (промах — это результат броска): '
+      + JSON.stringify(atk));
+    assert.equal(atk.hit, false,
+      'treant: гарантированный промах (rng 0.9999 > hitChance)');
+    assert.equal(c.log.find((l) => l.includes('опутан корнями')),
+      undefined, 'treant: ПРОМАХ → лог корня нет');
+    assert.equal(w.bind, undefined, 'treant: промах → bind нет');
+  }
+  {
+    const { c, w } = attackRound('forest_beast', 1);
+    c._rng = () => 0.0001;
+    const atk = c.attack(w.id);
+    assert.ok(atk && atk.ok === true,
+      'forest_beast: c.attack ok: ' + JSON.stringify(atk));
+    assert.equal(atk.hit, true, 'forest_beast: попадание (rng 0.0001)');
+    assert.equal(w.bind, undefined,
+      'forest_beast: без трейта — bind НЕТ (бит-в-бит)');
+    assert.equal(c.log.find((l) => l.includes('опутан корнями')),
+      undefined, 'forest_beast: лог корня нет');
+  }
+  {
+    const { c, w } = attackRound('treant', 2);
+    w.hp = 4;
+    c._rng = () => 0.0001;
+    const atk = c.attack(w.id);
+    assert.ok(atk && atk.ok === true,
+      'treant летальный: c.attack ok: ' + JSON.stringify(atk));
+    assert.equal(atk.hit, true,
+      'treant летальный: попадание (rng 0.0001)');
+    assert.equal(atk.killed, true,
+      'treant летальный: цель повержена (урон 4, hp 4)');
+    assert.equal(w.alive, false, 'treant летальный: цель мертва');
+    assert.equal(w.bind, undefined,
+      'treant летальный: мёртвой цели — bind НЕТ (t.alive-гард)');
+    assert.equal(c.log.find((l) => l.includes('опутан корнями')),
+      undefined, 'treant летальный: строки корня в логе нет');
+  }
+});
+
+test('000235.12 W-10: OOC-хендлеры — castOutOfCombat generic {spellId, expiresDay: day+days} (wild_growth days 1 → D+1; beast_friend days 3 → D+3; path_of_vines days 1 → D+1), r.expiresDay, мана ровно «мани»; предикаты isHeroWildGrowth/isHeroBeastFriend/isHeroPathOfVines (export) — граница expiresDay >= day (stateless), чужой id/мусор → false без краха; expireOutOfCombatEffects — запись живёт, пока expiresDay > day (strict): wild_growth days=1 — boost уТРО D+1 (restoreDay ДО expire), вылетает уТРО D+1 после restoreDay; beast_friend days=3 — жив D, D+1, D+2, вылетает уТРО D+3', () => {
+  const dataMod = loadSpellsData();
+  for (const id of ['wild_growth', 'beast_friend', 'path_of_vines']) {
+    assert.ok(dataMod.SPELLS_BY_ID[id], `W-10: ${id} (RED: нет)`);
+  }
+  const { castOutOfCombat, expireOutOfCombatEffects,
+    isHeroWildGrowth, isHeroBeastFriend, isHeroPathOfVines } =
+    loadSpells();
+  for (const [name, fn] of [
+    ['isHeroWildGrowth', isHeroWildGrowth],
+    ['isHeroBeastFriend', isHeroBeastFriend],
+    ['isHeroPathOfVines', isHeroPathOfVines]]) {
+    assert.equal(typeof fn, 'function',
+      '000235.12: export Spells.' + name + ' (src/spells.js) (RED: нет)');
+  }
+  for (const [id, days, mana] of [
+    ['wild_growth', 1, 4],
+    ['beast_friend', 3, 7],
+    ['path_of_vines', 1, 15]]) {
+    const p = spellHero({ spells: [id], mp: 40 });
+    const r = castOutOfCombat(p, id, 10);
+    assert.equal(r.ok, true, `${id}: каст вне боя ok (${r.reason})`);
+    assert.equal(r.expiresDay, 10 + days,
+      `${id}: r.expiresDay = 10 + ${days} (generic-ядро)`);
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: id, expiresDay: 10 + days }],
+      `${id}: запись {spellId, expiresDay}`);
+    assert.equal(p.mp, 40 - mana, `${id}: мана ровно «мани» (${mana})`);
+  }
+  const day = 10;
+  assert.equal(isHeroBeastFriend(
+    { outOfCombatEffects: [{ spellId: 'beast_friend', expiresDay: day + 3 }] },
+    day), true, 'beast_friend: D — true (13 >= 10)');
+  assert.equal(isHeroBeastFriend(
+    { outOfCombatEffects: [{ spellId: 'beast_friend', expiresDay: day + 3 }] },
+    day + 1), true, 'beast_friend: D+1 — true');
+  assert.equal(isHeroBeastFriend(
+    { outOfCombatEffects: [{ spellId: 'beast_friend', expiresDay: day + 3 }] },
+    day + 2), true, 'beast_friend: D+2 — true (days 3)');
+  assert.equal(isHeroBeastFriend(
+    { outOfCombatEffects: [{ spellId: 'beast_friend', expiresDay: day + 3 }] },
+    day + 3), true, 'beast_friend: граница expiresDay = day — true (>=)');
+  assert.equal(isHeroBeastFriend(
+    { outOfCombatEffects: [{ spellId: 'beast_friend', expiresDay: day + 3 }] },
+    day + 4), false, 'beast_friend: day+4 — false');
+  assert.equal(isHeroWildGrowth(
+    { outOfCombatEffects: [{ spellId: 'wild_growth', expiresDay: day + 1 }] },
+    day + 1), true, 'wild_growth: уТРО D+1 (restoreDay) — true (>=)');
+  assert.equal(isHeroWildGrowth(
+    { outOfCombatEffects: [{ spellId: 'wild_growth', expiresDay: day + 1 }] },
+    day + 2), false, 'wild_growth: уТРО D+2 — false');
+  assert.equal(isHeroPathOfVines(
+    { outOfCombatEffects: [{ spellId: 'path_of_vines', expiresDay: day + 1 }] },
+    day + 1), true, 'path_of_vines: уТРО D+1 — true');
+  assert.equal(isHeroPathOfVines(
+    { outOfCombatEffects: [{ spellId: 'path_of_vines', expiresDay: day + 1 }] },
+    day + 2), false, 'path_of_vines: уТРО D+2 — false');
+  assert.equal(isHeroWildGrowth(
+    { outOfCombatEffects: [{ spellId: 'beast_friend', expiresDay: day + 1 }] },
+    day), false, 'wild_growth: чужой id — false');
+  assert.equal(isHeroBeastFriend({}, day), false, 'нет поля — false');
+  assert.equal(isHeroBeastFriend(
+    { outOfCombatEffects: [] }, day), false, 'пустой массив — false');
+  assert.equal(isHeroBeastFriend(null, day), false, 'hero = null — false');
+  assert.equal(isHeroBeastFriend({ outOfCombatEffects: [
+    null, 'мусор', 42, { expiresDay: day + 1 },
+    { spellId: 'нет_такого', expiresDay: day + 1 },
+  ] }, day), false, 'мусор-записи — false без краха');
+  {
+    const p = spellHero({ spells: ['wild_growth'], mp: 40 });
+    castOutOfCombat(p, 'wild_growth', 5);
+    assert.deepEqual(p.outOfCombatEffects,
+      [{ spellId: 'wild_growth', expiresDay: 6 }],
+      'запись {wild_growth, 6} (день 5 + 1)');
+    assert.equal(isHeroWildGrowth(p, 6), true,
+      'уТРО D+1 (restoreDay ДО expire): предикат true (6 >= 6) — буст ×1.1');
+    p.outOfCombatEffects = expireOutOfCombatEffects(p.outOfCombatEffects, 6);
+    assert.deepEqual(p.outOfCombatEffects, [],
+      'уТРО D+1 (после restoreDay): запись вылетела (6 > 6 — false)');
+    assert.equal(isHeroWildGrowth(p, 7), false,
+      'уТРО D+2: базовый (массив пуст)');
+  }
+  {
+    const p = spellHero({ spells: ['beast_friend'], mp: 40 });
+    castOutOfCombat(p, 'beast_friend', 10);
+    for (const d of [10, 11, 12]) {
+      p.outOfCombatEffects = expireOutOfCombatEffects(
+        p.outOfCombatEffects, d);
+      assert.equal(isHeroBeastFriend(p, d), true,
+        `день ${d}: зверь ЖИВ (13 > ${d})`);
+    }
+    p.outOfCombatEffects = expireOutOfCombatEffects(
+      p.outOfCombatEffects, 13);
+    assert.deepEqual(p.outOfCombatEffects, [],
+      'уТРО D+3: запись вылетела (13 > 13 — false)');
+    assert.equal(isHeroBeastFriend(p, 13), false,
+      'уТРО D+3: эффект и зверь ушли');
+  }
 });

@@ -1,0 +1,13 @@
+{
+  "id": "hurricane_scroll",
+  "name": "Свиток: Ураган",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Ураган» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "hurricane"
+  }
+}

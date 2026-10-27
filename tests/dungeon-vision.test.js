@@ -1422,3 +1422,48 @@ test('W-11b. 000235.07: firelight — visionRadiusFloor: radius = max(radiusFor(
   assert.equal(errors.length, 0,
     'город — без console.error: ' + JSON.stringify(errors));
 });
+
+// =====================================================================
+// W-11c (задача 000235.12, правка по итогам ревью): спрайт
+// спутника-волка (beast_friend) — МИР (main.js) + ПОДЗЕМЕЛЬЕ
+// (dungeon-ui); ГОРОД исключён (контракт §2.5 «мир+подземелье,
+// статичный», spec/spells.md). Городская сцена — тот же движок
+// dungeon-ui (s.kind === 'city') — волка НЕ рисует: !isCity-гард.
+// Краснота: без гарда в городском кадре — 1 волчий drawImage.
+// =====================================================================
+
+const WOLF12_PATH = 'assets/sprites/mobs/wolf_move_1.svg';
+
+function wolfDrawsAt12(calls) {
+  return calls.filter((c) => c[0] === 'drawImage' && c[1][0]
+    && c[1][0].__img === WOLF12_PATH).length;
+}
+
+test('W-11c. 000235.12: beast_friend — спутник-волк: подземелье — 1 drawImage/кадр, город (kind city) — 0 (!isCity-гард; контракт §2.5 «мир+подземелье, статичный»)', () => {
+  const { body, errors, s, rafStubs, T, P } = loadFogDungeon({
+    withSprites: true,
+    startOpts: {
+      spriteLoader: makeSpriteLoader([WOLF12_PATH]),
+      beastFriend: () => true,
+    },
+  });
+  const f0 = findCanvas(body).drawCalls.length;
+  T.t += 16;
+  tick(rafStubs);
+  const callsD = findCanvas(body).drawCalls.slice(f0);
+  assert.equal(wolfDrawsAt12(callsD), 1,
+    'подземелье: спутник-волк — ровно 1 drawImage за кадр '
+    + '(факт: ' + wolfDrawsAt12(callsD) + ')');
+  const f1 = findCanvas(body).drawCalls.length;
+  s.kind = 'city';
+  s.dg.seed = 1;
+  T.t += 16;
+  tick(rafStubs);
+  const callsC = findCanvas(body).drawCalls.slice(f1);
+  assert.ok(cityFloorRectAt(callsC, P(10, 5).x, P(10, 5).y, 40),
+    'город: кадр отрисован ((10,5) — city floor)');
+  assert.equal(wolfDrawsAt12(callsC), 0,
+    'город: спутник-волк НЕ рисуется (!isCity-гард; RED: 1)');
+  assert.equal(errors.length, 0,
+    'beastFriend — без console.error: ' + JSON.stringify(errors));
+});

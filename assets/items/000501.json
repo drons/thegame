@@ -1,0 +1,13 @@
+{
+  "id": "vitality_scroll",
+  "name": "Свиток: Живучесть",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Живучесть» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "vitality"
+  }
+}
