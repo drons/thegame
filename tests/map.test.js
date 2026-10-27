@@ -46,6 +46,16 @@ const os = require('node:os');
 const TILEAT_BUDGET_MS = 5000;
 const TILEAT_BUDGET_RELAXED_MS = 30000;
 
+// Задача 000288: хелперы гейта 000282 — memory/000282-tileat-load-gate.md §5.11.
+function tileatBudgetMs(load, nproc) {
+  return load > nproc ? TILEAT_BUDGET_RELAXED_MS : TILEAT_BUDGET_MS;
+}
+
+function tileatGateNote(load, nproc, ms) {
+  const budget = tileatBudgetMs(load, nproc);
+  return `000282 load-aware гейт: loadavg ${load} > ${nproc} (nproc) — расслабленный бюджет ${budget} мс, замер ${ms} мс`;
+}
+
 // «Браузерный» путь UMD: исполняем файл в чистом контексте без module/exports
 // (паттерн tests/global-settings.test.js).
 function loadInSandbox(file, sandbox) {
@@ -1946,6 +1956,60 @@ test('окно buildMaxW/H() = 7/7 с каталогом (map_index ∪ горо
   assert.equal(found, 0, 'vm без global-settings: города не генерируются');
 });
 
+// --- Задача 000288: детерминированные пины load-aware гейта tileAt —
+// чистые хелперы; контракт memory/000282-tileat-load-gate.md §5.11 ---
+test('000288: tileatBudgetMs — границы: load === nproc → 5000, load > nproc → 30000, load < nproc → 5000', () => {
+  assert.strictEqual(tileatBudgetMs(12, 12), TILEAT_BUDGET_MS);
+  assert.strictEqual(tileatBudgetMs(12, 12), 5000);
+  assert.strictEqual(tileatBudgetMs(12.01, 12), TILEAT_BUDGET_RELAXED_MS);
+  assert.strictEqual(tileatBudgetMs(12.01, 12), 30000);
+  assert.strictEqual(tileatBudgetMs(14.16, 12), 30000);
+  assert.strictEqual(tileatBudgetMs(11, 12), TILEAT_BUDGET_MS);
+  assert.strictEqual(tileatBudgetMs(11, 12), 5000);
+  assert.strictEqual(tileatBudgetMs(0, 12), 5000);
+});
+
+test('000288: tileatGateNote — точный текст ноты гейта (полевые 000282: 14.16/12/30000/4755)', () => {
+  assert.strictEqual(
+    tileatGateNote(14.16, 12, 4755),
+    '000282 load-aware гейт: loadavg 14.16 > 12 (nproc) — расслабленный бюджет 30000 мс, замер 4755 мс'
+  );
+  assert.strictEqual(
+    tileatGateNote(13, 12, 7825),
+    '000282 load-aware гейт: loadavg 13 > 12 (nproc) — расслабленный бюджет 30000 мс, замер 7825 мс'
+  );
+});
+
+test('000288: однократность — префикс ноты 1×; os.loadavg и os.cpus — по 1 read в файле (canary 000274)', () => {
+  const note = tileatGateNote(14.16, 12, 4755);
+  assert.equal([...note.matchAll(/000282 load-aware/g)].length, 1,
+    'префикс «000282 load-aware» обязан встретиться в ноте ровно 1 раз');
+  const src = fs.readFileSync(__filename, 'utf8');
+  assert.equal([...src.matchAll(/os\.loadavg\(/g)].length, 1,
+    'одна точка чтения loadavg на прогон (контракт 000282 §5.3)');
+  assert.equal([...src.matchAll(/os\.cpus\(/g)].length, 1,
+    'одна точка чтения cpus на прогон (контракт 000282 §5.3)');
+});
+
+test('000288: пины констант — TILEAT_BUDGET_MS = 5000, TILEAT_BUDGET_RELAXED_MS = 30000', () => {
+  assert.strictEqual(TILEAT_BUDGET_MS, 5000);
+  assert.strictEqual(TILEAT_BUDGET_RELAXED_MS, 30000);
+  assert.strictEqual(tileatBudgetMs(0, 12), TILEAT_BUDGET_MS);
+  assert.strictEqual(tileatBudgetMs(13, 12), TILEAT_BUDGET_RELAXED_MS);
+});
+
+test('000288: RELAX — не SKIP — relaxed-бюджет конечен и <= 30000', () => {
+  assert.ok(Number.isFinite(TILEAT_BUDGET_RELAXED_MS),
+    'TILEAT_BUDGET_RELAXED_MS обязан быть конечным');
+  assert.ok(TILEAT_BUDGET_RELAXED_MS <= 30000,
+    'TILEAT_BUDGET_RELAXED_MS обязан быть <= 30000 (защита, не SKIP)');
+  const relaxed = tileatBudgetMs(13, 12);
+  assert.ok(Number.isFinite(relaxed),
+    'расслабленный бюджет обязан быть конечным (не Infinity)');
+  assert.ok(relaxed <= 30000,
+    'расслабленный бюджет обязан быть <= 30000 (защита, не SKIP)');
+});
+
 test('перформанс: 160k tileAt (±200, реальный map.png, тёплый fpCache) в тайм-бюджете', () => {
   // Бюджет зафиксирован с запасом >5x к замерам: до-задачный ~200 мс
   // (окно 3x3); с окном 7x7 ожидается <1 с. 5000 мс покрывает медленный
@@ -1954,7 +2018,7 @@ test('перформанс: 160k tileAt (±200, реальный map.png, тёп
   // Задача 000282: load-aware гейт — memory/000282-tileat-load-gate.md.
   const nproc = os.cpus().length;
   const load = os.loadavg()[0];
-  const budget = load > nproc ? TILEAT_BUDGET_RELAXED_MS : TILEAT_BUDGET_MS;
+  const budget = tileatBudgetMs(load, nproc);
   const { width, height, data } = decodePng('assets/map.png');
   const map = createMap({ width, height, data });
   for (let x = -200; x < 200; x++) {
@@ -1966,7 +2030,7 @@ test('перформанс: 160k tileAt (±200, реальный map.png, тёп
   }
   const ms = Date.now() - t0;
   if (load > nproc) {
-    console.log(`000282 load-aware гейт: loadavg ${load} > ${nproc} (nproc) — расслабленный бюджет ${budget} мс, замер ${ms} мс`);
+    console.log(tileatGateNote(load, nproc, ms));
   }
   assert.ok(ms < budget, `160k tileAt за ${ms} мс — превышен бюджет ${budget} мс`);
 });
