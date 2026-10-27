@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000484.json);
+  // Предметы (assets/items/000001.json … 000486.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -926,7 +926,7 @@
       rarity: "common",
       set: "traveller",
       affixes: [{ type: "skill", skill: "perception", amount: 0.03 }],
-      set_bonus: { 2: { armor: 1 } },
+      set_bonus: { 2: { armor: 1 }, 3: { armor: 2 }, 4: { armor: 3 } },
     },
     // 000084.json
     {
@@ -970,7 +970,7 @@
       rarity: "common",
       set: "traveller",
       affixes: [{ type: "skill", skill: "precog", amount: 0.03 }],
-      set_bonus: { 2: { armor: 1 } },
+      set_bonus: { 2: { armor: 1 }, 3: { armor: 2 }, 4: { armor: 3 } },
     },
     // 000087.json
     {
@@ -1168,7 +1168,7 @@
       rarity: "epic",
       set: "mystic",
       affixes: [{ type: "skill", skill: "perception", amount: 0.15 }],
-      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }] },
+      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }], 3: [{ type: "skill", skill: "meditation", amount: 0.1 }], 4: [{ type: "skill", skill: "meditation", amount: 0.15 }] },
     },
     // 000101.json
     {
@@ -1184,7 +1184,7 @@
       rarity: "epic",
       set: "mystic",
       affixes: [{ type: "skill", skill: "precog", amount: 0.18 }],
-      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }] },
+      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }], 3: [{ type: "skill", skill: "meditation", amount: 0.1 }], 4: [{ type: "skill", skill: "meditation", amount: 0.15 }] },
     },
     // 000102.json
     {
@@ -5953,7 +5953,7 @@
       rarity: "common",
       set: "traveller",
       affixes: [{ type: "skill", skill: "step", amount: 0.05 }],
-      set_bonus: { 2: { armor: 1 } },
+      set_bonus: { 2: { armor: 1 }, 3: { armor: 2 }, 4: { armor: 3 } },
     },
     // 000459.json
     {
@@ -5969,7 +5969,7 @@
       rarity: "epic",
       set: "mystic",
       affixes: [{ type: "skill", skill: "meditation", amount: 0.15 }],
-      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }] },
+      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }], 3: [{ type: "skill", skill: "meditation", amount: 0.1 }], 4: [{ type: "skill", skill: "meditation", amount: 0.15 }] },
     },
     // 000460.json
     {
@@ -6245,6 +6245,38 @@
       tier: 3,
       desc: "Свиток: изучает «Круг защиты» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "warding_circle" },
+    },
+    // 000485.json
+    {
+      id: "traveler_bracer",
+      name: "Страннический наручник",
+      kind: "armor",
+      weight: 0.6,
+      value: 35,
+      desc: "Страннический наручник: шаг ровный, как тропа.",
+      stats: { armor: 1 },
+      icon: "assets/sprites/items/traveler_bracer.svg",
+      slot: "forearms",
+      rarity: "common",
+      set: "traveller",
+      affixes: [{ type: "skill", skill: "step", amount: 0.05 }],
+      set_bonus: { 2: { armor: 1 }, 3: { armor: 2 }, 4: { armor: 3 } },
+    },
+    // 000486.json
+    {
+      id: "mystic_wraps",
+      name: "Мистические обмотки",
+      kind: "armor",
+      weight: 0.9,
+      value: 280,
+      desc: "Мистические обмотки: слово не срывается с ладони.",
+      stats: { armor: 3 },
+      icon: "assets/sprites/items/mystic_wraps.svg",
+      slot: "palms",
+      rarity: "epic",
+      set: "mystic",
+      affixes: [{ type: "skill", skill: "meditation", amount: 0.15 }],
+      set_bonus: { 2: [{ type: "skill", skill: "meditation", amount: 0.05 }], 3: [{ type: "skill", skill: "meditation", amount: 0.1 }], 4: [{ type: "skill", skill: "meditation", amount: 0.15 }] },
     },
   ];
 

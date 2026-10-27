@@ -3666,11 +3666,12 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
   assert.equal(s1.seed, seedD1,
     'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
-  // Golden-сток (10,20,день 1,wealth 2) — пул 235 предметов
-  // (3 food + 5 potion + 22 weapon + 205 armor — виды каталога;
+  // Golden-сток (10,20,день 1,wealth 2) — пул 237 предметов
+  // (3 food + 5 potion + 22 weapon + 207 armor — виды каталога;
   // ре-пин 000230.09: 43 → 93; ре-пин 000230.10: 93 → 118;
   // ре-пин 000230.11: 118 → 168; ре-пин 000230.12: 168 → 183;
-  // ре-пин 000230.15: 183 → 233; ре-пин 000230.19: 233 → 235).
+  // ре-пин 000230.15: 183 → 233; ре-пин 000230.19: 233 → 235;
+  // ре-пин 000277: 235 → 237).
   // Ре-пин 000230.08: +25 head-предметов концом пула — существующие
   // ключи не сдвигаются (append-only), += новые rng-хвостом
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
@@ -3705,6 +3706,11 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   // концом пула (233 → 235) — += 2 rng-хвостом (traveler_cloak/
   // mystic_sutan), существующие ключи не сдвигаются
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
+  // Ре-пин 000277: +2 set-предмета (000485-000486, kind armor)
+  // концом пула (235 → 237) — += 1 rng-хвостом (traveler_bracer;
+  // mystic_wraps в этом (tile,day) не выпал), существующие ключи
+  // не сдвигаются (пересимулировано node; зеркало GOLDEN_CAMP в
+  // items.test.js).
 
   assert.deepEqual(s1.stock, {
     iron_sword: 3, battle_axe: 3, war_hammer: 2,
@@ -3792,7 +3798,8 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
     hemp_sandals: 1, silver_boots: 3, stone_sandals: 1, obsidian_sandals: 4,
     amethyst_boots: 2, mystic_sandals: 2, sapphire_boots: 3,
     frost_sandals: 1, emerald_boots: 3, storm_sandals: 2, rune_boots: 4,
-    swift_boots: 3, traveler_cloak: 4, mystic_sutan: 3
+    swift_boots: 3, traveler_cloak: 4, mystic_sutan: 3,
+    traveler_bracer: 1
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7821,6 +7828,9 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
   // Ре-пин 000230.19: +2 torso-наборы (000458-000459) концом пула —
   // += 1 (traveler_cloak; mystic_sutan в этом (tile,day) не выпал),
   // ключи не сдвигаются (пересимулировано node).
+  // Ре-пин 000277: +2 set-предмета (000485-000486) концом пула —
+  // 0 новых (traveler_bracer/mystic_wraps в этом (tile,day) не
+  // выпали), ключи не сдвигаются (пересимулировано node).
 
   assert.deepEqual(JSON.parse(JSON.stringify(entry0.stock)), {
     wood_sword: 1, steel_sword: 1, short_bow: 2,
@@ -7985,6 +7995,9 @@ test('B27. детерминизм барахолки: два мира, один 
   // Ре-пин 000230.19: +2 torso-наборы (000458-000459) концом пула —
   // += 1 (mystic_sutan; traveler_cloak в этом (tile,day) не выпал),
   // ключи не сдвигаются (пересимулировано node).
+  // Ре-пин 000277: +2 set-предмета (000485-000486) концом пула —
+  // 0 новых (traveler_bracer/mystic_wraps в этом (tile,day) не
+  // выпали), ключи не сдвигаются (пересимулировано node).
 
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)), {
     iron_sword: 2, hunting_bow: 1, battle_axe: 1,

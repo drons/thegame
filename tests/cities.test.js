@@ -1595,6 +1595,11 @@ const SHOP_GOLDEN = {
   // (stone_anchor на этой клетке не выпал), 383 → 407 ключа;
   // старые ключи не сдвинулись (node-симуляция: seed/старые
   // стоки byte-identical). Прочие 2 голдены — без изменений.
+  // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+  // КОНЕЦ каталога, rng-хвост пула allItems → += 2
+  // (traveler_bracer/mystic_wraps), 407 → 409 ключа; старые ключи
+  // не сдвинулись (node-симуляция: seed/старые стоки
+  // byte-identical). Прочие 3 голдены — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
@@ -1704,7 +1709,7 @@ const SHOP_GOLDEN = {
     corrode_scroll: 3, stone_grasp_scroll: 3, time_slow_scroll: 1,
     stone_wall_scroll: 1, guardian_field_scroll: 5, stone_golem_scroll: 5,
     iron_sentinel_scroll: 5, recall_scroll: 1, gate_scroll: 4,
-    warding_circle_scroll: 1 } },
+    warding_circle_scroll: 1, traveler_bracer: 1, mystic_wraps: 4 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,

@@ -744,6 +744,10 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // traveler_cloak в этом (x,y) не выпал), остальные ключи стока
     // не сдвинулись (node-симуляция: seed/старые стоки
     // byte-identical).
+    // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+    // КОНЕЦ пула [armor], rng-хвост → += 2 (traveler_bracer/
+    // mystic_wraps), остальные ключи стока не сдвинулись
+    // (node-симуляция: seed/старые стоки byte-identical).
     { x: 10, y: 20, type: B.ARMOR_SHOP, w: 2, seed: 3248047078,
       stock: { chainmail: 4, knight_plate: 3, wool_cap: 3,
         leather_cap: 3, fur_hat: 4, cloth_band: 1, hood_common: 2,
@@ -780,7 +784,8 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         hide_boots: 3, wooden_sandals: 1, hemp_sandals: 2, bone_sandals: 3, copper_boots: 2,
         silver_boots: 2, stone_sandals: 3, obsidian_sandals: 2, amethyst_boots: 4, mystic_sandals: 3,
         frost_sandals: 2, emerald_boots: 2, gold_sandals: 2, storm_sandals: 3, rune_boots: 2,
-        swift_boots: 4, mystic_sutan: 1} },    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
+        swift_boots: 4, mystic_sutan: 1, traveler_bracer: 4,
+        mystic_wraps: 3} },    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
       stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3,
         mana_elixir: 3, bread: 1, meat: 2 } },
     // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
@@ -883,6 +888,10 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // (magical_barrier/bulwark_ward на этой клетке не выпали),
     // остальные ключи стока не сдвинулись (node-симуляция:
     // seed/старые стоки byte-identical).
+    // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+    // КОНЕЦ каталога, rng-хвост пула allItems → += 2
+    // (traveler_bracer/mystic_wraps), остальные ключи стока не
+    // сдвинулись (node-симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
       stock: { iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3,
         leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1,
@@ -977,7 +986,8 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         weaken_defense_scroll: 3, corrode_scroll: 5, stone_grasp_scroll: 4,
         time_slow_scroll: 3, stone_wall_scroll: 3, guardian_field_scroll: 5,
         stone_golem_scroll: 5, iron_sentinel_scroll: 4, stone_anchor_scroll: 2,
-        recall_scroll: 5, gate_scroll: 5, warding_circle_scroll: 2 } },
+        recall_scroll: 5, gate_scroll: 5, warding_circle_scroll: 2,
+        traveler_bracer: 4, mystic_wraps: 5 } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1040,6 +1050,11 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // КОНЕЦ пула барахолки, rng-хвост → += 2 (traveler_cloak/
     // mystic_sutan), остальные ключи стока не сдвинулись
     // (node-симуляция: seed/старые стоки byte-identical).
+    // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 1 (traveler_bracer;
+    // mystic_wraps в этом (x,y,day) не выпал), остальные ключи
+    // стока не сдвинулись (node-симуляция: seed/старые стоки
+    // byte-identical).
     { x: 10, y: 20, day: 1, w: 2,
       stock: { iron_sword: 3, battle_axe: 3, war_hammer: 2,
         leather_armor: 4, chainmail: 2, knight_plate: 3,
@@ -1079,7 +1094,8 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         travel_boots: 1, hide_boots: 4, hemp_sandals: 1, silver_boots: 3, stone_sandals: 1,
         obsidian_sandals: 4, amethyst_boots: 2, mystic_sandals: 2, sapphire_boots: 3, frost_sandals: 1,
         emerald_boots: 3, storm_sandals: 2, rune_boots: 4, swift_boots: 3,
-        traveler_cloak: 4, mystic_sutan: 3} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+        traveler_cloak: 4, mystic_sutan: 3,
+        traveler_bracer: 1} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 17 torso (не выпали: wool_shirt/cloth_tunic/hemp_robe/embroidered_kaftan/cloth_robe/fine_kaftan/ember_robe/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1100,6 +1116,11 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000230.19: torso-наборы (000458-000459, kind armor) —
     // КОНЕЦ пула барахолки, rng-хвост → += 1 (traveler_cloak;
     // mystic_sutan в этом (x,y,day) не выпал), остальные ключи
+    // стока не сдвинулись (node-симуляция: seed/старые стоки
+    // byte-identical).
+    // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 1 (mystic_wraps;
+    // traveler_bracer в этом (x,y,day) не выпал), остальные ключи
     // стока не сдвинулись (node-симуляция: seed/старые стоки
     // byte-identical).
     { x: 10, y: 20, day: 2, w: 2,
@@ -1140,7 +1161,7 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         travel_boots: 4, hide_boots: 4, wooden_sandals: 3, hemp_sandals: 1, silver_boots: 4,
         stone_sandals: 3, amethyst_boots: 3, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
         gold_sandals: 3, mithril_boots: 2, storm_sandals: 4, rune_boots: 1, swift_boots: 3,
-        traveler_cloak: 4} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+        traveler_cloak: 4, mystic_wraps: 3} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 15 torso (не выпали: wool_shirt/cloth_tunic/rough_kaftan/linen_tunic/leather_kaftan/monk_sutan/fine_kaftan/ember_robe/pilgrim_sutan/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1161,6 +1182,11 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000230.19: torso-наборы (000458-000459, kind armor) —
     // КОНЕЦ пула барахолки, rng-хвост → += 1 (mystic_sutan;
     // traveler_cloak в этом (x,y,day) не выпал), остальные ключи
+    // стока не сдвинулись (node-симуляция: seed/старые стоки
+    // byte-identical).
+    // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → 0 новых (traveler_bracer/
+    // mystic_wraps в этом (x,y,day) не выпали), остальные ключи
     // стока не сдвинулись (node-симуляция: seed/старые стоки
     // byte-identical).
     { x: 10, y: 20, day: 1, w: 0,
@@ -1207,6 +1233,10 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000230.19: torso-наборы (000458-000459, kind armor) —
     // КОНЕЦ пула барахолки, rng-хвост → += 2 (traveler_cloak/
     // mystic_sutan), остальные ключи стока не сдвинулись
+    // (node-симуляция: seed/старые стоки byte-identical).
+    // Ре-пин 000277: 4-й член наборов (000485-000486, kind armor) —
+    // КОНЕЦ пула барахолки, rng-хвост → += 2 (traveler_bracer/
+    // mystic_wraps), остальные ключи стока не сдвинулись
     // (node-симуляция: seed/старые стоки byte-identical).
     { x: 10, y: 20, day: 1, w: 3,
       stock: { iron_sword: 4, hunting_bow: 2, battle_axe: 2,
@@ -1257,7 +1287,8 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         bone_sandals: 1, copper_boots: 3, silver_boots: 5, stone_sandals: 3, obsidian_sandals: 5,
         amethyst_boots: 3, mystic_sandals: 5, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
         mithril_boots: 1, storm_sandals: 5, rune_boots: 2, swift_boots: 5,
-        traveler_cloak: 4, mystic_sutan: 4}
+        traveler_cloak: 4, mystic_sutan: 4, traveler_bracer: 2,
+        mystic_wraps: 5}
       },
   ];
   for (const g of GOLDEN_CAMP) {
@@ -1763,11 +1794,13 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 000458-000459 — set-предмета 2); слоты не сдвигаются.
   // Ре-пин 000235.11: каталог растёт 459 → 484 (добавляются
   // 000460-000484 — 25 свитков волны Защита); слоты не сдвигаются.
-  assert.equal(files.length, 484,
-    'каталог — 484 файла (краснота: ' + files.length
+  // Ре-пин 000277: каталог растёт 484 → 486 (добавляются
+  // 000485-000486 — 2 set-предмета); слоты не сдвигаются.
+  assert.equal(files.length, 486,
+    'каталог — 486 файла (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
-    + '000230.13/000230.14/000230.15/000230.19/000235.11)');
+    + '000230.13/000230.14/000230.15/000230.19/000235.11/000277)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -1830,11 +1863,12 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000230.15: 407 → 457 (000408-000457 — ноги 25 + ступни 25).
   // Ре-пин 000230.19: 457 → 459 (000458-000459 — set-предмета 2).
   // Ре-пин 000235.11: 459 → 484 (000460-000484 — 25 свитков волны Защита).
-  assert.equal(I.allItems().length, 484,
-    'allItems — 484 предмета (краснота: ' + I.allItems().length
+  // Ре-пин 000277: 484 → 486 (000485-000486 — 2 set-предмета).
+  assert.equal(I.allItems().length, 486,
+    'allItems — 486 предмета (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
-    + '000230.13/000230.14/000230.15/000230.19/000235.11)');
+    + '000230.13/000230.14/000230.15/000230.19/000235.11/000277)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -1965,12 +1999,14 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // set-предмета 2); слоты не сдвигаются.
   // Ре-пин 000235.11: каталог растёт 459 → 484 (000460-000484 —
   // 25 свитков волны Защита); слоты не сдвигаются.
-  assert.equal(files.length, 484,
-    'каталог — 484 файла (краснота: ' + files.length + ')');
+  // Ре-пин 000277: каталог растёт 484 → 486 (000485-000486 —
+  // 2 set-предмета); слоты не сдвигаются.
+  assert.equal(files.length, 486,
+    'каталог — 486 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 484,
-    'allItems — 484 предмета (краснота: ' + I.allItems().length + ')');
+  assert.equal(I.allItems().length, 486,
+    'allItems — 486 предмета (краснота: ' + I.allItems().length + ')');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -2213,7 +2249,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 451, 'прочих предметов — ровно 451 (каталог 484 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита — все без loot)');
+  assert.equal(others, 453, 'прочих предметов — ровно 453 (каталог 486 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2618,6 +2654,10 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
   // assets/sprites/items/ (паттерн TORSO_00023010) — исключение из
   // пина «icon НЕ задан».
   const SETS_00023019 = new Set(['traveler_cloak', 'mystic_sutan']);
+  // Ре-пин 000277: 2 set-предмета (000485-000486) — icon в
+  // assets/sprites/items/ (паттерн TORSO_00023010) — исключение из
+  // пина «icon НЕ задан».
+  const SETS_000277 = new Set(['traveler_bracer', 'mystic_wraps']);
   let others = 0;
   for (const it of byId.values()) {
     if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
@@ -2629,7 +2669,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || LEFT_HAND_00023013.has(it.id)
         || RING_00023014.has(it.id)
         || LEGSFEET_00023015.has(it.id)
-        || SETS_00023019.has(it.id)) continue;
+        || SETS_00023019.has(it.id)
+        || SETS_000277.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -2650,15 +2691,17 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + '(icon); ре-пин post-merge: 457 − 314 исключений = 143 '
     + '(счёт не изменился); ре-пин 000230.19: 459 − 316 = 143 '
     + '(счёт не изменился); ре-пин 000235.11: 484 − 316 = 168 '
+    + '(icon-счёт не изменился); ре-пин 000277: 486 − 318 = 168 '
     + '(icon-счёт не изменился))');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 316,
-    'icon — ровно у 316 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 318,
+    'icon — ровно у 318 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
     + 'ре-пин 000230.14: +25 колец; ре-пин 000230.15: '
-    + '+50 ноги/ступни; ре-пин 000230.19: +2 set; пин: ни больше, '
+    + '+50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000277: '
+    + '+2 set; пин: ни больше, '
     + 'ни меньше)');
 });
 
@@ -2700,7 +2743,7 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
 //     slot/rarity/set/affixes/«kind требует slot» в validateItem нет;
 //   E20 — sync-items-data.js: KEYS без 4 новых ключей → tmp-репо:
 //     «ключи вне схемы» → exit 1.
-// Гарды (зелёные с первого запуска): E9 (каталог — 484 предметов без
+// Гарды (зелёные с первого запуска): E9 (каталог — 486 предметов без
 // новых полей), E19 (armor со ВСЕМИ валидными новыми полями — без
 // броска, без console.error, поля сохранены), E22 (D4-каталожность —
 // в .01 вакуумно: предметов с affixes нет).
@@ -2801,7 +2844,10 @@ const EQUIP_FIELDS_00023001 = new Set(['straw_hat', 'wool_cap',
   'mithril_boots', 'storm_sandals', 'rune_boots', 'swift_boots',
   // Ре-пин 000230.19: 2 set-предмета (000458-000459, torso) с
   // equip-полями.
-  'traveler_cloak', 'mystic_sutan']);
+  'traveler_cloak', 'mystic_sutan',
+  // Ре-пин 000277: 2 set-предмета (000485-000486, forearms/palms) с
+  // equip-полями.
+  'traveler_bracer', 'mystic_wraps']);
 
 test('000230.01 E1: schema.json — slot ОПЦИОНАЛЬНО {type: string, enum: 11 значений в порядке ТЗ}, «slot» НЕ в required, верхний additionalProperties false', () => {
   const s = JSON.parse(
@@ -2957,7 +3003,7 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 484 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 486 предметов (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
   // Ре-пин 000235.10: каталог 257 → 282 (+25 свитков волны Исцеление).
   // Ре-пин 000230.11: каталог 282 → 332 (+50 рук).
@@ -2967,7 +3013,8 @@ test('000230.01 E9 (ГАРД): каталог — ровно 484 предмет�
   // Ре-пин 000230.14: каталог 382 → 407 (+25 колец).
   // Ре-пин 000230.15: каталог 407 → 457 (+50 ноги/ступни).
   // Ре-пин 000230.19: каталог 457 → 459 (+2 set, torso).
-  assert.equal(items.length, 484, 'каталог — ровно 484 предмета');
+  // Ре-пин 000277: каталог 484 → 486 (+2 set, forearms/palms).
+  assert.equal(items.length, 486, 'каталог — ровно 486 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -3002,7 +3049,9 @@ test('000230.01 E9 (ГАРД): каталог — ровно 484 предмет�
     + 'equip-полей; 000235.09: +25 свитков волны Тень без '
     + 'equip-полей; 000235.10: +25 свитков волны Исцеление без '
     + 'equip-полей; 000235.11: +25 свитков волны Защита без '
-    + 'equip-полей → 484 − 287 equip-исключений = 197)');
+    + 'equip-полей → 484 − 287 equip-исключений = 197; '
+    + 'ре-пин 000277: +2 set с equip-полями → 486 − 289 '
+    + 'equip-исключений = 197 (оба set-предмета в исключениях))');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -4432,7 +4481,7 @@ test('000230.04-SB12 (node, sync, E20-паттерн tmp-репо): ring с set 
   }
 });
 
-test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]; ре-пин 000230.09: +5 — faith ×3 + stage ×2; ре-пин 000230.10: +5 — penitent ×3 + hearth ×2; ре-пин 000230.11: +4 — nimble ×2 + blade_guard ×2; ре-пин 000230.12: +5 — harvester ×3 + forger ×2; ре-пин 000230.13: +5 — bulwark ×3 + arcane_focus ×2; ре-пин 000230.14: +8 — fate ×4 + ember ×2 + rime ×2; ре-пин 000230.15: +5 — trail ×3 + rooted ×2; ре-пин 000230.19: +2 — traveler_cloak [traveller] + mystic_sutan [mystic]); предметов с set_bonus — РОВНО 43 (ре-пин 000230.08: реальный кросс-пин; ре-пин 000230.09: 4 + 5; ре-пин 000230.10: +5; ре-пин 000230.11: +4; ре-пин 000230.12: +5; ре-пин 000230.13: +5; ре-пин 000230.14: +8; ре-пин 000230.15: +5; ре-пин 000230.19: +2)', () => {
+test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): предметы с ОДНИМ set → set_bonus deepEqual внутри набора (ре-пин 000230.08: 25 head — 4 предмета с set: straw_hat/fur_hat [traveller], silver_helm/gold_helm [mystic]; ре-пин 000230.09: +5 — faith ×3 + stage ×2; ре-пин 000230.10: +5 — penitent ×3 + hearth ×2; ре-пин 000230.11: +4 — nimble ×2 + blade_guard ×2; ре-пин 000230.12: +5 — harvester ×3 + forger ×2; ре-пин 000230.13: +5 — bulwark ×3 + arcane_focus ×2; ре-пин 000230.14: +8 — fate ×4 + ember ×2 + rime ×2; ре-пин 000230.15: +5 — trail ×3 + rooted ×2; ре-пин 000230.19: +2 — traveler_cloak [traveller] + mystic_sutan [mystic]; ре-пин 000277: +2 — traveler_bracer [traveller] + mystic_wraps [mystic]); предметов с set_bonus — РОВНО 45 (ре-пин 000230.08: реальный кросс-пин; ре-пин 000230.09: 4 + 5; ре-пин 000230.10: +5; ре-пин 000230.11: +4; ре-пин 000230.12: +5; ре-пин 000230.13: +5; ре-пин 000230.14: +8; ре-пин 000230.15: +5; ре-пин 000230.19: +2; ре-пин 000277: +2)', () => {
   const bySet = new Map();
   let withSetBonus = 0;
   for (const it of I.allItems()) {
@@ -4447,8 +4496,8 @@ test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): пре�
     }
     if (it.set_bonus !== undefined) withSetBonus++;
   }
-  assert.equal(withSetBonus, 43,
-    'предметов с set_bonus — 43 (ре-пин 000230.08: straw_hat/fur_hat '
+  assert.equal(withSetBonus, 45,
+    'предметов с set_bonus — 45 (ре-пин 000230.08: straw_hat/fur_hat '
     + '[traveller] + silver_helm/gold_helm [mystic]; ре-пин 000230.09: '
     + '+faith ×3 +stage ×2; ре-пин 000230.10: +penitent ×3 +hearth ×2; '
     + 'ре-пин 000230.11: +nimble ×2 +blade_guard ×2; ре-пин '
@@ -4456,7 +4505,8 @@ test('000230.04-SB13 (ГАРД, E22-паттерн, node, I.allItems()): пре�
     + 'ре-пин 000230.13: +bulwark ×3 +arcane_focus ×2; '
     + 'ре-пин 000230.14: +fate ×4 +ember ×2 +rime ×2; '
     + 'ре-пин 000230.15: +trail ×3 +rooted ×2; '
-    + 'ре-пин 000230.19: +traveler_cloak +mystic_sutan)');
+    + 'ре-пин 000230.19: +traveler_cloak +mystic_sutan; '
+    + 'ре-пин 000277: +traveler_bracer +mystic_wraps)');
 });
 
 test('000230.04-SB14 (vm, throw, E18-паттерн): reagent с set_bonus → Error /только у экипируемых/ при загрузке (equipment-only-гард покрывает set_bonus; краснота: гард без set_bonus — Missing expected exception)', () => {
@@ -5079,14 +5129,19 @@ test('000230.08 H3: матрица affixes — покрытие skills РОВН�
 });
 
 // Наборы §2.3: 2 наборы × 2 предмета, оба DORMANT (1 слот head < порога 2).
+// Ре-пин 000277: пороги 3/4 добавлены обоим наборам (4-й член в новом
+// слоте) — таблицы set_bonus расширены (deepEqual у всех участников —
+// SB13).
 const HEAD_SETS_00023008 = [
   { set: 'traveller', members: ['straw_hat', 'fur_hat'],
-    bonus: { 2: { armor: 1 } } },
+    bonus: { 2: { armor: 1 }, 3: { armor: 2 }, 4: { armor: 3 } } },
   { set: 'mystic', members: ['silver_helm', 'gold_helm'],
-    bonus: { 2: [{ type: 'skill', skill: 'meditation', amount: 0.05 }] } },
+    bonus: { 2: [{ type: 'skill', skill: 'meditation', amount: 0.05 }],
+      3: [{ type: 'skill', skill: 'meditation', amount: 0.1 }],
+      4: [{ type: 'skill', skill: 'meditation', amount: 0.15 }] } },
 ];
 
-test('000230.08 H4: наборы — РОВНО 2: traveller {straw_hat, fur_hat} / set_bonus {2: {armor: 1}} (stat-объект, D-02) и mystic {silver_helm, gold_helm} / {2: [{skill meditation 0.05}]} (affix-массив; НЕ damage); set_bonus ОДИНАКОВ в паре (D-03); пороги ⊆ {2,3,4}; другие 21 предмет — без set/set_bonus', () => {
+test('000230.08 H4: наборы — РОВНО 2: traveller {straw_hat, fur_hat} / set_bonus {2: {armor: 1}, 3: {armor: 2}, 4: {armor: 3}} (stat-объект, D-02; ре-пин 000277: +пороги 3/4) и mystic {silver_helm, gold_helm} / {2: [{skill meditation 0.05}], 3: [{skill meditation 0.1}], 4: [{skill meditation 0.15}]} (affix-массив; НЕ damage; ре-пин 000277: +пороги 3/4); set_bonus ОДИНАКОВ в паре (D-03); пороги ⊆ {2,3,4}; другие 21 предмет — без set/set_bonus', () => {
   const { byId } = catalogScan00023008();
   for (const s of HEAD_SETS_00023008) {
     for (const id of s.members) {
@@ -7279,11 +7334,12 @@ const RIGHT_HAND_ROSTER_00023012 = [
 const RIGHT_HAND_IDS_00023012 = RIGHT_HAND_ROSTER_00023012.map((r) => r[0]);
 const RIGHT_HAND_ID_SET_00023012 = new Set(RIGHT_HAND_IDS_00023012);
 
-test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; ре-пин 000230.19: каталог 459 (000458–000459 — set-предмета, после блока ноги/ступни); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
+test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; ре-пин 000230.19: каталог 459 (000458–000459 — set-предмета, после блока ноги/ступни); ре-пин 000277: каталог 486 (000485–000486 — set-предмета, после блока set); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни, затем 000458–000486 set); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
   const { files, byFile } = catalogScan00023008();
-  assert.equal(files.length, 484,
-    'каталог — 484 файла (332 + 25 .13 + 25 .14 + 25 свитков '
-    + '000235.10 + 50 .15 + 2 .19 set + 25 свитков 000235.11); '
+  assert.equal(files.length, 486,
+    'каталог — 486 файла (332 + 25 .13 + 25 .14 + 25 свитков '
+    + '000235.10 + 50 .15 + 2 .19 set + 25 свитков 000235.11 '
+    + '+ 2 000277 set); '
     + 'факт: ' + files.length);
   const p0 = files.filter((f) =>
     Number(f.slice(0, 6)) < 333).length;
@@ -7516,7 +7572,7 @@ const RIGHT_HAND_SETS_00023012 = [
     bonus: { 2: [{ type: 'skill', skill: 'forge', amount: 0.05 }] } },
 ];
 
-test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_scyte, harvest_scyte} / set_bonus {2: {damage: 2}} (stat-объект) и forger {silver_crucible, mithril_hammer} / {2: [{skill forge 0.05}]} (affix-массив); set_bonus ОДИНАКОВОЕ у ВСЕХ участников (D-03); прочие 21 предмет волны — без set/set_bonus; счётчики каталога: предметы с set_bonus 18 → 43, наборов 8 → 17 (ре-пин post-merge: +5 .13, +8 .14, +5 .15; ре-пин 000230.19: +2 set-предмета (traveller/mystic — наборы существующие, наборов не прибавилось); по node-факту; краснота: предметов нет)', () => {
+test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_scyte, harvest_scyte} / set_bonus {2: {damage: 2}} (stat-объект) и forger {silver_crucible, mithril_hammer} / {2: [{skill forge 0.05}]} (affix-массив); set_bonus ОДИНАКОВОЕ у ВСЕХ участников (D-03); прочие 21 предмет волны — без set/set_bonus; счётчики каталога: предметы с set_bonus 18 → 45, наборов 8 → 17 (ре-пин post-merge: +5 .13, +8 .14, +5 .15; ре-пин 000230.19: +2 set-предмета (traveller/mystic — наборы существующие, наборов не прибавилось); ре-пин 000277: +2 set-предмета (traveller/mystic — наборы существующие, наборов не прибавилось); по node-факту; краснота: предметов нет)', () => {
   const { byId, byFile } = catalogScan00023008();
   for (const s of RIGHT_HAND_SETS_00023012) {
     for (const id of s.members) {
@@ -7546,9 +7602,9 @@ test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_
     if (it.set_bonus !== undefined) withBonus += 1;
     if (typeof it.set === 'string') sets.add(it.set);
   }
-  assert.equal(withBonus, 43,
-    'предметов с set_bonus — 43 (18 + 5 волны + 5 .13 + 8 .14 + 5 .15 '
-    + '+ 2 .19); факт: ' + withBonus);
+  assert.equal(withBonus, 45,
+    'предметов с set_bonus — 45 (18 + 5 волны + 5 .13 + 8 .14 + 5 .15 '
+    + '+ 2 .19 + 2 000277); факт: ' + withBonus);
   assert.equal(sets.size, 17,
     'наборов в каталоге — 17 (8 + 2 волны + 2 .13 + 3 .14 + 2 .15); '
     + 'факт: ' + sets.size);
@@ -8801,7 +8857,7 @@ const LEGS_IDS_00023015 = LEGSFEET_ROSTER_00023015
 const FEET_IDS_00023015 = LEGSFEET_ROSTER_00023015
   .filter((r) => r[2] === 'feet').map((r) => r[0]);
 
-test('000230.15 LF1: +50 — set(ids slot legs) = 25 id §2.1 И set(ids slot feet) = 25 id §2.1; allItems() = 459 (407+50+2, 50 id в items-data.js; ре-пин merge .10–.14; ре-пин 000230.19: +2 set — id-множества legs/feet без смены, torso не входит); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
+test('000230.15 LF1: +50 — set(ids slot legs) = 25 id §2.1 И set(ids slot feet) = 25 id §2.1; allItems() = 486 (407+50+2+25 свитков 000235.11+2 set 000277, 50 id в items-data.js; ре-пин merge .10–.14; ре-пин 000230.19: +2 set — id-множества legs/feet без смены, torso не входит; ре-пин 000277: forearms/palms — id-множества legs/feet без смены); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
   const { files, byFile } = catalogScan00023008();
   const legsItems = [...byFile.values()].filter((it) => it.slot === 'legs');
   const feetItems = [...byFile.values()].filter((it) => it.slot === 'feet');
@@ -8817,9 +8873,11 @@ test('000230.15 LF1: +50 — set(ids slot legs) = 25 id §2.1 И set(ids slot fe
   assert.deepEqual(
     feetItems.map((it) => it.id).sort(), [...FEET_IDS_00023015].sort(),
     'set(ids slot feet) = ровно 25 id §2.1');
-  assert.equal(I.allItems().length, 484,
-    'allItems() = 459 + 25 свитков 000235.11 = 484 (ре-пин 000230.19: +2 set; '
+  assert.equal(I.allItems().length, 486,
+    'allItems() = 459 + 25 свитков 000235.11 + 2 set 000277 = 486 '
+    + '(ре-пин 000230.19: +2 set; '
     + 'ре-пин 000235.11: +25 свитков волны Защита; '
+    + 'ре-пин 000277: +2 set; '
     + 'краснота: зеркало не '
     + 'регенерировано; факт: ' + I.allItems().length + ')');
   for (const id of LEGSFEET_IDS_00023015) {
@@ -9127,12 +9185,16 @@ const LEGSFEET_POOL_TAILS_00023015 = {
   // Ре-пин 000230.19: common-хвост 20 → 21 (концом +traveler_cloak,
   // окно slice(-21)), epic-хвост 10 → 11 (концом +mystic_sutan,
   // окно slice(-11)); префиксы 40/28/20/8/4 — без смены.
+  // Ре-пин 000277: common-хвост 21 → 22 (концом +traveler_bracer,
+  // окно slice(-22)), epic-хвост 11 → 12 (концом +mystic_wraps,
+  // окно slice(-12)); префиксы 40/28/20/8/4 — без смены.
   common: ['linen_trousers', 'wool_trousers', 'hemp_breeches',
     'felt_trousers', 'leather_pants', 'traveler_breeches', 'hide_wrap',
     'twine_wraps', 'rough_chaps', 'cloth_loincloth',
     'straw_sandals', 'cloth_sandals', 'leather_sandals', 'wool_boots',
     'felt_boots', 'leather_boots', 'travel_boots', 'hide_boots',
-    'wooden_sandals', 'hemp_sandals', 'traveler_cloak'],
+    'wooden_sandals', 'hemp_sandals', 'traveler_cloak',
+    'traveler_bracer'],
   rare: ['bone_greaves', 'copper_greaves', 'silver_chaps',
     'stone_greaves', 'obsidian_greaves', 'amethyst_pants',
     'mystic_breeches', 'bone_sandals', 'copper_boots', 'silver_boots',
@@ -9141,7 +9203,7 @@ const LEGSFEET_POOL_TAILS_00023015 = {
   epic: ['sapphire_leggings', 'ember_pants', 'emerald_greaves',
     'gold_leggings', 'mithril_greaves', 'sapphire_boots',
     'frost_sandals', 'emerald_boots', 'gold_sandals', 'mithril_boots',
-    'mystic_sutan'],
+    'mystic_sutan', 'mystic_wraps'],
   legendary: ['rune_greaves', 'storm_leggings', 'storm_sandals',
     'rune_boots'],
   impossible: ['titan_greaves', 'swift_boots'],
@@ -9177,9 +9239,9 @@ const LEGSFEET_OLD_POOLS_00023015 = {
     'aegis_mantle'],
 };
 
-test('000230.15 LF6: EQUIP_POOLS — lengths 111/77/56/22/11 (ре-пин merge .11–.14: старый 40/28/20/8/4 + волны + 50 концом тиров; ре-пин 000230.19: common 110→111 +traveler_cloak, epic 55→56 +mystic_sutan — хвосты §2.5 расширяются на 1); каждый пул ≡ live-каталог по редкости (каталожный порядок); хвосты §2.5 (legs-блок → feet-блок, legendary pool[21] = rune_boots 000456); старые префиксы 40/28/20/8/4 — deepEqual с пулом ДО волны (append-only, бит-в-бит) (краснота: пулы 40/28/20/8/4 — волна не перегенерирована)', () => {
+test('000230.15 LF6: EQUIP_POOLS — lengths 112/77/57/22/11 (ре-пин merge .11–.14: старый 40/28/20/8/4 + волны + 50 концом тиров; ре-пин 000230.19: common 110→111 +traveler_cloak, epic 55→56 +mystic_sutan — хвосты §2.5 расширяются на 1; ре-пин 000277: common 111→112 +traveler_bracer, epic 56→57 +mystic_wraps — хвосты §2.5 расширяются ещё на 1); каждый пул ≡ live-каталог по редкости (каталожный порядок); хвосты §2.5 (legs-блок → feet-блок, legendary pool[21] = rune_boots 000456); старые префиксы 40/28/20/8/4 — deepEqual с пулом ДО волны (append-only, бит-в-бит) (краснота: пулы 40/28/20/8/4 — волна не перегенерирована)', () => {
   const L = require('../src/loot-equip-data.js');
-  const expected = { common: 111, rare: 77, epic: 56, legendary: 22,
+  const expected = { common: 112, rare: 77, epic: 57, legendary: 22,
     impossible: 11 };
   for (const [t, len] of Object.entries(expected)) {
     assert.equal(L.EQUIP_POOLS[t].length, len,
@@ -9193,17 +9255,17 @@ test('000230.15 LF6: EQUIP_POOLS — lengths 111/77/56/22/11 (ре-пин merge 
       'пул «' + t.id + '» ≡ live-каталог по редкости (каталожный '
       + 'порядок; CH4-эквивалентность)');
   }
-  assert.deepEqual(L.EQUIP_POOLS.common.slice(-21),
+  assert.deepEqual(L.EQUIP_POOLS.common.slice(-22),
     LEGSFEET_POOL_TAILS_00023015.common,
-    'common-хвост 21 = §2.5 + 000230.19 (legs-common 10 → feet-common 10 '
-    + '→ +traveler_cloak)');
+    'common-хвост 22 = §2.5 + 000230.19 + 000277 (legs-common 10 '
+    + '→ feet-common 10 → +traveler_cloak → +traveler_bracer)');
   assert.deepEqual(L.EQUIP_POOLS.rare.slice(63),
     LEGSFEET_POOL_TAILS_00023015.rare,
     'rare-хвост 14 = §2.5 (legs-rare 7 → feet-rare 7)');
-  assert.deepEqual(L.EQUIP_POOLS.epic.slice(-11),
+  assert.deepEqual(L.EQUIP_POOLS.epic.slice(-12),
     LEGSFEET_POOL_TAILS_00023015.epic,
-    'epic-хвост 11 = §2.5 + 000230.19 (legs-epic 5 → feet-epic 5 '
-    + '→ +mystic_sutan)');
+    'epic-хвост 12 = §2.5 + 000230.19 + 000277 (legs-epic 5 '
+    + '→ feet-epic 5 → +mystic_sutan → +mystic_wraps)');
   assert.deepEqual(L.EQUIP_POOLS.legendary.slice(18),
     LEGSFEET_POOL_TAILS_00023015.legendary,
     'legendary-хвост 4 = §2.5');
@@ -9230,16 +9292,19 @@ test('000230.15 LF6: EQUIP_POOLS — lengths 111/77/56/22/11 (ре-пин merge 
     'старый impossible-префикс 4 — бит-в-бит (append-only)');
 });
 
-test('000230.15 LF7: зеркала — items-data 484 (50 id: getItem ≡ JSON + валидны по schema.json; ре-пин merge .10–.14; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита) и craft-data 341 (283+56+2); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
+test('000230.15 LF7: зеркала — items-data 486 (52 id: getItem ≡ JSON + валидны по schema.json; ре-пин merge .10–.14; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set) и craft-data 343 (283+56+2+2); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
   const ROOT = path.join(__dirname, '..');
-  assert.equal(I.allItems().length, 484,
-    'items-data = 459 + 25 свитков 000235.11 = 484 (ре-пин 000230.19: +2 set; '
+  assert.equal(I.allItems().length, 486,
+    'items-data = 459 + 25 свитков 000235.11 + 2 set 000277 = 486 '
+    + '(ре-пин 000230.19: +2 set; '
     + 'ре-пин 000235.11: +25 свитков волны Защита; '
+    + 'ре-пин 000277: +2 set; '
     + 'краснота: зеркало не '
     + 'регенерировано; факт: ' + I.allItems().length + ')');
   const CD = require('../src/craft-data.js');
-  assert.equal(CD.CRAFT.length, 341,
-    'craft-data = 283 + 56 + 2 = 341 (ре-пин 000230.19: +2 set; '
+  assert.equal(CD.CRAFT.length, 343,
+    'craft-data = 283 + 56 + 2 + 2 = 343 (ре-пин 000230.19: +2 set; '
+    + 'ре-пин 000277: +2 set; '
     + 'краснота: зеркало не '
     + 'регенерировано; факт: ' + CD.CRAFT.length + ')');
   const { fileById } = catalogScan00023008();
@@ -9300,7 +9365,7 @@ test('000230.15 LF7: зеркала — items-data 484 (50 id: getItem ≡ JSON 
 // в красной фазе данные не меняются и фон остаётся зелёным.
 // =====================================================================
 
-test('000230.19 S1: наборы 000230.08 достижимы — члены set=traveller И set=mystic в ≥2 РАЗНЫХ слотах (порог 2 заносится); точный счётчик предметов с set ∈ {traveller, mystic} = 6 (4→6, +1 на набор); редкость каждого члена = редкость пары (traveller → common, mystic → epic); set_bonus deepEqual ОДИНАКОВ у ВСЕХ членов каждого набора (SB13-кросс-пин, representative 000230.04 D-03); пороги ⊆ {2,3,4}', () => {
+test('000230.19 S1: наборы 000230.08 достижимы — члены set=traveller И set=mystic в ≥2 РАЗНЫХ слотах (порог 2 заносится); точный счётчик предметов с set ∈ {traveller, mystic} = 8 (4→6→8, +1 на набор; ре-пин 000277: 6→8 — 4-й член в новом слоте); редкость каждого члена = редкость пары (traveller → common, mystic → epic); set_bonus deepEqual ОДИНАКОВ у ВСЕХ членов каждого набора (SB13-кросс-пин, representative 000230.04 D-03); пороги ⊆ {2,3,4}', () => {
   const SETS_00023019 = [
     { set: 'traveller', rarity: 'common' },
     { set: 'mystic', rarity: 'epic' },
@@ -9314,8 +9379,9 @@ test('000230.19 S1: наборы 000230.08 достижимы — члены set
   }
   let total = 0;
   for (const s of SETS_00023019) total += (bySet.get(s.set) || []).length;
-  assert.equal(total, 6,
-    'предметов с set ∈ {traveller, mystic} — РОВНО 6 (4→6, +1 на набор); '
+  assert.equal(total, 8,
+    'предметов с set ∈ {traveller, mystic} — РОВНО 8 (4→6→8, +1 на '
+    + 'набор; ре-пин 000277: +2 set-предмета); '
     + 'факт: ' + total + ' (краснота: второй участник в другом слоте не '
     + 'добавлен — наборы DORMANT)');
   for (const s of SETS_00023019) {
@@ -9429,7 +9495,7 @@ test('000230.19 S2 (vm, e2e): РЕАЛЬНЫЕ предметы live-катал�
   }
 });
 
-test('000230.19 T2 (node, зелёный пин): ростер 2 построчно (D-02) — 000458 traveler_cloak «Страннический плащ»: armor, weight 0.9 (верх common-полосы 0.5–0.9), value 40 (верх common-лестницы 15–40), stats {armor:1}, desc «Страннический плащ: дорога не замечает.», icon assets/sprites/items/traveler_cloak.svg (файл существует), slot torso, rarity common, set traveller, affixes [{skill step 0.05}] (common 0.02–0.05), set_bonus {"2":{"armor":1}} БАЙТ-В-БИТ с 000083/000086; 000459 mystic_sutan «Мистическая сутана»: armor, weight 1.8 (epic-полоса 1.5–2.0), value 300 (epic-лестница 180–320), stats {armor:3} (epic-полоса 2–3), desc «Мистическая сутана: тишина шьётся из звёзд.», icon assets/sprites/items/mystic_sutan.svg (файл существует), slot torso, rarity epic, set mystic, affixes [{skill meditation 0.15}] (epic 0.10–0.20), set_bonus {"2":[{skill meditation 0.05}]} БАЙТ-В-БИТ с 000100/000101; subtype/tier/effect/loot отсутствуют; порядок ключей ⊆ 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн); валидны по schema.json; зеркало items-data.js ≡ JSON (getItem deepEqual)', () => {
+test('000230.19 T2 (node, зелёный пин): ростер 2 построчно (D-02) — 000458 traveler_cloak «Страннический плащ»: armor, weight 0.9 (верх common-полосы 0.5–0.9), value 40 (верх common-лестницы 15–40), stats {armor:1}, desc «Страннический плащ: дорога не замечает.», icon assets/sprites/items/traveler_cloak.svg (файл существует), slot torso, rarity common, set traveller, affixes [{skill step 0.05}] (common 0.02–0.05), set_bonus {"2":{"armor":1},"3":{"armor":2},"4":{"armor":3}} БАЙТ-В-БИТ с 000083/000086 (ре-пин 000277: пороги 3/4); 000459 mystic_sutan «Мистическая сутана»: armor, weight 1.8 (epic-полоса 1.5–2.0), value 300 (epic-лестница 180–320), stats {armor:3} (epic-полоса 2–3), desc «Мистическая сутана: тишина шьётся из звёзд.», icon assets/sprites/items/mystic_sutan.svg (файл существует), slot torso, rarity epic, set mystic, affixes [{skill meditation 0.15}] (epic 0.10–0.20), set_bonus {"2":[{skill meditation 0.05}],"3":[{skill meditation 0.1}],"4":[{skill meditation 0.15}]} БАЙТ-В-БИТ с 000100/000101 (ре-пин 000277: пороги 3/4); subtype/tier/effect/loot отсутствуют; порядок ключей ⊆ 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн); валидны по schema.json; зеркало items-data.js ≡ JSON (getItem deepEqual)', () => {
   const ROOT = path.join(__dirname, '..');
   const ROSTER = [
     ['000458.json', {
@@ -9445,7 +9511,8 @@ test('000230.19 T2 (node, зелёный пин): ростер 2 построч�
       'rarity': 'common',
       'set': 'traveller',
       'affixes': [{ 'type': 'skill', 'skill': 'step', 'amount': 0.05 }],
-      'set_bonus': { '2': { 'armor': 1 } }
+      'set_bonus': { '2': { 'armor': 1 }, '3': { 'armor': 2 },
+        '4': { 'armor': 3 } }
     }],
     ['000459.json', {
       'id': 'mystic_sutan',
@@ -9462,7 +9529,9 @@ test('000230.19 T2 (node, зелёный пин): ростер 2 построч�
       'affixes': [{ 'type': 'skill', 'skill': 'meditation',
         'amount': 0.15 }],
       'set_bonus': { '2': [{ 'type': 'skill', 'skill': 'meditation',
-        'amount': 0.05 }] }
+        'amount': 0.05 }], '3': [{ 'type': 'skill',
+        'skill': 'meditation', 'amount': 0.1 }], '4': [{
+        'type': 'skill', 'skill': 'meditation', 'amount': 0.15 }] }
     }]
   ];
   const schema = JSON.parse(
@@ -9612,28 +9681,36 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
   }
 });
 
-test('000230.19 T5 (node, зелёный пин): пул дропа src/loot-equip-data.js (D-04, ЕДИНСТВЕННАЯ src-правка помимо зеркал) — «traveler_cloak» КОНЦОМ common (110 → 111, после «hemp_sandals»), «mystic_sutan» КОНЦОМ epic (55 → 56, после «mithril_boots»); размеры РОВНО 111/77/56/22/11 (Σ 277); каждый пул ≡ live-каталогу по редкости в каталожном порядке (совместимо с динамическими EQ2/CH4 «пул ≡ каталог» и T7) (краснота: append концом тиров не сделан — хвосты 110/55)', () => {
+test('000230.19 T5 (node, зелёный пин): пул дропа src/loot-equip-data.js (D-04, ЕДИНСТВЕННАЯ src-правка помимо зеркал) — «traveler_cloak» КОНЦОМ common (110 → 111, после «hemp_sandals»), «mystic_sutan» КОНЦОМ epic (55 → 56, после «mithril_boots»); размеры РОВНО 112/77/57/22/11 (Σ 279, ре-пин 000277: +traveler_bracer концом common, +mystic_wraps концом epic); каждый пул ≡ live-каталогу по редкости в каталожном порядке (совместимо с динамическими EQ2/CH4 «пул ≡ каталог» и T7) (краснота: append концом тиров не сделан — хвосты 110/55)', () => {
   const L = require('../src/loot-equip-data.js');
   const P = L.EQUIP_POOLS;
-  assert.equal(P['common'].length, 111,
-    'common-пул = 111 (110 + traveler_cloak концом)');
+  assert.equal(P['common'].length, 112,
+    'common-пул = 112 (110 + traveler_cloak концом + traveler_bracer '
+    + '000277 концом)');
   assert.equal(P['rare'].length, 77, 'rare-пул = 77 (без смены)');
-  assert.equal(P['epic'].length, 56,
-    'epic-пул = 56 (55 + mystic_sutan концом)');
+  assert.equal(P['epic'].length, 57,
+    'epic-пул = 57 (55 + mystic_sutan концом + mystic_wraps 000277 '
+    + 'концом)');
   assert.equal(P['legendary'].length, 22,
     'legendary-пул = 22 (без смены)');
   assert.equal(P['impossible'].length, 11,
     'impossible-пул = 11 (без смены)');
   assert.equal(P['common'][109], 'hemp_sandals',
-    'предпоследний common = hemp_sandals (старый хвост, append '
+    'третий с конца common = hemp_sandals (старый хвост, append '
     + 'конец, не вставка)');
   assert.equal(P['common'][110], 'traveler_cloak',
-    'traveler_cloak КОНЦОМ common (D-04)');
+    'traveler_cloak предпоследним common (D-04; ре-пин 000277: '
+    + 'концом теперь traveler_bracer)');
+  assert.equal(P['common'][111], 'traveler_bracer',
+    'traveler_bracer КОНЦОМ common (ре-пин 000277)');
   assert.equal(P['epic'][54], 'mithril_boots',
-    'предпоследний epic = mithril_boots (старый хвост, append '
+    'третий с конца epic = mithril_boots (старый хвост, append '
     + 'конец, не вставка)');
   assert.equal(P['epic'][55], 'mystic_sutan',
-    'mystic_sutan КОНЦОМ epic (D-04)');
+    'mystic_sutan предпоследним epic (D-04; ре-пин 000277: концом '
+    + 'теперь mystic_wraps)');
+  assert.equal(P['epic'][56], 'mystic_wraps',
+    'mystic_wraps КОНЦОМ epic (ре-пин 000277)');
   const all = I.allItems();
   for (const t of ['common', 'rare', 'epic', 'legendary',
     'impossible']) {
@@ -9668,6 +9745,500 @@ test('000230.19 T6 (node, зелёный пин): byte-уникальность 
     for (const id of IDS) {
       assert.notEqual(h.get(id), other,
         id + ' и ' + f + ': иконки byte-уникальны (sha256, D-08)');
+    }
+  }
+});
+
+// Задача 000277 — четвёртый участник наборов traveller/mystic
+// (пороги 3/4) (follow-up RETRO-20261025 F11; шов 000230.19 §4 —
+// «Четвёртый участник (пороги 3/4) — только с ОДИНАКОВЫМ set_bonus
+// у ВСЕХ членов (SB13/D-03) и только отдельной задачей»). Контракт —
+// memory/000277-sets-traveller-mystic-fourth-member.md (D-01…D-16;
+// скоуп «по одному в каждый»: 000485 traveler_bracer common forearms /
+// 000486 mystic_wraps epic palms; рецепты 000418/000419; set_bonus
+// {2,3,4} ОДИНАКОВЫЙ у всех 8 членов; пулы append концом тира).
+// RED (TDD): в каталоге — только 6 членов {head, torso}, set_bonus
+// только {"2"}, 000485/000486/000418/000419 и 2 иконки НЕТ → 7 тестов
+// ниже падают по ОСМЫСЛЕННОЙ причине (счётчик 6 ≠ 8; слотов 2 < 3;
+// keys {"2"}; «неизвестный предмет»/«неизвестный рецепт»; lengths
+// 111/56; ENOENT), а не по синтаксису. Технические репины
+// существующих тестов (484→486, 43→45, пулы 111/56 → 112/57, стоки,
+// SPEC-док) — стадия ЗЕЛЁНАЯ: в красной фазе данные не меняются и
+// фон остаётся зелёным (3393 зелёных + 7 новых красных).
+// =====================================================================
+
+test('000277 S1: наборы traveller/mystic — 4-й член в НОВОМ слоте: члены в ≥3 РАЗНЫХ слотах (traveller {head,torso,forearms}, mystic {head,torso,palms} — порог 3 заносится); точный счётчик предметов с set ∈ {traveller, mystic} = 8 (6→8, +1 на набор); редкость каждого члена = редкость пары; set_bonus deepEqual ОДИНАКОВ у ВСЕХ 4 членов каждого набора (SB13-кросс-пин, representative 000230.04 D-03 — анти-×count-переучёт); объявленные пороги РОВНО {2,3,4} (краснота: счётчик 6, слоты {head,torso}, keys {"2"} — 4-й член не добавлен)', () => {
+  const SETS_000277 = [
+    { set: 'traveller', rarity: 'common',
+      slots: ['head', 'torso', 'forearms'] },
+    { set: 'mystic', rarity: 'epic',
+      slots: ['head', 'torso', 'palms'] },
+  ];
+  const bySet = new Map();
+  for (const it of I.allItems()) {
+    if (typeof it.set === 'string' && it.set) {
+      if (!bySet.has(it.set)) bySet.set(it.set, []);
+      bySet.get(it.set).push(it);
+    }
+  }
+  let total = 0;
+  for (const s of SETS_000277) total += (bySet.get(s.set) || []).length;
+  assert.equal(total, 8,
+    'предметов с set ∈ {traveller, mystic} — РОВНО 8 (6→8, +1 на '
+    + 'набор); факт: ' + total + ' (краснота: 4-й член наборов не '
+    + 'добавлен — пороги 3/4 незаняты)');
+  for (const s of SETS_000277) {
+    const members = bySet.get(s.set) || [];
+    assert.equal(members.length, 4,
+      s.set + ': 4 члена (краснота: ' + members.length + ')');
+    const slots = new Set(members.map((m) => m.slot));
+    assert.ok(slots.size >= 3,
+      s.set + ': члены в ≥3 РАЗНЫХ слотах (порог 3 достижим); факт: '
+      + [...slots].join('/'));
+    assert.deepEqual([...slots].sort(), [...s.slots].sort(),
+      s.set + ': слоты = ' + s.slots.join('/')
+      + ' (4-й член в новом слоте — не head, не torso)');
+    for (const m of members) {
+      assert.equal(m.rarity, s.rarity,
+        m.id + ': редкость = редкость пары «' + s.rarity + '»; факт: '
+        + m.rarity);
+    }
+    const [first] = members;
+    assert.ok(first.set_bonus && typeof first.set_bonus === 'object',
+      s.set + ': set_bonus объявлен');
+    for (const m of members) {
+      assert.deepEqual(m.set_bonus, first.set_bonus,
+        m.id + ': set_bonus ОДИНАКОВОЕ у всех членов набора (SB13-'
+        + 'кросс-пин; анти-×count-переучёт — representative)');
+    }
+    for (const m of members) {
+      assert.deepEqual(Object.keys(m.set_bonus).slice().sort(),
+        ['2', '3', '4'],
+        m.id + ': пороги РОВНО {2,3,4} (краснота: «3»/«4» отсутствуют)');
+    }
+  }
+});
+
+test('000277 S2 (vm, e2e): РЕАЛЬНЫЕ предметы live-каталога (H8-паттерн; S=10 по 5 навыкам, near 1e-9) — порог 3 достижим, кумулятивно: контрольная база mpRegenMult 0.30; traveller: straw_hat + traveler_cloak + traveler_bracer — counts {traveller:3}, set-armor = 1 (порог 2) + 2 (порог 3) = 3, equipmentStats.armor = 0 + 1 + 1 + 1 + 2 = 5; mystic: silver_helm + mystic_sutan + mystic_wraps — counts {mystic:3}, set-skill meditation = 0.05 (порог 2) + 0.10 (порог 3) = 0.15, equipmentStats.armor = 2 + 3 + 3 = 8, mpRegenMult = 0.10 + 0.02·10·(1 + 0.15 + 0.15 + 0.05 + 0.10) = 0.39 (краснота: «неизвестный предмет» — 4-го члена нет в каталоге; counts максимум {set:2})', () => {
+  const { sandbox } = makeVmSandboxWithConsole();
+  loadItemsVmChain(sandbox);
+  loadInSandbox('items.js', sandbox);
+  const G = sandbox.Game;
+  const near = (a, b, msg) => assert.ok(
+    Math.abs(a - b) < 1e-9, msg + ' (факт: ' + a + ')');
+  const makeHero = () => {
+    const c = G.createCharacter();
+    c.secondary.perception = 10;
+    c.secondary.precog = 10;
+    c.secondary.meditation = 10;
+    c.secondary.elder = 10;
+    c.secondary.scholar = 10;
+    return c;
+  };
+  const give = (c, id) => {
+    const ra = G.addItem(c, id);
+    assert.equal(ra.ok, true,
+      id + ': выдача (' + (ra.reason || '') + ') — предмет в live-'
+      + 'каталоге (краснота: неизвестный предмет — 4-й член набора '
+      + 'не добавлен)');
+    const r = G.equip(c, id);
+    assert.equal(r.ok, true, id + ': equip (' + (r.reason || '') + ')');
+  };
+  {
+    const c = makeHero();
+    near(G.derived(c).mpRegenMult, 0.3,
+      'база mpRegenMult (0.10 + 0.02·10)');
+  }
+  {
+    const c = makeHero();
+    give(c, 'straw_hat');
+    give(c, 'traveler_cloak');
+    give(c, 'traveler_bracer');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm(st.counts), { traveller: 3 },
+      'straw_hat + traveler_cloak + traveler_bracer: counts '
+      + '{traveller:3} (пороги 2 И 3)');
+    assert.equal(st.armor, 3,
+      'set-armor = 1 (порог 2) + 2 (порог 3) — кумулятивно');
+    assert.equal(G.equipmentStats(c).armor, 5,
+      'armor = 0 (hat) + 1 (cloak) + 1 (bracer) + 1 (порог 2) '
+      + '+ 2 (порог 3) = 5');
+  }
+  {
+    const c = makeHero();
+    give(c, 'silver_helm');
+    give(c, 'mystic_sutan');
+    give(c, 'mystic_wraps');
+    const st = G.activeSets(c);
+    assert.deepEqual(fromVm(st.counts), { mystic: 3 },
+      'silver_helm + mystic_sutan + mystic_wraps: counts {mystic:3}');
+    assert.equal(Object.keys(st.skills).length, 1,
+      'set-skills — только meditation');
+    assert.ok(Math.abs(st.skills.meditation - 0.15) < 1e-9,
+      'set-skill meditation = 0.05 (порог 2) + 0.10 (порог 3); '
+      + 'факт: ' + st.skills.meditation);
+    assert.equal(st.armor, 0,
+      'epic-набор — set_bonus в affix-форме, armor в бонусах нет');
+    assert.equal(G.equipmentStats(c).armor, 8,
+      'armor = 2 (helm) + 3 (sutan) + 3 (wraps)');
+    near(G.derived(c).mpRegenMult, 0.39,
+      'mpRegenMult = 0.10 + 0.02·10·(1 + 0.15 + 0.15 + 0.05 + 0.10) '
+      + '(affixes 0.15+0.15 + set 0.05+0.10)');
+  }
+});
+
+test('000277 T1: ростер 2 построчно (D-05) — 000485 traveler_bracer «Страннический наручник»: armor, weight 0.6 (верх common-полосы forearms 0.2–0.6), value 35 (верх common-лестницы 10–35), stats {armor:1}, desc «Страннический наручник: шаг ровный, как тропа.», icon assets/sprites/items/traveler_bracer.svg (файл существует), slot forearms, rarity common, set traveller, affixes [{skill step 0.05}] (common 0.03–0.05), set_bonus {"2":{"armor":1},"3":{"armor":2},"4":{"armor":3}} БАЙТ-В-БИТ с 000083/000086/000458; 000486 mystic_wraps «Мистические обмотки»: armor, weight 0.9 (epic-полоса palms 0.5–1.0), value 280 (epic-лестница 180–320), stats {armor:3} (epic-полоса 2–3), desc «Мистические обмотки: слово не срывается с ладони.», icon assets/sprites/items/mystic_wraps.svg (файл существует), slot palms, rarity epic, set mystic, affixes [{skill meditation 0.15}] (epic 0.15–0.20), set_bonus {"2":[{skill meditation 0.05}],"3":[{skill meditation 0.10}],"4":[{skill meditation 0.15}]} БАЙТ-В-БИТ с 000100/000101/000459; subtype/tier/effect/loot отсутствуют; порядок ключей ⊆ 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн); валидны по schema.json; зеркало items-data.js ≡ JSON (краснота: ENOENT assets/items/000485.json — предметы не добавлены)', () => {
+  const ROOT = path.join(__dirname, '..');
+  const ROSTER = [
+    ['000485.json', {
+      'id': 'traveler_bracer',
+      'name': 'Страннический наручник',
+      'kind': 'armor',
+      'weight': 0.6,
+      'value': 35,
+      'desc': 'Страннический наручник: шаг ровный, как тропа.',
+      'stats': { 'armor': 1 },
+      'icon': 'assets/sprites/items/traveler_bracer.svg',
+      'slot': 'forearms',
+      'rarity': 'common',
+      'set': 'traveller',
+      'affixes': [{ 'type': 'skill', 'skill': 'step', 'amount': 0.05 }],
+      'set_bonus': { '2': { 'armor': 1 }, '3': { 'armor': 2 },
+        '4': { 'armor': 3 } }
+    }, {
+      'weight': [0.2, 0.6], 'value': [10, 35],
+      'affix': [0.03, 0.05], 'pairHead': 'straw_hat'
+    }],
+    ['000486.json', {
+      'id': 'mystic_wraps',
+      'name': 'Мистические обмотки',
+      'kind': 'armor',
+      'weight': 0.9,
+      'value': 280,
+      'desc': 'Мистические обмотки: слово не срывается с ладони.',
+      'stats': { 'armor': 3 },
+      'icon': 'assets/sprites/items/mystic_wraps.svg',
+      'slot': 'palms',
+      'rarity': 'epic',
+      'set': 'mystic',
+      'affixes': [{ 'type': 'skill', 'skill': 'meditation',
+        'amount': 0.15 }],
+      'set_bonus': {
+        '2': [{ 'type': 'skill', 'skill': 'meditation', 'amount': 0.05 }],
+        '3': [{ 'type': 'skill', 'skill': 'meditation', 'amount': 0.10 }],
+        '4': [{ 'type': 'skill', 'skill': 'meditation', 'amount': 0.15 }]
+      }
+    }, {
+      'weight': [0.5, 1.0], 'value': [180, 320],
+      'affix': [0.15, 0.20], 'pairHead': 'silver_helm'
+    }]
+  ];
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  for (const [f, expected, band] of ROSTER) {
+    const p = path.join(ITEMS_DIR, f);
+    assert.ok(fs.existsSync(p),
+      f + ': файл существует (краснота: ENOENT — предмет не добавлен)');
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    assert.deepEqual(j, expected,
+      f + ': ростер построчно (D-05; subtype/tier/effect/loot — '
+      + 'отсутствуют)');
+    assert.ok(j['weight'] >= band['weight'][0]
+      && j['weight'] <= band['weight'][1],
+      f + ': weight ' + j['weight'] + ' в полосе слота/редкости '
+      + band['weight'] + ' (D-04)');
+    assert.ok(j['value'] >= band['value'][0]
+      && j['value'] <= band['value'][1],
+      f + ': value ' + j['value'] + ' в лестнице редкости '
+      + band['value'] + ' (D-04)');
+    const aff = j['affixes'][0];
+    assert.ok(aff['amount'] >= band['affix'][0]
+      && aff['amount'] <= band['affix'][1],
+      f + ': affix ' + aff['amount'] + ' в полосе редкости '
+      + band['affix'] + ' (D-04)');
+    assert.ok(fs.existsSync(path.join(ROOT, j['icon'])),
+      f + ': icon-файл ' + j['icon'] + ' существует');
+    const keys = Object.keys(j);
+    let prev = -1;
+    for (const k of keys) {
+      const i = KEYS_SYNC_00023008.indexOf(k);
+      assert.ok(i !== -1,
+        f + ': ключ «' + k + '» — в канонических KEYS sync (E1b)');
+      assert.ok(i > prev,
+        f + ': ключ «' + k + '» — канон-порядок (E1b-паттерн)');
+      prev = i;
+    }
+    const errors = validateData(schema, j, f);
+    assert.deepEqual(errors, [],
+      f + ': валиден по schema.json; факт: ' + errors.join('; '));
+    const pairHead = I.getItem(band['pairHead']);
+    assert.ok(pairHead,
+      'set-голова «' + band['pairHead'] + '» в каталоге');
+    assert.deepEqual(j['set_bonus'], pairHead['set_bonus'],
+      f + ': set_bonus ОДИНАКОВОЕ с парой (D-06, кросс-пин)');
+    const it = I.getItem(j['id']);
+    assert.ok(it, 'зеркало items-data.js: «' + j['id'] + '» '
+      + '(краснота: записи нет — зеркало не регенерировано)');
+    assert.deepEqual(it, j, f + ': зеркало ≡ JSON');
+  }
+});
+
+test('000277 T4: 2 базовых рецепта построчно (D-07; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000418 «Плетение страннического наручника»: тип столярное_дело (кожа/дерево, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002], исходники hide×2 (000037) + wood_log×1 (000035) (паттерн 000416), результат assets/items/000485.json (id traveler_bracer); 000419 «Зачарование мистических обмоток»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018], навыки [runes 000027, meditation 000029 — НЕ 000014, это step], заклинания ["prayer"] (000114 «Молитва» — ID ∈ каталогу spells), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038) (паттерн 000417), результат assets/items/000486.json (id mystic_wraps); оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id (краснота: ENOENT assets/craft/000418.json — рецепты не добавлены)', () => {
+  const ROOT = path.join(__dirname, '..');
+  const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(CRAFT_DIR, 'schema.json'), 'utf8'));
+  const CD = require('../src/craft-data.js');
+  const { SPELLS_BY_ID } = require('../src/spells-data.js');
+  const ROSTER = [
+    ['000418.json', {
+      'тип': 'столярное_дело',
+      'уровень': 8,
+      'полоса': [1, 10],
+      'здания': ['assets/buildings/000005.json'],
+      'навыки': ['assets/skills/000002.json'],
+      'заклинания': undefined,
+      'исходники': ['assets/items/000037.json:2',
+        'assets/items/000035.json:1'],
+      'результат': ['assets/items/000485.json', 'traveler_bracer'],
+      'зеркало': {
+        'результат': { 'предмет': 'traveler_bracer', 'количество': 1 },
+        'исходники': [{ 'предмет': 'hide', 'количество': 2 },
+          { 'предмет': 'wood_log', 'количество': 1 }],
+        'навыки': ['dexterity'],
+        'здания': [5]
+      }
+    }],
+    ['000419.json', {
+      'тип': 'зачарование',
+      'уровень': 45,
+      'полоса': [30, 60],
+      'здания': ['assets/buildings/000018.json'],
+      'навыки': ['assets/skills/000027.json',
+        'assets/skills/000029.json'],
+      'заклинания': ['prayer'],
+      'исходники': ['assets/items/000061.json:1',
+        'assets/items/000052.json:1', 'assets/items/000038.json:2'],
+      'результат': ['assets/items/000486.json', 'mystic_wraps'],
+      'зеркало': {
+        'результат': { 'предмет': 'mystic_wraps', 'количество': 1 },
+        'исходники': [{ 'предмет': 'amethyst', 'количество': 1 },
+          { 'предмет': 'silver_ore', 'количество': 1 },
+          { 'предмет': 'coal', 'количество': 2 }],
+        'навыки': ['runes', 'meditation'],
+        'здания': [18],
+        'заклинания': ['prayer']
+      }
+    }]
+  ];
+  for (const [f, spec] of ROSTER) {
+    const p = path.join(CRAFT_DIR, f);
+    assert.ok(fs.existsSync(p),
+      f + ': файл существует (краснота: ENOENT — рецепт не добавлен)');
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    const errors = validateData(schema, j, f);
+    assert.deepEqual(errors, [],
+      f + ': валиден по schema.json; факт: ' + errors.join('; '));
+    assert.ok(schema.properties['тип'].enum.includes(j['тип']),
+      f + ': тип «' + j['тип'] + '» — в enum схемы');
+    assert.deepEqual(j['тип'], spec['тип'], f + ': тип (по смыслу)');
+    assert.ok(j['уровень'] >= spec['полоса'][0]
+      && j['уровень'] <= spec['полоса'][1],
+      f + ': уровень ' + j['уровень'] + ' в полосе редкости '
+      + spec['полоса'] + ' (контракт §5.3.6)');
+    assert.equal(j['уровень'], spec['уровень'], f + ': уровень (точное)');
+    assert.deepEqual(j['здания'], spec['здания'],
+      f + ': здания (⊆ союза вида; 000005 — столярный литерал [5])');
+    for (const b of j['здания']) {
+      assert.ok(fs.existsSync(path.join(ROOT, b)),
+        f + ': здание ' + b + ' — файл существует');
+    }
+    assert.deepEqual(j['навыки'], spec['навыки'],
+      f + ': навыки (паттерн набора)');
+    if (spec['заклинания']) {
+      assert.deepEqual(j['заклинания'], spec['заклинания'],
+        f + ': заклинания (зачарование — ≥1)');
+      for (const sp of j['заклинания']) {
+        assert.ok(SPELLS_BY_ID[sp],
+          f + ': заклинание «' + sp + '» — ID ∈ каталогу spells');
+      }
+    } else {
+      assert.equal(j['заклинания'], undefined,
+        f + ': базовый рецепт без заклинаний');
+    }
+    assert.deepEqual(j['исходники'].map(
+      (i) => i['предмет'] + ':' + i['количество']),
+      spec['исходники'], f + ': исходники (количества)');
+    for (const s of j['исходники']) {
+      assert.ok(fs.existsSync(path.join(ROOT, s['предмет'])),
+        f + ': исходник ' + s['предмет'] + ' — файл существует');
+    }
+    assert.equal(j['результат']['предмет'], spec['результат'][0],
+      f + ': результат — файл ' + spec['результат'][0]);
+    const resId = JSON.parse(fs.readFileSync(
+      path.join(ROOT, j['результат']['предмет']), 'utf8'))['id'];
+    assert.equal(resId, spec['результат'][1],
+      f + ': id результата = ' + spec['результат'][1]);
+    assert.equal(j['id'], spec['результат'][1],
+      f + ': id рецепта = id результата (конвенция)');
+    assert.equal(j['база'], undefined,
+      f + ': базовый рецепт (без «база»; improved только '
+      + 'legendary/impossible)');
+    const m = CD.CRAFT.find((r) => r['id'] === j['id']);
+    assert.ok(m, 'зеркало craft-data.js: рецепт «' + j['id']
+      + '» (краснота: зеркало не регенерировано)');
+    const mirrorSpec = spec['зеркало'];
+    assert.deepEqual(m['результат'], mirrorSpec['результат'],
+      f + ': зеркало — результат резолвлен в id');
+    assert.deepEqual(m['исходники'], mirrorSpec['исходники'],
+      f + ': зеркало — исходники резолвлены в id');
+    assert.deepEqual(m['навыки'], mirrorSpec['навыки'],
+      f + ': зеркало — навыки резолвлены в id');
+    assert.deepEqual(m['здания'], mirrorSpec['здания'],
+      f + ': зеркало — здания резолвлены в id');
+    assert.deepEqual(m['заклинания'], mirrorSpec['заклинания'],
+      f + ': зеркало — заклинания (ID-форма) без резолва');
+  }
+});
+
+test('000277 T4e (node, craft-core e2e): крафт 4-х членов — 000418 → 000485: без уровня — «недостаточный уровень (нужно 8)», не то здание — отказ, с столярным 8 + здание 5 + hide×2/wood_log — success: результат traveler_bracer, качество по qualityChance L=8 — 0.05+0.005·7 = 0.085 (NO_ROLLS — не выпало), xp 10+8 = 18, материалы списаны; 000419 → 000486: уровень-гейт (нужно 45), здание-гейт (18), success с зачарованием 45 + здание 18 + amethyst/silver_ore/coal×2 + изученным prayer: результат mystic_wraps, качество L=45 — 0.05+0.005·44 = 0.27 (NO_ROLLS — не выпало), xp 10+45 = 55, мана −4 (prayer), действие внебой — бонуса нет (краснота: «неизвестный рецепт» — 000418/000419 нет в каталоге)', () => {
+  const C = require('../src/craft.js');
+  const NO_ROLLS = () => 0.999;
+  const give = (c, id, qty) => {
+    const r = I.addItem(c, id, qty);
+    assert.equal(r.ok, true, 'give(' + id + '): ' + (r.reason || ''));
+  };
+  {
+    const p = createCharacter();
+    p.craftTypes = { 'столярное_дело': true };
+    give(p, 'hide', 2);
+    give(p, 'wood_log', 1);
+    const r = C.craft(p, 'traveler_bracer', { building: 5, rng: NO_ROLLS });
+    assert.equal(r.reason, 'недостаточный уровень (нужно 8)',
+      'уровень-гейт (герой 1 < 8); факт: ' + (r.reason || 'ok')
+      + ' (краснота: неизвестный рецепт — 000418 не добавлен)');
+    p.craft = { 'столярное_дело': 8 };
+    p.primary.dexterity = 5;
+    const r2 = C.craft(p, 'traveler_bracer', { building: 3, rng: NO_ROLLS });
+    assert.equal(r2.ok, false);
+    assert.equal(r2.reason,
+      'в этом здании такой способ не изготавливается',
+      'здание-гейт (рецепт [5] ≠ 3); факт: ' + (r2.reason || 'ok'));
+    assert.equal(C.qualityChance(p, 'traveler_bracer', 5),
+      0.05 + 0.005 * 7, 'qualityChance L=8 (min 0.5)');
+    const r3 = C.craft(p, 'traveler_bracer', { building: 5,
+      rng: NO_ROLLS });
+    assert.equal(r3.ok, true, 'success: ' + (r3.reason || ''));
+    assert.equal(r3.item, 'traveler_bracer', 'результат = 000485');
+    assert.equal(r3.qty, 1);
+    assert.equal(I.totalQty(p, 'hide'), 0, 'исходники сняты');
+    assert.equal(I.totalQty(p, 'wood_log'), 0, 'исходники сняты');
+    assert.equal(I.totalQty(p, 'traveler_bracer'), 1,
+      'результат в инвентаре');
+    assert.equal(r3.xp.applied, 18, 'опыт 10 + уровень 8');
+    assert.equal(r3.xp.level, 8);
+    assert.equal(p.craftXp['столярное_дело'], 18);
+    assert.equal(r3.quality, false, 'качество не выпало (NO_ROLLS)');
+    assert.equal(r3.extra, false, 'выход не выпал (NO_ROLLS)');
+    assert.equal(
+      p.inventory.slots.find((s) => s.id === 'traveler_bracer').bonus,
+      undefined, 'без качества — бонуса нет');
+  }
+  {
+    const p = createCharacter();
+    p.craftTypes = { 'зачарование': true };
+    p.spells = ['prayer'];
+    give(p, 'amethyst', 1);
+    give(p, 'silver_ore', 1);
+    give(p, 'coal', 2);
+    const r = C.craft(p, 'mystic_wraps', { building: 18, rng: NO_ROLLS });
+    assert.equal(r.reason, 'недостаточный уровень (нужно 45)',
+      'уровень-гейт (герой 1 < 45); факт: ' + (r.reason || 'ok')
+      + ' (краснота: неизвестный рецепт — 000419 не добавлен)');
+    p.craft = { 'зачарование': 45 };
+    p.secondary.runes = 23;
+    const r2 = C.craft(p, 'mystic_wraps', { building: 5, rng: NO_ROLLS });
+    assert.equal(r2.ok, false);
+    assert.equal(r2.reason,
+      'в этом здании такой способ не изготавливается',
+      'здание-гейт (рецепт [18] ≠ 5); факт: ' + (r2.reason || 'ok'));
+    assert.equal(C.qualityChance(p, 'mystic_wraps', 18),
+      0.05 + 0.005 * 44, 'qualityChance L=45 (min 0.5)');
+    const r3 = C.craft(p, 'mystic_wraps', { building: 18, rng: NO_ROLLS });
+    assert.equal(r3.ok, true, 'success: ' + (r3.reason || ''));
+    assert.equal(r3.item, 'mystic_wraps', 'результат = 000486');
+    assert.equal(I.totalQty(p, 'amethyst'), 0, 'исходники сняты');
+    assert.equal(I.totalQty(p, 'silver_ore'), 0, 'исходники сняты');
+    assert.equal(I.totalQty(p, 'coal'), 0, 'исходники сняты');
+    assert.equal(I.totalQty(p, 'mystic_wraps'), 1,
+      'результат в инвентаре');
+    assert.equal(r3.xp.applied, 55, 'опыт 10 + уровень 45');
+    assert.equal(p.mp, 16 - 4, 'мана −4 (prayer)');
+    assert.equal(r3.quality, false, 'качество не выпало (NO_ROLLS)');
+    assert.equal(
+      p.inventory.slots.find((s) => s.id === 'mystic_wraps').bonus,
+      undefined, 'действие внебой — бонуса к предмету нет');
+  }
+});
+
+test('000277 T5: пул дропа src/loot-equip-data.js (D-09, append-only) — «traveler_bracer» КОНЦОМ common (111 → 112, после «traveler_cloak»), «mystic_wraps» КОНЦОМ epic (56 → 57, после «mystic_sutan»); размеры РОВНО 112/77/57/22/11 (Σ 279); каждый пул ≡ live-каталогу по редкости в каталожном порядке (инвариант EQ2/CH4/T7; LF6-окна slice(-N) падают на первом элементе при вставке НЕ концом) (краснота: lengths 111/56 — append концом тиров не сделан)', () => {
+  const L = require('../src/loot-equip-data.js');
+  const P = L.EQUIP_POOLS;
+  assert.equal(P['common'].length, 112,
+    'common-пул = 112 (111 + traveler_bracer концом); факт: '
+    + P['common'].length + ' (краснота: append не сделан)');
+  assert.equal(P['rare'].length, 77, 'rare-пул = 77 (без смены)');
+  assert.equal(P['epic'].length, 57,
+    'epic-пул = 57 (56 + mystic_wraps концом); факт: '
+    + P['epic'].length + ' (краснота: append не сделан)');
+  assert.equal(P['legendary'].length, 22,
+    'legendary-пул = 22 (без смены)');
+  assert.equal(P['impossible'].length, 11,
+    'impossible-пул = 11 (без смены)');
+  assert.equal(P['common'][110], 'traveler_cloak',
+    'предпоследний common = traveler_cloak (старый хвост, append '
+    + 'конец, не вставка)');
+  assert.equal(P['common'][111], 'traveler_bracer',
+    'traveler_bracer КОНЦОМ common (D-09)');
+  assert.equal(P['epic'][55], 'mystic_sutan',
+    'предпоследний epic = mystic_sutan (старый хвост, append конец, '
+    + 'не вставка)');
+  assert.equal(P['epic'][56], 'mystic_wraps',
+    'mystic_wraps КОНЦОМ epic (D-09)');
+  const all = I.allItems();
+  for (const t of ['common', 'rare', 'epic', 'legendary',
+    'impossible']) {
+    const cat = all.filter((it) => it['rarity'] === t)
+      .map((it) => it['id']);
+    assert.deepEqual(P[t], cat,
+      t + ': пул ≡ live-каталогу по редкости в каталожном '
+      + 'порядке (EQ2/CH4-инвариант)');
+  }
+});
+
+test('000277 T6: byte-уникальность иконок (sha256, house-style по соседям) — assets/sprites/items/traveler_bracer.svg и assets/sprites/items/mystic_wraps.svg НЕ совпадают по sha256 ни с одним из ОСТАЛЬНЫХ файлов каталога assets/sprites/items (НЕ копии чужих иконок) и не равны друг другу (краснота: ENOENT — иконки не созданы)', () => {
+  const { createHash } = require('node:crypto');
+  const SPR = path.join(__dirname, '..', 'assets', 'sprites', 'items');
+  const files = fs.readdirSync(SPR);
+  const IDS = ['traveler_bracer.svg', 'mystic_wraps.svg'];
+  for (const id of IDS) {
+    assert.ok(files.includes(id),
+      id + ': файл в assets/sprites/items (краснота: иконка '
+      + 'не создана)');
+  }
+  const hash = (f) => createHash('sha256')
+    .update(fs.readFileSync(path.join(SPR, f))).digest('hex');
+  const h = new Map();
+  for (const id of IDS) h.set(id, hash(id));
+  assert.notEqual(h.get('traveler_bracer.svg'),
+    h.get('mystic_wraps.svg'),
+    'traveler_bracer.svg и mystic_wraps.svg — не равны друг другу');
+  for (const f of files) {
+    if (IDS.includes(f)) continue;
+    const other = hash(f);
+    for (const id of IDS) {
+      assert.notEqual(h.get(id), other,
+        id + ' и ' + f + ': иконки byte-уникальны (sha256)');
     }
   }
 });

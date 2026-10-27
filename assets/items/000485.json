@@ -1,0 +1,33 @@
+{
+  "id": "traveler_bracer",
+  "name": "Страннический наручник",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 35,
+  "desc": "Страннический наручник: шаг ровный, как тропа.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/traveler_bracer.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "set": "traveller",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.05
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    },
+    "3": {
+      "armor": 2
+    },
+    "4": {
+      "armor": 3
+    }
+  }
+}

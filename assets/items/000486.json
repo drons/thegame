@@ -1,0 +1,45 @@
+{
+  "id": "mystic_wraps",
+  "name": "Мистические обмотки",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 280,
+  "desc": "Мистические обмотки: слово не срывается с ладони.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mystic_wraps.svg",
+  "slot": "palms",
+  "rarity": "epic",
+  "set": "mystic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ],
+    "3": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.1
+      }
+    ],
+    "4": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.15
+      }
+    ]
+  }
+}
