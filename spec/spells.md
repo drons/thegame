@@ -232,11 +232,103 @@
     НЕ −2 (helper darkPresenceRadius).
 * Зональное подавление — единая точка: src/main.js
   zoneSuppressedReason (причины, порядок проверки: «невидимость»,
-  «круг защиты», «замерзание», «покров ночи») →
+  «круг защиты», «замерзание», «покров ночи», «свет обители») →
   zoneCombatInfo: гаснет и зона-бой, и HUD «— зона». ТАЙЛ-БОЙ
   (вход на тайл с группой) НЕ подавляется кругом защиты —
   зональная ветка НЕ путать с тайл-боем; вступление в бой круг
   НЕ снимает (в отличие от невидимости).
+* Волна Огонь (000235.07; контент каталога — 25 свитков волны):
+  три внебоевых заклинания (истечение — onDay молча, без flash;
+  вступление в бой эффекты НЕ снимает):
+  * flame_step («Пламенный шаг», огонь, действие «телепорт», без
+    дней): телепорт на ≤ 10 клеток в направлении последнего
+    движения (resolveTeleportStep, src/main.js — луч k = 1..10 до
+    непроходимого тайла, landing = максимум; отказы «в городе
+    телепорт недоступен» / «нет направления движения» / «некуда
+    шагнуть»). Луч НЕ учитывает frost_walk (вода — стена; луч —
+    passable-функции, не heroPassable; pre-existing, memory/000239).
+    000239-пост-лендинг: подземелье — locations.dungeonPostMove
+    (определяет событие: тайл-бой/сундук) → clock.addStep →
+    startDungeonCombat/applyDungeonChest по событию → saveNow;
+    мир — clock.addStep → зональный скан (maybeStartCombat) →
+    enterLocation (если бой НЕ начался) → saveNow; мана списана
+    ПОСЛЕ успешного cb (отказ cb — reason cb, каст не состоялся:
+    мана НЕ списана, перемещения нет; skeleton ctx === undefined —
+    ok + мана списана, телепорта нет).
+  * firelight («Свет пламени», огонь, действие «внебой», {days: 1, radius:
+    5}): floor радиуса видимости подземелья — visionRadiusFloor
+    (src/dungeon-ui.js) из `параметры.radius` — ДЕФОЛТА НЕТ
+    (typeof number && r ≥ 1 → floorR, иначе 0; НЕ integer-check,
+    НЕ 1..5→5 — отличие от radius-helper'ов); на базовой видимости
+    (visionMult ≥ 1 → radiusFor ≥ 5 = VISION_BASE_RADIUS) floor 5 —
+    no-op — tasks/pending/000235.07.01.md.
+  * hearthfire («Очаговый огонь», огонь, действие «внебой», {days: 1,
+    radius: 5}): restoreDay ×1.1 (+10% к дневному регену, лагерь;
+    main.js onDay — OR с camp/prayer/wild_growth БЕЗ стекания);
+    граница isHeroCamped — expiresDay >= day («утро эффекта»: onDay
+    restoreDay считается ДО expireOutOfCombatEffects); radius — поле
+    каталога, кодом НЕ потребляется (no-op; эффект — реген).
+* Волна Лёд (000235.08; контент каталога — 25 свитков волны):
+  три внебоевых заклинания (истечение — onDay молча, без flash;
+  вступление в бой эффекты НЕ снимает):
+  * frost_walk («Ледяная походка», лёд, действие «внебой»,
+    {days: 1}): hero-level проходимость обоих водных тайла —
+    heroPassable(t, day) (src/main.js): t.passable ИЛИ (frost_walk
+    активен, expiresDay > day, И t.terrain ∈ {WATER, DEEP_WATER});
+    статичный passable TERRAIN_DATA НЕ меняется (деградация без
+    G.Spells — passable-only); сейв-гард — не heroPassable →
+    console.warn «Сейв: позиция непроходима — остаюсь на спавне.»
+    (герой на спавне); подземелья не затрагивает; при смене дня —
+    spec/game-time.md «При смене дня».
+  * cold_breath («Дыхание мороза», лёд, действие «внебой»,
+    {days: 1, radius: 5}): радиус триггера триггерящих групп −1 —
+    5-й аргумент findZoneCombat (aggroReduceRadius, src/combat.js):
+    для триггерящей группы в Чебышёве ≤ радиуса эффекта от героя
+    eff = Math.max(1, info.radius − 1) (min 1); non-trigger-группы
+    и dist 0 (свой тайл) — не трогает; вызов без 5-го аргумента
+    (legacy) — бит-в-бит; HUD-окружность — тем же eff.
+  * frozen_stillness («Замершая неподвижность», лёд, действие
+    «внебой», {days: 1, radius: 5}): зональное ПОДАВЛЕНИЕ — пока
+    запись активна, зона группы НЕ триггерится, если Чебышёв(зона,
+    герой) ≤ радиус; радиус — helper frozenStillnessRadius (src/
+    spells.js); причина в zoneSuppressedReason — «замерзание» (3-я в
+    порядке проверки); ТАЙЛ-БОЙ сохраняется.
+* Волна Тень (000235.09) — «третий внебоевой» shadow_step (зональная
+  пара shroud_of_night/dark_presence — блок «Зональные эффекты волны
+  Тень» выше): тот же resolveTeleportStep, что flame_step (≤ 10
+  клеток, направление последнего движения); мир — лендинг ТОЛЬКО
+  t.passable (shadowStepPassable, src/main.js — БЕЗ building/
+  entrance/mob-group исключений; легче flame_step); ПОСТ-ЛЕНДИНГА
+  НЕТ (ни addStep, ни зональный скан, ни enterLocation, ни saveNow,
+  ни dungeonPostMove) — телепорт бесплатен по игровому времени
+  (pre-existing непоследовательность; 000239 D1 — shadow_step НЕ
+  трогать и НЕ синхронизировать).
+* Волна Исцеление (000235.10; контент каталога — 25 свитков волны):
+  четыре внебоевых заклинания (истечение — onDay молча, без flash;
+  вступление в бой эффекты НЕ снимает):
+  * prayer («Молитва», исцеление, действие «внебой», {days: 1}):
+    restoreDay ×1.1 (+10% к дневному регену, main.js onDay — OR с
+    camp/prayer/wild_growth БЕЗ стекания; граница isHeroPrayer —
+    expiresDay >= day).
+  * divine_protection («Божественная защита», исцеление, действие
+    «внебой», {days: 1}): currentBuffMods (src/main.js) — при
+    isHeroDivineProtected (expiresDay > day) → Object.assign({}, m,
+    {incomingMult: 0.85}) (−15% получаемого урона); применяется во
+    ВСЕХ точках создания боя дня (мир/подземелье/отладочный).
+  * holy_light («Свет обители», исцеление, действие «внебой»,
+    {days: 1, radius: 5}): 5-я причина подавления
+    zoneSuppressedReason — «свет обители» (000235.10; порядок
+    проверки: невидимость → круг защиты → замерзание → покров ночи
+    → свет обители); радиус — helper holyLightRadius;
+    visionRadiusFloor — max с firelight (floorR = max(floorR,
+    holyLightRadius)).
+  * miracle («Чудо», исцеление, действие «воскрешение», без дней):
+    мгновенное all-or-nothing воскрешение ВСЕХ погибших; отказы
+    ДОСЛОВНО — «нет погибших» / «отряд полон» (roster + dead >
+    max_companions, дефолт 3) / «недоступно» (pre-validation ВСЕХ
+    до применения); успех — flash «Чудо: партия вернулась.» +
+    saveNow; механика воскрешения — spec/companions.md «Воскрешение»
+    (000268), кросс-ссылка, не дубль.
 * Волна Природа (000235.12; контент каталога — 25 свитков волны):
   три внебоевых заклинания (истечение — onDay молча, без flash;
   вступление в бой эффекты НЕ снимает):

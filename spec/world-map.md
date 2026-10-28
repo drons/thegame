@@ -18,6 +18,17 @@
    enum «террейны» assets/visuals/schema.json, имена файлов assets/tiles/*.svg) связаны
    с таблицей тестами; имена файлов не переименовывать.
 
+ * Hero-level проходимость (frost_walk, 000235.08): статичный
+   `passable` НЕ меняется — `heroPassable(t, day)` (src/main.js) =
+   `t.passable` ИЛИ (frost_walk активен, `expiresDay > day`, И
+   `t.terrain` ∈ {WATER, DEEP_WATER}); через heroPassable — tryMove
+   и позиция-сейв (не heroPassable → console.warn «Сейв: позиция
+   непроходима — остаюсь на спавне.», герой на спавне); деградация
+   без G.Spells — passable-only; подземелья не затрагивает; при
+   смене дня — spec/game-time.md «При смене дня»; TERRAIN_DATA и
+   потребители (passableTiles/denseTiles, TILE_BASE, TILE_COLORS) —
+   статичны (буллет выше).
+
  * Процедурно генерируемый лабиринт нескольких типов пещеры/подземелья.
    Подземелье многоэтажное. Глубина (код `d.depth`) — каноническое имя
    шкалы: целое ≥ 1, первый этаж = 1 (000153).
