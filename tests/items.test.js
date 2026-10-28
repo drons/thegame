@@ -2740,7 +2740,8 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + 'свойства icon в схеме нет); факт: '
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
-    'icon НЕ в required (прочие 43 предмета остаются валидными); '
+    'icon НЕ в required (прочие 193 предметов остаются валидными; '
+    + 'финал 000243.01: каталог 511 = 318 с icon + 193 без); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');
