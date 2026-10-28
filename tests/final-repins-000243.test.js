@@ -7,10 +7,11 @@
 // tests/rar-g-heading-000252.test.js / tests/e9-header-canary-000274.test.js:
 // объект пина — тест-файл, не spec; vm-цепочка не нужна):
 //  * 000243-S1-B — в S1-блоке (якорь test('S1. 000133: → следующий test())
-//    per-school-цикл несёт верхнюю границу (структура «n >= 1 && n <=»,
-//    не точный текст карты — форма карты зафиксирована контрактом §4) +
-//    live-кросс-чек: SCHOOL_SCROLL_MAX, извлечённый из исходника S1,
-//    deepEqual живому per-school счёту (пин = факт каталога);
+//    per-school-цикл несёт верхнюю границу (структура «n >= 1 && n <=» +
+//    точное выражение «n <= SCHOOL_SCROLL_MAX[sch]» без fallback —
+//    fail-closed, 000243.02; не точный текст КАРТЫ — форма зафиксирована
+//    контрактом §4) + live-кросс-чек: SCHOOL_SCROLL_MAX, извлечённый из
+//    исходника S1, deepEqual живому per-school счёту (пин = факт каталога);
 //  * 000243-S1-T — строка test('S1. 000133: (ровно одна): «158»,
 //    «Природа», «000243»; НЕ «133 свитка»;
 //  * 000243-RAR-H — строка комментария //   230.07-RAR-G (ровно одна;
@@ -60,7 +61,7 @@ function s1Block() {
   return lines.slice(start, end).join('\n');
 }
 
-test('000243-S1-B: S1 per-school цикл несёт верхнюю границу (n >= 1 && n <= K), K-карта SCHOOL_SCROLL_MAX = live-факт каталога (ретро 2026-10-22, 000235.07 minor — фоллоуп закрыт)', () => {
+test('000243-S1-B: S1 per-school цикл несёт верхнюю границу (n >= 1 && n <= K; 000243.02: точное «n <= SCHOOL_SCROLL_MAX[sch]» без fallback — fail-closed), K-карта SCHOOL_SCROLL_MAX = live-факт каталога (ретро 2026-10-22, 000235.07 minor — фоллоуп закрыт)', () => {
   const block = s1Block();
   const loopStart = block.indexOf(
     'for (const [sch, n] of Object.entries(bySchool))');
@@ -73,6 +74,12 @@ test('000243-S1-B: S1 per-school цикл несёт верхнюю границ
     'S1 per-school: верхняя граница «n >= 1 && n <= K» отсутствует — '
     + 'пин-арбитр баланса школ потерян (должен вернуть ре-пин 000243); '
     + 'цикл сейчас: ' + JSON.stringify(loop));
+  assert.ok(loop.includes('n <= SCHOOL_SCROLL_MAX[sch]'),
+    'S1 per-school: точная отсылка «n <= SCHOOL_SCROLL_MAX[sch]» без '
+    + 'fallback не найдена — защитный fallback (??/||/Math.max/алиас) '
+    + 'отменяет fail-closed арбитра (новая школа ∉ карты → n <= '
+    + 'undefined → пин должен падать; ре-пин 000243.02); цикл сейчас: '
+    + JSON.stringify(loop));
   const km = block.match(/const SCHOOL_SCROLL_MAX = \{([^}]+)\}/);
   assert.ok(km,
     'S1-блок: блок-локальный литерал SCHOOL_SCROLL_MAX (решение '
