@@ -239,34 +239,42 @@
   const TERRAIN_DATA = {
     [TERRAIN.DEEP_WATER]: {
       name: 'глубокая вода', passable: false, dense: false,
+      thick: false,
       base: '#172e6b', rgb: [0.09, 0.18, 0.42],
     },
     [TERRAIN.WATER]: {
       name: 'вода', passable: false, dense: false,
+      thick: false,
       base: '#29579e', rgb: [0.16, 0.34, 0.62],
     },
     [TERRAIN.SAND]: {
       name: 'песок', passable: true, dense: true,
+      thick: false,
       base: '#c2b380', rgb: [0.76, 0.70, 0.50],
     },
     [TERRAIN.GRASS]: {
       name: 'трава', passable: true, dense: true,
+      thick: false,
       base: '#578c40', rgb: [0.34, 0.55, 0.25],
     },
     [TERRAIN.FOREST]: {
       name: 'лес', passable: true, dense: true,
+      thick: true,
       base: '#2e6633', rgb: [0.18, 0.40, 0.20],
     },
     [TERRAIN.HILL]: {
       name: 'холмы', passable: true, dense: true,
+      thick: false,
       base: '#736e4a', rgb: [0.45, 0.43, 0.29],
     },
     [TERRAIN.MOUNTAIN]: {
       name: 'горы', passable: false, dense: false,
+      thick: false,
       base: '#57525c', rgb: [0.34, 0.32, 0.36],
     },
     [TERRAIN.SWAMP]: {
       name: 'болото', passable: true, dense: false,
+      thick: false,
       base: '#4d613d', rgb: [0.30, 0.38, 0.24],
     },
   };

@@ -2393,6 +2393,19 @@
     return false;
   }
 
+  // 000235.12.01: path_of_vines — стоимость МИРОВОГО шага (тайл-цель):
+  // thick (TERRAIN_DATA.thick) — 2 хода; активная запись
+  // isHeroPathOfVines (expiresDay >= day) — 1; прочее — 1.
+  // Деградация (таблицы/экспорта нет) — 1 (поведение до механики).
+  // Чистая функция (тайл, запись, день): без rng, без мутаций.
+  function worldStepCost(t, day0) {
+    const d = G.TERRAIN_DATA && t ? G.TERRAIN_DATA[t.terrain] : null;
+    if (!d || !d.thick) return 1;
+    if (G.Spells && typeof G.Spells.isHeroPathOfVines === 'function'
+        && G.Spells.isHeroPathOfVines(hero, day0)) return 1;
+    return 2;
+  }
+
   function tryMove() {
     for (const k of keys) { // порядок в Set = порядок нажатий
       const [dx, dy] = G.deltaForMoveKey(k);
@@ -4065,7 +4078,8 @@
           if (mover) mover.step({ x: prevPos.x, y: prevPos.y },
             { x: player.x, y: player.y }, now, stepMs);
           lastStepAt = now; // Флогистон переключается на анимацию ходьбы
-          clock.addStep(1); // шаги мира тикают игровой день
+          clock.addStep(worldStepCost(map.tileAt(player.x, player.y),
+            clock.day)); // шаги мира тикают игровой день
           // 000135: скан зон — ТОЛЬКО на успешном шаге (ТЗ); бой >
           // вход в локацию (два оверлея в одном кадре — сломанное
           // состояние). Вход откладывается на ПЕРВЫЙ успешный шаг

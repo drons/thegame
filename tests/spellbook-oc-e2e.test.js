@@ -2257,7 +2257,7 @@ test('000235.12 W-12: e2e wild_growth (книга) — лагерь: ровно 
     'день 3: mp 19 + 7 = 26 — базовый');
 });
 
-test('000235.12 W-13: e2e path_of_vines (книга) — состояние-пин: каст mp 20→5, запись {path_of_vines, expiresDay: 2}; предикат G.Spells.isHeroPathOfVines: день каста true, уТРО D+1 true (ГРАНИЦА >=), после expire false; NO-OP — derived.moveCells без изменений, герой без сдвига, ошибок нет; D+2 — базовый; сейв-пин', async () => {
+test('000235.12 W-13: e2e path_of_vines (книга) — состояние-пин: каст mp 20→5, запись {path_of_vines, expiresDay: 2}; предикат G.Spells.isHeroPathOfVines: день каста true, уТРО D+1 true (ГРАНИЦА >=), после expire false; механика — 000235.12.01 (tests/path-of-vines-e2e.test.js): derived.moveCells без изменений, герой без сдвига, ошибок нет; D+2 — базовый; сейв-пин', async () => {
   const h = await boot(seedSave07({
     day: 1,
     hero: mkHero07({
@@ -2289,8 +2289,8 @@ test('000235.12 W-13: e2e path_of_vines (книга) — состояние-пи
     [{ spellId: 'path_of_vines', expiresDay: 2 }],
     'запись {path_of_vines, expiresDay: 2} (день 1 + days 1)');
   assert.equal(saveHero(h).mp, 5, 'mp ровно «мани» (20 − 15)');
-  // NO-OP (контракт §2.6: замедления в движке нет): стат/позиция/
-  // рендер без изменений.
+  // Механика — 000235.12.01 (тест не ходит — пины состояния):
+  // стат/позиция/рендер без изменений.
   assert.equal(G.derived(saveHero(h)).moveCells, dc0,
     'NO-OP: derived.moveCells без изменений (' + dc0 + ')');
   h.frameFn(NOW + 32); await drain();
