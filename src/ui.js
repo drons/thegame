@@ -571,7 +571,7 @@
   // строке (рамка, ТЗ п.8); без rarity (расходники) — 'cp-itemrow'
   // побайтово (0 diff). 000130: ОСТАЁТСЯ в ядре и идёт вкладкам
   // через ctx (общий механизм строк — ЛЮБОЙ вкладке, как el).
-  function itemRow(name, meta, buttons, tip, icon, rarity) {
+  function itemRow(name, meta, buttons, tip, icon, rarity, tipIcon) {
     const div = el('div', (typeof rarity === 'string' && rarity !== '')
       ? 'cp-itemrow cp-rarity-' + rarity : 'cp-itemrow');
     if (typeof icon === 'string' && icon !== '') {
@@ -588,7 +588,20 @@
       for (const [k, v] of Object.entries(data)) b.dataset[k] = v;
       div.appendChild(b);
     }
-    if (tip != null) div.appendChild(el('div', 'cp-tip', tip));
+    if (tip != null) {
+      const tipEl = el('div', 'cp-tip', tip);
+      if (typeof tipIcon === 'string' && tipIcon !== '') {
+        const tipImg = el('img', 'cp-tipicon');
+        tipImg.src = tipIcon;
+        tipImg.alt = '';
+        if (typeof tipEl.insertBefore === 'function') {
+          tipEl.insertBefore(tipImg, tipEl.firstChild);
+        } else {
+          tipEl.appendChild(tipImg);
+        }
+      }
+      div.appendChild(tipEl);
+    }
     return div;
   }
 

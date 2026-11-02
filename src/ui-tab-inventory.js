@@ -139,7 +139,8 @@ function (G0, rootRef) {
           btns,
           ctx.itemTipText(it, c),
           iconOf(it),
-          it.rarity));
+          it.rarity,
+          iconOf(it)));
       }
     },
   };
@@ -199,6 +200,7 @@ function (G0, rootRef) {
           wep ? 'урон ' + wep.stats.damage : '',
           wep ? [['снять', 'unequip', { equipslot: 'weapon' }]] : [],
           wep ? ctx.itemTipText(wep) : null,
+          wep ? iconOf(wep) : null,
           wep ? iconOf(wep) : null));
         const arm = eq.armor ? G.getItem(eq.armor) : null;
         panel._equipBody.appendChild(ctx.itemRow(
@@ -206,15 +208,16 @@ function (G0, rootRef) {
           arm ? 'броня +' + arm.stats.armor : '',
           arm ? [['снять', 'unequip', { equipslot: 'armor' }]] : [],
           arm ? ctx.itemTipText(arm) : null,
+          arm ? iconOf(arm) : null,
           arm ? iconOf(arm) : null));
       } else {
         let ringFilled = 0;
         for (const rs of rings) {
           if (typeof eq[rs] === 'string') ringFilled++;
         }
-        const addRow = (name, meta, buttons, tip, icon, rarity) => {
+        const addRow = (name, meta, buttons, tip, icon, rarity, tipIcon) => {
           panel._equipBody.appendChild(ctx.itemRow(
-            name, meta, buttons, tip, icon, rarity));
+            name, meta, buttons, tip, icon, rarity, tipIcon));
         };
         // Заполненный физ. слот: «<Часть>: <предмет>» + «снять»
         // (data-equipslot = ФИЗ. СЛОТ, не алиас — пин EQ-2) +
@@ -230,7 +233,8 @@ function (G0, rootRef) {
           if (it) {
             addRow(label + ': ' + it.name, equipMeta(it),
               [['снять', 'unequip', { equipslot: slot }]],
-              ctx.itemTipText(it, sheet), iconOf(it), it.rarity);
+              ctx.itemTipText(it, sheet), iconOf(it), it.rarity,
+              iconOf(it));
           } else {
             addRow(label + ': — пусто —', '', [], null, null);
           }
@@ -277,7 +281,8 @@ function (G0, rootRef) {
           q ? [['убрать', 'quick-clear', { slot: i }]] : [],
           q ? ctx.itemTipText(q, c) : null,
           q ? iconOf(q) : null,
-          q ? q.rarity : null));
+          q ? q.rarity : null,
+          q ? iconOf(q) : null));
       }
     },
   };
