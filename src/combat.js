@@ -3296,7 +3296,9 @@
   // (от нижнего края вверх, слева направо). БЕЗ бросков c._rng
   // (поток RNG боя не меняется; один сид → одна расстановка).
   // Занятость — игрок + все уже расставленные мобы (c.units до
-  // конкатенации союзников). Мест нет — throw (как у мобов).
+  // конкатенации союзников) + c.obstacles (000292: препятствия
+  // непроходимы; при старте боя Set пуст — расстановка состава
+  // бит-в-бит). Мест нет — throw (как у мобов).
   function placeAllies(c, allies) {
     const occ = new Set([c.px + ',' + c.py]);
     for (const u of c.units) {
@@ -3307,7 +3309,8 @@
       }
     }
     const free = (x, y) => x >= 0 && y >= 0 && x < c.width && y < c.height
-      && !occ.has(x + ',' + y);
+      && !occ.has(x + ',' + y)
+      && !(c.obstacles && c.obstacles.has(x + ',' + y));
     const anchors = [
       [c.px - 1, c.py - 1], [c.px + 1, c.py - 1], [c.px, c.py - 1],
       [c.px - 1, c.py], [c.px + 1, c.py],
@@ -3332,8 +3335,8 @@
 
   // 000235.01: место для призывного — чистый мультискан placeAllies
   // (якоря вокруг игрока, затем снизу вверх; занятость — игрок +
-  // c.units; препятствия НЕ проверяются — та же семантика, что у
-  // placeAllies). Без мутаций, без c._rng — fail-closed проверка
+  // c.units; препятствия (c.obstacles) — непроходимы, зеркало
+  // placeAllies (000292)). Без мутаций, без c._rng — fail-closed проверка
   // evalSpell (src/spells.js) до расхода пула/маны.
   function allyRoom(c) {
     const occ = new Set([c.px + ',' + c.py]);
@@ -3345,7 +3348,8 @@
       }
     }
     const free = (x, y) => x >= 0 && y >= 0 && x < c.width && y < c.height
-      && !occ.has(x + ',' + y);
+      && !occ.has(x + ',' + y)
+      && !(c.obstacles && c.obstacles.has(x + ',' + y));
     const anchors = [
       [c.px - 1, c.py - 1], [c.px + 1, c.py - 1], [c.px, c.py - 1],
       [c.px - 1, c.py], [c.px + 1, c.py],
