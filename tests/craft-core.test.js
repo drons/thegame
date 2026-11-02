@@ -284,10 +284,11 @@ test('reprocessCraftXp: вызывается из player.js при росте н
     p5.secondary.forge = 5;
     p5.craft = { 'кузнечное_дело': 10 };
     p5.craftXp = { 'кузнечное_дело': 165 };
+    p5.gold = 1000;
     const r5 = N.schoolTrain(thor, p5, 'forge');
     assert.equal(r5.ok, true, r5.reason);
     assert.equal(p5.secondary.forge, 6, 'forge 5→6 (школа)');
-    assert.equal(p5.gold, 80, 'золото −20');
+    assert.equal(p5.gold, 730, 'золото −270 (20 + 10·5²)');
     assert.equal(C.craftLevel(p5, 'кузнечное_дело'), 11, 'потолок 10→12: +1');
     assert.equal(p5.craftXp['кузнечное_дело'], 0);
   } finally {

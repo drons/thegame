@@ -138,15 +138,20 @@
 
   // --- Школы навыков (обучение за монеты, перенос очков) ---
 
+  const SCHOOL_TRAIN_BASE_COST = 20;
+  const SCHOOL_TRAIN_QUAD_COEFF = 10;
+
   /** Список id вторичных навыков, которых обучает NPC. */
   function schoolSkills(npc) {
     return (npc.обучение && Array.isArray(npc.обучение.навыки))
       ? npc.обучение.навыки : [];
   }
 
-  /** Цена 1 уровня обучения | null, если NPC не обучает. */
-  function schoolTrainPrice(npc) {
-    return npc.обучение ? npc.обучение.цена_за_уровень : null;
+  /** Цена шага L → L+1: 20 + 10 × L² (L — ТЕКУЩИЙ уровень навыка ДО повышения) | null, если NPC не обучает. */
+  function schoolTrainPrice(npc, character, skillId) {
+    if (!npc.обучение) return null;
+    const L = skillLevel(character, skillId);
+    return SCHOOL_TRAIN_BASE_COST + SCHOOL_TRAIN_QUAD_COEFF * L * L;
   }
 
   /** Цена возврата N уровней («перенос вложенных очков»). */
@@ -171,7 +176,7 @@
     if (s.requires && skillLevel(character, s.requires.skill) < s.requires.level) {
       return { ok: false, reason: 'нужен ' + skillName(s.requires.skill) + ' ' + s.requires.level };
     }
-    const price = schoolTrainPrice(npc);
+    const price = schoolTrainPrice(npc, character, skillId);
     if (character.gold < price) {
       return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
     }
@@ -198,7 +203,7 @@
   function schoolTrain(npc, character, skillId) {
     const check = canSchoolTrain(npc, character, skillId);
     if (!check.ok) return { ok: false, reason: check.reason };
-    const price = schoolTrainPrice(npc);
+    const price = schoolTrainPrice(npc, character, skillId);
     character.gold -= price;
     character.secondary[skillId] = (character.secondary[skillId] || 0) + 1;
     // Крафт (000046): навык вырос — потолок видов крафта на нём вырос.

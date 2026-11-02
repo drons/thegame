@@ -1036,12 +1036,12 @@
         body.appendChild(el('div', 'cp-itemmeta', 'Этот NPC не обучает.'));
         return;
       }
-      const price = G.schoolTrainPrice(npc);
       const refund = G.schoolRefundPrice(npc, 1);
       body.appendChild(el('div', 'cp-itemmeta', 'Свободные очки: ' + c.points));
       for (const id of skills) {
         const s = G.SECONDARY_SKILLS[id] || { name: id };
         const lvl = c.secondary[id] || 0;
+        const price = G.schoolTrainPrice(npc, c, id);
         const row = el('div', 'cp-itemrow');
         row.appendChild(el('span', 'cp-itemname',
           (lvl > 0 ? G.secondaryName(id, lvl) : s.name) + ' (' + lvl + ')'));

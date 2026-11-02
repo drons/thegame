@@ -27,6 +27,23 @@ const trainNpc = {
   },
 };
 
+// 000296 (контрпример): та же школа, data-цена 30 (у trainNpc — 25):
+// глобальная формула — одна цена при том же L, независимо от данных NPC.
+const trainNpc30 = {
+  id: 't30',
+  имя: 'Кара-Маста',
+  роль: 'наставник',
+  постройки: [7],
+  диалог: [
+    { id: 'open', текст: 'Тренировка — или просто смотри?', действие: 'обучение' },
+  ],
+  обучение: {
+    навыки: ['swordsman', 'heavy', 'archer', 'accuracy'],
+    цена_за_уровень: 30,
+    цена_переноса_за_уровень: 40,
+  },
+};
+
 const tradeNpc = {
   id: 's',
   имя: 'Бренна',
@@ -280,25 +297,29 @@ test('диалог: действие «найм» проходит через di
 
 test('школа: справки о навыках и ценах', () => {
   assert.deepEqual(N.schoolSkills(trainNpc), ['swordsman', 'heavy', 'archer', 'accuracy']);
-  assert.equal(N.schoolTrainPrice(trainNpc), 25);
+  const c0 = P.createCharacter();
+  assert.equal(N.schoolTrainPrice(trainNpc, c0, 'swordsman'), 20, 'L=0 → 20');
+  const c1 = P.createCharacter();
+  c1.secondary.swordsman = 1;
+  assert.equal(N.schoolTrainPrice(trainNpc, c1, 'swordsman'), 30, 'L=1 → 30');
   assert.equal(N.schoolRefundPrice(trainNpc, 2), 80);
   assert.deepEqual(N.schoolSkills(tradeNpc), [], 'без обучения — пусто');
-  assert.equal(N.schoolTrainPrice(tradeNpc), null);
+  assert.equal(N.schoolTrainPrice(tradeNpc, c0, 'swordsman'), null);
   assert.equal(N.schoolRefundPrice(tradeNpc, 1), null);
 });
 
 test('школа: прокачка за монеты, без траты очков', () => {
   const c = P.createCharacter(); // gold 100, points 0
   const r = N.schoolTrain(trainNpc, c, 'swordsman');
-  assert.deepEqual(r, { ok: true, level: 1, price: 25 });
-  assert.equal(c.gold, 75);
+  assert.deepEqual(r, { ok: true, level: 1, price: 20 });
+  assert.equal(c.gold, 80);
   assert.equal(c.secondary.swordsman, 1);
   assert.equal(c.points, 0, 'очки не тратятся');
 
   // Мало золота — ничего не изменилось.
   c.gold = 10;
   assert.deepEqual(N.schoolTrain(trainNpc, c, 'swordsman'),
-    { ok: false, reason: 'мало золота (нужно 25)' });
+    { ok: false, reason: 'мало золота (нужно 30)' });
   assert.equal(c.gold, 10);
   assert.equal(c.secondary.swordsman, 1);
 
@@ -310,7 +331,7 @@ test('школа: прокачка за монеты, без траты очко
   const r3 = N.schoolTrain(trainNpc, c2, 'archer');
   assert.equal(r3.ok, true);
   assert.equal(r3.level, 1);
-  assert.equal(c2.gold, 75);
+  assert.equal(c2.gold, 80);
 
   // Навык вне списка / не вторичный / максимум / нет основного.
   assert.equal(N.schoolTrain(trainNpc, c2, 'thief').reason, 'навык не обучается здесь');
@@ -344,6 +365,54 @@ test('школа: canSchoolTrain согласован с schoolTrain', () => {
     assert.equal(can.ok, did.ok, id + ': решение can/execute расходится');
     if (!can.ok) assert.equal(can.reason, did.reason, id + ': причина расходится');
   }
+});
+
+// --- 3b. Школы: 000296 — квадратичная цена (красные; ТЗ +
+//     memory/000296-npc-school-quadratic-cost.md) ---
+
+test('школа 000296: золотые значения стоимости (20 + 10·L², L — текущий уровень навыка)', () => {
+  for (const L of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 99]) {
+    const goldAt = 20 + 10 * L * L;
+    const c = P.createCharacter();
+    c.gold = 1000000;
+    c.secondary.swordsman = L;
+    assert.equal(N.schoolTrainPrice(trainNpc, c, 'swordsman'), goldAt,
+      'L=' + L + ': цена шага L→L+1');
+    assert.equal(N.canSchoolTrain(trainNpc, c, 'swordsman').ok, true,
+      'L=' + L + ': can при золоте 1000000');
+    const r = N.schoolTrain(trainNpc, c, 'swordsman');
+    assert.deepEqual(r, { ok: true, level: L + 1, price: goldAt },
+      'L=' + L + ': train — списание и +1');
+    assert.equal(c.gold, 1000000 - goldAt, 'L=' + L + ': золото');
+    assert.equal(c.secondary.swordsman, L + 1, 'L=' + L + ': уровень');
+    const poor = P.createCharacter();
+    poor.gold = goldAt - 1;
+    poor.secondary.swordsman = L;
+    assert.deepEqual(N.canSchoolTrain(trainNpc, poor, 'swordsman'),
+      { ok: false, reason: 'мало золота (нужно ' + goldAt + ')' },
+      'L=' + L + ': цена в причине — из формулы');
+  }
+});
+
+test('школа 000296: контрпримеры — цена НЕ data-плоская и НЕ «целевой уровень»', () => {
+  const c0 = P.createCharacter();
+  c0.gold = 1000000;
+  const p0 = N.schoolTrainPrice(trainNpc, c0, 'swordsman');
+  assert.equal(p0, 20,
+    'L=0 → 20 (НЕ 25 — старая плоская data-цена, НЕ 30 — «целевой» 20+10·1²)');
+
+  const c5 = P.createCharacter();
+  c5.gold = 1000000;
+  c5.secondary.swordsman = 5;
+  const p5 = N.schoolTrainPrice(trainNpc, c5, 'swordsman');
+  assert.equal(p5, 270,
+    'L=5 → 270 (НЕ 25 — плоская, НЕ 380 — «целевой» 20+10·6²)');
+
+  // Цена не зависит от данных школы (trainNpc30 — data-цена 30).
+  assert.equal(N.schoolTrainPrice(trainNpc30, c0, 'swordsman'), p0,
+    'L=0: data-цена 30 — та же цена (глобальная формула)');
+  assert.equal(N.schoolTrainPrice(trainNpc30, c5, 'swordsman'), p5,
+    'L=5: data-цена 30 — та же цена (глобальная формула)');
 });
 
 // --- 4. Школы: перенос очков ---
