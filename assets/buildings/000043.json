@@ -45,4 +45,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/magic_circle.svg"
+,
+  "icon": "assets/sprites/buildings/magic_circle.svg"
 }

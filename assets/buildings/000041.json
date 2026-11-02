@@ -22,4 +22,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/teleport_circle.svg"
+,
+  "icon": "assets/sprites/buildings/teleport_circle.svg"
 }

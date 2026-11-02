@@ -33,4 +33,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/blacksmith.svg"
+,
+  "icon": "assets/sprites/buildings/blacksmith.svg"
 }

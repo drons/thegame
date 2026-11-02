@@ -32,4 +32,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/watchtower.svg"
+,
+  "icon": "assets/sprites/buildings/watchtower.svg"
 }

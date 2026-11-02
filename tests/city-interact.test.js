@@ -1024,8 +1024,10 @@ test('CI-B4. 000202: приоритет геометрии — деревня п
   }
 });
 
-test('CI-B5. 000202: icon = путь к спрайту слота (game.buildingSprite, 1:1 cityBuildingPath 000148.02): build-48 → cave_entrance.svg, build-36 → temple.svg, build-44 → tavern.svg, build-1 → weapons_shop.svg, build-55 → npc_house.svg (слот 12, 000221); ВСЕ 22 строки — icon (строка); rename-city — без icon; без buildingSprite (фикстура по умолчанию) — icon везде undefined и console.error нет (тихая деградация, R8)', () => {
-  // (a) Реальный buildingSprite (sprites.js — чистый в node).
+test('CI-B5. 000293: icon = значению icon из JSON (единый источник — каталожная запись), консистентность с артом карты/города: build-48 → ruins.svg, build-36 → temple.svg, build-44 → tavern.svg, build-1 → weapons_shop.svg, build-55 → storage.svg; ВСЕ 22 строки — icon (строка); rename-city — без icon; без buildingSprite (фикстура по умолчанию) — icon из каталога (не зависит от спрайт-канала); нет каталога (getBuilding → null) — icon нет, console.error нет (тихая деградация, R8)', () => {
+  // (a) buildingSprite НА СТРАНЕ (sprites.js — чистый в node;
+  // production-проводка) — icon обязан браться из каталога (000293),
+  // не из слот-спрайта: подтипы — СВОЙ арт, база слота — баг 000293.
   const SP = require('../src/sprites.js');
   const t = initCityBuild({ x: 1, y: 1 });
   t.deps.game.buildingSprite = SP.buildingSprite;
@@ -1037,11 +1039,11 @@ test('CI-B5. 000202: icon = путь к спрайту слота (game.building
       'RED: icon строки build-' + id + ' — ' + expected
       + '; факт: ' + row.icon);
   };
-  pinIcon(48, 'assets/sprites/buildings/cave_entrance.svg');
+  pinIcon(48, 'assets/sprites/buildings/ruins.svg');
   pinIcon(36, 'assets/sprites/buildings/temple.svg');
   pinIcon(44, 'assets/sprites/buildings/tavern.svg');
   pinIcon(1, 'assets/sprites/buildings/weapons_shop.svg');
-  pinIcon(55, 'assets/sprites/buildings/npc_house.svg');
+  pinIcon(55, 'assets/sprites/buildings/storage.svg');
   for (const a of p.actions) {
     if (a.id === 'rename-city') {
       assert.equal(a.icon, undefined,
@@ -1051,26 +1053,53 @@ test('CI-B5. 000202: icon = путь к спрайту слота (game.building
     assert.equal(typeof a.icon, 'string',
       'RED: строка ' + a.id + ' — icon строкой-путём: ' + a.icon);
   }
-  // (b) buildingSprite НЕТ (фикстура по умолчанию): тихая деградация —
-  // icon везде отсутствует, console.error нет (R8; пин «ошибок нет»
-  // в духе CI-V4).
+  // (b) buildingSprite НЕТ (фикстура по умолчанию): icon НЕ зависит от
+  // спрайт-канала (источник — каталог через getBuilding, 000293);
+  // меню открывается, console.error нет.
   const t2 = initCityBuild({ x: 1, y: 1 });
-  const errs = [];
+  const errs2 = [];
   const origErr = console.error;
-  console.error = (...a) => { errs.push(a.join(' ')); };
+  console.error = (...a) => { errs2.push(a.join(' ')); };
   try {
     t2.BA.interactCity();
   } finally {
     console.error = origErr;
   }
   const p2 = t2.o.calls.buildingOpen[0];
-  assert.equal(p2.actions.length, 23, 'меню открывается (деградация, не сбой)');
+  assert.equal(p2.actions.length, 23, 'меню открывается');
   for (const a of p2.actions) {
-    assert.equal(a.icon, undefined,
-      'тихая деградация: строка ' + a.id + ' — icon отсутствует (нет buildingSprite)');
+    if (a.id === 'rename-city') {
+      assert.equal(a.icon, undefined,
+        'rename-city — без icon');
+      continue;
+    }
+    assert.equal(typeof a.icon, 'string',
+      'RED: строка ' + a.id + ' — icon из каталога БЕЗ buildingSprite: '
+      + a.icon);
   }
-  assert.equal(errs.length, 0,
-    'деградация без console.error: ' + JSON.stringify(errs));
+  assert.equal(errs2.length, 0,
+    'без console.error: ' + JSON.stringify(errs2));
+  // (c) Каталог НЕТ (getBuilding → null): тихая деградация — icon
+  // везде отсутствует, меню открывается, console.error нет (R8; пин
+  // «ошибок нет» в духе CI-V4).
+  const t3 = initCityBuild({ x: 1, y: 1 });
+  t3.deps.game.buildingSprite = SP.buildingSprite;
+  t3.deps.game.getBuilding = () => null;
+  const errs3 = [];
+  console.error = (...a) => { errs3.push(a.join(' ')); };
+  try {
+    t3.BA.interactCity();
+  } finally {
+    console.error = origErr;
+  }
+  const p3 = t3.o.calls.buildingOpen[0];
+  assert.equal(p3.actions.length, 23, 'меню открывается (деградация, не сбой)');
+  for (const a of p3.actions) {
+    assert.equal(a.icon, undefined,
+      'тихая деградация: строка ' + a.id + ' — icon отсутствует (нет каталога)');
+  }
+  assert.equal(errs3.length, 0,
+    'деградация без console.error: ' + JSON.stringify(errs3));
 });
 
 test('CI-B6. 000202: open()-опции — «Строительство»: scroll:true И reasonRed:true; эффекты-меню (постройка с NPC, «Диалог»): обе undefined (другие вызывающие — байт-в-байт, R6)', () => {

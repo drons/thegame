@@ -33,4 +33,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/magic_shop.svg"
+,
+  "icon": "assets/sprites/buildings/magic_shop.svg"
 }

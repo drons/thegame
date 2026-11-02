@@ -1175,7 +1175,7 @@ function walkCity202(h, steps) {
   }
 }
 
-test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕАЛЬНОЕ «Строительство»: оверлей combat-overlay--build; 22 строки с IMG.cp-itemicon (реальный путь G.buildingSprite) + чип rename; ВСЕ 22 строки disabled + reason cp-itemreason (без dim); 7/36 (3×3 перекрытие) — «Нет места», 1 — «Не хватает 2 бревна» (золото 50 ≥ 50), 48 — «Не хватает 1 каменного обломка» (золото 50 ≥ 30); без console.error; второй [E] — закрыть', async () => {
+test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕАЛЬНОЕ «Строительство»: оверлей combat-overlay--build; 22 строки с IMG.cp-itemicon (icon из JSON, 000293) + чип rename; ВСЕ 22 строки disabled + reason cp-itemreason (без dim); 7/36 (3×3 перекрытие) — «Нет места», 1 — «Не хватает 2 бревна» (золото 50 ≥ 50), 48 — «Не хватает 1 каменного обломка» (золото 50 ≥ 30); без console.error; второй [E] — закрыть', async () => {
   const h = await bootSeeded({ day: V109.day, steps: 0, hero: HERO109 });
   const { g, G } = await enterVillage109(h);
   walkCity202(h, [[1, 4], [1, 3], [1, 2], [1, 1]]);
@@ -1209,16 +1209,9 @@ test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕ
   assert.equal(rows.length, 23,
     '23 строки (22 набора D3 + «Переименовать город», 000148.05); '
     + 'факт: ' + rows.length);
-  // Иконка — реальный слот-спрайт (резолв 1:1 с тестом G1 000148.02:
-  // getBuilding → map_index/размещение.слот → G.buildingSprite).
-  const resolve = (id) => {
-    const rec = G.getBuilding(id);
-    const op = (rec && rec.особые_параметры) || {};
-    const slot = Number.isInteger(op.map_index) ? op.map_index
-      : (op.размещение && Number.isInteger(op.размещение.слот)
-         ? op.размещение.слот : null);
-    return slot == null ? null : G.buildingSprite(slot);
-  };
+  // Иконка — значение icon из JSON каталога (000293: единый источник;
+  // вид постройки на глобальной карте и в городе).
+  const resolve = (id) => G.getBuilding(id).icon;
   const lastChild = (row) => row.children[row.children.length - 1];
   const reasonOf = (row) => String(lastChild(row).textContent || '');
   for (let i = 0; i < 22; i += 1) {
@@ -1236,7 +1229,7 @@ test('000202 (e2e): [E] на свободной (1,1) деревни 52 — РЕ
     assert.equal(String(icon.className), 'cp-itemicon',
       'RED: класс cp-itemicon (000202 R5): ' + icon.className);
     assert.equal(String(icon.src), resolve(id),
-      'RED: иконка — реальный путь слот-спрайта (build-' + id + '): '
+      'RED: иконка — значение icon из JSON (build-' + id + '): '
       + icon.src);
     assert.ok(String(lastChild(row).className).includes('cp-itemreason'),
       'RED: reason строки build-' + id + ' — класс cp-itemreason: '

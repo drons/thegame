@@ -45,4 +45,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/well.svg"
+,
+  "icon": "assets/sprites/buildings/well.svg"
 }

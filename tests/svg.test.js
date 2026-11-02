@@ -449,6 +449,10 @@ const EXPECTED_SVG_BY_DIR = {
                                       // (задача 000177) + залежи
                                       // deposit_ore/deposit_mineral/
                                       // deposit_gem (задача 000157.02)
+  'building-icons': 26,               // иконки меню «Строительство»
+                                      // (задача 000293: 26 построек
+                                      // без «спрайт», имя файла = id
+                                      // записи)
   'sprites/buildings': 53,            // + лагерь (задача 000131: camp.svg)
                                       // + кадры 000224: blacksmith_1..4,
                                       // magic_shop_1..4 (8 анимированных)

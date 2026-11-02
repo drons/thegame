@@ -33,4 +33,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/weapons_shop.svg"
+,
+  "icon": "assets/sprites/buildings/weapons_shop.svg"
 }

@@ -39,4 +39,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/storage.svg"
+,
+  "icon": "assets/sprites/buildings/storage.svg"
 }

@@ -62,4 +62,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/tavern.svg"
+,
+  "icon": "assets/sprites/buildings/tavern.svg"
 }

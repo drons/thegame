@@ -28,4 +28,6 @@
     }
   },
   "спрайт": "assets/sprites/cities/city_51.svg"
+,
+  "icon": "assets/sprites/cities/city_51.svg"
 }

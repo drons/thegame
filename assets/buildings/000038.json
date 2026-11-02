@@ -48,4 +48,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/mountain_temple.svg"
+,
+  "icon": "assets/sprites/buildings/mountain_temple.svg"
 }

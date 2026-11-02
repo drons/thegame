@@ -45,4 +45,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/abandoned_temple.svg"
+,
+  "icon": "assets/sprites/buildings/abandoned_temple.svg"
 }

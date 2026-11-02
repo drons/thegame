@@ -620,16 +620,11 @@
   }
 
   function buildIconPath(live, buildingId) {
-    if (!live || typeof live.getBuilding !== 'function'
-        || typeof live.buildingSprite !== 'function') return null;
+    if (!live || typeof live.getBuilding !== 'function') return null;
     const rec = live.getBuilding(buildingId);
     if (!rec) return null;
-    const op = rec.особые_параметры || {};
-    const slot = Number.isInteger(op.map_index)
-      ? op.map_index
-      : (op.размещение && Number.isInteger(op.размещение.слот)
-         ? op.размещение.слот : null);
-    return slot == null ? null : live.buildingSprite(slot);
+    return (typeof rec.icon === 'string' && rec.icon !== '')
+      ? rec.icon : null;
   }
 
   function buildShortageReason(hero, cost) {
@@ -840,7 +835,7 @@
   // клетка города → buildingUI-оверлей с 21 строкой buildable-типа
   // (набор D3 — ДАННЫЕ каталога, cities.buildableBuildingIds).
   // Строка — «Построить: <название> — <N> з.» (id 'build-<id>') +
-  // icon (путь слот-спрайта), pre-check: cities.canBuildAt
+  // icon (поле icon каталога, 000293), pre-check: cities.canBuildAt
   // (геометрия, reason BUILD_MENU_REASON_TEXT) + read-only
   // gold/предметы (reason «Не хватает …», списание — ТОЛЬКО
   // buildCityAt с re-check) → доступен + reason. ТОЛЬКО через

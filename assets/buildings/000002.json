@@ -32,4 +32,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/armor_shop.svg"
+,
+  "icon": "assets/sprites/buildings/armor_shop.svg"
 }

@@ -65,4 +65,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/ruins.svg"
+,
+  "icon": "assets/sprites/buildings/ruins.svg"
 }

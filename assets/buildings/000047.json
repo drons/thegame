@@ -21,4 +21,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/camp.svg"
+,
+  "icon": "assets/sprites/buildings/camp.svg"
 }

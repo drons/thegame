@@ -29,4 +29,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/academy.svg"
+,
+  "icon": "assets/sprites/buildings/academy.svg"
 }

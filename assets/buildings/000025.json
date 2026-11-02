@@ -25,4 +25,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/npc_house.svg"
+,
+  "icon": "assets/sprites/buildings/npc_house.svg"
 }

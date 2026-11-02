@@ -62,4 +62,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/rune_stone.svg"
+,
+  "icon": "assets/sprites/buildings/rune_stone.svg"
 }

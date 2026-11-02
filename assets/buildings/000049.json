@@ -45,4 +45,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/fountain.svg"
+,
+  "icon": "assets/sprites/buildings/fountain.svg"
 }

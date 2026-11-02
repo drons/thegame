@@ -46,4 +46,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/temple.svg"
+,
+  "icon": "assets/sprites/buildings/temple.svg"
 }

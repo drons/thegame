@@ -33,4 +33,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/apothecary.svg"
+,
+  "icon": "assets/sprites/buildings/apothecary.svg"
 }

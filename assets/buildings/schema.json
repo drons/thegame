@@ -1,7 +1,7 @@
 {
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "название", "категория", "функция", "типичный_npc", "допустимые_тайлы", "особые_параметры"],
+  "required": ["id", "название", "категория", "функция", "типичный_npc", "допустимые_тайлы", "особые_параметры", "icon"],
   "properties": {
     "id": {
       "type": "integer",
@@ -128,6 +128,14 @@
     "спрайт": {
       "type": "string",
       "pattern": "^assets/sprites/(buildings|cities)/[\\w]+\\.svg$"
+    },
+    "icon": {
+      "type": "string",
+      "pattern": "^assets/(sprites/(buildings|cities)|building-icons)/[\\w]+\\.svg$"
+    },
+    "icon_prompt": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
     }
   }
 }

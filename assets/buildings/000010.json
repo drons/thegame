@@ -29,4 +29,6 @@
     }
   },
   "спрайт": "assets/sprites/buildings/archery_range.svg"
+,
+  "icon": "assets/sprites/buildings/archery_range.svg"
 }
