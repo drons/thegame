@@ -302,10 +302,8 @@ test('школа: справки о навыках и ценах', () => {
   const c1 = P.createCharacter();
   c1.secondary.swordsman = 1;
   assert.equal(N.schoolTrainPrice(trainNpc, c1, 'swordsman'), 30, 'L=1 → 30');
-  assert.equal(N.schoolRefundPrice(trainNpc, 2), 80);
   assert.deepEqual(N.schoolSkills(tradeNpc), [], 'без обучения — пусто');
   assert.equal(N.schoolTrainPrice(tradeNpc, c0, 'swordsman'), null);
-  assert.equal(N.schoolRefundPrice(tradeNpc, 1), null);
 });
 
 test('школа: прокачка за монеты, без траты очков', () => {
@@ -415,56 +413,48 @@ test('школа 000296: контрпримеры — цена НЕ data-пло�
     'L=5: data-цена 30 — та же цена (глобальная формула)');
 });
 
-// --- 4. Школы: перенос очков ---
+// --- 3c. Школы: 000297 — возврат («перенос очков») удалён (красные;
+//     ТЗ tasks/pending/000297.md +
+//     memory/000297-npc-school-refund-removed.md) ---
 
-test('школа: перенос очков — возврат уровней в пул за монеты', () => {
-  const c = P.createCharacter();
-  c.gold = 1000;
-  c.secondary.swordsman = 3;
-  const r = N.schoolRefund(trainNpc, c, 'swordsman', 2);
-  assert.deepEqual(r, { ok: true, level: 1, points: 2, price: 80 });
-  assert.equal(c.gold, 920);
-  assert.equal(c.secondary.swordsman, 1);
-  assert.equal(c.points, 2, 'уровни возвращены в пул очков');
+test('школа 000297: API возврата удалено (schoolRefund/canSchoolRefund/schoolRefundPrice не экспортируются src/npc.js)', () => {
+  assert.equal(typeof N.schoolRefund, 'undefined',
+    'schoolRefund — удалён (механика возврата отменена полностью, D1)');
+  assert.equal(typeof N.canSchoolRefund, 'undefined',
+    'canSchoolRefund — удалён');
+  assert.equal(typeof N.schoolRefundPrice, 'undefined',
+    'schoolRefundPrice — удалён');
+  // Регрессия: API прокачки школы на месте (D6 — формула 000296 не
+  // трогается).
+  assert.equal(typeof N.schoolSkills, 'function');
+  assert.equal(typeof N.schoolTrain, 'function');
+  assert.equal(typeof N.canSchoolTrain, 'function');
+  assert.equal(typeof N.schoolTrainPrice, 'function');
 });
 
-test('школа: защита дерева при переносе', () => {
+test('школа 000297: эксплойт невозможен — learn → (вернуть) → выкупить чужой навык: школа не чеканит очки', () => {
   const c = P.createCharacter();
   c.gold = 1000;
-  c.secondary.accuracy = 5;
-  c.secondary.archer = 1;
-  // 5 − 2 < 5 — «Стрелок» остался бы без требования.
-  const r = N.schoolRefund(trainNpc, c, 'accuracy', 2);
-  assert.equal(r.ok, false);
-  assert.match(r.reason, /Стрелок/);
-  assert.match(r.reason, /5/);
-  assert.equal(c.secondary.accuracy, 5, 'ничего не изменилось');
-  // До самого требуемого уровня — можно.
-  c.secondary.accuracy = 6;
-  const r2 = N.schoolRefund(trainNpc, c, 'accuracy', 1);
-  assert.equal(r2.ok, true);
-  assert.equal(r2.level, 5);
-  assert.equal(c.points, 1);
-});
-
-test('школа: ошибки переноса (уровни, количество, золото)', () => {
-  const c = P.createCharacter();
-  c.gold = 1000;
-  c.secondary.swordsman = 1;
-  assert.equal(N.schoolRefund(trainNpc, c, 'swordsman', 2).reason, 'недостаточно уровней');
-  assert.equal(N.schoolRefund(trainNpc, c, 'swordsman', 0).reason, 'неверное количество уровней');
-  assert.equal(N.schoolRefund(trainNpc, c, 'swordsman', 1.5).reason, 'неверное количество уровней');
-  assert.equal(N.schoolRefund(trainNpc, c, 'archer', 1).reason, 'недостаточно уровней');
-  assert.equal(N.canSchoolRefund(trainNpc, c, 'swordsman', 1).ok, true);
-
-  const c2 = P.createCharacter();
-  c2.gold = 10;
-  c2.secondary.swordsman = 2;
-  assert.deepEqual(N.schoolRefund(trainNpc, c2, 'swordsman', 1),
-    { ok: false, reason: 'мало золота (нужно 40)' });
-  assert.equal(c2.gold, 10);
-  assert.equal(c2.secondary.swordsman, 2);
-  assert.equal(c2.points, 0);
+  const r = N.schoolTrain(trainNpc, c, 'swordsman');
+  assert.deepEqual(r, { ok: true, level: 1, price: 20 });
+  assert.equal(c.points, 0, 'школа очков не тратит и не чеканит');
+  // Старый путь эксплойта: «вернуть» изученный уровень в пул очков
+  // (API удалён — путь недостижим; вызов — только если он воскрес).
+  if (typeof N.schoolRefund === 'function') {
+    N.schoolRefund(trainNpc, c, 'swordsman', 1);
+  }
+  assert.equal(c.points, 0,
+    'после изучения очко НЕ появляется: возврат уровней в пул '
+    + 'существует только через удалённый API');
+  // «Оратор» — чужой навык: не в `обучение` trainNpc (а fresh-
+  // персонаж его покупать может — см. тест «диалог: доступность
+  // опций» в этом файле: 2 очка → orator 2).
+  assert.ok(!N.schoolSkills(trainNpc).includes('orator'),
+    '«orator» — чужой навык, не в школе trainNpc');
+  const r2 = P.raiseSkill(c, 'orator');
+  assert.equal(r2.ok, false,
+    'выкупить чужой навык на «возвращённых» очках невозможно');
+  assert.equal(c.secondary.orator || 0, 0, 'orator не выкуплен');
 });
 
 // --- 5. Торговля NPC ---

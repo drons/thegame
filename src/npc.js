@@ -136,7 +136,7 @@
     return out;
   }
 
-  // --- Школы навыков (обучение за монеты, перенос очков) ---
+  // --- Школы навыков (обучение за монеты) ---
 
   const SCHOOL_TRAIN_BASE_COST = 20;
   const SCHOOL_TRAIN_QUAD_COEFF = 10;
@@ -152,12 +152,6 @@
     if (!npc.обучение) return null;
     const L = skillLevel(character, skillId);
     return SCHOOL_TRAIN_BASE_COST + SCHOOL_TRAIN_QUAD_COEFF * L * L;
-  }
-
-  /** Цена возврата N уровней («перенос вложенных очков»). */
-  function schoolRefundPrice(npc, levels) {
-    if (!npc.обучение) return null;
-    return npc.обучение.цена_переноса_за_уровень * levels;
   }
 
   /** Можно ли обучить навык. Проверки по порядку, первая неудача. */
@@ -209,51 +203,6 @@
     // Крафт (000046): навык вырос — потолок видов крафта на нём вырос.
     craftReprocessHook(character, skillId);
     return { ok: true, level: character.secondary[skillId], price };
-  }
-
-  /** Можно ли вернуть уровни в пул очков. Проверки по порядку. */
-  function canSchoolRefund(npc, character, skillId, levels = 1) {
-    if (!schoolSkills(npc).includes(skillId)) {
-      return { ok: false, reason: 'навык не обучается здесь' };
-    }
-    if (!P.SECONDARY_SKILLS[skillId]) {
-      return { ok: false, reason: 'не вторичный навык' };
-    }
-    if (!Number.isInteger(levels) || levels < 1) {
-      return { ok: false, reason: 'неверное количество уровней' };
-    }
-    const lvl = character.secondary[skillId] || 0;
-    if (lvl < levels) return { ok: false, reason: 'недостаточно уровней' };
-    // Защита дерева: другие уже полученные навыки не должны оказаться
-    // ниже требуемого уровня.
-    for (const rId of Object.keys(P.SECONDARY_SKILLS)) {
-      const r = P.SECONDARY_SKILLS[rId];
-      if ((character.secondary[rId] || 0) <= 0) continue;
-      if (!r.requires || r.requires.skill !== skillId) continue;
-      if (lvl - levels < r.requires.level) {
-        return { ok: false, reason:
-          'навык «' + r.name + '» требует ' + skillName(skillId) + ' ' + r.requires.level };
-      }
-    }
-    const price = schoolRefundPrice(npc, levels);
-    if (character.gold < price) {
-      return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
-    }
-    return { ok: true };
-  }
-
-  /**
-   * «Перенос вложенных очков»: возврат уровней обратно в пул свободных
-   * очков за золото. @returns {{ok, level, points, price}|{ok:false, reason}}
-   */
-  function schoolRefund(npc, character, skillId, levels = 1) {
-    const check = canSchoolRefund(npc, character, skillId, levels);
-    if (!check.ok) return { ok: false, reason: check.reason };
-    const price = schoolRefundPrice(npc, levels);
-    character.gold -= price;
-    character.secondary[skillId] = (character.secondary[skillId] || 0) - levels;
-    character.points += levels;
-    return { ok: true, level: character.secondary[skillId], points: levels, price };
   }
 
   // --- Торговля NPC (фиксированные цены из данных, «Торговец» действует) ---
@@ -759,8 +708,8 @@
     MAX_ACTIVE_QUESTS,
     npcById, npcsForBuilding, npcForBuilding, skillLevel, hireCandidates,
     dialogOptions,
-    schoolSkills, schoolTrainPrice, schoolRefundPrice,
-    canSchoolTrain, schoolTrain, canSchoolRefund, schoolRefund,
+    schoolSkills, schoolTrainPrice,
+    canSchoolTrain, schoolTrain,
     defaultStock, createNpcShop, npcBuyPrice, npcSellPrice, npcBuy, npcSell,
     createQuestBook, questDef, availableQuests, acceptQuest,
     notifyGroupDefeated, refreshBringItems, turnInQuest, activeQuests,

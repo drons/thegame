@@ -1036,7 +1036,6 @@
         body.appendChild(el('div', 'cp-itemmeta', 'Этот NPC не обучает.'));
         return;
       }
-      const refund = G.schoolRefundPrice(npc, 1);
       body.appendChild(el('div', 'cp-itemmeta', 'Свободные очки: ' + c.points));
       for (const id of skills) {
         const s = G.SECONDARY_SKILLS[id] || { name: id };
@@ -1046,22 +1045,13 @@
         row.appendChild(el('span', 'cp-itemname',
           (lvl > 0 ? G.secondaryName(id, lvl) : s.name) + ' (' + lvl + ')'));
         row.appendChild(el('span', 'cp-itemmeta',
-          '+1 за ' + price + ' з / вернуть 1 за ' + refund + ' з'));
+          '+1 за ' + price + ' з'));
         const bTrain = el('button', 'cp-btn', '+ (' + price + ' з)');
         bTrain.dataset.npcact = 'train';
         bTrain.dataset.skill = id;
         const can = G.canSchoolTrain(npc, c, id);
         if (!can.ok) { bTrain.disabled = true; bTrain.title = can.reason; }
         row.appendChild(bTrain);
-        const bRefund = el('button', 'cp-btn', 'вернуть (' + refund + ' з)');
-        bRefund.dataset.npcact = 'refund';
-        bRefund.dataset.skill = id;
-        const canRefund = G.canSchoolRefund(npc, c, id, 1);
-        if (!canRefund.ok) {
-          bRefund.disabled = true;
-          bRefund.title = canRefund.reason;
-        }
-        row.appendChild(bRefund);
         body.appendChild(row);
       }
     }
@@ -1361,14 +1351,6 @@
       if (act === 'train') {
         const r = G.schoolTrain(npc, c, btn.dataset.skill);
         npcLog(r.ok ? 'Уровень: ' + r.level + ' (−' + r.price + ' з)' : r.reason);
-        if (r.ok && onChange) onChange();
-        renderTab();
-        G.playerUI && G.playerUI.render();
-        return;
-      }
-      if (act === 'refund') {
-        const r = G.schoolRefund(npc, c, btn.dataset.skill, 1);
-        npcLog(r.ok ? 'Очко возвращено: +1 (−' + r.price + ' з)' : r.reason);
         if (r.ok && onChange) onChange();
         renderTab();
         G.playerUI && G.playerUI.render();
