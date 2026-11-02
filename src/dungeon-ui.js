@@ -677,7 +677,7 @@
         bonusR = 0;
       }
       mask = maskFor(d.width, d.height, pos.x, pos.y,
-        Math.max(radiusFor(mult), floorR) + Math.floor(bonusR), explored);
+        radiusFor(mult) + floorR + Math.floor(bonusR), explored);
       for (let i = 0; i < mask.length; i++) {
         if (mask[i] === 2) {
           explored.add((i % d.width) + ',' + Math.floor(i / d.width));

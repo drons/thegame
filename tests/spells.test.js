@@ -2162,7 +2162,9 @@ test('000235.01 S2: «параметры» — опционально; additiona
     ['стена', 'зона'].slice().sort(), 'object — enum стена|зона');
   assert.equal(params.properties.radius.type, 'integer', 'radius — integer');
   assert.equal(params.properties.radius.minimum, 1, 'radius ≥ 1');
-  assert.equal(params.properties.radius.maximum, 5, 'radius ≤ 5');
+  assert.equal(params.properties.radius.maximum, 10,
+    'radius ≤ 10 (ре-пин 000235.07.01: addend-cap = 2 × '
+    + 'VISION_BASE_RADIUS)');
   assert.equal(params.properties.days.type, 'integer', 'days — integer');
   assert.equal(params.properties.days.minimum, 1, 'days ≥ 1');
   assert.equal(params.properties.days.maximum, 3, 'days ≤ 3');
@@ -2187,7 +2189,7 @@ test('000235.01 S2: «параметры» — опционально; additiona
   for (const bad of [
     { stat: 'урон', turns: 0 },           // turns ≥ 1
     { stat: 'урон', value: -1 },          // value ≥ 0
-    { stat: 'урон', radius: 6 },          // radius ≤ 5
+    { stat: 'урон', radius: 11 },        // radius ≤ 10
     { stat: 'нет_такого', value: 1, turns: 1 }, // stat вне enum
     { stat: 'урон', value: 1, turns: 1, days: 4 }, // days ≤ 3
   ]) {
@@ -5065,7 +5067,7 @@ test('000235.10 W-10a: miracle — ctx.miracle: отказ callback → reason +
   }
 });
 
-test('000235.10 W-11a: holyLightRadius — активная запись → 5 (радиус каталога); граница expiresDay = day → 0 (>, не >=); чужой id (dark_presence) → 0; битый radius → 5; две активные → max; нет записи → 0; radius — ленивым lookup (гость 1/3/5, невалидный/отсутствует → дефолт 5); zoneSuppressedReason — ветка «свет обители» ПОСЛЕ «покров ночи» (порядок 5 причин, source-пин main.js); visionRadiusFloor — floor из holyLightRadius (source-пин); туман: floor R 3→5 (чистое ядро dungeon-ui.vision)', () => {
+test('000235.10 W-11a: holyLightRadius — активная запись → 5 (радиус каталога); граница expiresDay = day → 0 (>, не >=); чужой id (dark_presence) → 0; битый radius → 5; две активные → max; нет записи → 0; radius — ленивым lookup (гость 1/3/5, невалидный/отсутствует → дефолт 5); zoneSuppressedReason — ветка «свет обители» ПОСЛЕ «покров ночи» (порядок 5 причин, source-пин main.js); visionRadiusFloor — floor из holyLightRadius (source-пин); туман: R 3→8 (addend, 000235.07.01; чистое ядро dungeon-ui.vision)', () => {
   const { holyLightRadius } = loadSpells();
   assert.equal(typeof holyLightRadius, 'function',
     '000235.10: export Spells.holyLightRadius (src/spells.js) (RED: нет)');
@@ -5170,8 +5172,9 @@ test('000235.10 W-11a: holyLightRadius — активная запись → 5 (
   assert.ok(mainSrc.slice(iVrf, iVrf + 900).includes('holyLightRadius'),
     'visionRadiusFloor: floor из holyLightRadius (RED: не добавлен)');
   // Туман (000225/000136): чистое ядро dungeon-ui.vision — активная
-  // запись поднимает floor: R = max(radiusFor(0.5)=3, 5) = 5; клетка
-  // d=4 открывается, d=6 скрыта; без эффекта — инвариантен.
+  // запись добавляет адденд: R = radiusFor(0.5) + 5 = 8 (ре-пин
+  // 000235.07.01); клетка d=4 открывается, d=6 открывается;
+  // без эффекта — инвариантен.
   // dungeon-ui — IIFE на globalThis.Game (UMD-ловушка 000038):
   // порядок загрузки — dungeon.js/controls.js ДО, window-стаб
   // (top-level addEventListener keydown).
@@ -5190,16 +5193,16 @@ test('000235.10 W-11a: holyLightRadius — активная запись → 5 (
   assert.equal(vis.radiusFor(0.5), 3, 'фикстура: radiusFor(0.5) = 3');
   const R_off = Math.max(vis.radiusFor(0.5),
     holyLightRadius({ outOfCombatEffects: [] }, day));
-  const R_on = Math.max(vis.radiusFor(0.5),
-    holyLightRadius({ outOfCombatEffects: [rec(day + 1)] }, day));
-  assert.equal(R_off, 3, 'без эффекта: R = 3 (floor 0)');
-  assert.equal(R_on, 5, 'активный: floor поднимает R до 5');
+  const R_on = vis.radiusFor(0.5) +
+    holyLightRadius({ outOfCombatEffects: [rec(day + 1)] }, day);
+  assert.equal(R_off, 3, 'без эффекта: R = 3 (addend 0)');
+  assert.equal(R_on, 8, 'активный: addend поднимает R до 8 (000235.07.01)');
   const mOff = vis.maskFor(12, 12, 5, 5, R_off, null);
   const mOn = vis.maskFor(12, 12, 5, 5, R_on, null);
   assert.equal(mOff[5 * 12 + 8], 2, 'без эффекта: d=3 видно (регрессия)');
   assert.equal(mOff[5 * 12 + 9], 0, 'без эффекта: d=4 скрыто (R = 3)');
-  assert.equal(mOn[5 * 12 + 9], 2, 'активный: d=4 раскрывается (R = 5)');
-  assert.equal(mOn[11 * 12 + 5], 0, 'активный: d=6 скрыто (R = 5)');
+  assert.equal(mOn[5 * 12 + 9], 2, 'активный: d=4 раскрывается (R = 8)');
+  assert.equal(mOn[11 * 12 + 5], 2, 'активный: d=6 раскрывается (R = 8)');
 });
 
 test('000235.10 W-12a: партия-механики — (a) mass_heal/mass_holy_light: игрок + ВСЕ живые союзники, out.healed = сумма, seed-детерминизм (0 c._rng); mass_holy_light — u.debuff = null у всех; (b) 5 party-бафов: c.ps.buff + u.buff у ВСЕХ живых союзников (turns 3), targetId (живой союзник) игнорируется, mob-цель — «нет цели», рекаст — overwrite; (c) purify: u.debuff → null (out.purified = id, лечения НЕТ), игрок-цель — без side-effects, weaken/bind НЕ сняты', () => {

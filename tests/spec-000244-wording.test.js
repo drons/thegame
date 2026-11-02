@@ -17,10 +17,11 @@
 //       мана — ПОСЛЕ cb (отказ cb — каст не состоялся: мана НЕ
 //       списана, перемещения нет); display-имя — канон каталога
 //       «Пламенный шаг»; луч НЕ учитывает frost_walk (факт).
-//   T2. spells — firelight: floor радиуса видимости подземелья —
-//       параметры.radius БЕЗ ДЕФОЛТА (невалидное/отсутствующее → 0;
-//       отличие от radius-helper'ов), 1 день; no-op на базовой
-//       видимости (VISION_BASE_RADIUS = 5) — tasks/pending/
+//   T2. spells — firelight: радиус видимости подземелья — адденд
+//       (имя опции visionRadiusFloor — D1 000235.07.01): параметры.
+//       radius БЕЗ ДЕФОЛТА (невалидное/отсутствующее → 0; отличие
+//       от radius-helper'ов), 1 день; эффект всегда +5 (radiusFor(1)
+//       = 5 = VISION_BASE_RADIUS, видимость 5 → 10) — tasks/done/
 //       000235.07.01.md.
 //   T3. spells — hearthfire: restoreDay ×1.1 (дневной реген), 1 день,
 //       OR с camp/prayer/wild_growth — без стекания; граница
@@ -208,7 +209,7 @@ test('SPEC 000244 T1: spells.md «Каст вне боя» — flame_step (во�
       'не heroPassable; pre-existing, memory/000239) не зафиксировано');
 });
 
-test('SPEC 000244 T2: spells.md «Каст вне боя» — firelight (000235.07): floor радиуса видимости подземелья — parameters.radius БЕЗ ДЕФОЛТА (невалидное/отсутствующее → 0), 1 день; no-op на базовой видимости (VISION_BASE_RADIUS = 5) — tasks/pending/000235.07.01.md', () => {
+test('SPEC 000244 T2: spells.md «Каст вне боя» — firelight (000235.07): радиус видимости подземелья — АДДЕНД к radiusFor(mult) (имя опции visionRadiusFloor — D1 000235.07.01): parameters.radius БЕЗ ДЕФОЛТА (невалидное/отсутствующее → 0), 1 день; эффект всегда +5 (radiusFor(1) = 5 = VISION_BASE_RADIUS, видимость 5 → 10) — tasks/done/000235.07.01.md', () => {
   const oc = OC();
   phrase(oc, '«Каст вне боя»', 'firelight',
     'буллет firelight не зафиксирован');
@@ -223,11 +224,11 @@ test('SPEC 000244 T2: spells.md «Каст вне боя» — firelight (000235
       'иначе 0; НЕ integer-check, НЕ 1..5→5 — отличие от radius-' +
       'helper\'ов) не зафиксировано');
   phrase(oc, '«Каст вне боя»', 'VISION_BASE_RADIUS',
-    'no-op на базовой видимости (visionMult ≥ 1 → radiusFor ≥ 5 = ' +
-      'VISION_BASE_RADIUS) не зафиксировано');
+    'адденд: эффект всегда +5 (radiusFor(1) = 5 = ' +
+      'VISION_BASE_RADIUS, видимость 5 → 10) не зафиксировано');
   phrase(oc, '«Каст вне боя»', '000235.07.01',
-    'tracked-задача 000235.07.01 (no-op на базовой видимости) не ' +
-      'упомянута (прецедент path_of_vines, .12)');
+    'tracked-задача 000235.07.01 (адденд: +5 к радиусу видимости) ' +
+      'не упомянута (прецедент path_of_vines, .12)');
 });
 
 test('SPEC 000244 T3: spells.md «Каст вне боя» — hearthfire (000235.07): лагерь → restoreDay ×1.1 (+10% к дневному регену), 1 день; OR с camp/prayer/wild_growth — без стекания; граница expiresDay >= day («утро эффекта»); radius каталога — no-op', () => {

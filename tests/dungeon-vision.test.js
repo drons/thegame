@@ -1352,12 +1352,14 @@ test('мобы MOBV-5: полная цепочка — за пределами �
 });
 
 // =====================================================================
-// W-11b (задача 000235.07): firelight — opts.visionRadiusFloor в
-// dungeon-ui.js: radius = max(radiusFor(mult), floor). Базовое
-// зрение с mock visionMult 0.5 → radiusFor = 3; floor 5 → radius 5:
-// (6,1) cheb 5 — видима, (7,1) cheb 6 — скрыта. safe-call:
+// W-11b (задача 000235.07.01, пере-пин 000235.07): firelight —
+// additive-семантика (решение дизайнера A): radius = radiusFor(mult)
+// + opts.visionRadiusFloor (имя опции сохранено). БАЗОВОЕ зрение
+// (mock visionMult НЕТ): R = 5 + 5 = 10 — (7,1) cheb 6 и (11,1) cheb
+// 10 видима, (12,1) cheb 11 скрыта (граница — ровно на 1 больше);
+// addend 1 → R = 6 — (7,1) видима, (8,1) скрыта. safe-call:
 // не-функция/throw → 0 (тихо). Город — mask null (тумана нет).
-// Контракт: memory/000235.07-fire-wave-content.md §2.2/§7 (W-11).
+// Контракт: memory/000235.07.01-firelight-additive-vision.md §3/§4.
 // =====================================================================
 
 const CITY_FLOOR_COLORS = ['#b3a284', '#a5947a', '#c0b090'];
@@ -1371,56 +1373,88 @@ function cityFloorRectAt(calls, x, y, size, tol = 1e-9) {
     && Math.abs(c[1][3] - size) <= tol);
 }
 
-test('W-11b. 000235.07: firelight — visionRadiusFloor: radius = max(radiusFor(mult), floor) (mult 0.5 → 3, floor 5 → 5); safe-call → 0; город — mask null', () => {
-  const { body, errors, s, rafStubs, T, P } = loadFogDungeon({
-    startOpts: { visionMult: 0.5, visionRadiusFloor: () => 5 },
-  });
-  T.t += 16;
-  tick(rafStubs);
-  const calls = findCanvas(body).drawCalls;
-  assert.ok(floorRectAt(calls, P(6, 1).x, P(6, 1).y, 40),
-    '(6,1) cheb 5 — видима: floor 5 > radiusFor(0.5) = 3 (RED: '
-    + 'visionRadiusFloor не применяется — radius 3)');
-  assert.ok(!floorRectAt(calls, P(7, 1).x, P(7, 1).y, 40),
-    '(7,1) cheb 6 — скрыта (radius = 5, не «floor + что-то»)');
-  assert.equal(errors.length, 0,
-    'visionRadiusFloor — без console.error: ' + JSON.stringify(errors));
+test('W-11b. 000235.07.01: firelight — additive: radius = radiusFor(mult) + addend (базовое зрение, mock НЕТ); граница = radiusFor + addend (10/11); safe-call → 0; город — mask null', () => {
+  // h0: база (без эффекта) — R = radiusFor(1) = 5.
+  const h0 = loadFogDungeon({});
+  h0.T.t += 16;
+  tick(h0.rafStubs);
+  const calls0 = findCanvas(h0.body).drawCalls;
+  assert.ok(floorRectAt(calls0, h0.P(6, 1).x, h0.P(6, 1).y, 40),
+    '(6,1) cheb 5 — видима (R = 5, база)');
+  assert.ok(!floorRectAt(calls0, h0.P(7, 1).x, h0.P(7, 1).y, 40),
+    '(7,1) cheb 6 — скрыта (R = 5, база)');
+  assert.equal(h0.errors.length, 0,
+    'база — без console.error: ' + JSON.stringify(h0.errors));
 
+  // h1: эффект при БАЗОВОМ зрении (visionMult НЕ передаётся) —
+  // R = radiusFor(1) + 5 = 10.
+  const h1 = loadFogDungeon({
+    startOpts: { visionRadiusFloor: () => 5 },
+  });
+  h1.T.t += 16;
+  tick(h1.rafStubs);
+  const calls1 = findCanvas(h1.body).drawCalls;
+  assert.ok(floorRectAt(calls1, h1.P(7, 1).x, h1.P(7, 1).y, 40),
+    '(7,1) cheb 6 — видима (R = 10: эффект проявляется при '
+    + 'базовом зрении; RED: сегодня max(5, 5) = 5)');
+  assert.ok(floorRectAt(calls1, h1.P(11, 1).x, h1.P(11, 1).y, 40),
+    '(11,1) cheb 10 = radiusFor(1) + 5 — видима (граница)');
+  assert.ok(!floorRectAt(calls1, h1.P(12, 1).x, h1.P(12, 1).y, 40),
+    '(12,1) cheb 11 — скрыта (ровно на 1 больше границы)');
+  assert.equal(h1.errors.length, 0,
+    'visionRadiusFloor — без console.error: ' + JSON.stringify(h1.errors));
+
+  // h2: addend 1 — граница +1: R = 6.
   const h2 = loadFogDungeon({
-    startOpts: { visionMult: 0.5, visionRadiusFloor: 'мусор' },
+    startOpts: { visionRadiusFloor: () => 1 },
   });
   h2.T.t += 16;
   tick(h2.rafStubs);
   const calls2 = findCanvas(h2.body).drawCalls;
-  assert.ok(!floorRectAt(calls2, h2.P(6, 1).x, h2.P(6, 1).y, 40),
-    'safe-call: не-функция → floor 0 → (6,1) cheb 5 НЕ видима (radius 3)');
+  assert.ok(floorRectAt(calls2, h2.P(7, 1).x, h2.P(7, 1).y, 40),
+    '(7,1) cheb 6 = radiusFor(1) + 1 — видима (R = 6)');
+  assert.ok(!floorRectAt(calls2, h2.P(8, 1).x, h2.P(8, 1).y, 40),
+    '(8,1) cheb 7 — скрыта (R = 6)');
   assert.equal(h2.errors.length, 0,
-    'safe-call — тихо: ' + JSON.stringify(h2.errors));
+    'addend 1 — без console.error: ' + JSON.stringify(h2.errors));
 
+  // h3: safe-call — не-функция → 0 (тихо).
   const h3 = loadFogDungeon({
-    startOpts: { visionMult: 0.5,
-      visionRadiusFloor: () => { throw new Error('boom'); } },
+    startOpts: { visionRadiusFloor: 'мусор' },
   });
   h3.T.t += 16;
   tick(h3.rafStubs);
   const calls3 = findCanvas(h3.body).drawCalls;
-  assert.ok(!floorRectAt(calls3, h3.P(6, 1).x, h3.P(6, 1).y, 40),
-    'safe-call: throw → catch → floor 0 → (6,1) НЕ видима');
+  assert.ok(!floorRectAt(calls3, h3.P(7, 1).x, h3.P(7, 1).y, 40),
+    'safe-call: не-функция → addend 0 → (7,1) cheb 6 скрыта (R = 5)');
   assert.equal(h3.errors.length, 0,
-    'safe-call: catch — без console.error: ' + JSON.stringify(h3.errors));
+    'safe-call — тихо: ' + JSON.stringify(h3.errors));
 
-  s.kind = 'city';
-  s.dg.seed = 1;
-  T.t += 16;
-  tick(rafStubs);
-  const callsC = findCanvas(body).drawCalls;
-  assert.ok(cityFloorRectAt(callsC, P(10, 5).x, P(10, 5).y, 40),
+  // h4: safe-call — throw → 0 (тихо).
+  const h4 = loadFogDungeon({
+    startOpts: { visionRadiusFloor: () => { throw new Error('boom'); } },
+  });
+  h4.T.t += 16;
+  tick(h4.rafStubs);
+  const calls4 = findCanvas(h4.body).drawCalls;
+  assert.ok(!floorRectAt(calls4, h4.P(7, 1).x, h4.P(7, 1).y, 40),
+    'safe-call: throw → catch → addend 0 → (7,1) скрыта (R = 5)');
+  assert.equal(h4.errors.length, 0,
+    'safe-call: catch — без console.error: ' + JSON.stringify(h4.errors));
+
+  // Город (h1 — с активной опцией): mask null — тумана нет.
+  h1.s.kind = 'city';
+  h1.s.dg.seed = 1;
+  h1.T.t += 16;
+  tick(h1.rafStubs);
+  const callsC = findCanvas(h1.body).drawCalls;
+  assert.ok(cityFloorRectAt(callsC, h1.P(10, 5).x, h1.P(10, 5).y, 40),
     'город: (10,5) — видима (mask null — тумана нет, без изменений)');
   assert.ok(!fillRectAt(callsC, FOG_DIM_FILL,
-    P(7, 1).x, P(7, 1).y, 40, 40),
+    h1.P(7, 1).x, h1.P(7, 1).y, 40, 40),
     'город: прохода затемнения FOG_DIM_FILL нет');
-  assert.equal(errors.length, 0,
-    'город — без console.error: ' + JSON.stringify(errors));
+  assert.equal(h1.errors.length, 0,
+    'город — без console.error: ' + JSON.stringify(h1.errors));
 });
 
 // =====================================================================

@@ -110,7 +110,7 @@
   попадание, получаемый_урон, иммунитет_контроля, maxHP; 6 дебаф —
   урон_вниз, броня_вниз, попадание_вниз, получаемый_урон_вверх,
   dot, ход_вниз), value (число ≥ 0), turns (целое ≥ 1), summon
-  (id из assets/mobs), object (стена|зона), radius (1..5),
+  (id из assets/mobs), object (стена|зона), radius (1..10),
   days (1..3), mode (метка_установить|метка_вернуться|город).
 * Опциональное поле `вне_боя` (bool, default false) — заклинание
   доступно в книге вне боя (раздел «Каст вне боя»).
@@ -262,12 +262,12 @@
     мана НЕ списана, перемещения нет; skeleton ctx === undefined —
     ok + мана списана, телепорта нет).
   * firelight («Свет пламени», огонь, действие «внебой», {days: 1, radius:
-    5}): floor радиуса видимости подземелья — visionRadiusFloor
-    (src/dungeon-ui.js) из `параметры.radius` — ДЕФОЛТА НЕТ
-    (typeof number && r ≥ 1 → floorR, иначе 0; НЕ integer-check,
-    НЕ 1..5→5 — отличие от radius-helper'ов); на базовой видимости
-    (visionMult ≥ 1 → radiusFor ≥ 5 = VISION_BASE_RADIUS) floor 5 —
-    no-op — tasks/pending/000235.07.01.md.
+    5}): адденд к радиусу видимости подземелья — опция
+    visionRadiusFloor (src/dungeon-ui.js, 000235.07.01) из
+    `параметры.radius` — ДЕФОЛТА НЕТ (typeof number && r ≥ 1 → floorR,
+    иначе 0; НЕ integer-check, НЕ 1..5→5 — отличие от radius-helper'ов);
+    R = radiusFor(mult) + floorR — radiusFor(1) = 5 = VISION_BASE_RADIUS
+    → эффект всегда +5 (видимость 5 → 10) — tasks/done/000235.07.01.md.
   * hearthfire («Очаговый огонь», огонь, действие «внебой», {days: 1,
     radius: 5}): restoreDay ×1.1 (+10% к дневному регену, лагерь;
     main.js onDay — OR с camp/prayer/wild_growth БЕЗ стекания);
@@ -327,7 +327,7 @@
     проверки: невидимость → круг защиты → замерзание → покров ночи
     → свет обители); радиус — helper holyLightRadius;
     visionRadiusFloor — max с firelight (floorR = max(floorR,
-    holyLightRadius)).
+    holyLightRadius)); применение — аддитивно (000235.07.01).
   * miracle («Чудо», исцеление, действие «воскрешение», без дней):
     мгновенное all-or-nothing воскрешение ВСЕХ погибших; отказы
     ДОСЛОВНО — «нет погибших» / «отряд полон» (roster + dead >
@@ -342,7 +342,7 @@
     (герой; утро эффекта; OR с camp/prayer — без стекания);
   * beast_friend («Зверь-приятель», {days: 3, radius: 3}):
     подземелье — визион +3 (opts.visionRadiusBonus, аддитивно к
-    max(radiusFor(mult), floorR); туман/мобы — автоматически через
+    radiusFor(mult) + floorR); туман/мобы — автоматически через
     mask/explored); зверь — спрайт волка у героя (мир+подземелье,
     статичный); боевого союзника НЕТ (combat.js не трогается);
   * path_of_vines («Тропа лоз», {days: 1}): запись 1 день — пока
