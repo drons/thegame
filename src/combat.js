@@ -70,7 +70,9 @@
 // каталог, наёмники — снапшот sheet.primary, Эфир — 4 ключа).
 // buildTurnOrder — СТАБИЛЬНАЯ сортировка канонической базы
 // (игрок → союзники → мобы, внутри — c.units); тай-брейк = порядок
-// базы (семантика до 000167). Очередь пересчитывается в createCombat
+// базы (семантика до 000167). 000235.08.01: «ход_вниз» — штраф
+// SLOW_INITIATIVE_PENALTY к ключу (замедленный — в конец очереди).
+// Очередь пересчитывается в createCombat
 // и в «новом раунде» (startRound); мёртвые/сбежавшие исключены,
 // слоты текущего раунда сохраняются (серый токен). endTurn (до
 // 000167 — endPlayerTurn) = checkTurn + turnIndex++ +
@@ -243,6 +245,12 @@
   // Группа с лидером: +5% урон и +5% защита всем (SPEC.md).
   const LEADER_DMG_MULT = 1.05;
   const LEADER_DEF_MULT = 0.95;
+
+  // 000235.08.01: «ход_вниз» (дебаф моба) — штраф к порядку
+  // очереди: пока эффект активен, замедленный юнит — в конце
+  // очереди (контракт:
+  // memory/000235.08.01-slow-haste-consumers.md §0.1).
+  const SLOW_INITIATIVE_PENALTY = 1e9;
 
   const RANGED_MAX_DIST = 4;
   const BOW_ATTACK_DIST = 4; // дальность атаки из лука (задача 000009)
@@ -724,7 +732,14 @@
       ...livingMobs(c).map((u) => u.id)];
     const idUnit = (id) => (id === 'player') ? c.player
       : c.units.find((u) => u.id === id);
-    return base.map((id) => [id, unitInitiative(c, idUnit(id))])
+    return base.map((id) => {
+      const u = idUnit(id);
+      // 000235.08.01: «ход_вниз» — штраф к ключу (конец очереди).
+      const key = unitInitiative(c, u)
+        - (unitDebuffValue(c, u, 'ход_вниз') > 0
+          ? SLOW_INITIATIVE_PENALTY : 0);
+      return [id, key];
+    })
       .sort((a, b) => b[1] - a[1])
       .map((p) => p[0]);
   }
@@ -3044,7 +3059,8 @@
         }
       }
       a.moveLeft = a.movePerTurn || 1;
-      a.attackLeft = 1;
+      // 000235.08.01: «ход» — баф союзника (+value действий «Удар»).
+      a.attackLeft = 1 + unitBuffValue(c, a, 'ход');
       // 000193: рефилл пулов заклинаний (та же формула, что c.efs) +
       // тик щита союзника (3 раунда, ритм — как щит игрока c.ps.shield).
       a.spellInt = 1 + Math.floor(((a.attrs && a.attrs.intelligence) || 0) / 10);
@@ -3194,7 +3210,8 @@
     const p = c.player;
     const d = P.derived(p);
     c.ps.moveLeft = d.moveCells;
-    c.ps.attack = d.attackActions;
+    // 000235.08.01: «ход» — баф игрока (+value действий «Удар»).
+    c.ps.attack = d.attackActions + unitBuffValue(c, c.player, 'ход');
     c.ps.spellInt = d.spellActionsInt;
     c.ps.spellWis = d.spellActionsWis;
     c.ps.quickItem = 1 + Math.floor(p.primary.dexterity / 10);

@@ -7548,3 +7548,133 @@ test('000235.12 W-10: OOC-хендлеры — castOutOfCombat generic {spellId,
       'уТРО D+3: эффект и зверь ушли');
   }
 });
+
+// =====================================================================
+// Задача 000235.08.01: e2e-потребление каталога «ход_вниз»/«ход»
+// (красные тесты; контракт:
+// memory/000235.08.01-slow-haste-consumers.md).
+//
+// Четыре суб-сценария из каталога: slow 000057 («ход_вниз» → штраф
+// очереди), ice_field 000050 (зона «ход_вниз» → штраф очереди),
+// winter_haste 000055 («ход» → +1 «Удар» союзнику в раунд),
+// blazing_speed 000029 («ход» → +1 «Удар» игроку в раунд). Точки
+// маршрутизации и т.д. эффектов уже работают (000235.01); красные —
+// обещанные эффекты (решение дизайнера).
+//
+// expectedRedCount (файл) = 1.
+// =====================================================================
+
+test('W-16: каталог «ход_вниз»/«ход» — e2e-потребление (красный, 000235.08.01)', () => {
+  const { castSpell } = loadSpells();
+  const { derived: pDer } = require('../src/player.js');
+  const data = {};
+
+  // (1) slow 000057 — «ход_вниз» на моба → штраф очереди.
+  {
+    const p = spellHero({ spells: ['slow'], intelligence: 1, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const r = castSpell(c, 'slow', w.id);
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.debuffed, w.id, 'slow: дебаф на цель');
+    assert.deepEqual(w.debuff,
+      { stat: 'ход_вниз', value: 0.15, turns: 3 },
+      'slow: т.д. дебафа (000057)');
+    assert.equal(p.mp, 36, 'slow: мана −4');
+    assert.equal(c.ps.spellInt, 0, 'slow: пул Интеллекта 1 − 1');
+    c._rng = () => 0.99;
+    c.endTurn();
+    data.slow = { round: c.round, order: c.turnOrder.slice(),
+      turns: w.debuff ? w.debuff.turns : null };
+  }
+
+  // (2) ice_field 000050 — зона «ход_вниз» → штраф очереди.
+  {
+    const p = spellHero({ spells: ['ice_field'], intelligence: 1, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const w = c.units[0];
+    const r = castSpell(c, 'ice_field');
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.zone, 2, 'ice_field: зона радиуса 2 (000050)');
+    assert.deepEqual(c.zone,
+      { x: c.px, y: c.py, radius: 2,
+        stat: 'ход_вниз', value: 0.15, turns: 3 },
+      'ice_field: зона (000050)');
+    assert.deepEqual(w.debuff,
+      { stat: 'ход_вниз', value: 0.15, turns: 3 },
+      'ice_field: one-shot дебаф');
+    assert.equal(p.mp, 32, 'ice_field: мана −8');
+    assert.equal(c.ps.spellInt, 0, 'ice_field: пул Интеллекта 1 − 1');
+    c._rng = () => 0.99;
+    c.endTurn();
+    data.ice = { round: c.round, order: c.turnOrder.slice(),
+      turns: w.debuff ? w.debuff.turns : null,
+      zoneTurns: c.zone ? c.zone.turns : null };
+  }
+
+  // (3) winter_haste 000055 — «ход» → +1 «Удар» союзнику в раунд.
+  {
+    const p = spellHero({ spells: ['winter_haste'], intelligence: 1, mp: 40 });
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 5,
+      allies: [{ name: 'Союзник0', role: 'melee', level: 1, dmg: 1, hp: 1,
+        skills: [], spells: [] }],
+    });
+    const w = c.units.find((u) => u.side === 'mob');
+    w.x = c.px; w.y = c.py - 1;
+    const a0 = c.units.find((u) => u.side === 'ally');
+    const r = castSpell(c, 'winter_haste', a0.id);
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.buffed, a0.id, 'winter_haste: баф на союзника');
+    assert.deepEqual(a0.buff,
+      { stat: 'ход', value: 1, turns: 3 },
+      'winter_haste: т.б. бафа (000055)');
+    assert.equal(p.mp, 27, 'winter_haste: мана −13');
+    assert.equal(c.ps.spellInt, 0, 'winter_haste: пул Интеллекта 1 − 1');
+    c._rng = () => 0.99;
+    c.endTurn();
+    c.endTurn();
+    data.winter = { round: c.round, aLeft: a0.attackLeft,
+      buffTurns: a0.buff ? a0.buff.turns : null };
+  }
+
+  // (4) blazing_speed 000029 — «ход» → +1 «Удар» игроку в раунд.
+  {
+    const p = spellHero({ spells: ['blazing_speed'], intelligence: 1, mp: 40 });
+    const c = soloCombat(p, 'wolf');
+    const base = pDer(p).attackActions;
+    assert.equal(base, 1, 'blazing_speed: базовые атаки = 1');
+    const r = castSpell(c, 'blazing_speed');
+    assert.equal(r.ok, true, r.reason);
+    assert.equal(r.buffed, 'player', 'blazing_speed: баф на игрока');
+    assert.deepEqual(c.ps.buff,
+      { stat: 'ход', value: 1, turns: 3 },
+      'blazing_speed: т.б. бафа (000029)');
+    assert.equal(p.mp, 36, 'blazing_speed: мана −4');
+    assert.equal(c.ps.spellInt, 0, 'blazing_speed: пул Интеллекта 1 − 1');
+    c._rng = () => 0.99;
+    c.endTurn();
+    data.blazing = { round: c.round, attack: c.ps.attack,
+      buffTurns: c.ps.buff ? c.ps.buff.turns : null };
+  }
+
+  // Эффекты (красные).
+  assert.equal(data.slow.round, 2, 'slow: раунд 2');
+  assert.equal(data.slow.turns, 2, 'slow: тик дебафа (3→2)');
+  assert.deepEqual(data.slow.order, ['player', 'm0'],
+    '«ход_вниз» (slow): моб в конце очереди (красный: m0 первым)');
+  assert.equal(data.ice.round, 2, 'ice_field: раунд 2');
+  assert.deepEqual(data.ice.order, ['player', 'm0'],
+    '«ход_вниз» (зона): моб в конце очереди (красный: m0 первым)');
+  assert.equal(data.ice.turns, 2, 'ice_field: тик дебафа (3→2)');
+  assert.equal(data.ice.zoneTurns, 2, 'ice_field: тик зоны (3→2)');
+  assert.equal(data.winter.round, 2, 'winter_haste: раунд 2');
+  assert.equal(data.winter.aLeft, 2,
+    '«ход»: атаки союзника 1 + 1 в раунде R+1 (красный: 1)');
+  assert.equal(data.winter.buffTurns, 2, 'winter_haste: тик бафа (3→2)');
+  assert.equal(data.blazing.round, 2, 'blazing_speed: раунд 2');
+  assert.equal(data.blazing.attack, 2,
+    '«ход»: атаки игрока 1 + 1 в раунде R+1 (красный: 1)');
+  assert.equal(data.blazing.buffTurns, 2,
+    'blazing_speed: тик бафа (3→2)');
+});

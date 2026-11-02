@@ -10940,3 +10940,294 @@ test('000267-SUM-1: lifesteal призывного (traits из каталога
   assert.equal(f.hp, fh0,
     'lifesteal нет — лечения нет (контроль)');
 });
+
+// =====================================================================
+// Задача 000235.08.01: боевое потребление «ход_вниз»/«ход» — решение
+// дизайнера (красные тесты; контракт: memory/000235.08.01-slow-haste-
+// consumers.md).
+//
+//  * «ход_вниз» (дебаф моба: slow 000057, зона ice_field 000050) —
+//    вариант (б): штраф к порядку очереди — пока debuff.turns > 0,
+//    юнит уходит в конец очереди (ключ buildTurnOrder:
+//    unitInitiative − SLOW_INITIATIVE_PENALTY, 1e9).
+//  * «ход» (баф: blazing_speed 000029 → c.ps.buff, winter_haste 000055
+//    → u.buff) — вариант (а): +value действий «Удар» в раунд
+//    (refillPools: c.ps.attack = d.attackActions +
+//    unitBuffValue(c, c.player, 'ход'); startRound: a.attackLeft =
+//    1 + unitBuffValue(c, a, 'ход')).
+//  * Окна: «ход» — бонус в раундах R+1..R+turns (пул раунда R заправлен
+//    до каста); «ход_вниз» — штраф в очередях R+1..R+turns−1
+//    (очередь раунда R застыла до каста; тик дебафа моба в startRound
+//    раньше buildTurnOrder).
+//  * 0 новых вызовов c._rng (пин: число роллов = у контроля);
+//    save v1 не меняется.
+//
+// expectedRedCount (блок) = 4 (SLOW-1, SLOW-2, HASTE-1, HASTE-2).
+// =====================================================================
+
+test('000235.08.01-SLOW-1: «ход_вниз» (slow) — штраф к порядку очереди моба (красный, 000235.08.01)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.spells = ['slow'];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const w = c.units[0];
+    standNextTo(c, w);
+    assert.deepEqual(c.turnOrder, ['m0', 'player'],
+      'фикстура: инициатива волка (2+1) > игрока (1+1)');
+    assert.equal(c.turnIndex, 1, 'фикстура: активен игрок');
+    if (cast) {
+      const r = castSpell(c, 'slow', w.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.debuffed, w.id, 'решение: т.д. дебафа — цель каста');
+      assert.deepEqual(w.debuff,
+        { stat: 'ход_вниз', value: 0.15, turns: 3 },
+        'т.д. дебафа: стат/знач/тики из каталога (000057)');
+      assert.equal(p.mp, 36, 'мана −4 (slow)');
+      assert.equal(c.ps.spellInt, 0, 'пул Интеллекта 1 (инт 1) − 1');
+    }
+    let calls = 0;
+    c._rng = () => { calls += 1; return 0.99; };
+    const trace = [];
+    for (let i = 0; i < 4; i++) {
+      c.endTurn();
+      trace.push([c.round, c.turnOrder.slice(), c.turnIndex,
+        w.debuff ? w.debuff.turns : null]);
+    }
+    return { trace, calls, result: c.result };
+  };
+  const a1 = mk(true);
+  const a2 = mk(true);
+  const b = mk(false);
+  assert.equal(a1.calls, b.calls,
+    '0 новых вызовов c._rng: число роллов = у контроля');
+  assert.equal(a1.calls, 4, 'фикстура: 4 промаха волка (0.99 > 0.95)');
+  assert.deepEqual(a1.trace, a2.trace,
+    'детерминизм: два прогона совпадают');
+  assert.deepEqual(b.trace, [
+    [2, ['m0', 'player'], 1, null],
+    [3, ['m0', 'player'], 1, null],
+    [4, ['m0', 'player'], 1, null],
+    [5, ['m0', 'player'], 1, null],
+  ], 'контроль: без каста очередь не меняется (бит-в-бит)');
+  assert.deepEqual(a1.trace, [
+    [2, ['player', 'm0'], 0, 2],
+    [3, ['player', 'm0'], 0, 1],
+    [4, ['m0', 'player'], 1, 0],
+    [5, ['m0', 'player'], 1, 0],
+  ], '«ход_вниз»: моб в конце очереди в R+1..R+turns−1, тики 2→1→0');
+  assert.equal(a1.result, null, 'бой идёт (никто не пал)');
+});
+
+test('000235.08.01-SLOW-2: «ход_вниз» (зона ice_field) — оба моба в конец очереди (красный, 000235.08.01)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.primary.intelligence = 1;
+    p.spells = ['ice_field'];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 13,
+    });
+    const [w0, w1] = c.units;
+    assert.ok(!c.obstacles.has((c.px + 1) + ',' + c.py),
+      'фикстура: клетка (px+1, py) свободна');
+    assert.ok(!c.obstacles.has((c.px - 1) + ',' + c.py),
+      'фикстура: клетка (px−1, py) свободна');
+    w0.x = c.px + 1; w0.y = c.py;
+    w1.x = c.px - 1; w1.y = c.py;
+    if (cast) {
+      const r = castSpell(c, 'ice_field');
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.zone, 2, 'зона: радиус 2 (000050)');
+      assert.deepEqual(c.zone,
+        { x: c.px, y: c.py, radius: 2,
+          stat: 'ход_вниз', value: 0.15, turns: 3 },
+        'зона: объект/стат/радиус/тики (000050)');
+      assert.deepEqual(w0.debuff,
+        { stat: 'ход_вниз', value: 0.15, turns: 3 },
+        'one-shot: дебаф w0');
+      assert.deepEqual(w1.debuff,
+        { stat: 'ход_вниз', value: 0.15, turns: 3 },
+        'one-shot: дебаф w1');
+      assert.equal(p.mp, 32, 'мана −8 (ice_field)');
+      assert.equal(c.ps.spellInt, 0, 'пул Интеллекта 1 (инт 1) − 1');
+    }
+    const ref0 = w0.debuff;
+    const ref1 = w1.debuff;
+    c._rng = () => 0.99;
+    const trace = [];
+    for (let i = 0; i < 4; i++) {
+      c.endTurn();
+      trace.push([c.round, c.turnOrder.slice(),
+        w0.debuff ? w0.debuff.turns : null,
+        w1.debuff ? w1.debuff.turns : null,
+        c.zone ? c.zone.turns : null]);
+    }
+    return { trace, refStable: w0.debuff === ref0 && w1.debuff === ref1,
+      zone: c.zone, result: c.result };
+  };
+  const a = mk(true);
+  const b = mk(false);
+  assert.ok(a.refStable,
+    'one-shot: ссылки на дебафы стабильны между тиками');
+  assert.equal(b.zone, null, 'контроль: без каста зоны нет');
+  assert.deepEqual(b.trace, [
+    [2, ['m0', 'm1', 'player'], null, null, null],
+    [3, ['m0', 'm1', 'player'], null, null, null],
+    [4, ['m0', 'm1', 'player'], null, null, null],
+    [5, ['m0', 'm1', 'player'], null, null, null],
+  ], 'контроль: очередь и статы не меняются (бит-в-бит)');
+  assert.deepEqual(a.trace, [
+    [2, ['player', 'm0', 'm1'], 2, 2, 2],
+    [3, ['player', 'm0', 'm1'], 1, 1, 1],
+    [4, ['m0', 'm1', 'player'], 0, 0, 0],
+    [5, ['m0', 'm1', 'player'], 0, 0, 0],
+  ], '«ход_вниз»: оба моба в конце очереди в R+1..R+turns−1; '
+    + 'зона/дебафы тикают');
+  assert.equal(a.result, null, 'бой идёт (никто не пал)');
+});
+
+test('000235.08.01-HASTE-1: «ход» (winter_haste) — +1 «Удар» союзнику в раунд (красный, 000235.08.01)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.primary.intelligence = 11;
+    p.spells = ['winter_haste'];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+      allies: [{ name: 'Вольк', role: 'melee', level: 1, dmg: 1.2,
+        hp: 1.1, skills: [], spells: [] }],
+    });
+    const a0 = c.units.find((u) => u.side === 'ally');
+    const w = c.units.find((u) => u.side === 'mob');
+    w.maxHP = 200;
+    w.hp = 200;
+    assert.deepEqual(c.turnOrder, ['player', 'm0', 'a0'],
+      'фикстура: игрок (1+11) > волк (2+1) > союзник (0)');
+    assert.equal(c.turnIndex, 0, 'фикстура: активен игрок');
+    let poolAfter = null;
+    if (cast) {
+      const r = castSpell(c, 'winter_haste', a0.id);
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.buffed, a0.id, 'решение: т.д. бафа — союзник-цель');
+      assert.deepEqual(a0.buff,
+        { stat: 'ход', value: 1, turns: 3 },
+        'баф: стат/знач/тики из каталога (000055)');
+      assert.equal(p.mp, 27, 'мана −13 (winter_haste)');
+      poolAfter = c.ps.spellInt;
+      assert.equal(poolAfter, 1, 'пул Интеллекта 2 (инт 11) − 1');
+    }
+    c._rng = () => 0.99;
+    c.endTurn();
+    const after1 = { active: activeUnitId(c), round: c.round,
+      phase: c.phase, aLeft: a0.attackLeft };
+    c.endTurn();
+    const after2 = { active: activeUnitId(c), round: c.round,
+      aLeft: a0.attackLeft, buffTurns: a0.buff ? a0.buff.turns : null };
+    c.endTurn();
+    const after3 = { active: activeUnitId(c), round: c.round,
+      phase: c.phase };
+    putAdjacent(c, a0, w);
+    c._rng = () => 0.01;
+    const atk1 = c.attack(w.id);
+    const atk2 = c.attack(w.id);
+    const atk3 = c.attack(w.id);
+    return { after1, after2, after3, poolAfter,
+      atk: [atk1, atk2, atk3].map((r) => ({ ok: r.ok, hit: r.hit,
+        dmg: r.dmg, reason: r.reason })),
+      wHp: w.hp, aLeft: a0.attackLeft, result: c.result };
+  };
+  const a1 = mk(true);
+  const a2 = mk(true);
+  const b = mk(false);
+  assert.deepEqual([a1.after1, a1.after2, a1.after3, a1.atk, a1.wHp],
+    [a2.after1, a2.after2, a2.after3, a2.atk, a2.wHp],
+    'детерминизм: два прогона совпадают');
+  assert.deepEqual(a1.after1,
+    { active: 'a0', round: 1, phase: 'player', aLeft: 1 },
+    'слот союзника раунда 1 (пул 1)');
+  assert.equal(a1.after2.active, 'player', 'раунд 2: активен игрок');
+  assert.equal(a1.after2.round, 2, 'раунд 2');
+  assert.equal(a1.after2.buffTurns, 2, 'тик бафа в startRound (3→2)');
+  assert.equal(a1.after2.aLeft, 2,
+    '«ход»: заправка атак союзника 1 + 1 (красный: 1)');
+  assert.deepEqual(a1.after3,
+    { active: 'a0', round: 2, phase: 'player' },
+    'слот союзника раунда 2');
+  assert.equal(a1.atk[0].ok, true, 'удар 1 — ok');
+  assert.equal(a1.atk[0].hit, true, 'удар 1 — попадание (0.01)');
+  assert.equal(a1.atk[0].dmg, 3, 'dmg Вольк (1.2) → 3 (бит-в-бит)');
+  assert.equal(a1.atk[1].ok, true,
+    '«ход»: удар 2 разрешён (красный: гейт)');
+  assert.equal(a1.atk[1].hit, true, 'удар 2 — попадание');
+  assert.equal(a1.atk[1].dmg, 3, 'удар 2 — dmg 3');
+  assert.equal(a1.atk[2].ok, false, 'удар 3 — пул исчерпан');
+  assert.equal(a1.atk[2].reason, 'действий «Удар» больше нет',
+    'удар 3 — гейт');
+  assert.equal(a1.wHp, 194, 'волк: 200 − 3 − 3 (красный: 197)');
+  assert.equal(a1.aLeft, 0, 'пул союзника исчерпан');
+  assert.equal(b.after2.active, 'player', 'контроль: раунд 2, игрок');
+  assert.equal(b.after2.aLeft, 1, 'контроль: без каста 1 атака');
+  assert.equal(b.after2.buffTurns, null, 'контроль: бафа нет');
+  assert.equal(b.atk[0].ok, true, 'контроль: удар 1 — ok');
+  assert.equal(b.atk[1].ok, false, 'контроль: удар 2 — гейт');
+  assert.equal(b.atk[1].reason, 'действий «Удар» больше нет',
+    'контроль: гейт');
+  assert.equal(b.wHp, 197, 'контроль: волк 200 − 3');
+  assert.equal(a1.result, null, 'бой идёт');
+});
+
+test('000235.08.01-HASTE-2: «ход» (blazing_speed) — +1 «Удар» игроку в раунд (красный, 000235.08.01)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.spells = ['blazing_speed'];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const base = derived(p).attackActions;
+    assert.equal(base, 1, 'фикстура: базовые атаки = 1');
+    let poolAfter = null;
+    if (cast) {
+      const r = castSpell(c, 'blazing_speed');
+      assert.equal(r.ok, true, r.reason);
+      assert.equal(r.buffed, 'player', 'баф — на игрока (цель не задана)');
+      assert.deepEqual(c.ps.buff,
+        { stat: 'ход', value: 1, turns: 3 },
+        'баф: стат/знач/тики из каталога (000029)');
+      assert.equal(p.mp, 36, 'мана −4 (blazing_speed)');
+      poolAfter = c.ps.spellInt;
+      assert.equal(poolAfter, 0, 'пул Интеллекта 1 (инт 1) − 1');
+    }
+    c._rng = () => 0.99;
+    const trace = [];
+    for (let i = 0; i < 4; i++) {
+      c.endTurn();
+      trace.push([c.round, c.ps.attack, c.ps.buff ? c.ps.buff.turns : null,
+        c.turnOrder.slice()]);
+    }
+    return { trace, poolAfter, result: c.result };
+  };
+  const a = mk(true);
+  const b = mk(false);
+  assert.deepEqual(b.trace, [
+    [2, 1, null, ['m0', 'player']],
+    [3, 1, null, ['m0', 'player']],
+    [4, 1, null, ['m0', 'player']],
+    [5, 1, null, ['m0', 'player']],
+  ], 'контроль: без каста пул атак = 1 (бит-в-бит)');
+  assert.deepEqual(a.trace, [
+    [2, 2, 2, ['m0', 'player']],
+    [3, 2, 1, ['m0', 'player']],
+    [4, 2, 0, ['m0', 'player']],
+    [5, 1, 0, ['m0', 'player']],
+  ], '«ход»: пул атак 1 + 1 в раундах R+1..R+turns, тики 2→1→0');
+  assert.equal(a.poolAfter, 0, 'пул Интеллекта после каста: 1 − 1');
+  assert.equal(a.result, null, 'бой идёт (никто не пал)');
+});
