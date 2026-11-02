@@ -1207,6 +1207,27 @@
     .spoc-status { color: #9a9484; font-size: 12px; white-space: nowrap; }
     .spoc-empty { padding: 8px; color: #9a9484; }
     .spoc-hint { margin-top: 8px; color: #9a9484; }
+    /* 000301 — вкладки по школам магии (книга вне боя): 6 кнопок
+       с иконками (assets/school-icons), палитра блока .spoc-*;
+       активная — акцент #d8c27a (прецедент .cp-portrait-active). */
+    .spoc-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .spoc-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 1px solid #3a3f4a;
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+    }
+    .spoc-tab:hover { background: rgba(255, 255, 255, 0.07); }
+    .spoc-tab--active {
+      border-color: #d8c27a;
+      background: rgba(255, 255, 255, 0.07);
+    }
+    .spoc-tab-icon { width: 24px; height: 24px; display: block; }
   </style>
 </head>
 <body>

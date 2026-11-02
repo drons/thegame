@@ -510,6 +510,9 @@ const EXPECTED_SVG_BY_DIR = {
                                       // 000235.10: +25 волны Исцеление;
                                       // 000235.11: +25 волны Защита;
                                       // 000235.12: +25 волны Природа)
+  'school-icons': 6,                  // иконки школ магии (задача 000301:
+                                      // protection/healing/ice/fire/
+                                      // nature/shadow — вкладки книги)
   portraits: 8,                       // портреты партии (задача 000142)
   logo: 1,                            // assets/logo.svg
 };
@@ -977,5 +980,27 @@ test('000265 R4 (RED): 11 SVG подтипов существуют, well-formed
       + 'NaN/пустых атрибутов)');
     assert.ok(text.includes('viewBox="0 0 64 64"'),
       rel + ': viewBox = «0 0 64 64» (формат построек)');
+  }
+});
+
+// --- Задача 000301: иконки школ магии — парная уникальность (W-05) ---
+// Паттерн W-05 (spell-icons): sha256-парная уникальность ВСЕХ файлов
+// каталога. school-icons — 6 иконок вкладок книги (контракт §2.5
+// memory/000301-spellbook-school-tabs.md); дубль (копия одной иконки
+// в чужой файл) — не поймают ни обход (счёт 6) ни well-formedness.
+test('W-05. 000301: ВСЕ 6 school-icons парно-уникальны (sha256)', () => {
+  const crypto = require('node:crypto');
+  const dir = path.join(ROOT, 'assets', 'school-icons');
+  const all = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.svg')).sort();
+  assert.equal(all.length, 6,
+    'school-icons — 6 файлов (RED: ' + all.length + ')');
+  const byHash = new Map();
+  for (const f of all) {
+    const h = crypto.createHash('sha256')
+      .update(fs.readFileSync(path.join(dir, f))).digest('hex');
+    assert.ok(!byHash.has(h),
+      f + ' == ' + byHash.get(h) + ': дубль иконки (копия)');
+    byHash.set(h, f);
   }
 });

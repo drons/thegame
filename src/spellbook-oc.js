@@ -33,6 +33,18 @@ function (G0, rootRef) {
   "use strict";
   void G0;
 
+  const SCHOOLS = [
+    { id: "защита", name: "Защита",
+      icon: "assets/school-icons/protection.svg" },
+    { id: "исцеление", name: "Исцеление",
+      icon: "assets/school-icons/healing.svg" },
+    { id: "лёд", name: "Лёд", icon: "assets/school-icons/ice.svg" },
+    { id: "огонь", name: "Огонь", icon: "assets/school-icons/fire.svg" },
+    { id: "природа", name: "Природа",
+      icon: "assets/school-icons/nature.svg" },
+    { id: "тень", name: "Тень", icon: "assets/school-icons/shadow.svg" },
+  ];
+
   function curGame() {
     const r = (rootRef && typeof rootRef === "object") ? rootRef
       : (typeof globalThis !== "undefined" ? globalThis : null);
@@ -44,6 +56,8 @@ function (G0, rootRef) {
   let open = false;
   let rootEl = null;    // .spellbook-oc (ленивая DOM, первый open)
   let rowsEl = null;    // контейнер строк
+  let tabsEl = null;    // 000301: .spoc-tabs (ленивая DOM)
+  let activeSchool = null; // 000301: id школы (SCHOOLS) или null = «все»
   let escAttached = false;
   let escHandler = null;
   let lastRenderDay = null;
@@ -109,15 +123,50 @@ function (G0, rootRef) {
     const title = d.createElement("div");
     title.className = "spoc-title";
     title.textContent = "Книга заклинаний (вне боя)";
+    tabsEl = d.createElement("div");
+    tabsEl.className = "spoc-tabs";
+    for (const s of SCHOOLS) {
+      const tab = d.createElement("button");
+      tab.type = "button";
+      tab.className = "spoc-tab";
+      tab.title = s.name;
+      tab.setAttribute("data-school", s.id);
+      tab.setAttribute("aria-label", s.name);
+      const icon = d.createElement("img");
+      icon.className = "spoc-tab-icon";
+      icon.src = s.icon;
+      icon.alt = s.name;
+      tab.appendChild(icon);
+      tab.addEventListener("click", () => selectSchool(s.id));
+      tabsEl.appendChild(tab);
+    }
     rowsEl = d.createElement("div");
     const hint = d.createElement("div");
     hint.className = "spoc-hint";
     hint.textContent = "[B] или [Esc] — закрыть";
     panel.appendChild(title);
+    panel.appendChild(tabsEl);
     panel.appendChild(rowsEl);
     panel.appendChild(hint);
     rootEl.appendChild(panel);
     d.body.appendChild(rootEl);
+  }
+
+  function selectSchool(id) {
+    if (!open || !rootEl) return;
+    activeSchool = (activeSchool === id) ? null : id;
+    render();
+  }
+
+  function refreshTabs() {
+    const kids = tabsEl ? tabsEl.children : null;
+    if (!kids || typeof kids.length !== "number") return;
+    for (let i = 0; i < kids.length; i++) {
+      const t = kids[i];
+      if (!t || !t.dataset || t.dataset.school === undefined) continue;
+      t.className = (t.dataset.school === activeSchool)
+        ? "spoc-tab spoc-tab--active" : "spoc-tab";
+    }
   }
 
   // Строки: ТОЛЬКО известные (hero.spells) с вне_боя: true. R11:
@@ -136,7 +185,11 @@ function (G0, rootRef) {
     const outside = ids.filter((id) => {
       if (!g || !g.SpellsData || !g.SpellsData.SPELLS_BY_ID) return false;
       const s = g.SpellsData.SPELLS_BY_ID[id];
-      return !!(s && s["вне_боя"] === true);
+      if (!s || s["вне_боя"] !== true) return false;
+      if (activeSchool !== null && s["школа"] !== activeSchool) {
+        return false;
+      }
+      return true;
     });
     let entries = [];
     if (g && g.SpellBook && typeof g.SpellBook.entriesFor === "function"
@@ -147,8 +200,14 @@ function (G0, rootRef) {
     if (!entries.length) {
       const empty = d.createElement("div");
       empty.className = "spoc-empty";
-      empty.textContent = "Нет изученных заклинаний вне боя";
+      const school = (activeSchool === null) ? null
+        : SCHOOLS.find((x) => x.id === activeSchool);
+      empty.textContent = (school === null)
+        ? "Нет изученных заклинаний вне боя"
+        : "Нет изученных заклинаний школы «"
+          + (school ? school.name : activeSchool) + "»";
       rowsEl.appendChild(empty);
+      refreshTabs();
       return;
     }
     const effects = (hero && Array.isArray(hero.outOfCombatEffects))
@@ -184,6 +243,7 @@ function (G0, rootRef) {
       row.appendChild(status);
       rowsEl.appendChild(row);
     }
+    refreshTabs();
   }
 
   function cast(spellId) {
@@ -276,6 +336,8 @@ function (G0, rootRef) {
     detachEl(rootEl);
     rootEl = null;
     rowsEl = null;
+    tabsEl = null;
+    activeSchool = null;
     lastRenderDay = null;
     detachEsc();
   }
