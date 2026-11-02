@@ -11540,3 +11540,110 @@ test('боевой UI: 000260-U8 — утечка практики Эфира pr
     + es.secondary.perception + ')');
   tickSlice(canvas, rafStubs);
 });
+
+// --- Вид призывного (задача 000290) ---
+//
+// Контракт: memory/000290-summon-look.md. Корень (двуслойный): (а)
+// призывной не несёт id призываемого — makeAlly не пишет mobId,
+// case 'призыв' (spells.js) не передаёт pa.summon; (б) allyFrames не
+// имеет ветки 'summon' — каждый kind 'summon' падает в else →
+// G.MOB_FRAMES[ALLY_MERC_KIND] (orc-архетип-заглушка 000084) — все
+// 13 заклинаний «призыв» рисуются орком. КРАСНЫЕ (TDD): ветки нет →
+// рендерит orc (контрпример — orc_* в requested[]). Фикс: u.mobId
+// (makeAlly + case 'призыв') + ПЕРВАЯ ветка 'summon' в allyFrames —
+// цепочка кандидатов (зеркало mobSprite, per-candidate image
+// fallthrough): персональный арт G.mobArtFrames(u.mobId, 'move') →
+// базовый вид G.MOB_FRAMES[G.mobSpriteKind(u.mobId)] → orc-фолбэк
+// 000084 → (вызывающая ветка) ROLE_COLORS-прямоугольник.
+// Белая коробка: kind 'summon' + u.mobId + x/y + push c.units/
+// c.turnOrder (паттерн addMerc84); u.mobId — поле, отсутствующее в
+// текущем коде, — выставляется вручную (производственный путь —
+// 000290-CAST-1/AUDIT-1 в tests/summon-appearance-000290.test.js).
+
+// Призывной (kind 'summon'): G.makeAlly + u.mobId + x/y + очередь хода.
+// mobId undefined — вариант БЕЗ поля (деградация 000084, R3).
+function addSummon84(c, G, x, y, mobId) {
+  const u = G.makeAlly({ name: 'Ветряной стихийник', role: 'ranged',
+    level: 2, dmg: 1, hp: 1, kind: 'summon' }, 1);
+  if (mobId !== undefined) u.mobId = mobId;
+  u.x = x; u.y = y;
+  c.units.push(u);
+  c.turnOrder.push(u.id);
+  return u;
+}
+
+test('боевой UI: 000290 — призывной (kind «summon», mobId «wind_elemental»): персональный арт призываемого (mobArtFrames «move») на клетке союзника; orc НЕ запрашивается (красный, 000290)', () => {
+  const S = scene84({ loader:
+    [['assets/sprites/mobs/wind_elemental_', { __fake: 'wind_art' }],
+     ['assets/sprites/mobs/elemental_', { __fake: 'elem_kind' }],
+     ['assets/sprites/mobs/orc_', { __fake: 'orc_fb' }]] });
+  const u = addSummon84(S.c, S.G, 5, 2, 'wind_elemental');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const N = S.G.frameIndex(NOW84, u.x, u.y, 2) + 1;
+  const art = 'assets/sprites/mobs/wind_elemental_move_' + N + '.svg';
+  assert.ok(S.requested.includes(art),
+    'RED: запрошен персональный арт призываемого (' + art
+    + '); факт: ' + JSON.stringify(S.requested));
+  assert.equal(
+    S.requested.filter((p) => p.startsWith('assets/sprites/mobs/orc_'))
+      .length, 0,
+    'RED: orc_*-кадры НЕ запрашиваются (вид — призываемого, не '
+    + 'orc-архетипа); факт: ' + JSON.stringify(S.requested));
+  const di = t.calls.find((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'wind_art');
+  assert.ok(di,
+    'RED: призывной нарисован персональным артом (не orc); '
+    + 'факт: ' + JSON.stringify(S.requested));
+  assert.equal(di[1][1], u.x * 48 + 8, 'x — клетка союзника + запас 8px');
+  assert.equal(di[1][2], u.y * 48 + 8, 'y — клетка союзника');
+  assert.equal(di[1][3], 32, '1×1: 32px');
+  assert.equal(di[1][4], 32, '1×1: 32px');
+});
+
+test('боевой UI: 000290 — призывной: цепочка — арт не загрузился → базовый вид MOB_FRAMES[mobSpriteKind] («elemental»); orc НЕ запрашивается (красный, 000290)', () => {
+  const S = scene84({ loader:
+    [['assets/sprites/mobs/elemental_', { __fake: 'elem_kind' }],
+     ['assets/sprites/mobs/orc_', { __fake: 'orc_fb' }]] });
+  const u = addSummon84(S.c, S.G, 5, 2, 'wind_elemental');
+  const t = tickSlice(S.canvas, S.rafStubs);
+  const N = S.G.frameIndex(NOW84, u.x, u.y, 2) + 1;
+  const kind = 'assets/sprites/mobs/elemental_' + N + '.svg';
+  assert.ok(S.requested.includes(kind),
+    'RED: базовый вид запрошен (per-candidate fallthrough: арт → '
+    + 'null → вид mobSpriteKind); факт: ' + JSON.stringify(S.requested));
+  assert.equal(
+    S.requested.filter((p) => p.startsWith('assets/sprites/mobs/orc_'))
+      .length, 0,
+    'RED: orc_*-кадры НЕ запрашиваются; факт: '
+    + JSON.stringify(S.requested));
+  const di = t.calls.find((c) => c[0] === 'drawImage'
+    && c[1][0] && c[1][0].__fake === 'elem_kind');
+  assert.ok(di, 'RED: призывной нарисован базовым видом (не orc)');
+  assert.equal(di[1][1], u.x * 48 + 8, 'x — клетка союзника + запас 8px');
+  assert.equal(di[1][2], u.y * 48 + 8, 'y — клетка союзника');
+  assert.equal(di[1][3], 32, '1×1: 32px');
+  assert.equal(di[1][4], 32, '1×1: 32px');
+});
+
+test('боевой UI: 000290 — призывной с неизвестным mobId / без mobId — деградация: orc-фолбэк (000084), исключений 0, рендер не падает (гварда, 000290)', () => {
+  const scene = () => scene84({ loader:
+    [['assets/sprites/mobs/orc_', { __fake: 'orc_fb' }]] });
+  const check = (S, u, what) => {
+    const t = tickSlice(S.canvas, S.rafStubs);
+    const N = S.G.frameIndex(NOW84, u.x, u.y, 2) + 1;
+    const orc = 'assets/sprites/mobs/orc_' + N + '.svg';
+    assert.ok(S.requested.includes(orc),
+      what + ': orc-кадр запрошен (деградация 000084); факт: '
+      + JSON.stringify(S.requested));
+    const di = t.calls.find((c) => c[0] === 'drawImage'
+      && c[1][0] && c[1][0].__fake === 'orc_fb');
+    assert.ok(di, what + ': нарисован orc-спрайт (не прямоугольник)');
+    assert.equal(di[1][1], u.x * 48 + 8, what + ': x — клетка союзника');
+    assert.equal(di[1][2], u.y * 48 + 8, what + ': y — клетка союзника');
+  };
+  const S1 = scene();
+  check(S1, addSummon84(S1.c, S1.G, 5, 2, 'no_such_mob'),
+    'неизвестный mobId');
+  const S2 = scene();
+  check(S2, addSummon84(S2.c, S2.G, 5, 2, undefined), 'без mobId');
+});

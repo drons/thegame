@@ -812,6 +812,7 @@
                 { rootOnAttack: true })
             : mt.traits,
           kind: 'summon',
+          mobId: pa.summon,
         }, c.units.length);
         u.summonTurns = pa.turns;
         placeAllies(c, [u]);

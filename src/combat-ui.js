@@ -1586,7 +1586,17 @@
     // player-центричная эвристика 000062, в ally-ветке НЕ читается —
     // ложный 'attack'). Без кадров/лоадера — null → фолбэк-прямоугольник
     // по роли в вызывающей ветке (деградация, не падение).
+    // 000290: призывной ('summon' + u.mobId) — ПЕРВАЯ ветка: вид призываемого — цепочка mobSprite(u, now, 'move') + orc-фолбэк 000084.
     function allyFrames(u, now, action) {
+      if (u.kind === 'summon' && u.mobId) {
+        const img = mobSprite(u, now, 'move');
+        if (img) return img;
+        const frames = G.MOB_FRAMES ? (G.MOB_FRAMES[ALLY_MERC_KIND] || []) : [];
+        if (!frames.length || !ctx.spriteLoader) return null;
+        const idx = (frames.length > 1 && G.frameIndex)
+          ? G.frameIndex(now, u.x, u.y, frames.length) : 0;
+        return ctx.spriteLoader.image(frames[idx]) || null;
+      }
       let frames = [];
       if (u.kind === 'efir') frames = G.efirFrames ? G.efirFrames(action) : [];
       else if (u.kind === 'merc' && u.id) {

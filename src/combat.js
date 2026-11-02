@@ -434,6 +434,7 @@
       spells: (data.spells || []).slice(),
       attrs: data.attrs || {},
       kind: data.kind || 'merc',
+      mobId: data.mobId || null,
       freeCast: (data.kind === 'efir') ? []
         : (Array.isArray(data.freeCast) ? data.freeCast.slice() : []),
     };
