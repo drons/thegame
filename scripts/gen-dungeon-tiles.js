@@ -128,15 +128,18 @@ function glowDot(x, y, r, o) {
 
 // --- Состав 5 типов (5 типов × 3 варианта = 15 тайлов) ---
 //
-// Палитры — те же базовые пары тонов, что у фонов боя 000049 (cave —
-// бурый, crypt — холодный серый, ruins — тёплая кладка, drowned —
-// синий с сине-зелёными подтёками, abyss — чёрно-фиолетовый):
+// Палитры — те же базовые пары тонов, что у фонов боя 000049 (crypt —
+// холодный серый, ruins — тёплая кладка, drowned — синий с
+// сине-зелёными подтёками, abyss — чёрно-фиолетовый); исключение —
+// cave (000294): плоский средний тон прежней пары #5d554d, боевой фон
+// cave.svg не пересоздан (known-следствие, memory/000294-cave-tiles.md §8).
 // «пять типов — пять разных видов». Базовый градиент типа общий для
 // всех 3 вариантов — сид меняет только раскладку деталей.
 
 const TYPES = [
   {
-    slug: 'cave', top: '#6e655a', bottom: '#4b443b',
+    slug: 'cave', top: '#5d554d', bottom: '#5d554d',
+    spotMargin: 16, spotRxSpan: 5,
     light: '#837969', lightOp: 0.35, dark: '#362f29', darkOp: 0.45,
     details(rnd, out) {
       for (let i = 0; i < 6; i++) {
@@ -148,8 +151,8 @@ const TYPES = [
         out.push(pebble(p.x, p.y, 1.2 + rnd() * 1.6, '#574e44', f(0.5 + rnd() * 0.3)));
       }
       for (let i = 0; i < 4; i++) {
-        const p = inner(rnd);
-        out.push(crack(p.x, p.y, 3 + rnd() * 4, '#362f29', f(0.3 + rnd() * 0.2)));
+        const p = { x: 10 + rnd() * 36, y: 10 + rnd() * 44 };
+        out.push(crack(p.x, p.y, 3 + rnd() * 3, '#362f29', f(0.3 + rnd() * 0.2)));
       }
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
@@ -159,6 +162,7 @@ const TYPES = [
   },
   {
     slug: 'crypt', top: '#5a6170', bottom: '#3a404e',
+    spotMargin: 14, spotRxSpan: 8,
     light: '#6d7586', lightOp: 0.35, dark: '#2a2f3c', darkOp: 0.45,
     details(rnd, out) {
       for (let i = 0; i < 5; i++) {
@@ -185,6 +189,7 @@ const TYPES = [
   },
   {
     slug: 'ruins', top: '#7a6f60', bottom: '#544c41',
+    spotMargin: 14, spotRxSpan: 8,
     light: '#8f8574', lightOp: 0.35, dark: '#403a31', darkOp: 0.45,
     details(rnd, out) {
       for (let i = 0; i < 5; i++) {
@@ -207,6 +212,7 @@ const TYPES = [
   },
   {
     slug: 'drowned', top: '#2a5494', bottom: '#16295c',
+    spotMargin: 14, spotRxSpan: 8,
     light: '#3a6cb0', lightOp: 0.4, dark: '#0f1f4a', darkOp: 0.5,
     details(rnd, out) {
       for (let i = 0; i < 6; i++) {
@@ -230,6 +236,7 @@ const TYPES = [
   },
   {
     slug: 'abyss', top: '#171221', bottom: '#0a0713',
+    spotMargin: 14, spotRxSpan: 8,
     light: '#241a33', lightOp: 0.5, dark: '#04020a', darkOp: 0.5,
     details(rnd, out) {
       for (let i = 0; i < 7; i++) {
@@ -261,6 +268,7 @@ TYPES.forEach((t, i) => {
       key: t.slug + '_' + n,
       seed: 0x69000100 + i * 3 + n,
       top: t.top, bottom: t.bottom,
+      spotMargin: t.spotMargin, spotRxSpan: t.spotRxSpan,
       light: t.light, lightOp: t.lightOp,
       dark: t.dark, darkOp: t.darkOp,
       details: t.details,
@@ -294,13 +302,13 @@ function buildDungeonFloorTile(t) {
   // 0 — без периода и без жёсткого края, на стыках не рвётся).
   L.push(`  <g>`);
   for (let i = 0; i < 4; i++) {
-    const p = inner(rnd, 14);
-    const rx = 8 + rnd() * 8, ry = rx * (0.55 + rnd() * 0.3);
+    const p = inner(rnd, t.spotMargin);
+    const rx = 8 + rnd() * t.spotRxSpan, ry = rx * (0.55 + rnd() * 0.3);
     L.push(`    <ellipse cx="${f(p.x)}" cy="${f(p.y)}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#gl)"/>`);
   }
   for (let i = 0; i < 4; i++) {
-    const p = inner(rnd, 14);
-    const rx = 8 + rnd() * 8, ry = rx * (0.55 + rnd() * 0.3);
+    const p = inner(rnd, t.spotMargin);
+    const rx = 8 + rnd() * t.spotRxSpan, ry = rx * (0.55 + rnd() * 0.3);
     L.push(`    <ellipse cx="${f(p.x)}" cy="${f(p.y)}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#gd)"/>`);
   }
   L.push(`  </g>`);

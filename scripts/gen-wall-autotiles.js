@@ -19,10 +19,10 @@
 // Бесшовность (паттерн 000069): базовый вертикальный linearGradient
 // (2 стопа) идентичен во ВСЕХ 20 плитках стиля; детали (фасетки/
 // крапинки) — только в центральной области 12..52, внешние ~8 px —
-// чистая база. Палитры: city #77685a→#66594c (фолбэк-палитра города),
-// rock #7d7468→#4e463d, column #7a7164→#4c453b,
-// stalactite #7d7468→#4e463d (базовые градиенты стен 000070);
-// фасетки/крапинки #948a7b / #332c25.
+// чистая база. Палитры: city — градиент #77685a→#66594c (фолбэк-палитра
+// города), фасетки/крапинки #948a7b / #332c25, кромка 0.55/0.4;
+// rock/column/stalactite — плоская база #9c9488 (2 равных стопа, 000294),
+// фасетки/крапинки #b7b0a4 / #322c24, кромка 0.8/0.65.
 //
 // Генерация полностью детерминирована: сид от (стиль, idx), порядок
 // элементов и атрибутов фиксирован, координаты округлены до 0.1 px,
@@ -59,19 +59,20 @@ const NAMES = [
   'cSE', 'cSW', 'cNE', 'cNW',
 ];
 
-const LIGHT = '#948a7b';
-const DARK = '#332c25';
-
 const STYLES = [
-  { name: 'city',       top: '#77685a', bottom: '#66594c', dir: 'assets/city/walls',    prefix: 'city_',       base: 0x57a10001 },
-  { name: 'rock',       top: '#7d7468', bottom: '#4e463d', dir: 'assets/dungeon/walls', prefix: 'rock_',       base: 0x57a20001 },
-  { name: 'column',     top: '#7a7164', bottom: '#4c453b', dir: 'assets/dungeon/walls', prefix: 'column_',     base: 0x57a30001 },
-  { name: 'stalactite', top: '#7d7468', bottom: '#4e463d', dir: 'assets/dungeon/walls', prefix: 'stalactite_', base: 0x57a40001 },
+  { name: 'city',       top: '#77685a', bottom: '#66594c', dir: 'assets/city/walls',    prefix: 'city_',       base: 0x57a10001,
+    light: '#948a7b', dark: '#332c25', edgeLightOp: 0.55, edgeDarkOp: 0.4 },
+  { name: 'rock',       top: '#9c9488', bottom: '#9c9488', dir: 'assets/dungeon/walls', prefix: 'rock_',       base: 0x57a20001,
+    light: '#b7b0a4', dark: '#322c24', edgeLightOp: 0.8, edgeDarkOp: 0.65 },
+  { name: 'column',     top: '#9c9488', bottom: '#9c9488', dir: 'assets/dungeon/walls', prefix: 'column_',     base: 0x57a30001,
+    light: '#b7b0a4', dark: '#322c24', edgeLightOp: 0.8, edgeDarkOp: 0.65 },
+  { name: 'stalactite', top: '#9c9488', bottom: '#9c9488', dir: 'assets/dungeon/walls', prefix: 'stalactite_', base: 0x57a40001,
+    light: '#b7b0a4', dark: '#322c24', edgeLightOp: 0.8, edgeDarkOp: 0.65 },
 ];
 
 // Кромка вдоль края: светлый свес (4 px от края) + тонкая тёмная линия
 // шва (1.5 px), рисуются ВНУТРЬ плитки от граничного края.
-function edgeBand(bit) {
+function edgeBand(bit, st) {
   let overhang, seam;
   if (bit === 1) {
     overhang = { x: 0, y: 0, w: SIZE, h: 4 };
@@ -87,8 +88,8 @@ function edgeBand(bit) {
     seam = { x: 4, y: 0, w: 1.5, h: SIZE };
   }
   const r = (b) => `<rect x="${f(b.x)}" y="${f(b.y)}" width="${f(b.w)}" height="${f(b.h)}"/>`;
-  return `<g fill="${LIGHT}" opacity="0.55">${r(overhang)}</g>` +
-    `<g fill="${DARK}" opacity="0.4">${r(seam)}</g>`;
+  return `<g fill="${st.light}" opacity="${st.edgeLightOp}">${r(overhang)}</g>` +
+    `<g fill="${st.dark}" opacity="${st.edgeDarkOp}">${r(seam)}</g>`;
 }
 
 // Угловая плитка: диагональный свес в углу (катеты 12 px) + линия шва,
@@ -100,15 +101,15 @@ const CORNERS = {
   cNW: { tri: '0,0 12,0 0,12',     seam: 'M8 0 L0 8' },
 };
 
-function cornerBand(name) {
+function cornerBand(name, st) {
   const c = CORNERS[name];
-  return `<polygon points="${c.tri}" fill="${LIGHT}" opacity="0.55"/>` +
-    `<path d="${c.seam}" stroke="${DARK}" stroke-width="1.5" fill="none" opacity="0.4"/>`;
+  return `<polygon points="${c.tri}" fill="${st.light}" opacity="${st.edgeLightOp}"/>` +
+    `<path d="${c.seam}" stroke="${st.dark}" stroke-width="1.5" fill="none" opacity="${st.edgeDarkOp}"/>`;
 }
 
 // Центральные детали (только область 12..52 — внешние ~8 px чистая
 // база, бесшовность по краю плитки): одна фасетка + 4 крапинки.
-function centerDetails(rnd) {
+function centerDetails(rnd, st) {
   const px = () => f(12 + rnd() * 40);
   const out = [];
   const cx = 16 + rnd() * 32;
@@ -119,9 +120,9 @@ function centerDetails(rnd) {
     [f(cx + s / 2), f(cy - s / 4)],
     [f(cx + s / 3), f(cy + s / 2)],
   ].map((p) => p.join(',')).join(' ');
-  out.push(`<polygon points="${pts}" fill="${rnd() < 0.5 ? LIGHT : DARK}" opacity="${f(0.12 + rnd() * 0.08)}"/>`);
+  out.push(`<polygon points="${pts}" fill="${rnd() < 0.5 ? st.light : st.dark}" opacity="${f(0.12 + rnd() * 0.08)}"/>`);
   for (let i = 0; i < 4; i++) {
-    out.push(`<circle cx="${px()}" cy="${px()}" r="${f(0.5 + rnd() * 0.9)}" fill="${rnd() < 0.5 ? LIGHT : DARK}" opacity="${f(0.2 + rnd() * 0.2)}"/>`);
+    out.push(`<circle cx="${px()}" cy="${px()}" r="${f(0.5 + rnd() * 0.9)}" fill="${rnd() < 0.5 ? st.light : st.dark}" opacity="${f(0.2 + rnd() * 0.2)}"/>`);
   }
   return out.join('');
 }
@@ -131,9 +132,9 @@ function buildTile(tile) {
   const rnd = mulberry32((st.base + tile.idx) >>> 0);
   const bits = tile.idx & 15;
   const edge = tile.idx < 16
-    ? (bits & 1 ? edgeBand(1) : '') + (bits & 2 ? edgeBand(2) : '') +
-      (bits & 4 ? edgeBand(4) : '') + (bits & 8 ? edgeBand(8) : '')
-    : cornerBand(NAMES[tile.idx]);
+    ? (bits & 1 ? edgeBand(1, st) : '') + (bits & 2 ? edgeBand(2, st) : '') +
+      (bits & 4 ? edgeBand(4, st) : '') + (bits & 8 ? edgeBand(8, st) : '')
+    : cornerBand(NAMES[tile.idx], st);
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
     `<defs><linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">` +
     `<stop offset="0" stop-color="${st.top}"/>` +
@@ -141,7 +142,7 @@ function buildTile(tile) {
     '</linearGradient></defs>' +
     '<g>' +
     `<rect x="0" y="0" width="${SIZE}" height="${SIZE}" fill="url(#wg)"/>` +
-    centerDetails(rnd) +
+    centerDetails(rnd, st) +
     edge +
     '</g></svg>';
 }
