@@ -651,6 +651,40 @@ function castVines(h) {
   return G;
 }
 
+// 000235.12.02 (D3, ретро-пин): счётчики RNG на сегменте ходьбы —
+// ноль новых вызовов (контракт .12.01 D3: «стоимость — чистая
+// функция; ноль нового rng»). Каналы: Math.random контекста (Proxy
+// над Матем контекста: игровой код в контексте видит стаб, функции
+// host-realm — host-Math), generateSeedPixels (пересборка карты —
+// в сегменте не должна быть) и воронка combatUI.startCombat (все
+// старты боя в мире через неё; инстанс боя c._rng на сегменте не
+// существует — 0 startCombat закрывает канал). Установка ПОСЛЕ
+// boot/fixture-ассертов: меряется сегмент, а не жизнь сандбокса.
+function installRngCounters(h) {
+  const n = { math: 0, seed: 0, combat: 0 };
+  const G = h.sandbox.Game;
+  const realMath = vm.runInContext('Math', h.sandbox);
+  h.sandbox.Math = new Proxy(realMath, {
+    get(t, k) {
+      if (k === 'random') {
+        return () => { n.math += 1; return 0.99; };
+      }
+      return t[k];
+    },
+  });
+  const seed0 = G.generateSeedPixels;
+  G.generateSeedPixels = (...a) => {
+    n.seed += 1;
+    return seed0.apply(G, a);
+  };
+  const start0 = G.combatUI.startCombat;
+  G.combatUI.startCombat = (...a) => {
+    n.combat += 1;
+    return start0.apply(G.combatUI, a);
+  };
+  return n;
+}
+
 // =====================================================================
 // V-1 (RED) — контроль БЕЗ заклинания: базовая цена плотного тайла
 // (лес) — 2 хода; открытая местность (трава) — 1 ход.
@@ -678,6 +712,7 @@ test('000235.12.01 V-1 (RED): мир без заклинания — шаг на
   assert.equal(g.state.stepsToday, 0, 'фикстура: 0 шагов в дне');
   assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
     'фикстура: записей нет (каста НЕТ)');
+  const n = installRngCounters(h);
   const step = makeStepper(h);
   step.walk(3, 37); // лес (FOREST)
   assert.equal(g.state.player.x, 3, 'шаг: x (3,37)');
@@ -689,6 +724,12 @@ test('000235.12.01 V-1 (RED): мир без заклинания — шаг на
   step.walk(3, 36); // трава (GRASS)
   assert.equal(g.state.stepsToday, 3,
     'открытая местность (трава) — 1 ход (2 + 1)');
+  assert.equal(n.math, 0,
+    'D3: 0 Math.random на walking-сегменте (лес + трава)');
+  assert.equal(n.seed, 0,
+    'D3: 0 generateSeedPixels на сегменте (карта не перегенерирована)');
+  assert.equal(n.combat, 0,
+    'D3: 0 стартов боя на сегменте (воронка startCombat, канал c._rng)');
 });
 
 // =====================================================================
@@ -852,6 +893,7 @@ test('000235.12.01 V-4 (guard): D3 — два свежих сэндбокса, �
   const run = async () => {
     const hb = await boot(seed);
     dismissStartWindow(hb);
+    runs.push(installRngCounters(hb));
     const gb = hb.sandbox.__game;
     const Gb = hb.sandbox.Game;
     learn(hb, ['path_of_vines']);
@@ -869,6 +911,7 @@ test('000235.12.01 V-4 (guard): D3 — два свежих сэндбокса, �
       outOfCombatEffects: gb.state.hero.outOfCombatEffects,
     });
   };
+  const runs = [];
   const A = await run();
   const B = await run();
   assert.equal(A.x, 3, 'маршрут: позиция x (3,37)');
@@ -879,4 +922,116 @@ test('000235.12.01 V-4 (guard): D3 — два свежих сэндбокса, �
   assert.deepEqual(A, B,
     'D3: два независимых запуска — идентичное состояние '
     + '(позиция/day/stepsToday/outOfCombatEffects) — ноль нового rng');
+  for (let i = 0; i < runs.length; i += 1) {
+    assert.equal(runs[i].math, 0,
+      'D3: запуск ' + (i + 1) + ': 0 Math.random за весь маршрут');
+    assert.equal(runs[i].seed, 0,
+      'D3: запуск ' + (i + 1)
+      + ': 0 generateSeedPixels (карта не перегенерирована)');
+    assert.equal(runs[i].combat, 0,
+      'D3: запуск ' + (i + 1)
+      + ': 0 стартов боя (воронка startCombat, канал c._rng)');
+  }
+});
+
+// =====================================================================
+// V-5 (000235.12.02, ретро-пин) — истечение В ЛЕСУ (контракт .12.01
+// §3.4): смена дня с героем на FOREST — heroPassable(FOREST) =
+// t.passable = true → релокации НЕТ, новых console.error НЕТ, запись
+// вылетела (expiresDay <= day), следующий лесной шаг — базовая цена
+// 2 хода. Оба setDay(2) у V-1c — герой на траве; лесной случай не
+// был покрыт.
+// =====================================================================
+
+test('000235.12.02 V-5: истечение в лесу — герой остаётся на FOREST (без релокации), без новых console.error, запись вылетела; следующий лесной шаг — базовые 2 хода', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    position: { x: 3, y: 36 },
+    hero: mkHero07({ mp: 20, primary: PRIMARY }),
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(myMap.tileAt(3, 37).passable
+    && myMap.tileAt(3, 37).terrain === G.TERRAIN.FOREST
+    && !myMap.tileAt(3, 37).hasMobGroup
+    && !myMap.tileAt(3, 37).hasBuilding
+    && myMap.tileAt(3, 38).passable
+    && myMap.tileAt(3, 38).terrain === G.TERRAIN.FOREST
+    && !myMap.tileAt(3, 38).hasMobGroup
+    && !myMap.tileAt(3, 38).hasBuilding,
+    'фикстура: (3,37) и (3,38) — лес (passable, без группы/постройки)');
+  assert.equal(g.state.day, 1, 'фикстура: день 1');
+  assert.equal(g.state.stepsToday, 0, 'фикстура: 0 шагов в дне');
+  learn(h, ['path_of_vines']);
+  castVines(h);
+  const step = makeStepper(h);
+  step.walk(3, 37); // лес с эффектом: 1 ход
+  assert.equal(g.state.stepsToday, 1,
+    'каст: шаг на лес — 1 ход (эффект активен)');
+  const errs0 = h.errors.length;
+  g.actions.setDay(2);
+  assert.equal(g.state.day, 2, 'день 2 (setDay)');
+  assert.equal(g.state.stepsToday, 0, 'rest: счётчик шагов дня сброшен');
+  assert.equal(g.state.player.x, 3,
+    'без релокации в лесу: x (3,37) без сдвига');
+  assert.equal(g.state.player.y, 37,
+    'без релокации в лесу: y (3,37) без сдвига');
+  assert.deepEqual(host(g.state.hero.outOfCombatEffects), [],
+    'день 2: запись вылетела (expiresDay <= day)');
+  assert.equal(h.errors.length, errs0,
+    'без НОВЫХ console.error (лес проходим всегда)');
+  step.walk(3, 38); // лес без эффекта: базовая цена
+  assert.equal(g.state.stepsToday, 2,
+    'следующий лесной шаг — базовые 2 хода (эффект вылетел)');
+});
+
+// =====================================================================
+// V-6 (000235.12.02, ретро-пин) — carry через порог (контракт .12.01
+// §3.4: «addStep carry, избыток переходит»): порог steps_per_day = 40
+// пересечён ДВУХОВЫМ лесным шагом — 14 циклов (3,36)↔(3,37) = 42
+// единицы (лес 2 + трава 1) → день 2 на 41-й (14-й цикл), избыток 1,
+// финал {day: 2, stepsToday: 2} = afterSteps(1, 0, 40, 42). V-2
+// пересечения порога в мире не делала (подземелье 3, город 2).
+// =====================================================================
+
+test('000235.12.02 V-6: 42 единицы стоимости (14 циклов (3,36)↔(3,37)) — смена дня на пороге 40 двуховым лесным шагом, carry: финал {day: 2, stepsToday: 2}', async () => {
+  const h = await boot(seedSave07({
+    day: 1,
+    position: { x: 3, y: 36 },
+  }));
+  dismissStartWindow(h);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  assert.ok(myMap.tileAt(3, 36).passable
+    && myMap.tileAt(3, 36).terrain === G.TERRAIN.GRASS
+    && myMap.tileAt(3, 37).passable
+    && myMap.tileAt(3, 37).terrain === G.TERRAIN.FOREST
+    && !myMap.tileAt(3, 36).hasMobGroup
+    && !myMap.tileAt(3, 37).hasMobGroup
+    && !myMap.tileAt(3, 37).hasBuilding,
+    'фикстура: (3,36) — трава, (3,37) — лес (passable, без '
+    + 'группы/постройки)');
+  assert.equal(g.state.day, 1, 'фикстура: день 1');
+  assert.equal(g.state.stepsToday, 0, 'фикстура: 0 шагов в дне');
+  const step = makeStepper(h);
+  for (let i = 0; i < 13; i += 1) {
+    step.walk(3, 37); // +2 (лес)
+    step.walk(3, 36); // +1 (трава)
+  }
+  assert.equal(g.state.day, 1, 'день 1 (13 циклов = 39 единиц < 40)');
+  assert.equal(g.state.stepsToday, 39, '39 единиц (13 × (2 + 1))');
+  step.walk(3, 37); // +2 → 41 >= 40 → день 2
+  assert.equal(g.state.day, 2,
+    'смена дня на пороге 40 — двуховым лесным шагом (39 + 2 = 41)');
+  assert.equal(g.state.stepsToday, 1,
+    'carry: 41 − 40 = 1 единица перешла в день 2');
+  step.walk(3, 36); // +1 → 2
+  assert.deepEqual(
+    { day: g.state.day, steps: g.state.stepsToday },
+    afterSteps(1, 0, 40, 42),
+    'финал {day: 2, stepsToday: 2} = afterSteps(1, 0, 40, 42) — '
+    + 'carry через порог сохранён');
 });

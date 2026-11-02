@@ -1276,13 +1276,15 @@ const OLD_TILE_COLORS = {
 const OLD_PASSABLE_IDS = [2, 3, 4, 5, 7];
 // dense — из DENSE (buildings.js): песок/трава/лес/холмы.
 const OLD_DENSE_IDS = [2, 3, 4, 5];
+// thick — из TERRAIN_DATA (map.js, 000235.12.01): только FOREST.
+const OLD_THICK_IDS = [4];
 
 const terrainIds = () =>
   Object.keys(TERRAIN_DATA).map(Number).sort((a, b) => a - b);
 const hexChannel = (hex, i) =>
   parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
 
-test('TERRAIN_DATA: ровно 8 записей, ключи = значения enum TERRAIN, поля name/passable/dense/base/rgb', () => {
+test('TERRAIN_DATA: ровно 8 записей, ключи = значения enum TERRAIN, поля name/passable/dense/thick/base/rgb', () => {
   assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
     'map.js: нет экспорта TERRAIN_DATA');
   assert.deepEqual(terrainIds(),
@@ -1294,6 +1296,7 @@ test('TERRAIN_DATA: ровно 8 записей, ключи = значения e
     assert.notEqual(d.name.trim(), '', `id ${id}: name не пуст`);
     assert.equal(typeof d.passable, 'boolean', `id ${id}: passable — boolean`);
     assert.equal(typeof d.dense, 'boolean', `id ${id}: dense — boolean`);
+    assert.equal(typeof d.thick, 'boolean', `id ${id}: thick — boolean`);
     assert.equal(typeof d.base, 'string', `id ${id}: base — строка`);
     assert.match(d.base, /^#[0-9a-f]{6}$/i, `id ${id}: base — hex #rrggbb`);
     assert.ok(Array.isArray(d.rgb) && d.rgb.length === 3,
@@ -1329,7 +1332,7 @@ test('два представления цвета согласованы: rgb[i
   }
 });
 
-test('TERRAIN_DATA: значения зафиксированы — мир НЕ меняется (имена, hex, rgb, passable, dense)', () => {
+test('TERRAIN_DATA: значения зафиксированы — мир НЕ меняется (имена, hex, rgb, passable, dense, thick)', () => {
   assert.ok(TERRAIN_DATA, 'map.js: нет TERRAIN_DATA');
   for (const id of Object.keys(OLD_TERRAIN_NAMES)) {
     const i = Number(id);
@@ -1340,6 +1343,7 @@ test('TERRAIN_DATA: значения зафиксированы — мир НЕ 
     assert.deepEqual(d.rgb, OLD_TILE_COLORS[i], `id ${i}: rgb`);
     assert.equal(d.passable, OLD_PASSABLE_IDS.includes(i), `id ${i}: passable`);
     assert.equal(d.dense, OLD_DENSE_IDS.includes(i), `id ${i}: dense`);
+    assert.equal(d.thick, OLD_THICK_IDS.includes(i), `id ${i}: thick`);
   }
   assert.deepEqual(TERRAIN_NAMES, OLD_TERRAIN_NAMES, 'TERRAIN_NAMES не сдвинулся');
 });

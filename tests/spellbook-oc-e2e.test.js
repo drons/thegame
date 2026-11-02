@@ -2292,12 +2292,12 @@ test('000235.12 W-13: e2e path_of_vines (книга) — состояние-пи
   // Механика — 000235.12.01 (тест не ходит — пины состояния):
   // стат/позиция/рендер без изменений.
   assert.equal(G.derived(saveHero(h)).moveCells, dc0,
-    'NO-OP: derived.moveCells без изменений (' + dc0 + ')');
+    'состояние-пин: derived.moveCells без изменений (' + dc0 + ')');
   h.frameFn(NOW + 32); await drain();
   assert.deepEqual(host({ x: g.state.player.x, y: g.state.player.y }),
-    posBefore, 'NO-OP: позиция героя без сдвига');
+    posBefore, 'состояние-пин: позиция героя без сдвига');
   assert.equal(h.errors.length, errBefore,
-    'NO-OP: без новых console.error: '
+    'состояние-пин: без новых console.error: '
     + h.errors.slice(errBefore).join('; '));
   // Предикат: день каста (1) — активен (expiresDay 2 >= 1).
   assert.equal(G.Spells.isHeroPathOfVines(g.state.hero, 1), true,
