@@ -6183,7 +6183,28 @@ test('000235.11 W-03: параметры — точный deepEqual на 23 (т�
   });
 });
 
-test('000235.11 W-04: case «защита» params-aware — legacy три (magic_shield/stone_skin/ward — ключа «параметры» НЕТ) бит-в-бит {armor: 1+степень, turns: 3}, c.ps.buff нетронут; плоская (value без stat) — armor = value (iron_bulwark 1 / magical_barrier 3); hasStat — armor 1+степень + вторичный баф (aegis {отражение,0.25,3} / stony_hide {иммунитет_контроля,1,3} — NO-OP: пишутся, потребителя нет, краха нет)', () => {
+test('000283.01-DESC: thorns 000126 «описание» — «ближнего» убрано (решение дизайнера (a): ЛЮБОЙ урон) + зеркало spells-data; aegis/stony_hide/fortitude — guard (красный, 000283.01)', () => {
+  const d = JSON.parse(fs.readFileSync(
+    path.join(DIR, '000126.json'), 'utf8'));
+  assert.equal(d.id, 'thorns', 'фикстура: 000126 = thorns');
+  assert.equal(d.описание, 'Шипы: отражение 25% урона на 3 раунда.',
+    'RED: desc «ближнего» убрано (вариант (a): counter на ЛЮБОМ уроне)');
+  assert.equal(loadSpellsData().SPELLS_BY_ID.thorns.описание,
+    'Шипы: отражение 25% урона на 3 раунда.',
+    'RED: зеркало spells-data = каталог (W-08: sync в том же коммите)');
+  for (const [f, id, desc] of [
+    ['000119.json', 'aegis',
+     'Эгида: +2 к броне и отражение 25% урона на 3 раунда.'],
+    ['000122.json', 'stony_hide',
+     'Каменный панцирь: +2 к броне и иммунитет к контролю на 3 раунда.'],
+    ['000127.json', 'fortitude',
+     'Крепость духа: иммунитет к контролю на 3 раунда.']]) {
+    const dd = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(dd.описание, desc, `${id}: desc без изменений (guard)`);
+  }
+});
+
+test('000235.11 W-04: case «защита» params-aware — legacy три (magic_shield/stone_skin/ward — ключа «параметры» НЕТ) бит-в-бит {armor: 1+степень, turns: 3}, c.ps.buff нетронут; плоская (value без stat) — armor = value (iron_bulwark 1 / magical_barrier 3); hasStat — armor 1+степень + вторичный баф (aegis {отражение,0.25,3} — consumer 000283.01 (counter-урон); stony_hide {иммунитет_контроля,1,3} — NO-OP: потребитель не появился (подзадача 000283.01.01), краха нет)', () => {
   const dataMod = loadSpellsData();
   const { castSpell } = loadSpells();
   // (a) legacy — бит-в-бит (регрессия, «параметры» нет).
@@ -6215,10 +6236,13 @@ test('000235.11 W-04: case «защита» params-aware — legacy три (magi
       `${id}: плоская — c.ps.buff нетронут (стата нет)`);
     assert.equal(p.mp, 30 - mana, `${id}: мана −${mana}`);
   }
-  // (c) hasStat — armor 1+степень + вторичный баф (NO-OP-статы).
-  for (const [id, stat, value] of [
-    ['aegis', 'отражение', 0.25],
-    ['stony_hide', 'иммунитет_контроля', 1]]) {
+  // (c) hasStat — armor 1+степень + вторичный баф (aegis — consumer
+  // 000283.01; stony_hide — NO-OP, подзадача 000283.01.01).
+  for (const [id, stat, value, note] of [
+    ['aegis', 'отражение', 0.25,
+     'consumer 000283.01 (counter-урон)'],
+    ['stony_hide', 'иммунитет_контроля', 1,
+     'NO-OP: потребитель не появился (подзадача 000283.01.01), краха нет']]) {
     assert.ok(dataMod.SPELLS_BY_ID[id], `W-04: ${id} (RED: нет)`);
     const p = spellHero({ spells: [id], wisdom: 10, mp: 30 });
     const c = soloCombat(p, 'wolf');
@@ -6227,7 +6251,7 @@ test('000235.11 W-04: case «защита» params-aware — legacy три (magi
     assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 },
       `${id}: hasStat — armor 1+степень(1) = 2`);
     assert.deepEqual(c.ps.buff, { stat, value, turns: 3 },
-      `${id}: вторичный баф {${stat}, ${value}, 3} (NO-OP: краха нет)`);
+      `${id}: вторичный баф {${stat}, ${value}, 3} (${note})`);
   }
 });
 

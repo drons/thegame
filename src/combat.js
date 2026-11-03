@@ -2068,6 +2068,14 @@
         log(c, 'Воля подорвана: −1 действие.');
       }
     }
+    if (c.ps.buff && c.ps.buff.stat === 'отражение'
+        && c.ps.buff.turns > 0) {
+      const refl = Math.round(dealt.dmg * c.ps.buff.value);
+      if (refl > 0) {
+        const r = dealDamageToMob(c, u, refl);
+        log(c, `Отражение: −${r.dmg}.`);
+      }
+    }
   }
 
   // Удар моба по СОЮЗНИКУ (задача 000080): те же бросок/ослабление, но
@@ -2099,7 +2107,15 @@
     if (u.weakened && u.weakened.turns > 0) dmg *= u.weakened.mult;
     // 000235.01: дебаф моба «урон_вниз» — ×(1−v) (как mobAttack).
     dmg *= 1 - unitDebuffValue(c, u, 'урон_вниз');
-    dealDamageToAlly(c, t, dmg);
+    const dealt = dealDamageToAlly(c, t, dmg);
+    if (t.buff && t.buff.stat === 'отражение'
+        && t.buff.turns > 0) {
+      const refl = Math.round(dealt * t.buff.value);
+      if (refl > 0) {
+        const r = dealDamageToMob(c, u, refl);
+        log(c, `Отражение: −${r.dmg}.`);
+      }
+    }
   }
 
   function mobAct(c, u) {

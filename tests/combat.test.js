@@ -11231,3 +11231,202 @@ test('000235.08.01-HASTE-2: «ход» (blazing_speed) — +1 «Удар» иг�
   assert.equal(a.poolAfter, 0, 'пул Интеллекта после каста: 1 − 1');
   assert.equal(a.result, null, 'бой идёт (никто не пал)');
 });
+
+// =====================================================================
+// Задача 000283.01: потребитель «отражение» (counter-урон) — КРАСНЫЕ
+// тесты (TDD). Файл задач: tasks/pending/000283.01.md.
+//
+// Решение дизайнера: (a) «отражение» — ЛЮБОЙ урон по носителю:
+// consumer ПОСЛЕ факта урона — counter-урон атакующему мобыму
+// round(факт × value) через существующий путь урона по мобыму
+// (dealDamageToMob: броня моба, минимум 1), 0 новых c._rng, лог
+// «Отражение: −N.»; точки — mobAttack (игрок, c.ps.buff) и
+// mobAttackAlly (союзник, t.buff; возврат dealDamageToAlly
+// читается). (iii) СПЛИТ: «иммунитет_контроля» — потребитель НЕ
+// ДЕЛАЕТСЯ (подзадача 000283.01.01; IMM-1 вырезано).
+//
+// Состояние до GREEN: каталог кастуется штатно, c.ps.buff/t.buff
+// ПЕРЕГРУЖАЮТСЯ существующим кодом (case «баф»/«защита»), но 0 точек
+// потребления в src/combat.js — hp моба инвариантен, лога
+// «Отражение» нет.
+//
+// Закреплённые контракты (RED):
+//   * 000283.01-REF-1 — игрок (c.ps.buff): каст thorns → mobAttack
+//     наносит N = 10 → атакующий волк получает round(10×0.25) =
+//     Math.round(2.5) = 3 (лог «Отражение: −3.»); окно turns: раунды
+//     2–3 (turns 2→1),
+//     с раунда 4 — нет (ровно 3 раунда, включая каст; tик —
+//     startRound); legacy-контроль (тот же бой БЕЗ каста): дельта
+//     волка 0, траектория hp игрока/лога идентична (без баф-строк),
+//     RNG-гварда — 0 новых c._rng (ровно хит-роллы);
+//   * 000283.01-REF-1b — aegis (case «защита», hasStat): c.ps.shield
+//     {armor: 2, turns: 3} + c.ps.buff {отражение, 0.25, 3} (один
+//     слот) — consumer НЕ зависит от case записи: факт = 10 − 2
+//     (щит) = 8 → round(8×0.25) = 2;
+//   * 000283.01-REF-2 — союзник (t.buff): mobAttackAlly — возврат
+//     dealDamageToAlly (число факта) читается: волк (2,4) вплотную
+//     к наёмнику (2,5), игрок (3,6) дальше (манхэттен 3 против 1)
+//     → волк бьёт наёмника; t.buff прямой записью
+//     (паттерн 000267-SHR-1(i)) →
+//     волк получает round(10×0.25) = Math.round(2.5) = 3 на ударах
+//     r2–r3, r4 — нет;
+//     legacy (без t.buff) — дельта 0, бит-в-бит, RNG-гварда.
+//
+// expectedRedCount (блок) = 3 (REF-1, REF-1b, REF-2).
+// =====================================================================
+
+test('000283.01-REF-1: «отражение» — игрок (c.ps.buff): каст thorns → mobAttack наносит N → атакующий моб получает round(N×0.25) (красный, 000283.01)', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    p.primary.wisdom = 10;
+    p.spells = cast ? ['thorns'] : [];
+    p.mp = 40;
+    const c = createCombat({
+      player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+    });
+    const w = c.units[0];
+    standNextTo(c, w);
+    w.damage = 10;
+    w.maxHP = 200;
+    w.hp = 200;
+    w.armor = 0;
+    if (cast) {
+      const r = castSpell(c, 'thorns');
+      assert.equal(r.ok, true, 'каст thorns — ok');
+      assert.deepEqual(c.ps.buff,
+        { stat: 'отражение', value: 0.25, turns: 3 },
+        'бафф {отражение, 0.25, 3} (запись ЕСТЬ и до GREEN)');
+      assert.equal(p.mp, 36, 'мана −4 (thorns)');
+    }
+    assert.deepEqual(c.turnOrder, ['m0', 'player'],
+      'фикстура: инициатива волка (2+1) > игрока (1+1)');
+    const hp0 = p.hp;
+    const wHp0 = w.hp;
+    let calls = 0;
+    c._rng = () => { calls += 1; return 0.01; };
+    const pHp = [];
+    const wHp = [];
+    const logF = [];
+    for (let i = 0; i < 4; i++) {
+      c.endTurn();
+      pHp.push(p.hp);
+      wHp.push(w.hp);
+      logF.push(c.log.filter((s) => !s.includes('Отражение')
+        && !s.includes('Шипы')).join(' | '));
+    }
+    return { c, p, w, hp0, wHp0, calls, pHp, wHp, logF };
+  };
+  const a = mk(true);
+  assert.deepEqual(a.pHp, [a.hp0 - 10, a.hp0 - 20, a.hp0 - 30, a.hp0 - 40],
+    'фикстура: волк попадает каждый раунд (урон 10, броня игрока 0)');
+  assert.deepEqual(a.wHp, [a.wHp0 - 3, a.wHp0 - 6, a.wHp0 - 6, a.wHp0 - 6],
+    'RED: counter-урон round(10×0.25) = Math.round(2.5) = 3 на ударах '
+    + 'r2–r3 (turns 2→1); r4–r5 — нет (turns 0)');
+  assert.ok(a.c.log.includes('Отражение: −3.'),
+    'RED: лог «Отражение: −3.» (counter через dealDamageToMob)');
+  assert.equal(a.c.ps.buff.turns, 0,
+    'окно turns: ровно 3 раунда, включая каст (тики 3→2→1→0)');
+  const b = mk(false);
+  assert.deepEqual(b.wHp, [b.wHp0, b.wHp0, b.wHp0, b.wHp0],
+    'контроль: без стата — дельта волка 0 (0 потребителей до GREEN)');
+  assert.deepEqual(a.pHp, b.pHp,
+    'контроль: траектория hp игрока идентична (бит-в-бит)');
+  assert.deepEqual(a.logF, b.logF,
+    'контроль: лог идентичен за вычетом баф-строк (бит-в-бит)');
+  assert.equal(a.calls, b.calls,
+    'RNG-гварда: 0 новых c._rng (consumer — детерминированный путь)');
+  assert.ok(a.calls > 0, 'фикстура: волк реально бил (хит-роллы в логе)');
+});
+
+test('000283.01-REF-1b: «отражение» — aegis (case «защита»): щит {2,3} + c.ps.buff — consumer не зависит от case записи (красный, 000283.01)', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.wisdom = 10;
+  p.spells = ['aegis'];
+  p.mp = 40;
+  const c = createCombat({
+    player: p, mobs: ['wolf'], mobLevel: 2, seed: 13,
+  });
+  const w = c.units[0];
+  standNextTo(c, w);
+  w.damage = 10;
+  w.maxHP = 200;
+  w.hp = 200;
+  w.armor = 0;
+  const r = castSpell(c, 'aegis');
+  assert.equal(r.ok, true, 'каст aegis — ok');
+  assert.deepEqual(c.ps.shield, { armor: 2, turns: 3 },
+    'щит {armor: 2, turns: 3} (armor 1+степень(1); запись ЕСТЬ и до GREEN)');
+  assert.deepEqual(c.ps.buff,
+    { stat: 'отражение', value: 0.25, turns: 3 },
+    'вторичный баф {отражение, 0.25, 3} (hasStat, тот же слот c.ps.buff)');
+  assert.equal(p.mp, 32, 'мана −8 (aegis)');
+  const hp0 = p.hp;
+  const wHp0 = w.hp;
+  c._rng = () => 0.01;
+  c.endTurn();
+  assert.equal(p.hp, hp0 - 8, 'r2: факт = 10 − 2 (щит) = 8');
+  assert.equal(w.hp, wHp0 - 2,
+    'RED: round(8×0.25) = 2 — consumer на одном слоте, case записи не важен');
+  assert.ok(c.log.includes('Отражение: −2.'), 'лог «Отражение: −2.»');
+  c.endTurn();
+  assert.equal(p.hp, hp0 - 16, 'r3: факт 8 (щит turns 1)');
+  assert.equal(w.hp, wHp0 - 4, 'r3: reflection (turns 1)');
+  c.endTurn();
+  assert.equal(p.hp, hp0 - 26, 'r4: полный урон 10 (щит turns 0)');
+  assert.equal(w.hp, wHp0 - 4, 'r4: отражения нет (turns 0)');
+  assert.equal(c.ps.buff.turns, 0, 'окно бафа: 3→2→1→0');
+  assert.equal(c.ps.shield.turns, 0, 'окно щита: 3→2→1→0');
+});
+
+test('000283.01-REF-2: «отражение» — союзник (t.buff): mobAttackAlly — возврат dealDamageToAlly читается (красный, 000283.01)', () => {
+  const mk = (withBuff) => {
+    const p = strongHero();
+    const c = createCombat({
+      player: p, allies: [mercData()], mobs: ['wolf'], mobLevel: 2,
+      seed: 13,
+    });
+    c.obstacles.clear();
+    const w = c.units.find((u) => u.id === 'm0');
+    const merc = c.units.find((u) => u.id === 'a0');
+    // Геометрия (паттерн BR-5): волк (2,4) вплотную к наёмнику (2,5);
+    // rectDist (манхэттен) волка до наёмника = 1, до игрока (3,6) = 3
+    // → ближайшая цель стороны игрока = наёмник → mobAttackAlly.
+    assert.equal(merc.x, 2);
+    assert.equal(merc.y, 5);
+    w.x = 2;
+    w.y = 4;
+    w.damage = 10;
+    w.maxHP = 200;
+    w.hp = 200;
+    w.armor = 0;
+    merc.maxHP = 100;
+    merc.hp = 100;
+    if (withBuff) merc.buff = { stat: 'отражение', value: 0.25, turns: 3 };
+    const wHp0 = w.hp;
+    const mercHp0 = merc.hp;
+    let calls = 0;
+    c._rng = () => { calls += 1; return 0.01; };
+    // Очередь ['m0','player','a0'] (pre-roll — m0): удары волка по
+    // наёмнику — r2, r3, r4 (каждые 3 endTurn).
+    for (let i = 0; i < 6; i++) c.endTurn();
+    return { c, w, merc, wHp0, mercHp0, calls };
+  };
+  const a = mk(true);
+  assert.equal(a.merc.hp, a.mercHp0 - 30,
+    'фикстура: 3 удара × 10 (волк бьёт наёмника, не игрока)');
+  assert.equal(a.w.hp, a.wHp0 - 6,
+    'RED: counter-урон round(10×0.25) = Math.round(2.5) = 3 на ударах '
+    + 'r2–r3 (turns 2→1); r4 — нет (turns 0)');
+  assert.ok(a.c.log.includes('Отражение: −3.'),
+    'лог «Отражение: −3.» (consumer — mobAttackAlly)');
+  assert.equal(a.c.ps.buff, null, 'у игрока баффа нет (носитель — союзник)');
+  const b = mk(false);
+  assert.equal(b.w.hp, b.wHp0,
+    'контроль: без t.buff — дельта волка 0 (бит-в-бит)');
+  assert.equal(b.merc.hp, b.mercHp0 - 30,
+    'контроль: hp наёмника идентично (бит-в-бит)');
+  assert.equal(a.calls, b.calls, 'RNG-гварда: 0 новых c._rng');
+  assert.ok(a.calls > 0, 'фикстура: волк реально бил');
+});
