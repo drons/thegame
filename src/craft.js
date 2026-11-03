@@ -48,7 +48,20 @@
 //     ИЛИ c.craftXp[type] > 0) — дефолт уровня 1 ≠ знание;
 //     неизученный вид — evalCraft даёт «вид не изучен» (ОДНА точка
 //     гейта: после alive, до уровня; canCraft/craft — одна причина,
-//     000037); mentorCraft/bookCraftXp гейтом НЕ ограничены.
+//     000037); mentorCraft/bookCraftXp гейтом НЕ ограничены;
+//   * разборка предметов (задача 000309): шанс возврата каждой
+//     части — 20% + 70% × (L−1)/99, L — уровень ВИДА канонического
+//     рецепта (craftLevel; L=1 → 0.2, L=100 → 0.9 ТОЧНО); JS-форма
+//     (20 + 70*(L−1)/99)/100 (наивная 0.2 + 0.7*(L−1)/99 даёт
+//     0.8999… при L=100); возврат при ролле < шанса (строгое <),
+//     один ролл на позицию `исходники` (порядок каталога), полное
+//     количество позиции, обычный предмет (без бонуса); опыт виду —
+//     10 + `уровень` РЕЦЕПТА (практика, с потолком; p — по уровню
+//     ВИДА, XP — по уровню рецепта — РАЗНЫЕ числа); гейта «вид не
+//     изучен» НЕТ (разборка — источник прогресса); атомарность:
+//     ёмкость — худший случай (все части) на ТЕКУЩЕМ инвентаре — ДО
+//     роллов, restore при любом отказе (контракт
+//     memory/000309-disassemble.md).
 // Роллы: rng вызывается СНАЧАЛА для качества, затем для выхода
 // (порядок закреплён тестами; детерминированные тесты — scripted-rng).
 // Атомарность: ВСЕ мутации — ПОСЛЕ всех проверок (при отказе
@@ -179,6 +192,26 @@
     const set = TYPE_BUILDINGS[type];
     if (!set) return [];
     return [...set].sort((a, b) => a - b);
+  }
+
+  // --- Разборка предметов (задача 000309): предмет → канонический
+  //     рецепт ---
+  // Канонический рецепт (контракт memory/000309-disassemble.md §2):
+  // базовый (без `база`) с минимальным `уровнем` среди рецептов с
+  // тем же результатом; при равенстве — первый по порядку каталога
+  // (CRAFT-индекс: при строго меньшем уровне замена, при равенстве
+  // первый остаётся). Рецепт с `база` каноническим не бывает.
+  // Выводится из зеркала CRAFT при загрузке (не хардкод — прецедент
+  // TYPE_BUILDINGS): при изменении assets/craft маппинг переводится
+  // автоматически.
+  const DISASSEMBLY_BY_ITEM = {};
+  for (const r of CRAFT) {
+    if (r.база !== undefined) continue;
+    const res = r.результат.предмет;
+    if (!(res in DISASSEMBLY_BY_ITEM) ||
+        r.уровень < CRAFT_BY_ID[DISASSEMBLY_BY_ITEM[res]].уровень) {
+      DISASSEMBLY_BY_ITEM[res] = r.id;
+    }
   }
 
   // --- Уровни видов крафта (объект {вид: 1..100}, отдельный от
@@ -755,6 +788,163 @@
     return Math.min(0.25, 0.02 + 0.002 * (L - 1));
   }
 
+  // --- Разборка предметов (задача 000309) ---
+
+  // Канонический рецепт предмета (recipe|null; чисто, без мутаций).
+  // DISASSEMBLY_BY_ITEM — выводится из зеркала CRAFT при загрузке
+  // (прецедент TYPE_BUILDINGS; контракт §2).
+  function disassemblyRecipeFor(itemId) {
+    const rid = DISASSEMBLY_BY_ITEM[itemId];
+    return rid ? CRAFT_BY_ID[rid] : null;
+  }
+
+  // Шанс возврата каждой части: 20% + 70% × (L − 1) / 99, где L —
+  // уровень ВИДА канонического рецепта (craftLevel, НЕ `уровень`
+  // рецепта — тот для опыта, контракт §3). L=1 → 0.2, L=100 → 0.9
+  // ТОЧНО (JS-форма (20 + 70*(L−1)/99)/100 — наивная 0.2 +
+  // 0.7*(L−1)/99 даёт 0.8999… при L=100, IEEE754). Нет рецепта — 0.
+  // Чисто: без rng, без мутаций.
+  function disassemblyChance(c, itemId) {
+    const recipe = disassemblyRecipeFor(itemId);
+    if (!recipe) return 0;
+    const L = craftLevel(c, recipe.тип);
+    return (20 + 70 * (L - 1) / 99) / 100;
+  }
+
+  // Ёмкость разбора — ХУДШИЙ СЛУЧАЙ (ВСЕ части возвращены, без
+  // бонуса) на ТЕКУЩЕМ инвентаре (предмет ещё не снят —
+  // консервативно: если худший случай влезает, мутации disassemble
+  // не уткнутся в слоты/вес — после снятия предмета место только
+  // прибавится). Реальный addItem на клоне (те же проверки/стопки,
+  // паттерн dryRunAdd); причины — дословно checkAdd (слоты ПЕРЕД
+  // весом). Чисто: c не мутирует.
+  function disassemblyCapacity(c, recipe) {
+    const inv0 = (c.inventory && Array.isArray(c.inventory.slots))
+      ? c.inventory : null;
+    const slots = inv0
+      ? inv0.slots.map((e) => (e.bonus
+          ? { id: e.id, qty: e.qty, bonus: e.bonus }
+          : { id: e.id, qty: e.qty }))
+      : [];
+    const quick = (inv0 && Array.isArray(inv0.quick))
+      ? inv0.quick.slice()
+      : new Array(I.QUICK_SLOTS).fill(null);
+    const tmp = Object.assign({}, c, { inventory: { slots, quick } });
+    for (const inp of recipe.исходники) {
+      const r = I.addItem(tmp, inp.предмет, inp.количество);
+      if (!r.ok) return r;
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Можно ли разобрать предмет (зеркало disassemble: ОДНА причина,
+   * без побочных эффектов — rng не вызывается, c не мутирует).
+   * Порядок проверок (контракт §7): рецепт → alive → предмет →
+   * ёмкость (худший случай). Гейта «вид не изучен» НЕТ (разборка —
+   * источник прогресса, контракт §5 Д-ГЕЙТ).
+   * @returns {{ok:boolean, reason?:string}}
+   */
+  function canDisassemble(c, itemId) {
+    const recipe = disassemblyRecipeFor(itemId);
+    if (!recipe) {
+      return { ok: false, reason: 'предмет нельзя разобрать' };
+    }
+    if (!c.alive) return { ok: false, reason: 'персонаж погиб' };
+    if (!I.hasItem(c, itemId, 1)) {
+      return { ok: false, reason: 'нет предмета в инвентаре' };
+    }
+    return disassemblyCapacity(c, recipe);
+  }
+
+  /**
+   * Разобрать предмет на составные части (задача 000309): единица
+   * предмета уничтожается, каждая исходная часть канонического
+   * рецепта может вернуться (ролл < шанса, в ПОРЯДКЕ `исходники`,
+   * полное количество позиции, обычный предмет — без бонусного
+   * качества). Успешный разбор даёт опыт виду канонического
+   * рецепта (10 + `уровень` рецепта, практика, потолок практикой) —
+   * независимо от числа возвращённых частей; при отказе опыт не
+   * даётся и роллы не расходуются. Атомарность (контракт §5
+   * Д-АТОМАРНОСТЬ): ёмкость-пре-чек худшего случая — ДО роллов;
+   * мутации — после снапшота слотов/quick; при ЛЮБОМ отказе —
+   * restore (предмет не снят, части не выданы). removeItem —
+   * bonusFirst=false (ПОУМОЛЧАНИЮ items.js): расход ПОЗИЦИОННЫЙ —
+   * ВСЕ слоты нужного id С КОНЦА списка, приоритета по бонусу НЕТ
+   * (бонусный слот в конце — расходуется первым; ровно как кнопка
+   * «−1» — тот же дефолт).
+   * opts: { rng?: function }
+   * @returns {{ok:boolean, reason?:string, item?:string,
+   *            type?:string, returned?:Array<{id,qty}>,
+   *            lost?:Array<{id,qty}>, xp?:object, message?:string}}
+   */
+  function disassemble(c, itemId, opts) {
+    const o = opts || {};
+    const chk = canDisassemble(c, itemId);
+    if (!chk.ok) return { ok: false, reason: chk.reason };
+    const recipe = CRAFT_BY_ID[DISASSEMBLY_BY_ITEM[itemId]];
+    const rng = typeof o.rng === 'function' ? o.rng : Math.random;
+    // Роллы: один на позицию исходника, в порядке `исходники`.
+    const p = disassemblyChance(c, itemId);
+    const returned = [];
+    const lost = [];
+    for (const inp of recipe.исходники) {
+      const part = { id: inp.предмет, qty: inp.количество };
+      if (rng() < p) returned.push(part);
+      else lost.push(part);
+    }
+
+    // --- Мутации (все проверки прошли) ---
+    // Отказ на этом этапе НЕДОСТИЖИМ: ёмкость-пре-чек прошла ХУДШИЙ
+    // случай (все части) на БОЛЕЕ тяжёлом инвентаре (предмет ещё
+    // внутри), а здесь — подмножество частей. Атомарность сохраняем
+    // ПОЛНОЙ (паттерн craft, 000046): при отказе инвентарь
+    // возвращается ТОЧНО к состоянию до disassemble.
+    I.ensureInventory(c);
+    const slotsBefore = c.inventory.slots
+      .map((e) => (e.bonus
+          ? { id: e.id, qty: e.qty, bonus: e.bonus }
+          : { id: e.id, qty: e.qty }));
+    const quickBefore = c.inventory.quick.slice();
+    const restoreInventory = () => {
+      c.inventory.slots = slotsBefore.map((e) => (e.bonus
+        ? { id: e.id, qty: e.qty, bonus: e.bonus }
+        : { id: e.id, qty: e.qty }));
+      c.inventory.quick = quickBefore;
+    };
+    I.removeItem(c, itemId, 1);
+    for (const part of returned) {
+      const r = I.addItem(c, part.id, part.qty);
+      if (!r.ok) {
+        restoreInventory();
+        return { ok: false, reason: r.reason };
+      }
+    }
+    // Опыт виду: 10 + уровень РЕЦЕПТА (практика, с потолком).
+    const xp = addCraftXp(c, recipe.тип, 10 + recipe.уровень, false);
+    const src = I.getItem(itemId);
+    const nameOf = (id) => {
+      const it = I.getItem(id);
+      return it ? it.name : id;
+    };
+    // Message — ТОЧНЫЕ строки (контракт §4; XP в message НЕТ —
+    // паритет craft: xp — в возвращаемом объекте).
+    const message = returned.length
+      ? 'Разобрано: ' + (src ? src.name : itemId) + ' — возвращено: '
+        + returned.map((part) => nameOf(part.id) + ' ×' + part.qty)
+          .join(', ')
+      : 'Разобрано: ' + (src ? src.name : itemId)
+        + ' — ничего не вернулось';
+    const out = { ok: true, item: itemId, type: recipe.тип, returned, lost };
+    out.xp = {
+      applied: xp.applied, level: xp.level,
+      leveledUp: xp.leveledUp, total: xp.total,
+    };
+    if (xp.reason) out.xp.reason = xp.reason;
+    out.message = message;
+    return out;
+  }
+
   // --- Сейв (опциональные поля hero.craft/hero.craftXp, без
   //     повышения версии, 000031) ---
 
@@ -803,6 +993,8 @@
     addCraftXp, reprocessCraftXp,
     bookCraftXp, canMentorCraft, mentorCraft,
     canCraft, craft, qualityChance, yieldChance,
+    DISASSEMBLY_BY_ITEM, disassemblyRecipeFor, disassemblyChance,
+    canDisassemble, disassemble,
     sanitizeCraftLevels, sanitizeCraftXp, sanitizeCraftTypes,
   };
 });

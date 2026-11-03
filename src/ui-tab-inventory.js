@@ -132,6 +132,17 @@ function (G0, rootRef) {
           btns.push(['надеть', 'equip', { item: e.id }]);
         }
         btns.push(['быстр.', 'quick', { item: e.id }]);
+        // 000309: «разобрать» (строчная — НЕ строка «Разобрать»
+        // постройки) — только у предметов с каноническим рецептом;
+        // АКТУАЛЬНЫЙ Game через rootRef (модули цепочки заменяют
+        // объект Game — 000038, паттерн ui-tab-settings:63); тихие
+        // typeof-guard (без Game.Craft — кнопки нет).
+        const Cdis = (rootRef && rootRef.Game && rootRef.Game.Craft)
+          || null;
+        if (Cdis && typeof Cdis.disassemblyRecipeFor === 'function'
+            && Cdis.disassemblyRecipeFor(e.id)) {
+          btns.push(['разобрать', 'disassemble', { item: e.id }]);
+        }
         btns.push(['−1', 'remove', { item: e.id }]);
         panel._invBody.appendChild(ctx.itemRow(
           it.name + (e.qty > 1 ? ' ×' + e.qty : ''),

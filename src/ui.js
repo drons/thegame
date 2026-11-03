@@ -551,6 +551,16 @@
       }
       case 'buy': if (shop) r = G.buyItem(shop, c, id, 1); break;
       case 'sell': if (shop) r = G.sellItem(shop, c, id, 1); break;
+      // 000309: разборка предмета на составные части (Game.Craft —
+      // typeof-guard: регрессия порядка загрузки — отказ, не падение;
+      // успех — флэш по существующей ветке flashNotice(r.message)).
+      case 'disassemble': {
+        const C = G.Craft;
+        r = (C && typeof C.disassemble === 'function')
+          ? C.disassemble(c, id)
+          : { ok: false, reason: 'разборка недоступна' };
+        break;
+      }
     }
     if (r && !r.ok) flashNotice(r.reason || 'не удалось');
     else if (r && r.message) flashNotice(r.message);
@@ -771,6 +781,24 @@
     // Редкость (000230.07): только 5 каталожных имён.
     if (typeof it.rarity === 'string' && RARITY_NAMES[it.rarity]) {
       lines.push('Редкость: ' + RARITY_NAMES[it.rarity]);
+    }
+    // 000309: разборка — только у предметов с каноническим рецептом;
+    // L — уровень вида (нужен c), шанс — G.Craft.disassemblyChance.
+    // Строка — ТОЛЬКО когда c — ГЕРОЙ (c === character): разборка
+    // выполняется с инвентаря героя (doItemAction: c = character),
+    // и шанс — по навыку ГЕРОЯ; лист member («Снаряжение» мерса —
+    // itemTipText(it, sheet)) — тихий skip строки (число по листу
+    // member было бы неверным; ревью 000309, правка раунда 1).
+    // Без c (1-арг. вызов) или без ядра Game.Craft — тихий skip
+    // (тихие typeof-guard, деградация — строки нет).
+    if (c != null && c === character && G.Craft &&
+        typeof G.Craft.disassemblyChance === 'function') {
+      const rc = G.Craft.disassemblyRecipeFor(it.id);
+      if (rc) {
+        const p = G.Craft.disassemblyChance(c, it.id);
+        lines.push('Разборка: ' + rc.тип + ' — возврат ' +
+          Math.round(p * 100) + '%');
+      }
     }
     lines.push('Вес: ' + it.weight + ' кг');
     lines.push('Цена: ' + it.value + ' з');
