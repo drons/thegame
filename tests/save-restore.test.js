@@ -1240,7 +1240,7 @@ test('249-SAVE-SANITIZE: битый last_spells — игра не роняетс
   }
 });
 
-test('249-E2E-2FIGHTS: реальный main.js — last_spells персистит между боями: Эфир с ПЕРВОГО хода кастует персистный «Искра» (legacy дал бы «Морозную стрелу»); герой на старте НЕ сидируется («нет выбранного заклинания») и получает выбор после успешного каста в бою; победа → saveNow → раздел в сейве; второй бой — Эфир снова с персистным (паттерн loot-e2e)', async () => {
+test('249-E2E-2FIGHTS; 000291: реальный main.js — last_spells персистит между боями: Эфир с ПЕРВОГО хода кастует персистный «Искра» (legacy дал бы «Морозную стрелу»); герой — сидовый «Искра» из сейва СРАЗУ на старте боя (инверсия S3, 000291): тап — сидовый каст, прежний book-cast — теперь отказ по пулу; победа → saveNow → раздел в сейве; второй бой — Эфир и герой снова с персистным (паттерн loot-e2e)', async () => {
   const h = await boot(seedSave({
     day: 7,
     last_spells: { flogiston: 'spark', efir: 'spark' },
@@ -1294,11 +1294,18 @@ test('249-E2E-2FIGHTS: реальный main.js — last_spells персисти
     + 'strongestKnown дал бы «Морозную стрелу»; краснота: '
     + JSON.stringify(a0));
   assert.equal(efir.mp, 8, 'мана 11→8 (Искра: 3, не 4)');
-  // Герой: гейт на старте боя — на ходу игрока выбора НЕТ (S3:
-  // герой не сидируется из сейва).
+  // Герой (000291 — инверсия S3): сидовый «spark» из сейва — на
+  // ходу игрока тап кнопки — СРАЗУ сидовый каст (whitebox-цель
+  // m1 — Орк-воин, цел, у игрока).
   G.combatUI.handleCode('Space');
   tick();
   assert.equal(G.activeUnitId(c), 'player', 'ход игрока (мобы — авто)');
+  const player = c.player;
+  player.hp = player.maxHP;
+  const m1 = c.units.find((u) => u.id === 'm1');
+  assert.ok(m1, 'фикстура: Орк-воин m1 в бою');
+  m1.x = c.px; m1.y = c.py - 1;
+  c.selectTarget(m1.id);
   const last1 = walk(lastOverlay()).find((el) => el.tagName === 'button'
     && el.dataset && el.dataset.act === 'lastSpell');
   assert.ok(last1, 'кнопка «Последнее заклинание» в DOM (000227)');
@@ -1306,16 +1313,13 @@ test('249-E2E-2FIGHTS: реальный main.js — last_spells персисти
   last1.listeners.click[0]();
   tick();
   const b1 = Array.from(c.log).slice(n1);
-  assert.deepEqual(b1, ['нет выбранного заклинания'],
-    'герой на старте боя — выбора нет (S3: сидинга героя нет; '
-    + 'guard — строка идентична до/после): ' + JSON.stringify(b1));
-  // Герой: успешный каст из книги (m1 — Орк-воин, цел, у игрока).
-  const player = c.player;
-  player.hp = player.maxHP;
-  const m1 = c.units.find((u) => u.id === 'm1');
-  assert.ok(m1, 'фикстура: Орк-воин m1 в бою');
-  m1.x = c.px; m1.y = c.py - 1;
-  c.selectTarget(m1.id);
+  assert.match(b1[b1.length - 1], /^Искра по Орк-воин: \d+\.$/,
+    '000291 (инверсия S3): сидовый «Искра» из сейва СРАЗУ на '
+    + 'старте боя: ' + JSON.stringify(b1));
+  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
+  assert.equal(player.mp, 13, 'мана 16→13 (Искра: 3)');
+  // Прежний book-cast (строка «Искра») — теперь ОТКАЗ ПО ПУЛУ
+  // (пул сгорел сидовым тапом), НЕ «нет выбранного заклинания».
   G.combatUI.handleCode('KeyQ');
   tick();
   const bookBox = walk(lastOverlay()).find((el) =>
@@ -1329,11 +1333,13 @@ test('249-E2E-2FIGHTS: реальный main.js — last_spells персисти
   sparkRow.listeners.click[0]();
   tick();
   const c3 = Array.from(c.log).slice(n2);
-  assert.match(c3[c3.length - 1], /^Искра по Орк-воин: \d+\.$/,
-    'успешный каст героя из книги: ' + JSON.stringify(c3));
-  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
-  assert.equal(player.mp, 13, 'мана 16→13 (Искра: 3)');
-  // Выбор ПОЯВИЛСЯ после успеха — тап идёт тем же заклинанием
+  assert.deepEqual(c3,
+    ['действий «Заклинание» (Интеллект) больше нет'],
+    'каст строкой — ОТКАЗ ПО ПУЛУ (сидовый тап сжёг пул 1): '
+    + JSON.stringify(c3));
+  assert.equal(c.ps.spellInt, 0, 'пул 0 (отказ не тратит)');
+  assert.equal(player.mp, 13, 'мана 13 (отказ не тратит)');
+  // Выбор «Искра» (сидовый) — тап идёт тем же заклинанием
   // (отказ — по пулу, НЕ «нет выбранного заклинания»).
   const n3 = c.log.length;
   last1.listeners.click[0]();
@@ -1341,7 +1347,7 @@ test('249-E2E-2FIGHTS: реальный main.js — last_spells персисти
   const d4 = Array.from(c.log).slice(n3);
   assert.deepEqual(d4,
     ['действий «Заклинание» (Интеллект) больше нет'],
-    'после успеха выбор «Искра» есть (S3 — в бою); отказ по пулу, '
+    'выбор «Искра» есть (000291 — сидинг); отказ по пулу, '
     + 'не «нет выбранного заклинания»: ' + JSON.stringify(d4));
   // Победа → finish → onEnd → saveNow.
   c.phase = 'over';
@@ -1375,11 +1381,19 @@ test('249-E2E-2FIGHTS: реальный main.js — last_spells персисти
   assert.match(e5[e5.length - 1], /^Эфир: «Искра» — Орк-лучник: \d+\.$/,
     'второй бой: Эфир — персистный «Искра» снова (раздел, '
     + 'записанный после боя 1); краснота: ' + JSON.stringify(e5));
-  // Герой на старте боя 2 — выбора нет (S3 per-combat, даже при
-  // существующем разделе сейва).
+  // Герой (000291): сидовый «spark» — live персистит после боя 1;
+  // mp 13 персистит (тот же hero-объект); пул пересчитан per-combat.
   G.combatUI.handleCode('Space');
   tick();
   assert.equal(G.activeUnitId(c2), 'player', 'ход игрока');
+  const player2 = c2.player;
+  player2.hp = player2.maxHP;
+  const m1b = c2.units.find((u) => u.id === 'm1');
+  assert.ok(m1b, 'фикстура: Орк-воин m1 в бою 2');
+  m1b.x = c2.px; m1b.y = c2.py - 1;
+  c2.selectTarget(m1b.id);
+  assert.equal(player2.mp, 13, 'mp персистит из боя 1 (тот же hero)');
+  assert.equal(c2.ps.spellInt, 1, 'пул пересчитан per-combat (1)');
   const last2 = walk(lastOverlay()).find((el) => el.tagName === 'button'
     && el.dataset && el.dataset.act === 'lastSpell');
   assert.ok(last2, 'кнопка в бою 2 (overlay нового боя)');
@@ -1387,9 +1401,11 @@ test('249-E2E-2FIGHTS: реальный main.js — last_spells персисти
   last2.listeners.click[0]();
   tick();
   const f6 = Array.from(c2.log).slice(n5);
-  assert.deepEqual(f6, ['нет выбранного заклинания'],
-    'герой на старте боя 2 — выбора нет (S3: сидинга героя нет, '
-    + 'guard): ' + JSON.stringify(f6));
+  assert.match(f6[f6.length - 1], /^Искра по Орк-воин: \d+\.$/,
+    '000291: персистный «Искра» СРАЗУ на старте боя 2: '
+    + JSON.stringify(f6));
+  assert.equal(c2.ps.spellInt, 0, 'пул 1→0 (пересчёт per-combat)');
+  assert.equal(player2.mp, 10, 'мана 13→10 (Искра: 3)');
 });
 
 // 000249 (правка по ревью): 249-E2E-2FIGHTS сидирует last_spells
@@ -1538,4 +1554,90 @@ test('249-E2E-MERC: реальный main.js — last_spells { merc_mira: "mend"
   assert.equal(mira2.mp, 4,
     'мана 10→4 (light_heal: 6 — не 3 у сидового "mend": '
     + 'обновлённое, не сидовое)');
+});
+
+// =====================================================================
+// Задача 000291: кнопка «Последнее заклинание» (000227) — герой
+// СИДИРУЕТСЯ из live-карты на старте боя (инверсия S3 000249;
+// баг-репорт 2026-11-02: «не запоминает / не отображается в начале
+// боя» — ОБА симптома ОДИН корень: build() пропускает игрока при
+// сидинге из ctx.lastSpells). Красный E2E (291-E2E-HERO-START):
+// ПРЯМОЕ зеркало баг-репорта в production-пате (реальный main.js):
+// сейв last_spells {flogiston:'spark'} → boot (новая сессия, restore)
+// → бой: на ПЕРВОМ ходе игрока тап — СРАЗУ сидовый «Искра»
+// (краснота на текущем коде: тап — «нет выбранного заклинания»;
+// DOM display в vm-full не ассертится — querySelectorAll → []).
+// VM-красные (CU291-SHOW/CU291-MEM) —
+// tests/combat-ui.test.js (блок «Задача 000291», якорь 000193.01).
+// Контракт — memory/000291-combat-last-spell-hero-seed.md.
+// =====================================================================
+
+test('291-E2E-HERO-START: реальный main.js — сейв last_spells { flogiston: "spark" } → новая сессия: на ПЕРВОМ ходе игрока тап кнопки «Последнее заклинание» (whitebox-цель) — СРАЗУ сидовый «Искра по Орк-воин: N.» (пул 1→0, мана 16→13) (сидинг через реальный startCombat + restore last_spells), g.state.lastSpells.flogiston — "spark" (зеркало)', async () => {
+  const h = await boot(seedSave({
+    day: 7,
+    last_spells: { flogiston: 'spark' },
+    companions: [{
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('last_spells')),
+    'валидный раздел — без предупреждений: ' + h.warns.join(' | '));
+  assertRestored(h, 7);
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.deepEqual(JSON.parse(JSON.stringify(g.state.lastSpells)),
+    { flogiston: 'spark' },
+    'live-карта восстановлена из сейва (flogiston; краснота: '
+    + JSON.stringify(g.state.lastSpells));
+  const walk = (el, out = []) => {
+    if (el.children) {
+      for (const ch of el.children) {
+        out.push(ch);
+        walk(ch, out);
+      }
+    }
+    return out;
+  };
+  const lastOverlay = () => h.sandbox.document.body.children
+    .filter((ch) => String(ch.className).includes('combat-overlay'))
+    .pop();
+  const tick = () => h.raf[h.raf.length - 1]();
+
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'бой создан (startCombat(0))');
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: первым ходит Эфир');
+  // Эфир: персистного выбора в сейве НЕТ (last_spells — только
+  // flogiston) — без каста, ход завершает.
+  G.combatUI.handleCode('Space');
+  tick();
+  assert.equal(G.activeUnitId(c), 'player', 'ход игрока (мобы — авто)');
+  const player = c.player;
+  player.hp = player.maxHP;
+  const m1 = c.units.find((u) => u.id === 'm1');
+  assert.ok(m1, 'фикстура: Орк-воин m1 в бою');
+  m1.x = c.px; m1.y = c.py - 1;
+  c.selectTarget(m1.id);
+  assert.equal(player.mp, 16, 'фикстура: мана героя 16');
+  assert.equal(c.ps.spellInt, 1, 'фикстура: пул Интеллект 1');
+  const last1 = walk(lastOverlay()).find((el) => el.tagName === 'button'
+    && el.dataset && el.dataset.act === 'lastSpell');
+  assert.ok(last1, 'кнопка «Последнее заклинание» в DOM (000227)');
+  // vm-full: display кнопки обновляет render через
+  // querySelectorAll (в песочнице → []) — не ассертится (паттерн
+  // 249-E2E-2FIGHTS: ассерты по c.log/тратам/пулам); сидинг героя
+  // (000291) докажет тап (до фикса — «нет выбранного заклинания»).
+  const n0 = c.log.length;
+  last1.listeners.click[0]();
+  tick();
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Искра по Орк-воин: \d+\.$/,
+    'тап — сидовый «Искра» (баг-репорт: «не запоминает»; на текущем '
+    + 'коде — «нет выбранного заклинания»): ' + JSON.stringify(a0));
+  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
+  assert.equal(player.mp, 13, 'мана 16→13 (Искра: 3)');
+  assert.equal(g.state.lastSpells.flogiston, 'spark',
+    'live-карта не подменена (зеркало; краснота: '
+    + JSON.stringify(g.state.lastSpells) + ')');
 });

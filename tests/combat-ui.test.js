@@ -7750,7 +7750,7 @@ test('боевой UI: 000227 — fleeOpen (000210): клики по трём к
   assert.notEqual(fleeBox.style.display, 'none', 'диалог всё ещё открыт');
 });
 
-test('боевой UI: 000227 — выбор НЕ переносится между боями: выбор в бою 1 (кнопка видима) → finish → новый startCombat (тот же sandbox, re-build) — lastSpells очищен: display none, стаб-клик — «нет выбранного заклинания» (CU227-RESET)', () => {
+test('боевой UI: 000227 — бой 2 БЕЗ live-карты — выбора нет (модульная карта не пер-бой): выбор в бою 1 (кнопка видима) → finish → новый startCombat (тот же sandbox, re-build, без opts.lastSpells) — lastSpells очищен: display none, стаб-клик — «нет выбранного заклинания» (CU227-RESET)', () => {
   const S = scene227({ spells: true });
   const { G, c } = S;
   const m0 = c.units.find((x) => x.id === 'm0');
@@ -7843,11 +7843,11 @@ test('боевой UI: 000227 — yield: мёртвый союзник (resurrec
 // =====================================================================
 // Задача 000249: кнопка «Последнее заклинание» — запись только на
 // УСПЕШНОМ касте (S1, инверсия D3 000227), id персистит между боями
-// (S2, top-level сейв last_spells: 'flogiston'/'efir'/npcId), герой
-// НЕ сидируется (S3 — гейт: первый успешный каст в этом бою),
-// союзники сидируются при старте боя (S4). Кнопки/клавиши/DOM 000227
-// без изменений (D10). Контракт —
-// memory/000249-combat-last-spell-persist.md.
+// (S2, top-level сейв last_spells: 'flogiston'/'efir'/npcId),
+// S3 — ИНВЕРТИРОВАНО 000291: герой СИДИРУЕТСЯ из live-карты
+// (забытый/подделанный id — без сидинга), союзники сидируются при
+// старте боя (S4). Кнопки/клавиши/DOM 000227 без изменений (D10).
+// Контракт — memory/000249-combat-last-spell-persist.md.
 // opts.lastSpells (test-owned live-объект main.js-формы: 'flogiston'
 // — герой, 'efir', id боевого союзника — в scene227 без npcId 'a0')
 // — live-ссылка, как main.js: сидинг build() читает, запись успеха
@@ -7855,7 +7855,7 @@ test('боевой UI: 000227 — yield: мёртвый союзник (resurrec
 // (нет сидинга, нет записи) + запись 000227 — на ТАПЕ, не на успехе.
 // =====================================================================
 
-test('боевой UI: 000249 — герой: live {flogiston} НЕ сидируется на старте боя (display none, title «нет выбранного заклинания»); успешный каст из книги — видима/enabled, бейдж — пул, тап — ТОГО ЖЕ; live-карта обновлена записью (flogiston — id успешного каста) (CU249-HERO-GATE)', () => {
+test('боевой UI: 000249; 000291 — герой: live {flogiston} СИДИРУЕТСЯ на старте боя (инверсия S3): видима/enabled, бейдж — пул сидового «mend» (spellWis); успешный каст из книги подменяет выбор — бейдж — пул, тап — ТОГО ЖЕ; live-карта обновлена записью (flogiston — id успешного каста) (CU249-HERO-GATE)', () => {
   const live = { flogiston: 'mend' };
   const S = scene227({ spells: true, lastSpells: live });
   const { G, c } = S;
@@ -7868,13 +7868,18 @@ test('боевой UI: 000249 — герой: live {flogiston} НЕ сидиру
   assert.equal(c.player.mp, 16, 'фикстура: мана 16');
   tickSlice(S.canvas, S.rafStubs);
   const byAct = byActOf178(S);
-  assert.equal(byAct.lastSpell.style.display, 'none',
-    'live {flogiston} героя НЕ сидирует (S3: гейт — в бою): '
-    + JSON.stringify(byAct.lastSpell.style.display));
-  assert.equal(byAct.lastSpell.disabled, true,
-    'disabled (выбора нет)');
-  assert.equal(byAct.lastSpell.title, 'нет выбранного заклинания',
-    'title дословно (S3): ' + JSON.stringify(byAct.lastSpell.title));
+  assert.equal(byAct.lastSpell.style.display, '',
+    '000291 (инверсия S3): live {flogiston:"mend"} героя СИДИРУЕТ '
+    + 'на старте боя: ' + JSON.stringify(byAct.lastSpell.style.display));
+  assert.equal(byAct.lastSpell.disabled, false,
+    'enabled (canCastSpell: пул 1, мана 16)');
+  assert.equal(byAct.lastSpell.title, '',
+    'title пуст (отказов нет): ' + JSON.stringify(byAct.lastSpell.title));
+  const cnt0 = badgeOf199(byAct.lastSpell);
+  assert.ok(cnt0, 'бейдж на кнопке lastSpell (сидовый «mend»)');
+  assert.equal(cnt0.textContent, String(c.ps.spellWis),
+    'бейдж = c.ps.spellWis (сидовый «mend» → Мудрость, дефолт 1): '
+    + JSON.stringify(cnt0.textContent));
   press(S.keydown, 'KeyQ');
   const bookBox = findByClass(S.body, 'combat-spellbook');
   assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
@@ -7890,7 +7895,7 @@ test('боевой UI: 000249 — герой: live {flogiston} НЕ сидиру
   assert.equal(c.ps.spellInt, 1, 'пул 2→1');
   assert.equal(c.player.mp, 13, 'мана 16→13 (Искра: 3)');
   assert.equal(byAct.lastSpell.style.display, '',
-    'успешный каст В ЭТОМ бою — display "" (S3): '
+    'выбор есть (сидинг 000291 / успешный каст) — display "": '
     + JSON.stringify(byAct.lastSpell.style.display));
   assert.equal(byAct.lastSpell.disabled, false,
     'enabled (canCastSpell: пул 1, мана 13)');
@@ -8064,6 +8069,206 @@ test('боевой UI: 000249 — legacy: каст кнопкой БЕЗ выб�
   assert.deepEqual(live, {},
     'legacy-каст НЕ записывается в live-карту (D5): '
     + JSON.stringify(live));
+});
+
+// =====================================================================
+// Задача 000291: кнопка «Последнее заклинание» (000227) — герой
+// СИДИРУЕТСЯ из live-карты на старте боя (инверсия S3 000249).
+// Баг-репорт 2026-11-02 (оба симптома — ОДИН корень): build() пропускает
+// u === ctx.combat.player при сидинге из ctx.lastSpells — персистный
+// выбор (live/сейв, ключ 'flogiston') НЕ подхватывается: (а) «не
+// запоминает» между боями, (б) «не отображается в начале боя».
+//
+// КРАСНЫЕ тесты (TDD, до фикса): сцены собираются штатно (те же
+// фикстуры, что в зелёных CU249-HERO-GATE/CU227-PLAYER) — падение на
+// assert контракта, не на окружение:
+//  * CU291-SHOW — live {flogiston:'spark'} → кнопка ОБЯЗАНА быть
+//    видима/enabled на ПЕРВОМ рендере боя; на текущем коде —
+//    display 'none' + «нет выбранного заклинания» (continue L335).
+//  * CU291-MEM — успешный каст в бою 1 (live.flogiston = 'spark') →
+//    бой 2 (тот же live-объект и hero — паттерн main.js): выбор
+//    переносится; на текущем коде — display 'none' в бою 2.
+// Зелёный guard (CU291-SHOW, guard-1): подделанный id (frost_bolt —
+// нет в книге героя) — без сидинга (гвард как у союзников 000249 D4),
+// 0 console.error — падает ни до, ни после.
+// E2E-красный (291-E2E-HERO-START) — EOF tests/save-restore.test.js.
+// Блок — в СЕРЕДИНЕ файла (якорь 000193.01 ниже): 000226 пишет в EOF
+// этого файла. Контракт —
+// memory/000291-combat-last-spell-hero-seed.md.
+// =====================================================================
+
+test('боевой UI: 000291 — герой: live {flogiston:"spark"} СИДИРУЕТСЯ на старте боя (инверсия S3 000249): на первом ходе игрока кнопка «Последнее заклинание» СРАЗУ видима/enabled (title "", бейдж = c.ps.spellInt), тап — каст сидового «Искра» (пул 1→0, мана 16→13), live не подменён; guard: подделанный id (frost_bolt — нет в книге) — без сидинга (none + «нет выбранного заклинания», 0 console.error), сидовый + мана < 3 — видима, но disabled «не хватает маны (3)» (S4-паритет: не скрывать) (CU291-SHOW)', () => {
+  const live = { flogiston: 'spark' };
+  const S = scene227({ spells: true, lastSpells: live });
+  const { G, c } = S;
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  assert.equal(c.player.mp, 16, 'фикстура: мана 16');
+  assert.equal(c.ps.spellInt, 1, 'фикстура: пул Интеллект 1 (дефолт)');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.ok(byAct.lastSpell,
+    'кнопка lastSpell построена (гейт: hero.spells не пусто)');
+  assert.equal(byAct.lastSpell.style.display, '',
+    'СИДИНГ ГЕРОЯ из live-карты на старте боя (000291): display ""; '
+    + 'краснота (строка continue build() не сидирует героя): '
+    + JSON.stringify(byAct.lastSpell.style.display));
+  assert.equal(byAct.lastSpell.disabled, false,
+    'enabled (canCastSpell: пул 1, мана 16)');
+  assert.equal(byAct.lastSpell.title, '',
+    'title пуст (отказов нет): ' + JSON.stringify(byAct.lastSpell.title));
+  const cnt = badgeOf199(byAct.lastSpell);
+  assert.ok(cnt, 'бейдж на кнопке lastSpell');
+  assert.equal(cnt.textContent, String(c.ps.spellInt),
+    'бейдж = c.ps.spellInt (сидовый «Искра» → Интеллект, дефолт 1): '
+    + JSON.stringify(cnt.textContent));
+  const n0 = c.log.length;
+  byAct.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Искра по Волк: \d+\.$/,
+    'тап — каст СИДОВОГО «Искра» (не fallback): ' + JSON.stringify(a0));
+  assert.equal(c.ps.spellInt, 0, 'пул 1→0');
+  assert.equal(c.player.mp, 13, 'мана 16→13 (Искра: 3)');
+  assert.equal(live.flogiston, 'spark',
+    'live не подменён (id каста = сидовый id): ' + JSON.stringify(live));
+  // Guard-1 (зелёный ни до, ни после): забытый/подделанный id
+  // (frost_bolt — нет в дефолтной книге ['spark','mend']) — гвард
+  // (строка + член hero.spells) блокирует сидинг — legacy-путь,
+  // как у союзников (000249 D4): без сидинга, 0 ошибок.
+  {
+    const errors = [];
+    const realError = console.error;
+    console.error = (m) => errors.push(String(m));
+    let S2 = null;
+    try {
+      S2 = scene227({ spells: true,
+        lastSpells: { flogiston: 'frost_bolt' } });
+      const c2 = S2.c;
+      const w2 = c2.units.find((x) => x.id === 'm0');
+      w2.x = c2.px; w2.y = c2.py - 1;
+      w2.maxHP = 100; w2.hp = 100;
+      c2.selectTarget(w2.id);
+      tickSlice(S2.canvas, S2.rafStubs);
+    } finally {
+      console.error = realError;
+    }
+    const c2 = S2.c;
+    const byAct2 = byActOf178(S2);
+    assert.equal(byAct2.lastSpell.style.display, 'none',
+      'guard: подделанный id — без сидинга (гвард): display none');
+    assert.equal(byAct2.lastSpell.disabled, true,
+      'guard: disabled (выбора нет)');
+    const n2 = c2.log.length;
+    byAct2.lastSpell.listeners.click[0]();
+    tickSlice(S2.canvas, S2.rafStubs);
+    assert.deepEqual(Array.from(c2.log).slice(n2),
+      ['нет выбранного заклинания'],
+      'guard: стаб-клик — «нет выбранного заклинания» (legacy-путь): '
+      + JSON.stringify(Array.from(c2.log).slice(n2)));
+    assert.equal(c2.player.mp, 16, 'guard: мана не потрачена');
+    assert.equal(c2.ps.spellInt, 1, 'guard: пул не потрачен');
+    assert.equal(errors.length, 0, 'guard: 0 console.error: '
+      + JSON.stringify(errors));
+  }
+  // Guard-2 (S4-паритет, краевой кейс бейджа/маны на старте):
+  // сидовый выбор при мана < мана спелла — кнопка ВИДИМА, но
+  // disabled с причиной (НЕ скрывать — паритет «выбор есть, но не
+  // кастуемо» у союзников 000249 S4).
+  {
+    const S3 = scene227({ spells: true, lastSpells: { flogiston: 'spark' } });
+    const c3 = S3.c;
+    const w3 = c3.units.find((x) => x.id === 'm0');
+    w3.x = c3.px; w3.y = c3.py - 1;
+    w3.maxHP = 100; w3.hp = 100;
+    c3.selectTarget(w3.id);
+    c3.player.mp = 1; // whitebox: мана < «Искра» (3)
+    tickSlice(S3.canvas, S3.rafStubs);
+    const byAct3 = byActOf178(S3);
+    assert.equal(byAct3.lastSpell.style.display, '',
+      'guard: выбор есть — кнопка ВИДИМА (НЕ скрывать, S4-паритет): '
+      + JSON.stringify(byAct3.lastSpell.style.display));
+    assert.equal(byAct3.lastSpell.disabled, true,
+      'guard: disabled (canCastSpell: мана)');
+    assert.equal(byAct3.lastSpell.title, 'не хватает маны (3)',
+      'guard: title — причина дословно: '
+      + JSON.stringify(byAct3.lastSpell.title));
+  }
+});
+
+test('боевой UI: 000291 — герой: выбор ЗАПОМИНАЕТСЯ между боями: бой 1 — успешный каст «Искра» строкой книги (live.flogiston = "spark") → finish → бой 2 (тот же sandbox, ТОТ ЖЕ live-объект и hero — паттерн main.js): на старте кнопка видима/enabled с перенесённым выбором (бейдж = c2.ps.spellInt — пул пересчитан per-combat), тап — ТОГО ЖЕ «Искра» (пул 1→0, мана 13→10 — mp персистит), live не подменён (CU291-MEM)', () => {
+  const live = {};
+  const S = scene227({ spells: true, lastSpells: live });
+  const { G, c } = S;
+  const m0 = c.units.find((x) => x.id === 'm0');
+  m0.x = c.px; m0.y = c.py - 1;
+  m0.maxHP = 100; m0.hp = 100;
+  c.selectTarget(m0.id);
+  c.ps.spellInt = 2; // пул на каст строкой (борьба с пулом боя 1)
+  assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+  assert.equal(c.player.mp, 16, 'фикстура: мана 16');
+  press(S.keydown, 'KeyQ');
+  const bookBox = findByClass(S.body, 'combat-spellbook');
+  assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+  const sparkRow = bookBox.children.slice(-2)
+    .find((rw) => rw.dataset.spell === 'spark');
+  assert.ok(sparkRow, 'строка «Искра» в книге героя');
+  const n0 = c.log.length;
+  sparkRow.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const a0 = Array.from(c.log).slice(n0);
+  assert.match(a0[a0.length - 1], /^Искра по Волк: \d+\.$/,
+    'бой 1: успешный каст «Искра» строкой книги: ' + JSON.stringify(a0));
+  assert.equal(c.ps.spellInt, 1, 'бой 1: пул 2→1');
+  assert.equal(c.player.mp, 13, 'бой 1: мана 16→13 (Искра: 3)');
+  assert.equal(live.flogiston, 'spark',
+    'бой 1: выбор записан в live-карту на УСПЕШНОМ касте (S1 000249): '
+    + JSON.stringify(live));
+  c.result = { outcome: 'victory' };
+  tickSlice(S.canvas, S.rafStubs);
+  press(S.keydown, 'Space');
+  assert.equal(G.combatUI.isActive(), false, 'бой 1 завершён (finish)');
+  const c2 = G.combatUI.startCombat({
+    hero: S.hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
+    lastSpells: live,
+  });
+  assert.ok(c2, 'бой 2 создан (тот же sandbox, ТОТ ЖЕ live-объект)');
+  const m1 = c2.units.find((x) => x.id === 'm0');
+  m1.x = c2.px; m1.y = c2.py - 1;
+  m1.maxHP = 100; m1.hp = 100;
+  c2.selectTarget(m1.id);
+  assert.equal(G.activeUnitId(c2), 'player', 'бой 2: ход игрока');
+  assert.equal(c2.player.mp, 13,
+    'mp персистит (тот же hero-объект — паттерн main.js)');
+  assert.equal(c2.ps.spellInt, 1,
+    'бой 2: пул пересчитан per-combat (1 — не наследуется из боя 1)');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct2 = byActOf178(S);
+  assert.ok(byAct2.lastSpell, 'кнопка lastSpell построена (бой 2)');
+  assert.equal(byAct2.lastSpell.style.display, '',
+    'бой 2: персистный выбор СИДИРУЕТСЯ на старте (000291); '
+    + 'краснота (continue build() — герой не сидируется): '
+    + JSON.stringify(byAct2.lastSpell.style.display));
+  assert.equal(byAct2.lastSpell.disabled, false,
+    'бой 2: enabled (пул 1, мана 13)');
+  const cnt2 = badgeOf199(byAct2.lastSpell);
+  assert.equal(cnt2.textContent, String(c2.ps.spellInt),
+    'бой 2: бейдж = c2.ps.spellInt (пересчитан, «1»): '
+    + JSON.stringify(cnt2.textContent));
+  const n1 = c2.log.length;
+  byAct2.lastSpell.listeners.click[0]();
+  tickSlice(S.canvas, S.rafStubs);
+  const b0 = Array.from(c2.log).slice(n1);
+  assert.match(b0[b0.length - 1], /^Искра по Волк: \d+\.$/,
+    'бой 2: тап — каст ТОГО ЖЕ «Искра» (не fallback): '
+    + JSON.stringify(b0));
+  assert.equal(c2.ps.spellInt, 0, 'бой 2: пул 1→0');
+  assert.equal(S.hero.mp, 10, 'бой 2: мана 13→10 (mp персистит)');
+  assert.equal(live.flogiston, 'spark',
+    'бой 2: live не подменён (id = сидовый): ' + JSON.stringify(live));
 });
 
 // ===== 000193.01: MP-полоса наёмника — мана (u.mp/u.maxMP) =====

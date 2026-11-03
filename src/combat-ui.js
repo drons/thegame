@@ -229,9 +229,9 @@
   // → spellId. Запись — castRow, ТОЛЬКО ветка успешного каста
   // (r.ok, ПОСЛЕ блока FX 000248 — 000249 S1: неудачный каст/
   // отказ/гейт — не записывает и не сбрасывает). build() сидирует
-  // ТОЛЬКО союзников из live-карты ctx.lastSpells (000249 S2/S4 —
-  // id живёт между боями, раздел сейва last_spells main.js); герой
-  // НЕ сидируется (S3: гейт — первый успешный каст в этом бою).
+  // из live-карты ctx.lastSpells (000249 S2/S4 — id живёт между
+  // боями, раздел сейва last_spells main.js): союзников по u.id,
+  // героя из 'flogiston' (000291 — инверсия S3).
   // Сброс — build()/finish()/catch startCombat (как countEls:
   // МОДУЛЬНЫЙ выбор не живёт между боями; персист между боями —
   // live-карта main.js, не модульная карта).
@@ -326,11 +326,18 @@
     // 000249 (S2/S4): союзников (Эфир/наёмники) сидируем из
     // live-карты main.js (ctx.lastSpells: 'efir'/npcId → id
     // заклинания; у боевого юнита тот же ключ — 'efir' у Эфира
-    // (efirAllyData), npcId у наёмника (allyDataForEntry)). Герой —
-    // НЕ сидируется (S3: выбор героя — в этом бою). Забытое/
-    // подделанное id (нет в u.spells) — без сидинга (legacy-путь,
+    // (efirAllyData), npcId у наёмника (allyDataForEntry)). 000291:
+    // герой СИДИРУЕТСЯ (инверсия S3) из ctx.lastSpells['flogiston']
+    // (тот же маппинг, что в recordLastSpell). Забытое/
+    // подделанное id (нет в spells) — без сидинга (legacy-путь,
     // без ошибок).
     if (ctx.lastSpells) {
+      const hp = ctx.combat.player;
+      if (hp) {
+        const vP = ctx.lastSpells['flogiston'];
+        if (typeof vP === 'string' && Array.isArray(hp.spells)
+            && hp.spells.indexOf(vP) >= 0) lastSpells['player'] = vP;
+      }
       for (const u of ctx.combat.units) {
         if (u === ctx.combat.player) continue;
         const v = ctx.lastSpells[u.id];
@@ -3520,9 +3527,9 @@
      * @param {Object<string, string>} [opts.lastSpells]
      *   000249: live-карта «последнего заклинания» (тот же объект,
      *   что lastSpells main.js): ключ 'flogiston' (герой) / 'efir' /
-     *   npcId → id заклинания. build() сидирует из неё союзников
-     *   (герой — нет, S3); recordLastSpell пишет в неё на успешном
-     *   касте. UI-only: ядро combat.js не читает; не передан /
+     *   npcId → id заклинания. build() сидирует из неё союзников и героя
+     *   ('flogiston' — 000291, инверсия S3); запись — recordLastSpell
+     *   (успешный каст). UI-only: ядро combat.js не читает; не передан /
      *   не-объект → null (модульная карта, выбор пер-бой).
      */
     startCombat(opts) {
