@@ -907,9 +907,12 @@
     // есть соответствующий вторичный навык.
     const skill = PRACTICE_BY_SCHOOL[spell.школа];
     if (skill) {
-      const pr = P.skillPractice(p, skill, PRACTICE_XP.spell);
+      const mob = (t && t.side === 'mob') ? t : nearestMob(c);
+      const diff = mob ? p.level - (mob.level || 0) : 0;
+      const xp = Math.round((free ? 0 : spell.мани) * (1 + 0.1 * Math.max(0, diff)));
+      const pr = P.skillPractice(p, skill, xp);
       out.practice = {
-        skill, xp: PRACTICE_XP.spell, applied: pr.applied, level: pr.level,
+        skill, xp, applied: pr.applied, level: pr.level,
       };
     }
     return out;

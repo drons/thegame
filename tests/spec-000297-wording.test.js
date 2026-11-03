@@ -152,7 +152,8 @@ test('SPEC 000297 W3: spec/skills.md «Рост навыков» — «пере�
   assert.ok(!norm(sc).includes('Перенос вложенных очков возможен'),
     '«Рост навыков»: «Перенос вложенных очков возможен» на месте — '
     + 'запись переадресована на «отменён» (000297)');
-  assert.equal(specLines(SKILLS), 100,
-    'spec/skills.md: строк != 100 (LINE-NEUTRAL 2→2 — ре-пина НЕТ; '
+  assert.equal(specLines(SKILLS), 113,
+    'spec/skills.md: строк != 113 (000297: LINE-NEUTRAL 2→2 — '
+    + 'ре-пина не было; 000307: +13 буллет «Опыт практики за каст»; '
     + 'line-index-пины SKILLS[41]/[51] spec-000273-wording)');
 });

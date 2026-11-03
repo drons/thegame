@@ -247,7 +247,7 @@ test('ранги: 4 ранга покрывают уровни 1..100 без р�
 // в этом файле.
 
 const { createCharacter } = require('../src/player.js');
-const { createCombat, PRACTICE_XP } = require('../src/combat.js');
+const { createCombat } = require('../src/combat.js');
 
 function loadSpells() { return require('../src/spells.js'); }
 function loadSpellsData() { return require('../src/spells-data.js'); }
@@ -712,19 +712,21 @@ test('castSpell: контроль — u.bind { turns: 1 }', () => {
 
 test('castSpell: практика — мапа школа → навык (тень/защита — без практики)', () => {
   const { castSpell } = loadSpells();
+  // 000307: XP = round(мана × (1 + 0.1 × max(0, D))) — фикстуры дают
+  // D = −1 (герой 1 / волк 2) → бонус 0, XP = мана.
   const cases = [
-    ['spark', 'firelord', { intelligence: 10 }],
-    ['frost_bolt', 'icelord', { intelligence: 10 }],
-    ['mend', 'meditation', { wisdom: 10 }],
-    ['nature_blessing', 'nature', { wisdom: 10 }],
+    ['spark', 'firelord', 3, { intelligence: 10 }],
+    ['frost_bolt', 'icelord', 4, { intelligence: 10 }],
+    ['mend', 'meditation', 3, { wisdom: 10 }],
+    ['nature_blessing', 'nature', 7, { wisdom: 10 }],
   ];
-  for (const [spell, skill, attrs] of cases) {
+  for (const [spell, skill, xp, attrs] of cases) {
     const p = spellHero({ spells: [spell], mp: 30, ...attrs });
     const c = soloCombat(p, 'wolf');
     const r = castSpell(c, spell, c.units[0].id);
     assert.equal(r.ok, true, `${spell}: ${r.reason || ''}`);
-    assert.equal(p.skillXp[skill], PRACTICE_XP.spell,
-      `${spell} → практика «${skill}» (${PRACTICE_XP.spell} опыта)`);
+    assert.equal(p.skillXp[skill], xp,
+      `${spell} → практика «${skill}» (${xp} опыта: D = −1 → мана)`);
     assert.ok(r.practice && r.practice.skill === skill,
       `${spell}: практика в ответе`);
   }
@@ -1434,8 +1436,13 @@ test('000163 R3: castSpell «resurrect» на мёртвого союзника 
   assert.equal(r.hp, a.hp, 'out.hp — новый hp (документированное поле)');
   assert.ok(r.practice && r.practice.skill === 'meditation',
     'практика по школе «исцеление» → meditation');
-  assert.equal(p.skillXp.meditation, PRACTICE_XP.spell,
-    'банк практики: +PRACTICE_XP.spell');
+  // 000307: t = союзник (не моб) → опорный = nearestMob = живой
+  // волк лвл 2, герой 1, D = −1 → XP = мана = 15.
+  assert.equal(r.practice.xp, 15,
+    'XP = round(15 × (1 + 0.1 × max(0, 1 − 2))) = 15');
+  assert.equal(p.skillXp.meditation, 0,
+    'банк: 15 − 15 (уровень 0→1) = 0');
+  assert.equal(p.secondary.meditation, 1, 'meditation 0 → 1');
 });
 
 test('000163 R4: мёртвый ИГРОК через castSpell — автоцель-приоритет (без targetId); targetId союзника при мёртвом игроке — союзник', () => {
