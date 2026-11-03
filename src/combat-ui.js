@@ -201,6 +201,7 @@
   let placeSel = null;
   let placeAnchors = null;
   let placeTargetPick = null;
+  let placeMoveWarned = false;
   let placeErrLogged = false;
   let spellBookWarned = false; // деградация без G.SpellBook — 1 console.error
   // 000193: деградация без G.AllySpells (битый порядок загрузки) —
@@ -640,6 +641,7 @@
     placebarEl.appendChild(placeGo);
     actions.appendChild(placebarEl);
     placeOpen = true;
+    placeMoveWarned = false;
 
     // «Быстрый предмет» — список (задача 000194): контейнер строк —
     // МЕЖДУ .combat-actions и .combat-log. Строки (div, не
@@ -1212,19 +1214,29 @@
       }
       const r = G.CombatKeys.resolveCombatKey(code, st);
       if (r.kind === 'move') {
-        // playerMove/allyMove само проверяет ход/шаги/стену/моба и
-        // возвращает reason — в журнал, а не тишина (задача 000048;
-        // 000168: c.move стал контекстным — диспатч по активному).
-        // 000260: окно закрывает только ПРИНЯТОЕ действие;
-        // отклонённый шаг — в журнал, окно остаётся (ревью).
-        const mv = c.move(r.dx, r.dy);
-        if (mv && mv.ok) {
-          if (closePlacementWindow()) {
-            c = ctx.combat;
-            logRejection(c, c.move(r.dx, r.dy));
+        if (placeGate()) {
+          // 000305: в режиме расстановки перемещение НЕ начинает
+          // бой: шаг не исполняется (позиции/пул шагов не тратятся),
+          // окно не закрывается (бой начинают подтверждение
+          // «В бой» / Enter или принятое действие — 000260).
+          // Повтор клавиши — не спам: строка РАЗ на окно.
+          if (!placeMoveWarned) {
+            placeMoveWarned = true;
+            c.log.push('Расстановка: подтвердите расстановку — «В бой» [Enter].');
           }
         } else {
-          logRejection(c, mv);
+          // playerMove/allyMove само проверяет ход/шаги/стену/моба и
+          // возвращает reason — в журнал, а не тишина (задача 000048;
+          // 000168: c.move стал контекстным — диспатч по активному).
+          const mv = c.move(r.dx, r.dy);
+          if (mv && mv.ok) {
+            if (closePlacementWindow()) {
+              c = ctx.combat;
+              logRejection(c, c.move(r.dx, r.dy));
+            }
+          } else {
+            logRejection(c, mv);
+          }
         }
       } else if (r.kind === 'action') {
         if (r.reason) {
@@ -3581,6 +3593,7 @@
     placeSel = null;
     placeAnchors = null;
     placeTargetPick = null;
+    placeMoveWarned = false;
     moveAnims = null;
     atkLayer = null;
     atkKids = {};
@@ -3864,6 +3877,7 @@
         placeSel = null;
         placeAnchors = null;
         placeTargetPick = null;
+        placeMoveWarned = false;
         moveAnims = null;
         atkLayer = null;
         atkKids = {};

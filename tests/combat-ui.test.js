@@ -1120,6 +1120,9 @@ test('боевой UI: шаг в препятствие по клавише — 
   c.obstacles.clear();
   c.obstacles.add(c.px + ',' + (c.py - 1)); // камень прямо перед героем
   const x0 = c.px, y0 = c.py;
+  // 000305 (ре-пин): Enter закрывает окно расстановки ДО шага (в режиме
+  // шаг не исполняется — ядро не видит; переносов нет → свапа нет).
+  press(keydown, 'Enter');
   press(keydown, 'ArrowUp');
   assert.ok(c.log.includes('препятствие'),
     'reason отклонения шага в журнале: ' + JSON.stringify(c.log.slice(-3)));
@@ -7095,6 +7098,10 @@ test('боевой UI: 000199.01 — кнопка «Конец хода»: бе�
   // (b) Реальный шаг: ArrowUp → (3,6)→(3,5) (обstacle-клетка снята,
   //     паттерн CU199-000121/L1836) — moveLeft 1→0, бейдж «0».
   S.c.obstacles.clear();
+  // 000305 (ре-пин): Enter закрывает окно расстановки ДО шага (в режиме
+  // шаг не исполняется; переносов нет → свапа нет → S.c — тот же
+  // активный бой).
+  press(S.keydown, 'Enter');
   press(S.keydown, 'ArrowUp');
   tickSlice(S.canvas, S.rafStubs);
   assert.equal(S.c.ps.moveLeft, 0, 'шаг сожжён: 1→0');
@@ -7150,6 +7157,9 @@ test('боевой UI: 000199.01 — бейдж шагов несёт АКТИВ
       'бейдж = c.efs.move («3»): факт '
       + JSON.stringify(badge.textContent));
     // (2,4) свободна: реальный шаг (2,5)→(2,4), 3→2.
+    // 000305 (ре-пин): Enter закрывает окно расстановки ДО шага
+    //     (переносов нет → свапа нет, S.c активен).
+    press(S.keydown, 'Enter');
     press(S.keydown, 'ArrowUp');
     tickSlice(S.canvas, S.rafStubs);
     assert.equal(S.c.efs.move, 2, 'шаг Эфира: 3→2');
@@ -11938,7 +11948,7 @@ test('боевой UI: 000260-U6 — явная цель (клик по мобу
   tickSlice(canvas, rafStubs);
 });
 
-test('боевой UI: 000260-U7 — отклонённый ввод НЕ закрывает окно: шаг в стену + отклонённое действие (быстрые слоты пусты) — бой не пересоздан, позиция на месте, бар виден; принятое действие (Space) окно закрывает (000260-U7, ревью)', () => {
+test('боевой UI: 000260-U7; 000305 — ввод в режиме: шаг НЕ исполняется (ре-пин 000305) + отклонённое действие (быстрые слоты пусты) — бой не пересоздан, позиция на месте, бар виден; принятое действие (Space) окно закрывает (000260-U7, ре-пин 000305)', () => {
   const S = scene84();
   const { G, c, body, canvas, rafStubs } = S;
   const bar = findByClass(body, 'combat-placebar');
@@ -11952,17 +11962,24 @@ test('боевой UI: 000260-U7 — отклонённый ввод НЕ зак
   clickAt260(S, cell[0], cell[1]);
   assert.equal(c.px, cell[0]); assert.equal(c.py, cell[1],
     'фикстура: перенос применён');
-  // (a) Стенной шаг: направление — по краю занятой клетки.
+  // (a) 000305 (ре-пин 000260): шаг в режиме расстановки НЕ
+  //     исполняется (c.move не вызван — ядерной причины «стена»
+  //     нет): no-op, строка — раз на окно, окно открыто, свапа нет.
   const wallKey = (c.py === c.height - 1) ? 'KeyS' : 'KeyA';
   press(S.keydown, wallKey);
   assert.equal(c.px, cell[0]); assert.equal(c.py, cell[1],
-    '000260: стенной шаг — no-op (позиция не изменилась)');
-  assert.ok(c.log.includes('стена'),
-    '000260: причина отказа шага — в журнал: ' + JSON.stringify(c.log));
+    '000305: шаг в режиме — no-op (позиция не изменилась)');
+  assert.ok(c.log.includes(
+    'Расстановка: подтвердите расстановку — «В бой» [Enter].'),
+    '000305: строка «шаг не исполняется» — в журнал: '
+    + JSON.stringify(c.log));
+  assert.ok(!c.log.includes('стена'),
+    '000305: c.move НЕ вызван (ядерной проверки нет): '
+    + JSON.stringify(c.log));
   assert.equal(bar.style.display, '',
-    '000260: отклонённый шаг НЕ закрывает окно (бар виден)');
+    '000305: шаг НЕ закрывает окно (бар виден)');
   assert.equal(G.combatUI.current(), c,
-    '000260: без свапа (тот же объект боя)');
+    '000305: без свапа (тот же объект боя)');
   // (b) Отклонённое действие: quickItem — «быстрые слоты пусты».
   press(S.keydown, 'KeyE');
   assert.ok(c.log.includes('быстрые слоты пусты'),
@@ -12192,4 +12209,93 @@ test('боевой UI: 000304-U3 — live-карта: успешный свап 
   assert.equal(liveMap.player[1], 5,
     '000304: player.y — подтверждённая клетка (краснота: '
     + JSON.stringify(liveMap.player));
+});
+
+// =====================================================================
+// 000305: бой начинать только кнопкой «Начать бой» — кнопки
+// перемещения в режиме расстановки бой не запускают (баг-репорт
+// drons, 2026-11-02; tasks/pending/000305.md; контракт
+// memory/000305-placement-movement-gate.md)
+//
+// Баг: в открытом окне расстановки клавиша/D-pad перемещения →
+// c.move: ПРИНЯТЫЙ шаг закрывал окно (closePlacementWindow) — бой
+// «начинался» первым же нажатием (привычка держать клавишу при
+// ходьбе по карте/подземелью). Фикс: ветка 'move' handleCode в окне
+// расстановки — no-op (consumed=true, c.move/closePlacementWindow не
+// вызываются; строка причины — раз на окно). Бой начинают
+// подтверждение («В бой» / Enter) или принятое ядром действие
+// (000260, пин 000260-U4).
+//
+// Краснота: M1 — ArrowUp (клетка (3,5) свободна после
+// c.obstacles.clear(), паттерн CU199.01-STEPS-1): сейчас шаг
+// исполняется (позиция (3,6)→(3,5), moveLeft 1→0, окно закрыто —
+// бар 'none'); M2 — после перемещения окно ЕЩЁ открыто (сейчас —
+// закрыто первым шагом), затем клик «В бой [Enter]» начинает бой.
+// expectedRedCount (этот блок) = 2 (M1, M2); остальные тесты файла
+// на red-стадии — зелёные (ре-пины U7(a)/CU199.01 — green-стадия).
+// =====================================================================
+
+test('боевой UI: 000305-M1 — перемещение в режиме расстановки НЕ начинает бой: позиция/шаги не тратятся, окно открыто, свапа нет; строка причины — раз на окно (000305-M1)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, 'фикстура: бар расстановки (окно открыто)');
+  assert.equal(bar.style.display, '',
+    'фикстура: бар виден (placeGate)');
+  const x0 = c.px, y0 = c.py;
+  const steps0 = c.ps.moveLeft;
+  const log0 = c.log.length;
+  // (3,5) свободна после снятия obstacle-клетки (паттерн
+  // CU199.01-STEPS-1) — шаг БЫЛ бы принят ядром.
+  c.obstacles.clear();
+  const r = G.combatUI.handleCode('ArrowUp');
+  assert.equal(r, true,
+    '000305: ввод потреблён (no-op, не «небоевая клавиша»): ' + r);
+  assert.equal(c.px, x0);
+  assert.equal(c.py, y0,
+    '000305: позиция НЕ изменилась (шаг не исполнен; краснота: '
+    + '(3,6)→(3,5))');
+  assert.equal(c.ps.moveLeft, steps0,
+    '000305: пул шагов не тронут');
+  assert.equal(G.combatUI.current(), c,
+    '000305: БЕЗ свапа — тот же объект боя (бой НЕ начался)');
+  assert.equal(bar.style.display, '',
+    '000305: расстановка продолжается (бар виден; краснота: '
+    + JSON.stringify(bar.style.display));
+  // Повторы клавиши (удержание) — журнал не засоряется: РАЗ на окно.
+  assert.equal(G.combatUI.handleCode('ArrowUp'), true,
+    'повтор — потреблён');
+  assert.equal(G.combatUI.handleCode('ArrowLeft'), true,
+    'другое направление — потреблено');
+  const added = Array.from(c.log).slice(log0);
+  assert.equal(added.length, 1,
+    '000305: строка причины — РАЗ на окно: ' + JSON.stringify(added));
+  assert.ok(added[0].includes('Расстановка'),
+    '000305: строка — про расстановку: ' + JSON.stringify(added[0]));
+  tickSlice(canvas, rafStubs);
+});
+
+test('боевой UI: 000305-M2 — полный сценарий: перемещение (no-op) → клик «В бой [Enter]» — бой начался: окно закрыто (бар none), бой активен, без свапа (000305-M2)', () => {
+  const S = scene84();
+  const { G, c, body, canvas, rafStubs } = S;
+  const bar = findByClass(body, 'combat-placebar');
+  const go = bar.children[2];
+  assert.equal(go.textContent, 'В бой [Enter]',
+    'фикстура: кнопка «Начать бой» (пин 000260-U1)');
+  assert.equal(bar.style.display, '', 'фикстура: окно открыто');
+  c.obstacles.clear();
+  assert.equal(G.combatUI.handleCode('ArrowUp'), true,
+    'перемещение — потреблено');
+  assert.equal(c.px, 3); assert.equal(c.py, 6,
+    '000305: позиция на якорях (шаг не исполнен)');
+  assert.equal(bar.style.display, '',
+    '000305: после перемещения окно ЕЩЁ ОТКРЫТО (бой НЕ начался; '
+    + 'краснота: окно закрыто первым шагом)');
+  go.listeners.click[0]();
+  assert.equal(bar.style.display, 'none',
+    '000305: клик «В бой [Enter]» — окно закрыто (бой начался)');
+  assert.equal(G.combatUI.current(), c,
+    'без переносов — тот же бой (свапа нет)');
+  assert.equal(c.phase, 'player', 'бой активен (ввод игрока)');
+  tickSlice(canvas, rafStubs);
 });
