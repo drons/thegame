@@ -872,3 +872,138 @@ test('000217 SQ-7 (конец боя, пин, ТЗ п.2): resolveCombat → lift
   assert.equal(G.squadUI.isOpen(), false,
     'панель работает: KeyC закрывает (после боя)');
 });
+
+// ============================================================
+// 000295: на-экранная кнопка «Отряд» [C] (CB-1..CB-5)
+// ============================================================
+
+// #touch-controls (в vm — схема 'keyboard': D-pad НЕ строится) —
+// кнопки [E]/[I]/«Отряд» (button.tc-action). Идентификация — по
+// img.src (стаб setAttribute роняет aria-label).
+function touchButtons(h) {
+  const root = (h.body.children || []).find(
+    (ch) => ch.id === 'touch-controls');
+  assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
+  const btns = root.children.filter((ch) =>
+    String(ch.className).includes('tc-action'));
+  assert.equal(btns.length, 3,
+    'RED: кнопки [E], [I] и «Отряд» (tc-action): 3');
+  const byIcon = (name) => btns.find((b) => b.children.some(
+    (ch) => ch.src === 'assets/ui/' + name));
+  const action = byIcon('icon_action.svg');
+  const inventory = byIcon('icon_inventory.svg');
+  const squad = byIcon('icon_squad.svg');
+  assert.ok(action, 'кнопка [E] с иконкой icon_action.svg');
+  assert.ok(inventory, 'кнопка [I] с иконкой icon_inventory.svg');
+  assert.ok(squad, 'RED: кнопка «Отряд» с иконкой icon_squad.svg');
+  return { root, btns, action, inventory, squad };
+}
+
+// Тап = pointerdown-слушатель кнопки: e.preventDefault();
+// колбэк; blur() (ui.js) — паттерн PE-8.
+function tapButton(b, label) {
+  const fns = (b.listeners && b.listeners['pointerdown']) || [];
+  assert.equal(fns.length, 1,
+    label + ': у кнопки ровно 1 pointerdown-слушатель');
+  let prevented = false;
+  fns[0]({ preventDefault() { prevented = true; } });
+  assert.ok(prevented, label + ': preventDefault (контракт слушателя)');
+}
+
+// Пане вкладки по tabid (паттерн 000123 tests/ui-panel.test.js):
+// вкладка i ↔ pane i в том же столбце.
+function tabPaneVisible(panel, tabid) {
+  for (const col of findAll(panel, '.cp-column')) {
+    const tabs = findAll(col, '.cp-tab');
+    const idx = tabs.findIndex((t) => t.dataset.tabid === tabid);
+    if (idx < 0) continue;
+    const pane = findAll(col, '.cp-tabpane')[idx];
+    if (pane) return pane.style.display !== 'none';
+  }
+  return false;
+}
+
+test('000295 CB-1 (e2e): карта: 3 кнопки [E]/[I]/«Отряд», все видны после кадра', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  assert.equal(g.dungeon, null, 'сценарий: мир (локации нет)');
+  assert.equal(g.state.controls, 'keyboard',
+    'сценарий: vm-схема keyboard (D-pad не строится)');
+  const { action, inventory, squad } = touchButtons(h);
+  h.frameFn(NOW + 16);
+  for (const b of [action, inventory, squad]) {
+    assert.notEqual(b.style.display, 'none',
+      'карта: кнопка видима (display != none)');
+  }
+  assert.equal(G.squadUI.isOpen(), false,
+    'сценарий: панель «Отряд» закрыта');
+});
+
+test('000295 CB-2 (e2e): город: кнопка «Отряд» видна', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const myMap = G.createMap(G.generateSeedPixels());
+  const { now } = await enterCity(h, NOW, myMap, (c) => c.fp >= 2);
+  assert.equal(g.dungeon.kind, 'city', 'в городе (kind city)');
+  const { squad } = touchButtons(h);
+  h.frameFn(now + 16);
+  assert.notEqual(squad.style.display, 'none',
+    'город: кнопка «Отряд» видима (контракт: 3 контекста)');
+  assert.equal(G.squadUI.isOpen(), false,
+    'сценарий: панель «Отряд» закрыта');
+});
+
+test('000295 CB-3 (e2e): подземелье: кнопка «Отряд» видна', async () => {
+  const h = await boot();
+  const g = h.sandbox.__game;
+  const G = h.sandbox.Game;
+  const ds = enterDungeonClean(h);
+  assert.ok(ds, 'сценарий: подземелье (отладочный вход)');
+  assert.equal(g.dungeon.kind, 'dungeon', 'kind dungeon');
+  const { squad } = touchButtons(h);
+  h.frameFn(NOW + 16);
+  assert.notEqual(squad.style.display, 'none',
+    'подземелье: кнопка «Отряд» видима (контракт: 3 контекста)');
+  assert.equal(G.squadUI.isOpen(), false,
+    'сценарий: панель «Отряд» закрыта');
+});
+
+test('000295 CB-4 (e2e): клик по кнопке «Отряд» = toggle панели, паритет с клавишей C', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const { squad } = touchButtons(h);
+  assert.equal(G.squadUI.isOpen(), false, 'сценарий: панель закрыта');
+  tapButton(squad, 'кнопка «Отряд»');
+  assert.equal(G.squadUI.isOpen(), true, 'клик: панель открыта');
+  tapButton(squad, 'кнопка «Отряд»');
+  assert.equal(G.squadUI.isOpen(), false, 'повторный клик: панель закрыта');
+  press(h, 'KeyC');
+  assert.equal(G.squadUI.isOpen(), true,
+    'клавиша C — тот же toggle (паритет)');
+  press(h, 'KeyC');
+  assert.equal(G.squadUI.isOpen(), false, 'клавиша C закрывает');
+});
+
+test('000295 CB-5 (e2e): регрессия [I]/[E] — [I] открывает панель персонажа (вкладка «Инвентарь»); «Отряд»-клик при закрытом playerUI', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const { inventory, squad } = touchButtons(h);
+  assert.equal(G.playerUI.isOpen(), false, 'сценарий: playerUI закрыт');
+  assert.equal(G.squadUI.isOpen(), false, 'сценарий: панель «Отряд» закрыта');
+  tapButton(inventory, 'кнопка [I]');
+  assert.equal(G.playerUI.isOpen(), true,
+    '[I]: панель персонажа открыта (регрессия)');
+  const panel = findAll(h.body, '.char-panel')[0];
+  assert.ok(panel, 'панель персонажа .char-panel в body');
+  assert.equal(tabPaneVisible(panel, 'inventory'), true,
+    '[I]: активна вкладка «Инвентарь» (toggle(undefined, "inventory"))');
+  G.playerUI.toggle(false);
+  assert.equal(G.playerUI.isOpen(), false, 'playerUI закрыт (сценарий)');
+  tapButton(squad, 'кнопка «Отряд»');
+  assert.equal(G.squadUI.isOpen(), true,
+    'клик «Отряд»: панель «Отряд» открыта');
+  assert.equal(G.playerUI.isOpen(), false,
+    'playerUI не тронут squad-кликом (закрыт)');
+});

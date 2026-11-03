@@ -128,7 +128,7 @@
   // по точке. Ни document, ни navigator — не трогаем.
 
   // Все действия тач-контролов.
-  const TOUCH_ACTIONS = ['up', 'down', 'left', 'right', 'interact', 'inventory'];
+  const TOUCH_ACTIONS = ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad'];
 
   // Радиус мёртвой зоны D-pad, доля от размера (центр — «никуда»).
   const TOUCH_DEADZONE = 0.18;
@@ -200,17 +200,22 @@
    *               полноэкранного режима);
    *   inventory — квадрат ТОГО ЖЕ размера что action, над ним с
    *               зазором TOUCH_ACTION_GAP (задача 000123): пара
-   *               [I] над [E]. Чтобы пара влезла с учётом inset,
-   *               размер B дополнительно ограничен
-   *               floor((availH − inset − GAP) / 2) (на низком
-   *               вьюпорте B ужимается ниже 56, как сейчас).
-   * ВСЕГДА возвращает три прямоугольника — независимо от того,
+   *               [I] над [E];
+   *   squad     — квадрат ТОГО ЖЕ размера что action, над inventory
+   *               с тем же зазором (задача 000295): тройка «Отряд»
+   *               над [I] над [E]. Чтобы тройка влезла с учётом
+   *               inset, размер B дополнительно ограничен
+   *               floor((availH − inset − GAP) / 2) И
+   *               floor((availH − inset − 2*GAP) / 3) (на низком
+   *               вьюпорте B ужимается ниже 56, как пара).
+   * ВСЕГДА возвращает четыре прямоугольника — независимо от того,
    * строится ли D-pad в DOM (схема 'keyboard' — только кнопки).
-   * @param {number} width, height — вьюпорт (<= 0 / NaN → три нуля)
+   * @param {number} width, height — вьюпорт (<= 0 / NaN → четыре нуля)
    * @param {{bottomInset?: number}} [opts]
    * @returns {{dpad: {x: number, y: number, w: number, h: number},
    *            action: {x: number, y: number, w: number, h: number},
-   *            inventory: {x: number, y: number, w: number, h: number}}}
+   *            inventory: {x: number, y: number, w: number, h: number},
+   *            squad: {x: number, y: number, w: number, h: number}}}
    */
   function layoutTouchControls(width, height, opts) {
     const w = Number(width), h = Number(height);
@@ -220,6 +225,7 @@
         dpad: { x: 0, y: 0, w: 0, h: 0 },
         action: { x: 0, y: 0, w: 0, h: 0 },
         inventory: { x: 0, y: 0, w: 0, h: 0 },
+        squad: { x: 0, y: 0, w: 0, h: 0 },
       };
     }
     const M = 16; // отступ от краёв
@@ -230,36 +236,49 @@
     const S = Math.max(0, Math.min(
       220, Math.max(96, Math.floor(Math.min(w, h) * 0.4)), availW, availH));
     const dpad = { x: M, y: h - M - S, w: S, h: S };
-    // Член floor((availH − inset − GAP) / 2) — пара action+inventory
-    // влезает в вьюпорт с учётом bottomInset (задача 000123). На
-    // типичных вьюпортах он не активен — action побайтово как раньше.
+    // Члены floor((availH − inset − GAP) / 2) и
+    // floor((availH − inset − 2*GAP) / 3) — тройка
+    // action+inventory+squad влезает в вьюпорт с учётом bottomInset
+    // (задачи 000123/000295). На типичных вьюпортах они не активны —
+    // action и inventory побайтово как раньше.
     const B = Math.max(0, Math.min(
       96, Math.max(56, Math.floor(S * 0.5)), availW, availH - inset,
-      Math.floor((availH - inset - TOUCH_ACTION_GAP) / 2)));
+      Math.floor((availH - inset - TOUCH_ACTION_GAP) / 2),
+      Math.floor((availH - inset - 2 * TOUCH_ACTION_GAP) / 3)));
     const action = { x: w - M - B, y: h - M - inset - B, w: B, h: B };
     // inventory — та же правая колонка, непосредственно над action.
     const inventory = {
       x: action.x, y: action.y - TOUCH_ACTION_GAP - B, w: B, h: B,
     };
-    return { dpad, action, inventory };
+    // squad — та же правая колонка, непосредственно над inventory.
+    const squad = {
+      x: action.x, y: inventory.y - TOUCH_ACTION_GAP - B, w: B, h: B,
+    };
+    return { dpad, action, inventory, squad };
   }
 
   /**
    * Действие по точке on-screen-контролов.
    * D-pad: направление — по ДОМИНИРУЮЩЕЙ оси от центра (по диагонали 45°
    * выигрывает горизонталь); в центре — мёртвая зона (null), снаружи —
-   * null. Кнопки имеют приоритет перед D-pad: inventory ПЕРВАЯ (задача
-   * 000123), затем action — формально приоритет, т.к. прямоугольники
-   * не пересекаются (зазор > 0).
+   * null. Кнопки имеют приоритет перед D-pad: squad ПЕРВАЯ (задача
+   * 000295), затем inventory (задача 000123), затем action —
+   * формально приоритет, т.к. прямоугольники не пересекаются
+   * (зазор > 0).
    * @param {number} x, y — CSS px вьюпорта
-   * @param {{dpad: object, action: object, inventory?: object}} layout
-   *   — layoutTouchControls; старое layout-объект без inventory —
-   *   деградация (не крах): inventory просто не отвечает.
-   * @returns {'up'|'down'|'left'|'right'|'interact'|'inventory'|null}
+   * @param {{dpad: object, action: object, inventory?: object,
+   *          squad?: object}} layout
+   *   — layoutTouchControls; старое layout-объект без inventory/squad
+   *   — деградация (не крах): соответствующая кнопка просто не
+   *   отвечает.
+   * @returns {'up'|'down'|'left'|'right'|'interact'|'inventory'
+   *          |'squad'|null}
    */
   function touchActionAt(x, y, layout) {
     if (!layout || !Number.isFinite(x) || !Number.isFinite(y)) return null;
-    const a = layout.action, d = layout.dpad, v = layout.inventory;
+    const a = layout.action, d = layout.dpad, v = layout.inventory,
+      s = layout.squad;
+    if (s && s.w > 0 && s.h > 0 && _inRect(x, y, s)) return 'squad';
     if (v && v.w > 0 && v.h > 0 && _inRect(x, y, v)) return 'inventory';
     if (a && a.w > 0 && a.h > 0 && _inRect(x, y, a)) return 'interact';
     if (!d || d.w <= 0 || d.h <= 0 || !_inRect(x, y, d)) return null;

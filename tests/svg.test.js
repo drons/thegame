@@ -493,9 +493,11 @@ const EXPECTED_SVG_BY_DIR = {
                                       // кадры героя перенесены сюда)
   'sprites/mercs': 12,                // наёмные NPC (задача 000152: 6 × 2)
   'sprites/visuals': 13,
-  'ui': 12,                           // иконки действий боя (задача 000124)
+  'ui': 13,                           // иконки действий боя (задача 000124)
                                       // + icon_action/icon_inventory —
                                       // кнопки [E]/[I] (задача 000123)
+                                      // + icon_squad — кнопка «Отряд»
+                                      // (задача 000295)
                                       // 000149: −combat_fire/−combat_heal
                                       // +combat_spellbook (книга)
                                       // 000178: +combat_cast/+combat_heal

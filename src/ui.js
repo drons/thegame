@@ -1873,7 +1873,8 @@
         'src/controls.js должен загружаться ДО src/ui.js');
       return;
     }
-    let root = null, dpadEl = null, actionEl = null, inventoryEl = null;
+    let root = null, dpadEl = null, actionEl = null, inventoryEl = null,
+        squadEl = null;
     const arrows = {}; // dir -> span (пусто, если D-pad не строится)
     let shown = false;
     // 000150: последнее применённое per-control состояние видимости
@@ -1883,7 +1884,7 @@
     let heldPointer = null; // pointerId, удерживающий D-pad (один)
     let heldDir = null;
     let onHold = null, onRelease = null, onInteract = null,
-        onInventory = null;
+        onInventory = null, onSquad = null;
 
     // Под кнопку полноэкранного режима (внизу справа, если она есть)
     // оставляем место: action-кнопку раскладка поднимет вверх.
@@ -1908,6 +1909,7 @@
       };
       place(actionEl, layout.action);
       place(inventoryEl, layout.inventory);
+      place(squadEl, layout.squad);
       if (dpadEl) {
         place(dpadEl, layout.dpad);
         // Стрелки — в центре «лучей» D-pad (координаты внутри dpadEl).
@@ -2019,8 +2021,23 @@
         inventoryEl.blur();
       });
 
+      // Кнопка «Отряд» (задача 000295) — тот же паттерн [E]/[I]:
+      // иконка, без текстовой буквы; поведение — callback onSquad.
+      squadEl = el('button', 'tc-action');
+      const squadIcon = el('img');
+      squadIcon.src = 'assets/ui/icon_squad.svg';
+      squadIcon.alt = '';
+      squadEl.appendChild(squadIcon);
+      squadEl.setAttribute('aria-label', 'Отряд');
+      squadEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (onSquad) onSquad();
+        squadEl.blur();
+      });
+
       root.appendChild(actionEl);
       root.appendChild(inventoryEl);
+      root.appendChild(squadEl);
       document.body.appendChild(root);
       window.addEventListener('resize', applyLayout);
       // Вкладка в фоне / системный жест — палец «срезан»: отпускаем.
@@ -2036,11 +2053,13 @@
        *          onRelease?: (dir: string) => void,
        *          onInteract?: () => void,
        *          onInventory?: () => void,
+       *          onSquad?: () => void,
        *          dpad?: boolean}} h
        *   onHold/onRelease — 'up'|'down'|'left'|'right' (направление
        *   удерживается / отпущено), onInteract — действие (диалог /
        *   постройка, аналог [E]), onInventory — панель инвентаря
-       *   (аналог [I]; задача 000123). dpad — собирать ли D-pad:
+       *   (аналог [I]; задача 000123), onSquad — панель «Отряд»
+       *   (аналог [C]; задача 000295). dpad — собирать ли D-pad:
        *   true — схема 'touch' (D-pad + обе кнопки), false/не задано —
        *   схема 'keyboard' (только кнопки, D-pad не строится, задача
        *   000123).
@@ -2052,6 +2071,7 @@
         onRelease = h.onRelease;
         onInteract = h.onInteract;
         onInventory = h.onInventory;
+        onSquad = h.onSquad;
         build(h.dpad === true);
       },
       show() {
@@ -2099,6 +2119,7 @@
         // 'block' (перебил бы flex-центрирование иконки).
         actionEl.style.display = buttons ? '' : 'none';
         inventoryEl.style.display = buttons ? '' : 'none';
+        squadEl.style.display = buttons ? '' : 'none';
         // Схема 'keyboard': dpadEl === null — dpad-часть no-op, НЕ крах
         // (кнопки работают в ОБЕИХ схемах — 000123).
         if (dpadEl) dpadEl.style.display = dpad ? '' : 'none';

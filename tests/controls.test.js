@@ -119,7 +119,7 @@ test('keydown/keyup дают одинаковый id при смене реги�
 
 test('touch: набор действий и мёртвая зона', () => {
   assert.deepEqual(TOUCH_ACTIONS,
-    ['up', 'down', 'left', 'right', 'interact', 'inventory']);
+    ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad']);
   assert.ok(TOUCH_DEADZONE > 0 && TOUCH_DEADZONE < 0.5);
 });
 
@@ -441,4 +441,86 @@ test('touch: controls.js в чужом realm — роутер и маппинг 
   assert.equal(sandbox.Game.routeTouchScreen({ dungeon: true }), 'dungeon');
   assert.equal(sandbox.Game.touchKeyCode('up'), 'ArrowUp');
   assert.equal(sandbox.Game.touchKeyCode('interact'), 'KeyE');
+});
+
+// ---------------------------------------------------------------------------
+// Кнопка «Отряд» [C] в раскладке и хит-тесте (задача 000295)
+// ---------------------------------------------------------------------------
+
+test('touch: TOUCH_ACTIONS содержит squad (000295)', () => {
+  assert.deepEqual(TOUCH_ACTIONS,
+    ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad']);
+});
+
+test('touch: layoutTouchControls — squad: над inventory, тройка, тот же размер (000295)', () => {
+  const L = layoutTouchControls(800, 600);
+  // Эталон 800×600: та же правая колонка и размер, что action/inventory,
+  // над inventory (зазор 12 px).
+  assert.deepEqual(L.squad, { x: 688, y: 272, w: 96, h: 96 });
+  // action/inventory — бит-в-бит как ДО 000295 (без изменений).
+  assert.deepEqual(L.action, { x: 688, y: 488, w: 96, h: 96 });
+  assert.deepEqual(L.inventory, { x: 688, y: 380, w: 96, h: 96 });
+  assert.equal(L.squad.w, L.action.w);
+  assert.equal(L.squad.h, L.action.h);
+  assert.equal(L.squad.x, L.action.x);
+  // Зазор между squad и inventory ровно 12 (TOUCH_ACTION_GAP).
+  assert.equal(L.inventory.y - (L.squad.y + L.squad.h), 12,
+    'зазор между «Отряд» и [I] = 12 px');
+  // Тройка в вьюпорте.
+  assert.ok(L.squad.y >= 0 && L.squad.y + L.squad.h <= 600);
+});
+
+test('touch: layoutTouchControls — squad на низком/узком вьюпорте, невалидные → нули (000295)', () => {
+  // Низкий вьюпорт: тройка (3×B + 2×зазор) влезает — B может быть < 56.
+  const low = layoutTouchControls(800, 140);
+  assert.deepEqual(low.squad, { x: 756, y: 16, w: 28, h: 28 });
+  assert.ok(low.squad.y >= 0 && low.squad.y + low.squad.h <= 140);
+  assert.ok(low.action.y - (low.inventory.y + low.inventory.h) >= 8);
+  assert.ok(low.inventory.y - (low.squad.y + low.squad.h) >= 8);
+  assert.equal(low.squad.w, low.action.w);
+  assert.equal(low.squad.h, low.action.h);
+  // Узкий вьюпорт: все три кнопки в пределах 100×120.
+  const narrow = layoutTouchControls(100, 120);
+  assert.deepEqual(narrow.squad, { x: 63, y: 17, w: 21, h: 21 });
+  assert.ok(narrow.squad.x >= 0
+    && narrow.squad.x + narrow.squad.w <= 100);
+  assert.ok(narrow.squad.y >= 0
+    && narrow.squad.y + narrow.squad.h <= 120);
+  // Невалидные размеры → ВСЕ ЧЕТЫРЕ прямоугольника нулевые.
+  for (const [w, h] of [[0, 600], [-5, 600], [NaN, 600], [800, 0]]) {
+    const bad = layoutTouchControls(w, h);
+    assert.equal(bad.dpad.w, 0);
+    assert.equal(bad.action.w, 0);
+    assert.equal(bad.inventory.w, 0);
+    assert.equal(bad.squad.w, 0);
+    assert.equal(bad.squad.h, 0);
+  }
+  // Гигантский bottomInset — тройка не влезает → B = 0.
+  const over = layoutTouchControls(800, 600, { bottomInset: 1e6 });
+  assert.equal(over.action.w, 0);
+  assert.equal(over.squad.w, 0);
+  assert.equal(over.squad.h, 0);
+});
+
+test('touch: touchActionAt — точка в squad → squad, без регрессий (000295)', () => {
+  const L = layoutTouchControls(800, 600);
+  // Центр и угол squad (координаты — из раскладки, устойчиво к зазору).
+  const scx = L.squad.x + L.squad.w / 2;
+  const scy = L.squad.y + L.squad.h / 2;
+  assert.equal(touchActionAt(scx, scy, L), 'squad');
+  assert.equal(touchActionAt(L.squad.x + 2, L.squad.y + 2, L), 'squad');
+  // Точка в зазоре под squad (зазор 12, +4 — внутри) — null.
+  assert.equal(touchActionAt(scx, L.squad.y + L.squad.h + 4, L), null);
+  // inventory и action — без изменений.
+  const icx = L.inventory.x + L.inventory.w / 2;
+  const icy = L.inventory.y + L.inventory.h / 2;
+  assert.equal(touchActionAt(icx, icy, L), 'inventory');
+  const acx = L.action.x + L.action.w / 2;
+  const acy = L.action.y + L.action.h / 2;
+  assert.equal(touchActionAt(acx, acy, L), 'interact');
+});
+
+test('touch: «touch:squad» не направление (000295)', () => {
+  assert.equal(deltaForMoveKey('touch:squad'), null);
+  assert.equal(touchMoveKeyForAction('squad'), null);
 });

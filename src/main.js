@@ -2362,6 +2362,12 @@
       onInventory: () => {
         if (G.playerUI) G.playerUI.toggle(undefined, 'inventory');
       },
+      // Кнопка «Отряд» (задача 000295) — та же семантика, что клавиша
+      // [C] (keydown выше): глобальный оверлей, без маршрутизации по
+      // экранам.
+      onSquad: () => {
+        if (G.squadUI) G.squadUI.toggle();
+      },
     });
     G.touchControls.show();
   } else {

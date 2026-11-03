@@ -206,12 +206,13 @@ test('TV3: touchControls.applyVisibility — style.display пер-контрол
     'ошибок загрузки нет: ' + m.errors.join('; '));
   assert.ok(m.tc, 'Game.touchControls существует (controls.js + ui.js)');
   assert.ok(m.root, 'корень #touch-controls в body');
-  assert.equal(m.root.children.length, 3,
-    'dpad:true — children [dpad, action, inventory] (порядок build)');
-  const [dpad, action, inventory] = m.root.children;
+  assert.equal(m.root.children.length, 4,
+    'dpad:true — children [dpad, action, inventory, squad] (порядок build)');
+  const [dpad, action, inventory, squad] = m.root.children;
   assert.equal(dpad.className, 'tc-dpad', 'child 0 — D-pad');
   assert.equal(action.className, 'tc-action', 'child 1 — кнопка [E]');
   assert.equal(inventory.className, 'tc-action', 'child 2 — кнопка [I]');
+  assert.equal(squad.className, 'tc-action', 'child 3 — кнопка «Отряд»');
   // До applyVisibility — всё видимо.
   for (const e of [dpad, action, inventory]) {
     assert.notEqual(e.style.display, 'none',
@@ -255,11 +256,12 @@ test('TV3: touchControls.applyVisibility — style.display пер-контрол
   assert.equal(m2.errors.length, 0,
     'ошибок загрузки нет (dpad:false): ' + m2.errors.join('; '));
   assert.ok(m2.root, 'корень существует (dpad:false)');
-  assert.equal(m2.root.children.length, 2,
-    'dpad:false — children [action, inventory]');
-  const [action2, inventory2] = m2.root.children;
+  assert.equal(m2.root.children.length, 3,
+    'dpad:false — children [action, inventory, squad]');
+  const [action2, inventory2, squad2] = m2.root.children;
   assert.equal(action2.className, 'tc-action', 'child 0 — кнопка [E]');
   assert.equal(inventory2.className, 'tc-action', 'child 1 — кнопка [I]');
+  assert.equal(squad2.className, 'tc-action', 'child 2 — кнопка «Отряд»');
   m2.tc.applyVisibility({ buttons: false, dpad: false }); // без исключений
   assert.equal(action2.style.display, 'none',
     'keyboard: [E] скрыта (dpad-часть — no-op)');
@@ -489,18 +491,19 @@ function frameMain(h) {
   h.raf[0](NOW);
 }
 
-// DOM: #touch-controls в body; children [dpad, action, inventory].
+// DOM: #touch-controls в body; children [dpad, action, inventory, squad].
 function touchDom(documentStub) {
   const root = documentStub.body.children
     .find((c) => c.id === 'touch-controls');
   assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
-  assert.equal(root.children.length, 3,
-    'touch-схема — children [dpad, action, inventory]');
-  const [dpad, action, inventory] = root.children;
+  assert.equal(root.children.length, 4,
+    'touch-схема — children [dpad, action, inventory, squad]');
+  const [dpad, action, inventory, squad] = root.children;
   assert.equal(dpad.className, 'tc-dpad', 'child 0 — D-pad');
   assert.equal(action.className, 'tc-action', 'child 1 — кнопка [E]');
   assert.equal(inventory.className, 'tc-action', 'child 2 — кнопка [I]');
-  return { root, dpad, action, inventory };
+  assert.equal(squad.className, 'tc-action', 'child 3 — кнопка «Отряд»');
+  return { root, dpad, action, inventory, squad };
 }
 
 // Победа в бою (паттерн resolveCombatVictory
@@ -672,4 +675,59 @@ test('TV7: e2e — нет Game.touchControlsVisibility (mixed-версии) → 
     assert.notEqual(e.style.display, 'none',
       'деградация: контролы видимы: ' + e.className);
   }
+});
+
+// ---------------------------------------------------------------------------
+// TV8: кнопка «Отряд» (задача 000295) — 4-й (конечный) ребёнок
+// #touch-controls в touch-схеме; в бою скрыта ОДНОЙ единицей
+// buttons вместе с [E]/[I]; после конца боя — восстановлено.
+// Идентификация — по img.src (стаб setAttribute роняет aria-label).
+// ---------------------------------------------------------------------------
+
+test('TV8: e2e — кнопка «Отряд» в DOM (touch-схема); бой: скрыта с [E]/[I]; после боя — восстановлено', async () => {
+  const h = await bootTouch();
+  assert.equal(h.errors.length, 0,
+    'ошибок загрузки нет: ' + h.errors.join('; '));
+  const G = h.sandbox.Game;
+  const g = h.sandbox.__game;
+  assert.ok(g, '__game (main.js выполнен)');
+  assert.equal(g.state.controls, 'touch',
+    'сценарий: принудительная схема ?controls=touch (dpad в DOM)');
+  const root = h.sandbox.document.body.children
+    .find((c) => c.id === 'touch-controls');
+  assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
+  const squad = root.children.find((c) =>
+    String(c.className).includes('tc-action')
+    && c.children.some((ch) => ch.src === 'assets/ui/icon_squad.svg'));
+  assert.ok(squad,
+    'RED: кнопка «Отряд» (icon_squad.svg) — в #touch-controls');
+  assert.equal(root.children.length, 4,
+    'touch-схема — children [dpad, action, inventory, squad]');
+  assert.equal(squad, root.children[3],
+    'кнопка «Отряд» — КОНЕЧНЫЙ ребёнок (порядок build)');
+  const { action, inventory } = touchDom(h.sandbox.document);
+  // Геометрия: applyLayout при show() (1280×720, bottomInset 0:
+  // B = 96; action {1168,608}, inventory {1168,500}, squad {1168,392}).
+  assert.equal(squad.style.left, '1168px', 'squad: x = 1168 px');
+  assert.equal(squad.style.top, '392px', 'squad: y = 392 px');
+  assert.equal(squad.style.width, '96px', 'squad: w = 96 px');
+  assert.equal(squad.style.height, '96px', 'squad: h = 96 px');
+  // Пре-состояние: всё видимо (кнопка как [E]/[I]).
+  frameMain(h);
+  assert.notEqual(squad.style.display, 'none',
+    'до боя — кнопка «Отряд» видима');
+  // Бой (отладочный, паттерн TV4).
+  const c = g.actions.startCombat(0);
+  assert.ok(c, 'отладочный бой создан');
+  assert.equal(G.combatUI.isActive(), true, 'прекон: бой активен');
+  frameMain(h);
+  assert.equal(action.style.display, 'none', 'бой: [E] скрыта');
+  assert.equal(inventory.style.display, 'none', 'бой: [I] скрыта');
+  assert.equal(squad.style.display, 'none',
+    'бой: кнопка «Отряд» скрыта (одна единица buttons, 000150)');
+  // Конец боя (victory → Space) — всё восстановлено.
+  resolveCombatVictory(G, c, 'TV8');
+  frameMain(h);
+  assert.notEqual(squad.style.display, 'none',
+    'после конца боя — кнопка «Отряд» видима снова');
 });
