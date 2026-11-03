@@ -170,6 +170,10 @@
     if (s.requires && skillLevel(character, s.requires.skill) < s.requires.level) {
       return { ok: false, reason: 'нужен ' + skillName(s.requires.skill) + ' ' + s.requires.level };
     }
+    if (typeof character.trainPoints === 'number' &&
+        character.trainPoints <= 0) {
+      return { ok: false, reason: 'нет очков обучения на этом уровне' };
+    }
     const price = schoolTrainPrice(npc, character, skillId);
     if (character.gold < price) {
       return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
@@ -200,6 +204,9 @@
     const price = schoolTrainPrice(npc, character, skillId);
     character.gold -= price;
     character.secondary[skillId] = (character.secondary[skillId] || 0) + 1;
+    if (typeof character.trainPoints === 'number') {
+      character.trainPoints -= 1;
+    }
     // Крафт (000046): навык вырос — потолок видов крафта на нём вырос.
     craftReprocessHook(character, skillId);
     return { ok: true, level: character.secondary[skillId], price };

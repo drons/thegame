@@ -191,6 +191,9 @@
       c.xp -= deps.game.xpForNext(c.level);
       c.level += 1;
       c.points += deps.game.POINTS_PER_LEVEL;
+      if (typeof c.trainPoints === 'number') {
+        c.trainPoints = deps.game.TRAIN_POINTS_PER_LEVEL;
+      }
     }
     const d = deps.game.derived(c);
     c.hp = Math.min(d.maxHP, c.hp);

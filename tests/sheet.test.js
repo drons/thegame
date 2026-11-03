@@ -57,6 +57,7 @@ test('SH-1: createSheet — 3 kinds; hero — точный лейаут createCh
     hp: 25, // maxHP из derived (база)
     mp: 16, // maxMP из derived (база)
     points: 0,
+    trainPoints: 10, // 000298: бюджет обучения (лимит 10 за уровень)
     primary: {
       strength: 1, dexterity: 1, constitution: 1,
       intelligence: 1, wisdom: 1, charisma: 1,
@@ -68,6 +69,7 @@ test('SH-1: createSheet — 3 kinds; hero — точный лейаут createCh
   }, 'hero-лейаут дословно createCharacter');
   assert.deepEqual(Object.keys(h), [
     'name', 'level', 'xp', 'totalXp', 'gold', 'hp', 'mp', 'points',
+    'trainPoints',
     'primary', 'secondary', 'skillXp', 'spells', 'alive',
   ], 'порядок ключей = порядок createCharacter (байты сейва)');
 

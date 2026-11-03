@@ -532,7 +532,7 @@ function (G0, rootRef) {
       }
 
       // Статы (in place):
-      //   hero — ПОБАЙТОВО текущий 4-строчный шаблон (пины
+      //   hero — ПОБАЙТОВО текущий 5-строчный шаблон (пины
       //   ui-panel/ui-skills; idиома ДВА пробела у | — 000041);
       //   efir/merc — 2 строки (sheet 000140/143/144: нет
       //   gold/hp/inventory-полей; xpForNext — функция только от
@@ -546,6 +546,7 @@ function (G0, rootRef) {
           `Уровень ${c.level}  |  Опыт ${c.xp}/${G.xpForNext(c.level)}\n` +
           `HP ${c.hp}/${d.maxHP}  |  MP ${c.mp}/${d.maxMP}  |  Броня ${d.armor + eqA}\n` +
           `Золото: ${c.gold}  |  Свободные очки: ${c.points}\n` +
+          `Очки обучения: ${c.trainPoints}\n` +
           `Вес: ${w.toFixed(1)}/${maxW.toFixed(1)} кг  |  Слоты: ${G.slotCount(c)}/${d.inventorySlots}`;
       } else {
         panel._stats.textContent =

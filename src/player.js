@@ -183,6 +183,9 @@
       mp: (typeof s.mp === 'number' && Number.isFinite(s.mp) && s.mp >= 0)
         ? s.mp : 0,
       points: (Number.isInteger(s.points) && s.points >= 0) ? s.points : 0,
+      trainPoints: (Number.isInteger(s.trainPoints) && s.trainPoints >= 0
+        && s.trainPoints <= sheet.TRAIN_POINTS_PER_LEVEL)
+        ? s.trainPoints : sheet.TRAIN_POINTS_PER_LEVEL,
       primary, secondary, skillXp,
       alive: true,
     };
@@ -195,6 +198,12 @@
   const derived = sheet.derived;
   const canRaise = sheet.canRaise;
   const addXp = sheet.addXp;
+  // Задача 000298: flat-ре-экспорт для grantXpRaw
+  // (src/building-actions.js) — читает deps.game.TRAIN_POINTS_PER_LEVEL
+  // (паттерн POINTS_PER_LEVEL выше). 10 — жёсткое правило SPEC
+  // (spec/npc.md «Школы (обучение)»), не live-настройка (в отличие от
+  // points_per_level, 000099).
+  const TRAIN_POINTS_PER_LEVEL = sheet.TRAIN_POINTS_PER_LEVEL;
   const skillXpForNext = sheet.skillXpForNext;
   const practiceCap = sheet.practiceCap;
   const skillLevel = sheet.skillLevel;
@@ -271,7 +280,7 @@
 
   return {
     PRIMARY_SKILLS, SECONDARY_SKILLS, RANKS,
-    MAX_SKILL_LEVEL, POINTS_PER_LEVEL,
+    MAX_SKILL_LEVEL, POINTS_PER_LEVEL, TRAIN_POINTS_PER_LEVEL,
     rankOf, secondaryName, xpForNext,
     createCharacter, sanitizeSavedHero, derived, canRaise, raiseSkill,
     addXp, takeDamage, heal, restoreDay,

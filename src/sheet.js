@@ -52,6 +52,7 @@
 
   const KINDS = ['hero', 'efir', 'merc'];
   const MAX_SKILL_LEVEL = 100;
+  const TRAIN_POINTS_PER_LEVEL = 10;
   // Основные навыки в порядке создания героя (байты сейва, 000031).
   const PRIMARY_KEYS = ['strength', 'dexterity', 'constitution',
     'intelligence', 'wisdom', 'charisma'];
@@ -155,6 +156,7 @@
         hp: 0,
         mp: 0,
         points: 0, // неистраченные очки навыков
+        trainPoints: TRAIN_POINTS_PER_LEVEL,
         primary,
         secondary: {}, // id -> уровень
         skillXp: {}, // id вторичного навыка -> опыт внутри текущего уровня (практика, задача 000013)
@@ -246,6 +248,8 @@
       sheet.level += 1;
       levelsGained += 1;
       sheet.points += ppl;
+      if (typeof sheet.trainPoints === 'number')
+        sheet.trainPoints = TRAIN_POINTS_PER_LEVEL;
     }
     // maxHP/maxMP зависят только от навыков; перекладываем в новые
     // границы — только при наличии поля (S-3).
@@ -572,7 +576,7 @@
   }
 
   return {
-    KINDS, MAX_SKILL_LEVEL,
+    KINDS, MAX_SKILL_LEVEL, TRAIN_POINTS_PER_LEVEL,
     createSheet, xpForNext, pointsPerLevel, addXp,
     canRaise, raiseSkill, skillXpForNext, practiceCap, skillLevel,
     practice, reprocessSkillXp, derived,
