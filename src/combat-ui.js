@@ -236,6 +236,20 @@
   // МОДУЛЬНЫЙ выбор не живёт между боями; персист между боями —
   // live-карта main.js, не модульная карта).
   let lastSpells = {};
+  // 000227.01: иконка выбранного заклинания на кнопках «Каст»/
+  // «Лечение»/«Последнее заклинание» — act → { img, src }. img —
+  // персистентный элемент (create-once в build; пересоздание в
+  // render убивает клики — урок 000149); src — последний применённый
+  // raw-строка (сменогвард: в реальном браузере el.src — абсолютный
+  // URL — гвард по el.src бесполезен). Пер-бой (паттерн lastSpells):
+  // сброс в build()/finish()/catch. Контракт —
+  // memory/000227.01-combat-last-spell-icon.md (D1–D6).
+  let lastSpellIcons = null;
+  const LASTSPELL_DEFAULT_ICON = {
+    lastSpell: 'assets/ui/combat_lastspell.svg',
+    cast: 'assets/ui/combat_cast.svg',
+    heal: 'assets/ui/combat_heal.svg',
+  };
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
   // 000174: глейд передвижения мобов — null | Map id → { path, at }:
@@ -323,6 +337,7 @@
   function build() {
     countEls = {}; // 000199: пересборка — карта бейджей свежая
     lastSpells = {}; // 000227: пересборка — выбор не живёт между боями
+    lastSpellIcons = {}; // 000227.01: пересборка — слоты иконок свежие
     // 000249 (S2/S4): союзников (Эфир/наёмники) сидируем из
     // live-карты main.js (ctx.lastSpells: 'efir'/npcId → id
     // заклинания; у боевого юнита тот же ключ — 'efir' у Эфира
@@ -483,6 +498,10 @@
       cbCnt.textContent = '';
       cb.appendChild(cbCnt);
       countEls['cast'] = cbCnt;
+      // 000227.01: точка (a) — иконка сидованного выбора (до первого
+      // хода unitOf НЕ владелец кнопки: Эфир — id 'efir').
+      lastSpellIcons['cast'] = { img: icon };
+      applyLastSpellIcon('cast', seededSelectionOf(c, 'cast'));
       // Начальное значение — display 'none': первый render
       // синхронен в startCombat (build(); render();), видимость —
       // castHealVis; защищает гипотетический build без render.
@@ -514,6 +533,10 @@
       hbCnt.textContent = '';
       hb.appendChild(hbCnt);
       countEls['heal'] = hbCnt;
+      // 000227.01: точка (a) — иконка сидованного выбора (первый
+      // merc/summon с книгой; тот же предикат, что гейт выше).
+      lastSpellIcons['heal'] = { img: icon };
+      applyLastSpellIcon('heal', seededSelectionOf(c, 'heal'));
       hb.style.display = 'none'; // видимость — render (castHealVis)
       actions.appendChild(hb);
     }
@@ -546,6 +569,10 @@
       lbCnt.textContent = '';
       lb.appendChild(lbCnt);
       countEls['lastSpell'] = lbCnt;
+      // 000227.01: точка (a) — иконка сидованного выбора героя
+      // (000291: build-сидинг из live-карты 'flogiston').
+      lastSpellIcons['lastSpell'] = { img: icon };
+      applyLastSpellIcon('lastSpell', seededSelectionOf(c, 'lastSpell'));
       lb.style.display = 'none'; // видимость — render (lastSpellVis)
       actions.appendChild(lb);
     }
@@ -2544,6 +2571,16 @@
         } else if (act === 'lastSpell') {
           b.style.display = lastSpellVis(c) ? '' : 'none';
         }
+        // 000227.01: точка (c) — иконка за активным владельцем
+        // (D5: зеркало lastSpellChk), ТОЛЬКО видимая кнопка: на ходу
+        // моба unitOf → c.player (фолбэк) — без гварда иконка
+        // сбрасывалась бы в generic на чужих ходах; при видимости
+        // кнопки unitOf — точно её владелец (lastSpellVis/
+        // castHealVis).
+        if ((act === 'lastSpell' || act === 'cast' || act === 'heal')
+            && b.style.display !== 'none') {
+          applyLastSpellIcon(act, activeSelectionOf(c, act));
+        }
         // Счётчик действий (000199/000199.01): персистентный span
         // (build, урок 000149) — render обновляет ТОЛЬКО
         // textContent/display. «Удар» — ВСЕГДА видим (включая 0,
@@ -2958,6 +2995,12 @@
     if (ctx && ctx.lastSpells) {
       ctx.lastSpells[u === c.player ? 'flogiston' : u.id] = spellId;
     }
+    // 000227.01: точка (b) — смена выбора: иконка кнопки (owner —
+    // тот же акт, что в lastSpellPress: герой — lastSpell, Эфир —
+    // cast, прочий союзник — heal).
+    const act = (u === c.player) ? 'lastSpell'
+      : (u.kind === 'efir' ? 'cast' : 'heal');
+    applyLastSpellIcon(act, spellId);
   }
 
   // --- «Воскрешение» — кнопка панели (задача 000171) ---
@@ -3155,6 +3198,67 @@
       : (u.kind === 'efir' ? (c.efs || null) : u);
     if (!src || typeof src[row.poolKey] !== 'number') return null;
     return src[row.poolKey];
+  }
+
+  // 000227.01: иконка выбранного заклинания — чистый lookup каталога
+  // (G.SpellsData.SPELLS_BY_ID[id].icon — конвенция row.icon
+  // spellbook.js; иконку НЕ вычислять из id). Деградация (нет
+  // каталога — сцена без withSpells; неизвестный id; иконка не-строка
+  // или пусто) → null — своя иконка кнопки, ТИХО (0 console.error —
+  // презентация без каталога, а не сломанная зависимость; паттерн
+  // тихого чтения bookRows/spellBtnOf).
+  function spellIconForId(id) {
+    if (typeof id !== 'string' || id === '') return null;
+    const byId = (G.SpellsData && G.SpellsData.SPELLS_BY_ID)
+      ? G.SpellsData.SPELLS_BY_ID : null;
+    if (!byId) return null;
+    const s = byId[id];
+    return (s && typeof s.icon === 'string' && s.icon !== '')
+      ? s.icon : null;
+  }
+  // 000227.01: владелец иконки в render-цикле (D5: 1 действие = 1
+  // поведение — зеркало lastSpellChk): 'lastSpell' — выбор героя;
+  // 'cast'/'heal' — выбор активного СОЮЗНИКА (unitOf; игрок/моб —
+  // c.player → null). Дисплей-гвард вызывающий: кнопка видима ТОЛЬКО
+  // на ходу своего владельца → выбор верен.
+  function activeSelectionOf(c, act) {
+    if (act === 'lastSpell') return lastSpells.player || null;
+    const u = unitOf(c);
+    return (u && u !== c.player) ? (lastSpells[u.id] || null) : null;
+  }
+  // 000227.01: владелец иконки в build() (до первого хода unitOf НЕ
+  // владелец кнопки): 'lastSpell' — герой (гейт: непустая книга —
+  // кнопка построена); 'cast' — Эфир (id всегда 'efir'); 'heal' —
+  // ПЕРВЫЙ merc/summon с непустой книгой (тот же предикат, что гейт
+  // build — детерминировано; 2+ целителя — первый, render чинит на
+  // активного — memory/000227.01 §8).
+  function seededSelectionOf(c, act) {
+    if (act === 'lastSpell') {
+      return (c.player && Array.isArray(c.player.spells)
+        && c.player.spells.length > 0)
+        ? (lastSpells.player || null) : null;
+    }
+    if (act === 'cast') return lastSpells['efir'] || null;
+    for (const u of c.units) {
+      if (u.side === 'ally'
+          && (u.kind === 'merc' || u.kind === 'summon')
+          && Array.isArray(u.spells) && u.spells.length > 0) {
+        return lastSpells[u.id] || null;
+      }
+    }
+    return null;
+  }
+  // 000227.01: ЕДИНЫЙ путь записи иконки (D4): want = иконка
+  // выбранного || своя иконка кнопки (без выбора — generic, D3).
+  // Сменогвард — по СТОЯЩИМУ slot.src (raw-строка). img — персистент-
+  // ный элемент (create-once в build; урок 000149).
+  function applyLastSpellIcon(act, sel) {
+    const slot = lastSpellIcons && lastSpellIcons[act];
+    if (!slot) return;
+    const want = spellIconForId(sel) || LASTSPELL_DEFAULT_ICON[act];
+    if (slot.src === want) return;
+    slot.src = want;
+    slot.img.src = want;
   }
 
   function openFleeConfirm() {
@@ -3451,6 +3555,7 @@
     mpbarEl = mpbarFillEl = mpbarTextEl = null;
     countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
     lastSpells = {}; // 000227: как countEls — обе точки (finish/catch)
+    lastSpellIcons = null; // 000227.01: как lastSpells — обе точки
     bookBox = null;
     bookOpen = false;
     bookSig = null;
@@ -3707,6 +3812,7 @@
         mpbarEl = mpbarFillEl = mpbarTextEl = null;
         countEls = {}; // 000199: как hpbar-refs — обе точки (D5b 000170)
         lastSpells = {}; // 000227: как countEls — обе точки (finish/catch)
+        lastSpellIcons = null; // 000227.01: как lastSpells — обе точки
         bookBox = null;
         bookOpen = false;
         bookSig = null;

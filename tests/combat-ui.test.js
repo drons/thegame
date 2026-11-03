@@ -8271,6 +8271,275 @@ test('боевой UI: 000291 — герой: выбор ЗАПОМИНАЕТС�
     'бой 2: live не подменён (id = сидовый): ' + JSON.stringify(live));
 });
 
+// =====================================================================
+// Задача 000227.01: кнопка «Последнее заклинание» (000227) — иконка
+// ВЫБРАННОГО заклинания на кнопках (Флогистон/Эфир/наёмники) + перист
+// выбора между боями. ТЗ — tasks/pending/000227.01.md; контракты
+// D1–D10 — memory/000227.01-combat-last-spell-icon.md.
+//
+// Механизм периста выбора УЖЕ В МАСТЕРЕ (000249/000291) — scope задачи:
+// (1) иконка = НОВОЕ: img трёх кнопок (cast ~L470 / heal ~L503 /
+// lastSpell ~L535 combat-ui.js) ставится СТАТИЧНО один раз в build()
+// и НИГДА не переключается на icon выбранного заклинания (grep
+// spell-icons — только прецедент resurrect ~L572); (2) перист —
+// красный round-trip E2E через новый наблюдаемый срез (иконку).
+//
+// КРАСНЫЕ тесты (TDD, до реализации): сцены собираются штатно (механизм
+// выбора есть) — падение на ассертах img.src, осмысленное: факт generic
+// (assets/ui/combat_*.svg) ≠ assets/spell-icons/<id>.svg — нет точек
+// (a) build / (b) recordLastSpell (D2). Зелёные guard'ы (падают ни до,
+// ни после): CU22701-NONE — без выбора своя иконка кнопки (D3:
+// legacy-иконка вне scope); guard подделки id в CU22701-SEED (гвард
+// 000291 — без сидинга, 0 console.error); guard S1 в CU22701-CAST —
+// неудачный каст не записывает и не сбрасывает (000249 S1) — иконка
+// не меняется. alt='' во всех состояниях (D6).
+// Блок — в СЕРЕДИНЕ файла (якорь 000193.01 ниже): 000226 пишет в EOF
+// этого файла. E2E-красный (22701-E2E-ROUNDTRIP, двойная загрузка) —
+// EOF tests/save-restore.test.js.
+// =====================================================================
+
+// ROSTER_MEDIC + 'light_heal' — для смены выбора строкой книги;
+// книга — ДО build (rosterData) — гейт build статичен (u.spells
+// читается при построении, 000227 D6).
+const ROSTER22701 = [{ name: 'Медик', role: 'support', level: 2,
+  dmg: 1, hp: 1, spells: ['mend', 'light_heal'] }];
+
+test('боевой UI: 000227.01 — build: сидованный выбор (ctx.lastSpells) — иконка кнопки = иконка ЭТОГО заклинания из каталога (lastSpell — «Заговора» героя, cast — «Искра» Эфира, heal — «Заговора» первого медика); бейдж 000227 жив в выбранном состоянии («1»); guard: подделанный id (frost_bolt — нет в книге) — без сидинга (000291), иконка lastSpell — СВОЯ (combat_lastspell.svg), 0 console.error (CU22701-SEED)', () => {
+  const S = scene227({ efir: true, spells: true, allySpells: true,
+    roster: ROSTER22701,
+    lastSpells: { flogiston: 'mend', efir: 'spark', a1: 'mend' } });
+  const { G, c } = S;
+  const medic = c.units.find((x) => x.side === 'ally'
+    && x.role === 'support' && x.kind === 'merc');
+  assert.ok(medic, 'фикстура: support-наёмник в партии');
+  assert.equal(medic.id, 'a1',
+    'фикстура: id «a1» (Эфир забирает «a0»); краснота: '
+    + JSON.stringify(medic.id));
+  assert.equal(G.activeUnitId(c), 'efir', 'фикстура: первым ходит Эфир');
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.equal(byAct.lastSpell.children[0].src,
+    'assets/spell-icons/mend.svg',
+    'lastSpell: иконка = icon сидованного «Заговора» героя (D1: поле '
+    + 'icon каталога SPELLS_BY_ID); краснота (a): факт '
+    + JSON.stringify(byAct.lastSpell.children[0].src));
+  assert.equal(byAct.cast.children[0].src, 'assets/spell-icons/spark.svg',
+    'cast: иконка = icon сидованной «Искры» Эфира; краснота (a): факт '
+    + JSON.stringify(byAct.cast.children[0].src));
+  assert.equal(byAct.heal.children[0].src, 'assets/spell-icons/mend.svg',
+    'heal: иконка = icon сидованного «Заговора» первого медика (a1); '
+    + 'краснота (a): факт ' + JSON.stringify(byAct.heal.children[0].src));
+  assert.equal(byAct.lastSpell.children[0].alt, '', 'alt="" (D6)');
+  assert.equal(byAct.cast.children[0].alt, '', 'alt="" (D6)');
+  assert.equal(byAct.heal.children[0].alt, '', 'alt="" (D6)');
+  const cnt = badgeOf199(byAct.cast);
+  assert.equal(cnt.textContent, '1',
+    'бейдж 000227 жив в выбранном состоянии (spark → c.efs.spellInt 1): '
+    + JSON.stringify(cnt.textContent));
+  // Guard (зелёный ни до, ни после): подделанный id (frost_bolt — нет
+  // в дефолтной книге героя ['spark','mend']) — гвард 000291 блокирует
+  // сидинг — своя иконка кнопки, 0 console.error (паттерн guard-1
+  // CU291-SHOW).
+  {
+    const errors = [];
+    const realError = console.error;
+    console.error = (m) => errors.push(String(m));
+    let S2 = null;
+    try {
+      S2 = scene227({ spells: true,
+        lastSpells: { flogiston: 'frost_bolt' } });
+      const c2 = S2.c;
+      const w2 = c2.units.find((x) => x.id === 'm0');
+      w2.x = c2.px; w2.y = c2.py - 1;
+      w2.maxHP = 100; w2.hp = 100;
+      c2.selectTarget(w2.id);
+      tickSlice(S2.canvas, S2.rafStubs);
+    } finally {
+      console.error = realError;
+    }
+    const byAct2 = byActOf178(S2);
+    assert.equal(byAct2.lastSpell.children[0].src,
+      'assets/ui/combat_lastspell.svg',
+      'guard: подделанный id — без сидинга → СВОЯ иконка кнопки: '
+      + JSON.stringify(byAct2.lastSpell.children[0].src));
+    assert.equal(errors.length, 0, 'guard: 0 console.error: '
+      + JSON.stringify(errors));
+  }
+});
+
+test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст строкой книги ПЕРЕПИСЫВАЕТ иконку на новое заклинание (точка (b)); 3 субсценария — герой («Искра» → «Заговора» + guard S1: неудачный каст НЕ меняет иконку), Эфир («Заговора» → «Искра»), Медик («Заговора» → «Свет исцеления»); live-карта обновляется кастом (CU22701-CAST)', () => {
+  // (1) Герой.
+  {
+    const live = { flogiston: 'spark' };
+    const S = scene227({ spells: true, lastSpells: live });
+    const { G, c } = S;
+    const m0 = c.units.find((x) => x.id === 'm0');
+    m0.x = c.px; m0.y = c.py - 1;
+    m0.maxHP = 100; m0.hp = 100;
+    c.selectTarget(m0.id);
+    assert.equal(G.activeUnitId(c), 'player', 'фикстура: ход игрока');
+    assert.equal(c.player.mp, 16, 'фикстура: мана 16');
+    assert.equal(c.ps.spellWis, 1, 'фикстура: пул Мудрость 1 (дефолт)');
+    // hp героя НЕ трогать: c.player — sheet (нет maxHP — special case
+    // combat.js L303); на старте боя hp полон → self-cast full-HP.
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.equal(byAct.lastSpell.children[0].src,
+      'assets/spell-icons/spark.svg',
+      'старт: иконка сидованного «Искра» героя (точка (a)); краснота: '
+      + JSON.stringify(byAct.lastSpell.children[0].src));
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const mendRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'mend');
+    assert.ok(mendRow, 'строка «Заговора» в книге героя');
+    const n0 = c.log.length;
+    mendRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const a0 = Array.from(c.log).slice(n0);
+    assert.match(a0[a0.length - 1], /^Заговора: \d+\.$/,
+      'успешный self-cast «Заговора» (full HP — healed 0, прецедент '
+      + 'CU227-BADGE): ' + JSON.stringify(a0));
+    assert.equal(c.player.mp, 13, 'мана 16→13 (Заговора: 3)');
+    assert.equal(c.ps.spellWis, 0, 'пул 1→0');
+    assert.equal(live.flogiston, 'mend',
+      'выбор записан в live на УСПЕШНОМ касте (000249 S1): '
+      + JSON.stringify(live));
+    assert.equal(byAct.lastSpell.children[0].src,
+      'assets/spell-icons/mend.svg',
+      'после каста: иконка нового «Заговора» (точка (b)); краснота: '
+      + 'факт ' + JSON.stringify(byAct.lastSpell.children[0].src));
+    // Guard S1 (зелёный после фикса): неудачный каст (не хватает маны)
+    // — не записывает и не сбрасывает (000249 S1) — иконка не меняется.
+    c.player.mp = 2; // whitebox: < «Искра» (3)
+    press(S.keydown, 'KeyQ'); // книга закрылась после успеха — переоткрыть
+    assert.notEqual(bookBox.style.display, 'none',
+      'книга переоткрыта (KeyQ)');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» в книге');
+    const n1 = c.log.length;
+    sparkRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const r0 = Array.from(c.log).slice(n1);
+    assert.deepEqual(r0, ['не хватает маны (3)'],
+      'S1: отказ дословно (logRejection, пин 000249): '
+      + JSON.stringify(r0));
+    assert.equal(c.player.mp, 2, 'S1: мана не потрачена (отказ)');
+    assert.equal(live.flogiston, 'mend',
+      'S1: выбор НЕ сброшен отказом: ' + JSON.stringify(live));
+    assert.equal(byAct.lastSpell.children[0].src,
+      'assets/spell-icons/mend.svg',
+      'S1: иконка НЕ изменена отказом (факт '
+      + JSON.stringify(byAct.lastSpell.children[0].src) + ')');
+  }
+  // (2) Эфир.
+  {
+    const live = { efir: 'mend' };
+    const S = scene227({ efir: true, spells: true, allySpells: true,
+      lastSpells: live });
+    const { G, c } = S;
+    const u = c.units.find((x) => x.kind === 'efir');
+    const wolf = c.units.find((x) => x.id === 'm0');
+    u.x = 3; u.y = 5;
+    wolf.x = 3; wolf.y = 4;
+    wolf.maxHP = 100; wolf.hp = 100;
+    assert.equal(G.activeUnitId(c), 'efir', 'фикстура: ход Эфира');
+    assert.equal(u.mp, 11, 'фикстура: мана 11');
+    assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.equal(byAct.cast.children[0].src, 'assets/spell-icons/mend.svg',
+      'старт: иконка сидованного «Заговора» Эфира («mend» — в дефолтной '
+      + 'книге EFIR_SPELL_START, без whitebox); краснота (a): факт '
+      + JSON.stringify(byAct.cast.children[0].src));
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const sparkRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'spark');
+    assert.ok(sparkRow, 'строка «Искра» в книге Эфира');
+    const n0 = c.log.length;
+    sparkRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, ['Эфир: «Искра» — Волк: 6.'],
+      'успешный каст «Искра» (seed 42 — дословный пин '
+      + 'CU249-EFIR-IMMEDIATE): ' + JSON.stringify(added));
+    assert.equal(u.mp, 8, 'мана 11→8 (Искра: 3)');
+    assert.equal(c.efs.spellInt, 0, 'пул 1→0');
+    assert.equal(live.efir, 'spark',
+      'выбор обновлён на «Искра» (live, ключ «efir»): '
+      + JSON.stringify(live));
+    assert.equal(byAct.cast.children[0].src, 'assets/spell-icons/spark.svg',
+      'после каста: иконка новой «Искры» (точка (b)); краснота: факт '
+      + JSON.stringify(byAct.cast.children[0].src));
+  }
+  // (3) Медик (без Эфира — id 'a0').
+  {
+    const live = { a0: 'mend' };
+    const S = scene227({ spells: true, allySpells: true,
+      roster: ROSTER22701, lastSpells: live });
+    const { G, c } = S;
+    const medic = c.units.find((x) => x.side === 'ally'
+      && x.role === 'support' && x.kind === 'merc');
+    assert.ok(medic, 'фикстура: support-наёмник в партии');
+    assert.equal(medic.id, 'a0', 'фикстура: id «a0» (без Эфира)');
+    tickSlice(S.canvas, S.rafStubs);
+    const byAct = byActOf178(S);
+    assert.equal(byAct.heal.children[0].src, 'assets/spell-icons/mend.svg',
+      'старт: иконка сидованного «Заговора» Медика (точка (a)); '
+      + 'краснота: факт ' + JSON.stringify(byAct.heal.children[0].src));
+    press(S.keydown, 'Space');
+    tickSlice(S.canvas, S.rafStubs);
+    assert.equal(G.activeUnitId(c), 'a0', 'фикстура: ход support-наёмника');
+    medic.hp = medic.maxHP;
+    medic.mp = 8; // whitebox: база 5 < «Свет исцеления» (6)
+    assert.equal(medic.spellWis, 1, 'фикстура: пул Мудрость 1');
+    tickSlice(S.canvas, S.rafStubs);
+    press(S.keydown, 'KeyQ');
+    const bookBox = findByClass(S.body, 'combat-spellbook');
+    assert.notEqual(bookBox.style.display, 'none', 'книга открыта (KeyQ)');
+    const lhRow = bookBox.children.slice(-2)
+      .find((rw) => rw.dataset.spell === 'light_heal');
+    assert.ok(lhRow, 'строка «Свет исцеления» в книге Медика');
+    const n0 = c.log.length;
+    lhRow.listeners.click[0]();
+    tickSlice(S.canvas, S.rafStubs);
+    const added = Array.from(c.log).slice(n0);
+    assert.deepEqual(added, ['Медик лечит себя (+6).'],
+      'успешный каст «Свет исцеления» (full HP — дословная строка '
+      + 'фикстуры CU249-MERC-IMMEDIATE): ' + JSON.stringify(added));
+    assert.equal(medic.mp, 2, 'мана 8→2 (light_heal: 6)');
+    assert.equal(medic.spellWis, 0, 'пул 1→0');
+    assert.equal(live.a0, 'light_heal',
+      'выбор обновлён на «Свет исцеления» (live, ключ «a0»): '
+      + JSON.stringify(live));
+    assert.equal(byAct.heal.children[0].src,
+      'assets/spell-icons/light_heal.svg',
+      'после каста: иконка нового «Света исцеления» (точка (b)); '
+      + 'краснота: факт ' + JSON.stringify(byAct.heal.children[0].src));
+  }
+});
+
+test('боевой UI: 000227.01 — без выбора: три кнопки — СОБСТВЕННЫЕ иконки (combat_lastspell/cast/heal.svg) — зелёный guard, падает ни до ни после (D3: без выбора — generic; legacy-иконка strongestKnown/mostWounded — вне scope; РЕ-ПИНОВ 0) (CU22701-NONE)', () => {
+  const S = scene227({ efir: true, spells: true, allySpells: true,
+    roster: ROSTER22701 });
+  tickSlice(S.canvas, S.rafStubs);
+  const byAct = byActOf178(S);
+  assert.equal(byAct.lastSpell.children[0].src,
+    'assets/ui/combat_lastspell.svg',
+    'без выбора — своя иконка lastSpell: '
+    + JSON.stringify(byAct.lastSpell.children[0].src));
+  assert.equal(byAct.cast.children[0].src, 'assets/ui/combat_cast.svg',
+    'без выбора — своя иконка cast: '
+    + JSON.stringify(byAct.cast.children[0].src));
+  assert.equal(byAct.heal.children[0].src, 'assets/ui/combat_heal.svg',
+    'без выбора — своя иконка heal: '
+    + JSON.stringify(byAct.heal.children[0].src));
+});
+
 // ===== 000193.01: MP-полоса наёмника — мана (u.mp/u.maxMP) =====
 
 test('боевой UI: 000193.01 — полоска MP наёмника: «MP 9/9» (u.mp/u.maxMP, attrs); после каста из книги (клик строки → castAllySpell) — «MP 3/9» (fill 33.3%) (CU193.01-MPBAR-MERC)', () => {
