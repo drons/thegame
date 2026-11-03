@@ -12,11 +12,13 @@
 //   * player.js (Game.derived/heal/skillPractice — характеристики и HP/MP).
 //
 // Числовые формулы эффектов (данные в каталоге описательные):
-//   * урон:     round((4 + 0.5*атрибут) * (1 + 0.15*(степень−1))
-//               * (1 + schoolBonus)); schoolBonus: огонь →
-//               fireDamageBonus, лёд → iceDamageBonus, иначе 0.
-//               Всегда попадает, броню моба игнорирует.
-//   * лечение:  round((4 + 0.5*атрибут + уровень) * (1 + 0.15*(степень−1)))
+//   * урон:     round((4 + 0.5*атрибут) * множитель_степени
+//               * (1 + schoolBonus) * buffMult); множитель_степени —
+//               каталог assets/spells (000306), без поля — 1 (бит-в-бит
+//               степень 1); schoolBonus: огонь → fireDamageBonus, лёд →
+//               iceDamageBonus, иначе 0; buffMult — баф «урон»
+//               (000235.01). Всегда попадает, броню моба игнорирует.
+//   * лечение:  round((4 + 0.5*атрибут + уровень) * множитель_степени)
 //               (атрибут — как у урона; в каталоге все исцеления — Мудрость).
 //   * защита:   c.ps.shield = { armor: 1 + степень, turns: 3 } (тик — в
 //               начале хода игрока, combat.js).
@@ -308,6 +310,10 @@
   const ATTR_NAME = { intelligence: 'Интеллект', wisdom: 'Мудрость' };
   // Школьный бонус к урону — из производных характеристик (Повелители).
   const SCHOOL_BONUS = { огонь: 'fireDamageBonus', лёд: 'iceDamageBonus' };
+  function spellTierMult(spell) {
+    return (typeof spell.множитель_степени === 'number')
+      ? spell.множитель_степени : 1;
+  }
   // Практика: мапа школа → вторичный навык (задача 000013); у школ Тень
   // и Защита соответствующего вторичного навыка нет — практики нет.
   const PRACTICE_BY_SCHOOL = {
@@ -618,7 +624,7 @@
           && c.ps.buff.turns > 0) ? 1 + c.ps.buff.value : 1;
         const dmg = Math.round(
           (4 + 0.5 * p.primary[spell.атрибут]) *
-          (1 + 0.15 * (spell.степень - 1)) * (1 + bonus) * buffMult);
+          spellTierMult(spell) * (1 + bonus) * buffMult);
         const r = dealDamageToMob(c, t, dmg, true);
         log(c, `${spell.название} по ${t.name}: ${r.dmg}.`);
         out.dmg = r.dmg;
@@ -639,7 +645,7 @@
         // Мудрость; при другом атрибуте формула следовала бы за ним).
         const amount = Math.round(
           (4 + 0.5 * p.primary[spell.атрибут] + p.level) *
-          (1 + 0.15 * (spell.степень - 1)));
+          spellTierMult(spell));
         if (spellId === 'purify') {
           if (t) {
             t.debuff = null;

@@ -2269,8 +2269,12 @@
   // Формула — формула лечения spells.js с attrs союзника (000167:
   // у наёмника attrs — СВЕЖИЙ снапшот sheet.primary, allies →
   // attrs {}-фикстуры тестов → уровень): round((4 + 0.5·attr +
-  // ур)·(1 + 0.15·(степень−1))).
+  // ур)·множитель_степени (каталог, 000306)).
   // Игрок лечится P.heal; союзник — прямой hp (без c.ps-эффектов).
+  function spellTierMult(spell) {
+    return (typeof spell['множитель_степени'] === 'number')
+      ? spell['множитель_степени'] : 1;
+  }
   function allyHeal(c, u) {
     const catalog = combatInternals.allySpells;
     if (!catalog) return false;
@@ -2292,8 +2296,8 @@
     for (const a of livingAllies(c)) consider(a.hp / a.maxHP, { unit: a });
     if (!best) return false;
     const amount = Math.round(
-      (4 + 0.5 * ((u.attrs && u.attrs[spell['атрибут']]) || 0) + u.level) *
-      (1 + 0.15 * (spell['степень'] - 1)));
+      (4 + 0.5 * ((u.attrs && u.attrs[spell['атрибут']]) || 0) + u.level)
+      * spellTierMult(spell));
     if (best.player) {
       P.heal(p, amount);
       log(c, `${u.name} лечит ${p.name} (+${amount}).`);
@@ -2469,7 +2473,7 @@
     const amount = Math.round(
       (4 + 0.5 * ((u.attrs && u.attrs[s['атрибут']]) || 0)
         + (u.level || 0))
-      * (1 + 0.15 * ((Number(s['степень']) || 1) - 1)));
+      * spellTierMult(s));
     const healed = healAlly(c, t, amount);
     const tName = (t === c.player) ? 'Флогистон' : t.name;
     log(c, `${u.name} лечит ${tName} (+${amount}).`);
@@ -2513,7 +2517,7 @@
     // база 4 + 0.5·атрибут, множитель степени, лорд-множитель школы.
     const dmg = Math.round(
       (4 + 0.5 * ((u.attrs && u.attrs[s['атрибут']] || 0)))
-      * (1 + 0.15 * (s['степень'] - 1))
+      * spellTierMult(s)
       * (1 + 0.05 * lord));
     const r = dealDamageToMob(c, t, dmg, true);
     // 000118: паттерн ТЗ «Эфир: «<заклинание>» — <имя>: N.» (em-dash).

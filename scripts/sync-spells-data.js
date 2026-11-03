@@ -105,9 +105,28 @@ for (const f of files) {
   spells.push({ file: f, data: resolveSpellData(data, f) });
 }
 
+const TIER_ACTIONS = new Set(['урон', 'лечение']);
+const byId = new Map(spells.map((s) => [s.data.id, s.data]));
+for (const { file, data } of spells) {
+  if (!TIER_ACTIONS.has(data.действие)) continue;
+  const m = data['множитель_степени'];
+  if (typeof m !== 'number' || !(m > 0)) {
+    console.error(`${file}: действие «${data.действие}» — множитель_степени обязателен (число > 0), 000306`);
+    process.exit(1);
+  }
+  const base = data.база ? byId.get(data.база) : null;
+  if (base && TIER_ACTIONS.has(base.действие)) {
+    const mb = base['множитель_степени'];
+    if (typeof mb !== 'number' || !(m > mb)) {
+      console.error(`${file}: множитель_степени ${m} не строго больше базового ${mb} (цепочка «база», 000306)`);
+      process.exit(1);
+    }
+  }
+}
+
 // Канонический порядок ключей (схема assets/spells/schema.json).
-const KEYS = ['id', 'название', 'школа', 'база', 'степень', 'атрибут',
-  'уровень', 'мани', 'действие', 'предметы', 'здания', 'описание',
+const KEYS = ['id', 'название', 'школа', 'база', 'степень', 'множитель_степени',
+  'атрибут', 'уровень', 'мани', 'действие', 'предметы', 'здания', 'описание',
   'icon', 'icon_prompt', 'параметры', 'вне_боя'];
 
 // --- Генерация JS ---

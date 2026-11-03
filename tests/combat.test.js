@@ -2582,7 +2582,7 @@ test('shield-союзник: подход через rectFree (не сквозь
 
 test('support-союзник: лечит САМОГО РАНЕНОГО (минимальная доля hp/maxHP), формула spells.js, сильнейшая степень', () => {
   // Формула лечения spells.js с attrs союзника (у наёмника attrs пуст →
-  // уровень): round((4 + 0.5×attr + ур) × (1 + 0.15×(степень−1))).
+  // уровень): round((4 + 0.5×attr + ур) × множитель_степени (каталог, 000306)).
   const mk = (spells) => {
     const c = createCombat({
       player: strongHero(),

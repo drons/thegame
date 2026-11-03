@@ -51,6 +51,10 @@
     ['урон', 'лечение', 'защита', 'ослабление', 'контроль', 'воскрешение']);
   // Действия, требующие цель на поле (прочие — по себе).
   const TARGETED = new Set(['урон', 'ослабление', 'контроль']);
+  function spellTierMult(spell) {
+    return (typeof spell['множитель_степени'] === 'number')
+      ? spell['множитель_степени'] : 1;
+  }
   // Практика: мапа школа → навык Эфира (000117; тень/защита/
   // исцеление — навыка нет → практики нет; наёмник — нет вообще).
   const PRACTICE_BY_SCHOOL = {
@@ -318,7 +322,7 @@
         }
         const dmg = Math.round(
           (4 + 0.5 * attrVal)
-          * (1 + 0.15 * (spell['степень'] - 1)) * (1 + bonus));
+          * spellTierMult(spell) * (1 + bonus));
         const r = I.dealDamageToMob(c, t, dmg, true);
         // 000118-паттерн (em-dash U+2014); наёмник — параллель
         // (u.name вместо «Эфир»).
@@ -333,7 +337,7 @@
         // значение (паттерн 000168); факт — out.healed.
         const amount = Math.round(
           (4 + 0.5 * attrVal + (u.level || 0))
-          * (1 + 0.15 * (spell['степень'] - 1)));
+          * spellTierMult(spell));
         const healed = I.healAlly(c, u, amount);
         I.log(c, `${u.name} лечит себя (+${amount}).`);
         out.healed = healed;

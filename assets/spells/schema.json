@@ -39,6 +39,11 @@
       "minimum": 1,
       "maximum": 5
     },
+    "множитель_степени": {
+      "type": "number",
+      "minimum": 0.01,
+      "maximum": 10
+    },
     "атрибут": {
       "enum": ["intelligence", "wisdom"]
     },

@@ -60,7 +60,7 @@ const MIRA193 = { name: 'Мира', role: 'support', level: 1, dmg: 0.5, hp: 0.8
   skills: [], spells: ['light_heal'],
   attrs: { dexterity: 4, intelligence: 4, wisdom: 4 }, maxHP: 40 };
 // Н2/Н5: Ашка — ranged, (Int 4 / Wis 2 / Dex 4) → mp 5+4+2 = 11,
-// spellInt 1; spark dmg = round((4+0.5·4)·(1+0.15·0)·(1+0)) = 6.
+// spellInt 1; spark dmg = round((4+0.5·4)·множитель_степени (каталог, 000306)·(1+0)) = 6.
 const ASHKA193 = { name: 'Ашка', role: 'ranged', level: 1, dmg: 1.0, hp: 0.9,
   skills: [], spells: ['spark'],
   attrs: { dexterity: 4, intelligence: 4, wisdom: 2 } };
@@ -145,7 +145,7 @@ test('000193-N2: каст урона из книги наёмника: targetId 
   const r = AS.castAllySpell(c, u, 'spark', w.id);
   assert.equal(r.ok, true, 'каст урона — ok (факт: ' + JSON.stringify(r) + ')');
   assert.equal(r.dmg, 6,
-    'dmg = round((4+0.5·4)·(1+0.15·0)·(1+0)) = 6 — бонус школы 0 для наёмника (факт: ' + r.dmg + ')');
+    'dmg = round((4+0.5·4)·множитель_степени (каталог, 000306)·(1+0)) = 6 — бонус школы 0 для наёмника (факт: ' + r.dmg + ')');
   assert.equal(w.hp, 94, 'волк −6 (броня 50 игнорируется, 000118-зеркало)');
   assert.equal(u.mp, 8, 'u.mp 11−3 (spark) = 8');
   assert.equal(u.spellInt, 0, 'пул spellInt 1→0');
@@ -629,7 +629,7 @@ test('000230.03-AF3 (node): castAllySpell (книга наёмника) — free
       'каст — ok при мана 0 (краснота: «не хватает маны (3)»); факт: '
       + JSON.stringify(r));
     assert.equal(r.dmg, 6,
-      'dmg = round((4 + 0.5·4)·(1+0.15·0)·(1+0)) = 6 (формула без изменений)');
+      'dmg = round((4 + 0.5·4)·множитель_степени (каталог, 000306)·(1+0)) = 6 (формула без изменений)');
     assert.equal(w.hp, 94, 'волк −6 (броня 50 игнорируется)');
     assert.equal(u.mp, 0, 'мана НЕ тратится (free)');
     assert.equal(u.spellInt, 0, 'пул spellInt 1→0 (действие ВСЕГДА сгорает)');
