@@ -3973,6 +3973,7 @@
 
   // --- Цикл ---
   let lastMove = 0;
+  let lastCanvasW = -1, lastCanvasH = -1;
   // 000170 (D3): watchdog — исключение в ЛЮБОЙ точке кадра (saveNow,
   // maybeStartCombat→startCombat, enterLocation, onDay через
   // clock.addStep, drawSprites, renderHud, applyVisibility) НЕ убивает
@@ -3980,8 +3981,11 @@
   // Listener'ы keydown при живом цикле продолжают потреблять keys —
   // «игра не реагирует на нажатия» исключено. keys.clear() в catch НЕ
   // делаем: заклинившая клавиша повторится при следующем keydown, а
-  // сброс потерял бы удержание. Частичный кадр само-исцеляется:
-  // canvas.width/height пересет каждый кадр (сбрасывает контекст).
+  // сброс потерял бы удержание. Частичный кадр само-исцеляется
+  // ЯВНО на error-пути: catch пересетает и ЯВНО очищает оба слоя
+  // (gl.clear/clearRect — гарантия не зависит от семантики
+  // same-size-присвоения; 000289, memory/000289-render-canvas-resize.md);
+  // пересета каждого кадра больше нет.
   let frameErrLogged = false;
   function frame(now) {
     try {
@@ -4097,8 +4101,20 @@
       const rp = renderPos(now);
       updateCamera(rp);
 
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const winW = window.innerWidth, winH = window.innerHeight;
+      if (winW !== lastCanvasW || winH !== lastCanvasH) {
+        lastCanvasW = winW;
+        lastCanvasH = winH;
+        canvas.width = winW;
+        canvas.height = winH;
+        if (spriteCanvas) {
+          spriteCanvas.width = winW;
+          spriteCanvas.height = winH;
+        }
+      }
+      gl.useProgram(program);
+      gl.enableVertexAttribArray(aPos);
+      gl.enableVertexAttribArray(aColor);
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(0.06, 0.08, 0.10, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -4116,10 +4132,6 @@
       gl.drawArrays(gl.TRIANGLES, 0, verts.length / 6);
 
       // Слой спрайтов поверх тайлов (пустой, пока ассеты не загрузились).
-      if (spriteCanvas) {
-        spriteCanvas.width = window.innerWidth;
-        spriteCanvas.height = window.innerHeight;
-      }
       drawSprites(now, rp);
 
       renderHud();
@@ -4129,6 +4141,19 @@
         console.error('main.js: исключение в кадре — главный цикл ' +
           'продолжается (повторные предупреждения подавлены).', err);
       }
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      if (spriteCanvas) {
+        spriteCanvas.width = window.innerWidth;
+        spriteCanvas.height = window.innerHeight;
+      }
+      gl.useProgram(program);
+      gl.enableVertexAttribArray(aPos);
+      gl.enableVertexAttribArray(aColor);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.06, 0.08, 0.10, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (s2) s2.clearRect(0, 0, canvas.width, canvas.height);
     } finally {
       requestAnimationFrame(frame);
     }

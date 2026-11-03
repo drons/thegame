@@ -200,8 +200,14 @@ isActive} — без изменений). CSS `.resurrect-close` — в `<style>
 `requestAnimationFrame(frame)` в finally**; `console.error` ОДИН раз
 (флаг `frameErrLogged`). НЕ делать `keys.clear()` в catch: заклинившая
 клавиша повторится при следующем keydown, а сброс потеряет удержание
-(решение a1 §6.1). Частичный кадр само-исцеляется: canvas.width/height
-пересет каждый кадр (L2558-2560 сбрасывает контекст).
+(решение a1 §6.1). Частичный кадр само-исцеляется ЯВНО на error-пути:
+catch frame() пересетывает И ЯВНО очищает оба слоя (gl.clear/
+clearRect — не зависит от семантики same-size-присвоения; 000289,
+memory/000289-render-canvas-resize.md); пересета canvas.width/height
+каждого кадра больше нет — master присваивал каждый кадр, и реальная
+reallocation (1-й кадр 300×150→окно + каждый resize) сбрасывала
+GL-состояние, которого код не восстанавливал (молча убивал
+WebGL-фолбэк-слой — 000289 §1.1).
 
 **D4. startCombat — САМОИСЦЕЛЕНИЕ в catch, `combatUI.abort()` НЕ нужен**
 (вопрос координации с 000171 → решён: не нужен). Единственный stuck-path —
@@ -406,8 +412,13 @@ partyLost-путь (не спасён) → подъём −20% золота → 
    ПО ДИЗАЙНУ (000162) — НЕ «чинить» их закрыванием; тач-снимает кнопкой.
 7. Self-heal startCombat обязан сбрасывать ended=false И ctx=null (D4) —
    забытый ended=true отравит finish() следующего боя.
-8. canvas.width/height пересет каждый кадр (main.js L2558-2560) — частичный
-   кадр watchdog-сценария само-исцеляется (не нужен отдельный рендер-гард).
+8. canvas ресайзится ТОЛЬКО при изменении окна + в catch frame()
+   явный пересет И явное очищение обоих слоёв (gl.clear/clearRect —
+   детерминировано, не зависит от семантики same-size-присвоения)
+   (000289, memory/000289-render-canvas-resize.md) — частичный кадр
+   watchdog-сценария само-исцеляется на error-пути (рендер-гард
+   существует теперь — в catch; per-frame gl.clear/clearRect — базовый
+   слой).
 9. Тач-бут в harness: `boot(seed, '?controls=touch')` + тапы по
    G.layoutTouchControls (dpadTap/dpadRelease из пробы); dpadTap работает и
    при display:none (harness не считает CSS) — T1 ассертит ПОДЛИННОЕ
