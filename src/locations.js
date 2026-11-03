@@ -24,7 +24,7 @@
 //   L.maybeEnterDungeon(ctx) / L.maybeEnterCity(ctx) → ds | null
 //   L.exitDungeon(ds, { day, memory, clock }) → void
 //   L.exitCity(ds) → void                      // без дня, без памяти
-//   L.dungeonMove(ds, dx, dy, now, { inCombat }) → null | event
+//   L.dungeonMove(ds, dx, dy, now, { inCombat, level }) → null | event
 //   L.cityMove(ds, dx, dy, now, { inCombat })  → null | event
 //   L.interactExit(ds) → null | { type: 'exit', name } |
 //       { type: 'descend' } | { type: 'ascend' }  // 000177/000153.03
@@ -423,10 +423,10 @@
     if (ds.mover) {
       ds.mover.step({ x: ds.prevX, y: ds.prevY }, { x: nx, y: ny }, now);
     }
-    return dungeonPostMove(ds);
+    return dungeonPostMove(ds, opts);
   }
 
-  function dungeonPostMove(ds) {
+  function dungeonPostMove(ds, opts) {
     const G = lazyGame();
     const d = ds.dg, c = ds.contents;
     // Блуждающая группа на клетке → бой (startDungeonCombat —
@@ -455,7 +455,14 @@
     // Каждый шаг игрока — шаг блуждания мобов (ровно раз на успешный
     // шаг).
     if (typeof G.wanderStep === 'function') {
-      G.wanderStep(c, d);
+      const lvl = (opts && typeof opts.level === 'number')
+        ? opts.level : null;
+      if (lvl != null) {
+        const r = G.wanderStep(c, d, { x: ds.x, y: ds.y, level: lvl });
+        if (r && r.landed) return { type: 'combat', group: r.landed };
+      } else {
+        G.wanderStep(c, d);
+      }
     } else {
       console.error('locations.js: Game.wanderStep отсутствует ' +
         '(src/dungeon.js должен грузиться ДО src/locations.js, 000127) ' +

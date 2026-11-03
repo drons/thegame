@@ -2130,7 +2130,7 @@
       let ev = null;
       if (G.locations
           && typeof G.locations.dungeonPostMove === 'function') {
-        ev = G.locations.dungeonPostMove(ds);
+        ev = G.locations.dungeonPostMove(ds, { level: hero.level });
       } else if (!flamePostMoveWarned) {
         flamePostMoveWarned = true;
         console.error('main.js: Game.locations.dungeonPostMove '
@@ -3030,7 +3030,8 @@
     const ds = dungeonState;
     if (!ds) return;
     const ev = G.locations.dungeonMove(ds, dx, dy, performance.now(),
-      { inCombat: !!(G.combatUI && G.combatUI.isActive()) });
+      { inCombat: !!(G.combatUI && G.combatUI.isActive()),
+        level: hero.level });
     if (!ev) return;
     const dayBefore = clock.day;
     clock.addStep(1);

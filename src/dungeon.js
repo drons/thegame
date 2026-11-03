@@ -1189,19 +1189,72 @@
     return { ok: true, item: dp.item, amount: dp.amount };
   }
 
+  const AGGRO_DIST_MAX = 4;
+  const AGGRO_CHANCE_PER_LV = 0.1;
+  const AGGRO_CHANCE_CAP = 0.6;
+
+  function aggroDistance(levelDiff) {
+    return levelDiff <= 0
+      ? 0 : Math.min(AGGRO_DIST_MAX, Math.ceil(levelDiff / 2));
+  }
+
+  function aggroChance(levelDiff) {
+    return levelDiff <= 0
+      ? 0 : Math.min(AGGRO_CHANCE_CAP, AGGRO_CHANCE_PER_LV * levelDiff);
+  }
+
+  function chaseDir(m, px, py, d, taken) {
+    const dx = px - m.x, dy = py - m.y;
+    const horiz = Math.abs(dx) >= Math.abs(dy);
+    const primary = horiz ? [Math.sign(dx), 0] : [0, Math.sign(dy)];
+    const secondary = horiz ? [0, Math.sign(dy)] : [Math.sign(dx), 0];
+    const free = (nx, ny) => inGrid(d, nx, ny)
+      && d.cells[idx(d, nx, ny)] === CELL_FLOOR
+      && !taken.has(nx + ',' + ny);
+    if ((primary[0] || primary[1])
+        && free(m.x + primary[0], m.y + primary[1])) {
+      return primary;
+    }
+    if ((secondary[0] || secondary[1])
+        && free(m.x + secondary[0], m.y + secondary[1])) {
+      return secondary;
+    }
+    return null;
+  }
+
   /**
    * Один шаг блуждания: каждая живая группа сдвигается на клетку.
    * Детерминированно: rng от номера шага и сида содержимого.
    */
-  function wanderStep(contents, d) {
+  function wanderStep(contents, d, player) {
     contents.step = (contents.step || 0) + 1;
     const rng = mulberry32((hash2(contents.step, contents.seed, 0x7777)) >>> 0);
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     const taken = new Set(
       contents.mobs.filter((m) => !m.defeated).map((m) => m.x + ',' + m.y));
+    const aggro = !!player && typeof player.level === 'number';
+    let landed = null;
     for (const m of contents.mobs) {
       if (m.defeated) continue;
       const [dx, dy] = dirs[Math.floor(rng() * 4)];
+      if (aggro) {
+        const diff = (m.level || 0) - player.level;
+        const cheb = Math.max(Math.abs(m.x - player.x),
+          Math.abs(m.y - player.y));
+        if (diff > 0 && cheb >= 1 && cheb <= aggroDistance(diff)) {
+          if (rng() < aggroChance(diff)) {
+            const dir = chaseDir(m, player.x, player.y, d, taken);
+            if (dir) {
+              const nx = m.x + dir[0], ny = m.y + dir[1];
+              taken.delete(m.x + ',' + m.y);
+              m.x = nx; m.y = ny;
+              taken.add(nx + ',' + ny);
+              if (nx === player.x && ny === player.y) landed = m;
+            }
+            continue;
+          }
+        }
+      }
       const nx = m.x + dx, ny = m.y + dy;
       if (!inGrid(d, nx, ny)) continue;
       if (d.cells[idx(d, nx, ny)] !== CELL_FLOOR) continue;
@@ -1211,6 +1264,7 @@
       m.x = nx; m.y = ny;
       taken.add(k);
     }
+    if (player) return { contents, landed };
     return contents;
   }
 
@@ -1249,6 +1303,8 @@
     // 000157.03: [E]-сбор залежи (атомарно, БЕЗ RNG) — рядом с openChest.
     gatherDeposit,
     wanderStep, reachableFrom,
+    aggroDistance, aggroChance,
+    AGGRO_DIST_MAX, AGGRO_CHANCE_PER_LV, AGGRO_CHANCE_CAP,
     // 000153.01: модель глубины + сериализатор раздела сейва
     // dungeonMemory (additive — существующие экспорты не тронуты).
     dungeonDepthSeed, dungeonMemoryKey, DUNGEON_MEMORY_KEY_RE,
