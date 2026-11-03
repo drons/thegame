@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "flame_imp"
-  }
+  },
+  "icon": "assets/sprites/items/flame_imp_scroll.svg"
 }

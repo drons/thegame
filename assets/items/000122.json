@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "sunfire"
-  }
+  },
+  "icon": "assets/sprites/items/sunfire_scroll.svg"
 }

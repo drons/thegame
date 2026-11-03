@@ -2521,8 +2521,8 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 //     terrains + строковый id — тот же строгий фильтр, что map.js
 //     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js; 000220:
 //     +5 строительных reagent) — icon = конвенции, 33/33 svg существует;
-//   * прочие 193 предмета — icon НЕ задан / 318 с icon (финал 000243:
-//     каталог 511 = 318 + 193; пин «не тронуто», L3-форма;
+//   * прочие 168 предметов — icon НЕ задан / 343 с icon (финал 000243:
+//     каталог 511 = 343 + 168; пин «не тронуто», L3-форма;
 //     5 reagent'ов 000220 — с loot+icon);
 //   * schema.json — icon ОПЦИОНАЛЬНОЕ свойство: точная форма
 //     {type, pattern} (паттерн — дословно ТЗ), НЕ в required, верхний
@@ -2535,7 +2535,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 193 — icon undefined / 318 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 168 — icon undefined / 343 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -2680,6 +2680,18 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
   // assets/sprites/items/ (паттерн TORSO_00023010) — исключение из
   // пина «icon НЕ задан».
   const SETS_000277 = new Set(['traveler_bracer', 'mystic_wraps']);
+  // Ре-пин 000302.01: 25 свитков школы Огонь (000108-000132) — icon в
+  // assets/sprites/items/ (паттерн TORSO_00023010) — исключение из
+  // пина «icon НЕ задан».
+  const SCROLLS_FIRE_00030201 = new Set(['ember_scroll', 'ignite_scroll',
+    'fire_nova_scroll', 'lava_burst_scroll', 'meteor_scroll',
+    'flame_strike_scroll', 'hellfire_scroll', 'phlogiston_blast_scroll',
+    'burning_ground_scroll', 'wall_of_fire_scroll', 'burning_haze_scroll',
+    'blazing_speed_scroll', 'fire_aura_scroll', 'heat_shield_scroll',
+    'sunfire_scroll', 'scorch_scroll', 'cinder_scroll',
+    'ashen_debilitation_scroll', 'lava_snare_scroll', 'burning_cage_scroll',
+    'flame_imp_scroll', 'phoenix_scroll', 'firelight_scroll',
+    'hearthfire_scroll', 'flame_step_scroll']);
   let others = 0;
   for (const it of byId.values()) {
     if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
@@ -2692,12 +2704,13 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || RING_00023014.has(it.id)
         || LEGSFEET_00023015.has(it.id)
         || SETS_00023019.has(it.id)
-        || SETS_000277.has(it.id)) continue;
+        || SETS_000277.has(it.id)
+        || SCROLLS_FIRE_00030201.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
-  assert.equal(others, 193, 'прочих предметов — ровно 193 (ре-пин 000230.09: '
+  assert.equal(others, 168, 'прочих предметов — ровно 168 (ре-пин 000230.09: '
     + '50 уши/шея — в исключении; ре-пин 000230.10: 25 torso — в '
     + 'исключении (icon); ре-пин 000230.11: 50 рук — в исключении '
     + '(icon); ре-пин 000230.12: 25 «правая рука» — в исключении '
@@ -2715,16 +2728,19 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + '(счёт не изменился); ре-пин 000235.11: 484 − 316 = 168 '
     + '(icon-счёт не изменился); ре-пин 000277: 486 − 318 = 168 '
     + '(icon-счёт не изменился); ре-пин 000235.12: +25 свитков '
-    + 'волны Природа без icon — входят в счёт; 511 − 318 = 193)');
+    + 'волны Природа без icon — входят в счёт; 511 − 343 = 168; '
+    + 'ре-пин 000302.01: +25 свитков школы Огонь с icon — в '
+    + 'исключении)');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 318,
-    'icon — ровно у 318 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 343,
+    'icon — ровно у 343 предметов (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
     + 'ре-пин 000230.14: +25 колец; ре-пин 000230.15: '
     + '+50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000277: '
-    + '+2 set; пин: ни больше, '
+    + '+2 set; ре-пин 000302.01: +25 свитков школы Огонь; пин: '
+    + 'ни больше, '
     + 'ни меньше)');
 });
 
@@ -2740,8 +2756,9 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + 'свойства icon в схеме нет); факт: '
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
-    'icon НЕ в required (прочие 193 предметов остаются валидными; '
-    + 'финал 000243.01: каталог 511 = 318 с icon + 193 без); '
+    'icon НЕ в required (прочие 168 предметов остаются валидными; '
+    + 'финал 000243.01: каталог 511 = 343 с icon + 168 без; '
+    + 'ре-пин 000302.01: +25 свитков школы Огонь); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');

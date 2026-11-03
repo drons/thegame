@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "phlogiston_blast"
-  }
+  },
+  "icon": "assets/sprites/items/phlogiston_blast_scroll.svg"
 }

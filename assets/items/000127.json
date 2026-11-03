@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "burning_cage"
-  }
+  },
+  "icon": "assets/sprites/items/burning_cage_scroll.svg"
 }

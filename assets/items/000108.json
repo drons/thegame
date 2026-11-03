@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "ember"
-  }
+  },
+  "icon": "assets/sprites/items/ember_scroll.svg"
 }

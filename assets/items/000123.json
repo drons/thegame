@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "scorch"
-  }
+  },
+  "icon": "assets/sprites/items/scorch_scroll.svg"
 }

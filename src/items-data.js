@@ -1280,6 +1280,7 @@
       tier: 1,
       desc: "Свиток: изучает «Тлеющий уголёк» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "ember" },
+      icon: "assets/sprites/items/ember_scroll.svg",
     },
     // 000109.json
     {
@@ -1291,6 +1292,7 @@
       tier: 2,
       desc: "Свиток: изучает «Поджечь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "ignite" },
+      icon: "assets/sprites/items/ignite_scroll.svg",
     },
     // 000110.json
     {
@@ -1302,6 +1304,7 @@
       tier: 2,
       desc: "Свиток: изучает «Огненная нова» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "fire_nova" },
+      icon: "assets/sprites/items/fire_nova_scroll.svg",
     },
     // 000111.json
     {
@@ -1313,6 +1316,7 @@
       tier: 3,
       desc: "Свиток: изучает «Лава-всплеск» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "lava_burst" },
+      icon: "assets/sprites/items/lava_burst_scroll.svg",
     },
     // 000112.json
     {
@@ -1324,6 +1328,7 @@
       tier: 3,
       desc: "Свиток: изучает «Метеор» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "meteor" },
+      icon: "assets/sprites/items/meteor_scroll.svg",
     },
     // 000113.json
     {
@@ -1335,6 +1340,7 @@
       tier: 3,
       desc: "Свиток: изучает «Огненный удар» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "flame_strike" },
+      icon: "assets/sprites/items/flame_strike_scroll.svg",
     },
     // 000114.json
     {
@@ -1346,6 +1352,7 @@
       tier: 4,
       desc: "Свиток: изучает «Адское пламя» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "hellfire" },
+      icon: "assets/sprites/items/hellfire_scroll.svg",
     },
     // 000115.json
     {
@@ -1357,6 +1364,7 @@
       tier: 4,
       desc: "Свиток: изучает «Взрыв флогистона» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "phlogiston_blast" },
+      icon: "assets/sprites/items/phlogiston_blast_scroll.svg",
     },
     // 000116.json
     {
@@ -1368,6 +1376,7 @@
       tier: 2,
       desc: "Свиток: изучает «Жгучая земля» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "burning_ground" },
+      icon: "assets/sprites/items/burning_ground_scroll.svg",
     },
     // 000117.json
     {
@@ -1379,6 +1388,7 @@
       tier: 3,
       desc: "Свиток: изучает «Стена огня» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "wall_of_fire" },
+      icon: "assets/sprites/items/wall_of_fire_scroll.svg",
     },
     // 000118.json
     {
@@ -1390,6 +1400,7 @@
       tier: 3,
       desc: "Свиток: изучает «Облако пламени» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "burning_haze" },
+      icon: "assets/sprites/items/burning_haze_scroll.svg",
     },
     // 000119.json
     {
@@ -1401,6 +1412,7 @@
       tier: 1,
       desc: "Свиток: изучает «Пламенная стремительность» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "blazing_speed" },
+      icon: "assets/sprites/items/blazing_speed_scroll.svg",
     },
     // 000120.json
     {
@@ -1412,6 +1424,7 @@
       tier: 2,
       desc: "Свиток: изучает «Аура пламени» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "fire_aura" },
+      icon: "assets/sprites/items/fire_aura_scroll.svg",
     },
     // 000121.json
     {
@@ -1423,6 +1436,7 @@
       tier: 2,
       desc: "Свиток: изучает «Жаровой щит» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "heat_shield" },
+      icon: "assets/sprites/items/heat_shield_scroll.svg",
     },
     // 000122.json
     {
@@ -1434,6 +1448,7 @@
       tier: 3,
       desc: "Свиток: изучает «Солнечный огонь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "sunfire" },
+      icon: "assets/sprites/items/sunfire_scroll.svg",
     },
     // 000123.json
     {
@@ -1445,6 +1460,7 @@
       tier: 2,
       desc: "Свиток: изучает «Обжечь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "scorch" },
+      icon: "assets/sprites/items/scorch_scroll.svg",
     },
     // 000124.json
     {
@@ -1456,6 +1472,7 @@
       tier: 3,
       desc: "Свиток: изучает «Пепел» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "cinder" },
+      icon: "assets/sprites/items/cinder_scroll.svg",
     },
     // 000125.json
     {
@@ -1467,6 +1484,7 @@
       tier: 4,
       desc: "Свиток: изучает «Пепельная слабость» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "ashen_debilitation" },
+      icon: "assets/sprites/items/ashen_debilitation_scroll.svg",
     },
     // 000126.json
     {
@@ -1478,6 +1496,7 @@
       tier: 2,
       desc: "Свиток: изучает «Лава-петля» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "lava_snare" },
+      icon: "assets/sprites/items/lava_snare_scroll.svg",
     },
     // 000127.json
     {
@@ -1489,6 +1508,7 @@
       tier: 3,
       desc: "Свиток: изучает «Огненная клетка» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "burning_cage" },
+      icon: "assets/sprites/items/burning_cage_scroll.svg",
     },
     // 000128.json
     {
@@ -1500,6 +1520,7 @@
       tier: 2,
       desc: "Свиток: изучает «Огненный имп» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "flame_imp" },
+      icon: "assets/sprites/items/flame_imp_scroll.svg",
     },
     // 000129.json
     {
@@ -1511,6 +1532,7 @@
       tier: 4,
       desc: "Свиток: изучает «Феникс» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "phoenix" },
+      icon: "assets/sprites/items/phoenix_scroll.svg",
     },
     // 000130.json
     {
@@ -1522,6 +1544,7 @@
       tier: 1,
       desc: "Свиток: изучает «Свет пламени» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "firelight" },
+      icon: "assets/sprites/items/firelight_scroll.svg",
     },
     // 000131.json
     {
@@ -1533,6 +1556,7 @@
       tier: 1,
       desc: "Свиток: изучает «Очаговый огонь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "hearthfire" },
+      icon: "assets/sprites/items/hearthfire_scroll.svg",
     },
     // 000132.json
     {
@@ -1544,6 +1568,7 @@
       tier: 2,
       desc: "Свиток: изучает «Пламенный шаг» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "flame_step" },
+      icon: "assets/sprites/items/flame_step_scroll.svg",
     },
     // 000133.json
     {

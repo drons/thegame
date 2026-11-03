@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "phoenix"
-  }
+  },
+  "icon": "assets/sprites/items/phoenix_scroll.svg"
 }

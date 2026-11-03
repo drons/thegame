@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "fire_aura"
-  }
+  },
+  "icon": "assets/sprites/items/fire_aura_scroll.svg"
 }

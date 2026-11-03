@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "ashen_debilitation"
-  }
+  },
+  "icon": "assets/sprites/items/ashen_debilitation_scroll.svg"
 }

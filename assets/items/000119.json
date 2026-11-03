@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "blazing_speed"
-  }
+  },
+  "icon": "assets/sprites/items/blazing_speed_scroll.svg"
 }

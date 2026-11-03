@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "firelight"
-  }
+  },
+  "icon": "assets/sprites/items/firelight_scroll.svg"
 }

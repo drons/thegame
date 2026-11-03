@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "lava_burst"
-  }
+  },
+  "icon": "assets/sprites/items/lava_burst_scroll.svg"
 }

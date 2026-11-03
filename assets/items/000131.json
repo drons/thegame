@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "hearthfire"
-  }
+  },
+  "icon": "assets/sprites/items/hearthfire_scroll.svg"
 }

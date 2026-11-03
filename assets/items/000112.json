@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "meteor"
-  }
+  },
+  "icon": "assets/sprites/items/meteor_scroll.svg"
 }

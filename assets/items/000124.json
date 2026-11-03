@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "cinder"
-  }
+  },
+  "icon": "assets/sprites/items/cinder_scroll.svg"
 }

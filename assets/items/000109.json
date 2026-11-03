@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "ignite"
-  }
+  },
+  "icon": "assets/sprites/items/ignite_scroll.svg"
 }

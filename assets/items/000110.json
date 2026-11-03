@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "fire_nova"
-  }
+  },
+  "icon": "assets/sprites/items/fire_nova_scroll.svg"
 }
