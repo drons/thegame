@@ -20,8 +20,9 @@
 //       расстановка (якоря); версию НЕ поднимаем, миграций нет
 //       (000031); невалидные записи — тихий сброс (паттерн 000029);
 //       порядок расстановки показывается на вкладке «Отряд» [C]
-//       (000295). guard specLines(companions.md) = 171
-//       (156 → 171: +15).
+//       (000295). guard specLines(companions.md) = 196
+//       (156 → 171: +15; 000299.01: +25 H2 «Активный персонаж»,
+//       171 → 196).
 //
 // Срезы: COMPANIONS = весь spec/companions.md (readFileSync ОДИН
 // РАЗ); h2() — 1:1 tests/spec-000295-wording.test.js; norm() —
@@ -77,7 +78,7 @@ function specLines(s) {
   return lines.length;
 }
 
-test('SPEC 000304 W1: spec/companions.md — «Сейв»: squad_placement (расстановка между боями + порядок на вкладке «Отряд» [C]); 171 строка', () => {
+test('SPEC 000304 W1: spec/companions.md — «Сейв»: squad_placement (расстановка между боями + порядок на вкладке «Отряд» [C]); 196 строк', () => {
   const sc = h2(COMPANIONS, 'Сейв');
   phrase(sc, '«Сейв»',
     'результат расстановки живёт в общем сейве между боями',
@@ -99,8 +100,9 @@ test('SPEC 000304 W1: spec/companions.md — «Сейв»: squad_placement (ра
   phrase(sc, '«Сейв»',
     'Порядок расстановки показывается на вкладке «Отряд» [C] (000295)',
     'отображение порядка расстановки на вкладке «Отряд» не зафиксировано');
-  assert.equal(specLines(COMPANIONS), 171,
-    'spec/companions.md: строк != 171 (156 → 171: +15 строк в абзац '
-    + '«Сейв» — squad_placement) + ре-пин SPEC_FILE_LINES (000159 §5.1) '
+  assert.equal(specLines(COMPANIONS), 196,
+    'spec/companions.md: строк != 196 (156 → 171: +15 строк в абзац '
+    + '«Сейв» — squad_placement; 000299.01: +25 H2 «Активный '
+    + 'персонаж», 171 → 196) + ре-пин SPEC_FILE_LINES (000159 §5.1) '
     + 'в том же коммите');
 });

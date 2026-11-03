@@ -197,13 +197,14 @@ function makeEl(tag) {
 
 // Цепочка = tests/npc-hire.test.js + 'companions.js' ПОСЛЕ 'npc.js'
 // (зеркало index.html 598→599; регрессия порядка —
-// tests/index-order.test.js, 000079).
+// tests/index-order.test.js, 000079) + 000299.01: 'portraits-data.js'
+// и 'party.js' (ряд портретов партии в npcUI — как в index.html).
 const CHAIN = [
   'global-settings.js', 'perlin.js', 'mapseed.js',
-  'skills-data.js', 'items-data.js', 'npc-data.js',
+  'skills-data.js', 'items-data.js', 'npc-data.js', 'portraits-data.js',
   'map.js', 'sheet.js', 'player.js', 'day.js', 'items.js', 'buildings.js',
   'npc.js', 'companions.js', 'combat.js', 'dungeon.js',
-  'controls.js', 'combat-keys.js', 'ui.js',
+  'controls.js', 'combat-keys.js', 'party.js', 'ui.js',
 ];
 
 // Загрузка цепочки в vm-песочницу. Возвращает { G, body, errors }:

@@ -464,6 +464,94 @@
     return P.active(members, activeCharId);
   }
 
+  // 000299.01: СОСТАВ партии для ряда портретов (диалог NPC): то же
+  // разрешение, что activeMember/partySource (000145/000230.07) —
+  // LIVE __game.state (+ squadUI.liveState() — песочница без
+  // main.js: ТИХО, без ошибки — паттерн 000145), hero — live-ссылка,
+  // переданная вызовом. Party отсутствует — hero-фолбэк
+  // (одномемберный список, тихо); hero отсутствует — null (ряд
+  // пуст).
+  function partyMembersFor(hero) {
+    const gs = (globalThis.__game && globalThis.__game.state &&
+        typeof globalThis.__game.state === 'object' &&
+        !Array.isArray(globalThis.__game.state))
+      ? globalThis.__game.state : null;
+    const sq = (G.squadUI && typeof G.squadUI.liveState === 'function')
+      ? G.squadUI.liveState() : null;
+    const h = (hero && typeof hero === 'object' && !Array.isArray(hero))
+      ? hero : null;
+    // G — снимок Game на момент загрузки (ловушка UMD 000038):
+    // Party читаем из globalThis.Game в момент вызова (rootRef 000147).
+    const game = globalThis.Game || G;
+    const P = game.Party;
+    if (!P || typeof P.list !== 'function' ||
+        typeof P.active !== 'function') {
+      return h ? [{
+        kind: 'hero',
+        id: 'flogiston',
+        name: (typeof h.name === 'string' && h.name)
+          ? h.name : 'Флогистон',
+        role: 'Герой',
+        sheet: h,
+      }] : null;
+    }
+    const roster = (gs && Array.isArray(gs.roster)) ? gs.roster
+      : (sq && Array.isArray(sq.roster) ? sq.roster : null);
+    const efir = (gs && gs.efir && typeof gs.efir === 'object' &&
+        !Array.isArray(gs.efir)) ? gs.efir
+      : (sq && sq.efir && typeof sq.efir === 'object' &&
+        !Array.isArray(sq.efir) ? sq.efir : null);
+    const members = P.list({
+      hero: h,
+      efir: efir,
+      efirMet: !!(gs && gs.efirMet === true),
+      roster: roster,
+      npcs: (G.NpcData && G.NpcData.NPCS) || null,
+    });
+    return members.length ? members : null;
+  }
+
+  // 000299.01: ряд портретов партии (диалог NPC) — ТОЛЬКО
+  // существующие классы .cp-portraits/.cp-portrait/.cp-portrait-
+  // active (index.html; новых CSS НЕТ). КНОПКА НЕ .cp-btn (ловушка
+  // делегирования 000098). PortraitsData отсутствует — ряд не
+  // рисуется, console.error ОДИН раз (000053); состава нет (нет
+  // hero) — ряд пуст ТИХО (данные, не порядок загрузки).
+  let partyRowErrorShown = false;
+  function renderPartyPortraitsRow(row, hero, activeId) {
+    const PD = (globalThis.Game || G).PortraitsData;
+    if (!PD || !Array.isArray(PD.PORTRAITS)) {
+      if (!partyRowErrorShown) {
+        partyRowErrorShown = true;
+        console.error('ui.js: Game.PortraitsData не найден — ряд ' +
+          'портретов партии не рисуется (000299.01)');
+      }
+      row.textContent = '';
+      return;
+    }
+    const members = partyMembersFor(hero);
+    if (!members) {
+      row.textContent = '';
+      return;
+    }
+    const active = members.find((m) => m.id === activeId) ||
+      members[0];
+    row.textContent = '';
+    for (const m of members) {
+      const p = PD.PORTRAITS.find((x) => x && x.id === m.id);
+      if (!p || typeof p.icon !== 'string' || !p.icon) continue;
+      const btn = el('button', m === active
+        ? 'cp-portrait cp-portrait-active' : 'cp-portrait');
+      btn.dataset.memberid = m.id;
+      btn.title = m.name + ' — ' + m.role;
+      const img = el('img');
+      img.src = 'assets/portraits/' + p.icon;
+      img.alt = m.name;
+      btn.appendChild(img);
+      row.appendChild(btn);
+    }
+  }
+
   // Действия с предметами (кнопки dataset.act в секциях панели).
   function doItemAction(btn) {
     const c = character;
@@ -958,9 +1046,19 @@
     },
     // 000145: публичный getter активного персонажа (контракт 000147:
     // единое изучение заклинаний строит источники на него). null =
-    // дефолт (первый member — Флогистон). Публичного сеттера НЕТ —
-    // программное переключение — toggle(force, tabId, charId).
+    // дефолт (первый member — Флогистон).
     getActiveCharId() { return activeCharId; },
+    // 000299.01: публичный сеттер активного персонажа (ряды
+    // портретов оверлея [E]/диалога NPC): идемпотентен, БЕЗ
+    // открытия/закрытия панели [I] (toggle НЕ используется),
+    // без записи в сейв (per-session, 000031). null/'' —
+    // сброс на дефолт; stale/неизвестный id — Party.active тихо
+    // отразит на первого в точке разрешения. Панель открыта —
+    // render (ряд портретов вкладки не устаревает).
+    setActiveCharId(id) {
+      activeCharId = (id == null || id === '') ? null : String(id);
+      if (panel) render();
+    },
     toggle,
     render,
     isOpen,
@@ -987,6 +1085,7 @@
     let log = [];            // строки лога (область .combat-state)
     let overlay = null, body = null, titleText = null, logEl = null;
     let escHandler = null;   // window keydown (Esc): вешается на open, снимается на close
+    let portraitsRow = null; // 000299.01: ряд портретов партии (in place)
 
     const npcs = () => (G.NpcData && G.NpcData.NPCS) || [];
 
@@ -1261,6 +1360,24 @@
     // --- Кнопки (один обработчик на весь оверлей) ---
 
     function onOverlayClick(e) {
+      // 000299.01: портрет партии — СВОЯ ветка (НЕ data-npcact):
+      // setActiveCharId + ин-плейс перерисовка ряда; оверлей НЕ
+      // закрывается, записей в сейв/flash нет, вкладка не
+      // переключается.
+      const pt = e && e.target;
+      if (pt && typeof pt.closest === 'function') {
+        const pb = pt.closest('button.cp-portrait');
+        if (pb) {
+          if (G.playerUI &&
+              typeof G.playerUI.setActiveCharId === 'function') {
+            G.playerUI.setActiveCharId(pb.dataset.memberid);
+          }
+          if (portraitsRow) {
+            renderPartyPortraitsRow(portraitsRow, c, activeCharId);
+          }
+          return;
+        }
+      }
       const btn = e.target.closest('button[data-npcact]');
       if (!btn || btn.disabled || !npc) return;
       const act = btn.dataset.npcact;
@@ -1427,6 +1544,7 @@
       body = null;
       titleText = null;
       logEl = null;
+      portraitsRow = null;
     }
 
     function npcClose() {
@@ -1454,6 +1572,14 @@
       title.appendChild(titleText);
       title.appendChild(closeBtn);
       side.appendChild(title);
+
+      // 000299.01: ряд портретов партии (активный персонаж) — НАД
+      // рядом вкладок (контракт DOM: .npc-panel > .cp-portraits до
+      // .cp-itemrow); клик — setActiveCharId + ин-плейс (ветка в
+      // onOverlayClick).
+      portraitsRow = el('div', 'cp-portraits');
+      renderPartyPortraitsRow(portraitsRow, c, activeCharId);
+      side.appendChild(portraitsRow);
 
       // Переключение вкладок.
       const tabsRow = el('div', 'cp-itemrow');

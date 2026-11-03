@@ -43,6 +43,8 @@
   let keyHandler = null;
   let rows = [];    // [{ row, nameSpan, action }] — параллельно actions
   let cursor = -1;  // индекс строки под курсором (-1 — нет доступных)
+  let portraitsRow = null;      // 000299.01: ряд портретов партии
+  let portraitsErrorShown = false;
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -60,6 +62,90 @@
       if (a && String(a.id) === String(id)) return a;
     }
     return null;
+  }
+
+  // 000299.01: ряд портретов партии (активный персонаж). Состав —
+  // Game.Party.list, мир — LIVE __game.state (state.hero — снимок,
+  // для ряда достаточен: id/имя/роль; primary/secondary не нужен)
+  // + squadUI.liveState() (песочница без main.js — ТИХО, 000145).
+  // ТОЛЬКО существующие классы .cp-portraits/.cp-portrait/
+  // .cp-portrait-active (index.html; новых CSS НЕТ); КНОПКА НЕ
+  // .cp-btn (ловушка делегирования 000098). PortraitsData нет — ряд
+  // не рисуется, console.error ОДИН раз (000053); __game нет —
+  // тихо (000145); Party нет — hero-фолбэк (одномемберный, тихо).
+  function renderPortraitsRow(row) {
+    // G — снимок Game на момент загрузки (ловушка UMD 000038):
+    // PortraitsData/Party/NpcData/playerUI читаем из globalThis.Game
+    // в момент вызова (паттерн rootRef, 000147).
+    const game = globalThis.Game || G;
+    const PD = game.PortraitsData;
+    if (!PD || !Array.isArray(PD.PORTRAITS)) {
+      if (!portraitsErrorShown) {
+        portraitsErrorShown = true;
+        console.error('src/building-ui.js: Game.PortraitsData ' +
+          'не найден — ряд портретов партии не рисуется ' +
+          '(000299.01)');
+      }
+      row.textContent = '';
+      return;
+    }
+    const g = globalThis.__game;
+    const st = (g && g.state && typeof g.state === 'object' &&
+        !Array.isArray(g.state)) ? g.state : null;
+    const sq = (G.squadUI && typeof G.squadUI.liveState === 'function')
+      ? G.squadUI.liveState() : null;
+    const hero = (st && st.hero && typeof st.hero === 'object' &&
+        !Array.isArray(st.hero)) ? st.hero : null;
+    const roster = (st && Array.isArray(st.roster)) ? st.roster
+      : (sq && Array.isArray(sq.roster) ? sq.roster : null);
+    const efir = (st && st.efir && typeof st.efir === 'object' &&
+        !Array.isArray(st.efir)) ? st.efir
+      : (sq && sq.efir && typeof sq.efir === 'object' &&
+          !Array.isArray(sq.efir) ? sq.efir : null);
+    const P = game.Party;
+    let members = null;
+    if (P && typeof P.list === 'function' &&
+        typeof P.active === 'function') {
+      members = P.list({
+        hero: hero,
+        efir: efir,
+        efirMet: !!(st && st.efirMet === true),
+        roster: roster,
+        npcs: (game.NpcData && game.NpcData.NPCS) || null,
+      });
+    } else if (hero) {
+      members = [{
+        kind: 'hero',
+        id: 'flogiston',
+        name: (typeof hero.name === 'string' && hero.name)
+          ? hero.name : 'Флогистон',
+        role: 'Герой',
+        sheet: hero,
+      }];
+    }
+    if (!members || !members.length) {
+      row.textContent = '';
+      return;
+    }
+    const activeId = (game.playerUI &&
+        typeof game.playerUI.getActiveCharId === 'function')
+      ? game.playerUI.getActiveCharId() : null;
+    const active = members.find((m) => m.id === activeId) ||
+      members[0];
+    row.textContent = '';
+    for (const m of members) {
+      const p = PD.PORTRAITS.find((x) => x && x.id === m.id);
+      if (!p || typeof p.icon !== 'string' || !p.icon) continue;
+      const btn = el('button', m === active
+        ? 'cp-portrait cp-portrait-active' : 'cp-portrait');
+      btn.dataset.memberid = m.id;
+      btn.title = m.name + ' — ' + m.role;
+      const img = el('img');
+      img.src = 'assets/portraits/' + p.icon;
+      img.alt = m.name;
+      btn.appendChild(img);
+      row.appendChild(btn);
+    }
   }
 
   // --- Курсор (↑↓) ---
@@ -147,6 +233,18 @@
     if (!active) return;
     const t = e && e.target;
     if (!t || typeof t.closest !== 'function') return;
+    // 000299.01: портрет партии — СВОЯ ветка (НЕ data-buid,
+    // executeAction НЕ вызывается): setActiveCharId + ин-плейс
+    // перерисовка ряда; оверлей НЕ закрывается, saveNow/flash нет.
+    const pb = t.closest('button.cp-portrait');
+    if (pb) {
+      if (G.playerUI &&
+          typeof G.playerUI.setActiveCharId === 'function') {
+        G.playerUI.setActiveCharId(pb.dataset.memberid);
+      }
+      if (portraitsRow) renderPortraitsRow(portraitsRow);
+      return;
+    }
     if (t.closest('button[data-buact="close"]')) {
       close();
       return;
@@ -169,6 +267,7 @@
       overlay.remove();
       overlay = null;
     }
+    portraitsRow = null;
   }
 
   function close() {
@@ -193,6 +292,13 @@
     closeBtn.setAttribute('data-buact', 'close');
     title.appendChild(closeBtn);
     side.appendChild(title);
+
+    // 000299.01: ряд портретов партии (активный персонаж) — ПЕРЕД
+    // строками действий (контракт DOM: .combat-side > .cp-portraits
+    // — второй ребёнок); клик — своя ветка в onOverlayClick.
+    portraitsRow = el('div', 'cp-portraits');
+    renderPortraitsRow(portraitsRow);
+    side.appendChild(portraitsRow);
 
     // Строки действий: 1..9 — нумерация, data-buid — id действия
     // (тач-клик 000123); недоступные — disabled + reason виден.

@@ -2863,7 +2863,7 @@ test('000125 RED: npcUI.open — панель .npc-panel (НЕ .combat-side); о
     + 'порядок мержей)');
 });
 
-test('000125: состав панели инвариантен — .cp-title → .cp-itemrow (5 вкладок) → .cp-items → .npc-log (последний ребёнок)', () => {
+test('000125: состав панели инвариантен — .cp-title → .cp-portraits (000299.01) → .cp-itemrow (5 вкладок) → .cp-items → .npc-log (последний ребёнок)', () => {
   const env = loadTabsUi();
   assert.equal(env.errors.length, 0,
     'ошибок при загрузке цепочки нет: ' + env.errors.join('; '));
@@ -2873,10 +2873,10 @@ test('000125: состав панели инвариантен — .cp-title →
   const overlay = findAll(env.body, '.npc-overlay')[0];
   assert.ok(overlay, 'оверлей .npc-overlay подвешен к body');
   const panel = overlay.children[0];
-  assert.equal(panel.children.length, 4,
-    'панель — ровно 4 прямых ребёнка: '
+  assert.equal(panel.children.length, 5,
+    'панель — ровно 5 прямых детей: '
     + panel.children.map((ch) => ch.className).join(' | '));
-  const [title, tabsRow, body, log] = panel.children;
+  const [title, portraitsRow, tabsRow, body, log] = panel.children;
   // 1. Заголовок: span «имя — роль» + кнопка .cp-close «закрыть [Esc]».
   assert.ok(String(title.className).split(/\s+/).includes('cp-title'),
     '1-й ребёнок — .cp-title: ' + title.className);
@@ -2890,10 +2890,14 @@ test('000125: состав панели инвариантен — .cp-title →
     'подпись кнопки «закрыть [Esc]» (тапабельна на мобильном)');
   assert.equal(closeBtn.dataset.npcact, 'close',
     "data-npcact='close' (делегированный onOverlayClick)");
-  // 2. Строка вкладок: 5 кнопок .cp-btn[data-npcact=tab] в порядке
+  // 2. 000299.01: ряд портретов партии — .cp-portraits ДО ряда
+  //    вкладок (в песочнице нет __game — рисуется хотя бы герой).
+  assert.ok(String(portraitsRow.className).split(/\s+/).includes('cp-portraits'),
+    '2-й ребёнок — .cp-portraits: ' + portraitsRow.className);
+  // 3. Строка вкладок: 5 кнопок .cp-btn[data-npcact=tab] в порядке
   //    npcBuild (найм — 000078; состав БЕЗ ИЗМЕНЕНИЙ).
   assert.ok(String(tabsRow.className).split(/\s+/).includes('cp-itemrow'),
-    '2-й ребёнок — .cp-itemrow: ' + tabsRow.className);
+    '3-й ребёнок — .cp-itemrow: ' + tabsRow.className);
   const tabs = findAll(tabsRow, '.cp-btn')
     .filter((b) => b.dataset.npcact === 'tab');
   assert.equal(tabs.length, 5,
@@ -2903,13 +2907,13 @@ test('000125: состав панели инвариантен — .cp-title →
     tabs.map((t) => t.dataset.tab),
     ['dialog', 'trade', 'train', 'quests', 'hire'],
     'порядок data-tab вкладок');
-  // 3. Тело.
+  // 4. Тело.
   assert.ok(String(body.className).split(/\s+/).includes('cp-items'),
-    '3-й ребёнок — .cp-items (тело): ' + body.className);
-  // 4. Лог — ПОСЛЕДНИЙ ребёнок панели; несёт и .combat-state
+    '4-й ребёнок — .cp-items (тело): ' + body.className);
+  // 5. Лог — ПОСЛЕДНИЙ ребёнок панели; несёт и .combat-state
   //    (текстовое оформление, не геометрия).
   assert.ok(String(log.className).split(/\s+/).includes('npc-log'),
-    '4-й (последний) ребёнок — .npc-log: ' + log.className);
+    '5-й (последний) ребёнок — .npc-log: ' + log.className);
   assert.ok(String(log.className).split(/\s+/).includes('combat-state'),
     'лог несёт и .combat-state (оформление pre-line/цвет)');
 });
