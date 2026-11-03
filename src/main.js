@@ -273,6 +273,7 @@
   // пишет на успешном касте; раздел сейва last_spells
   // восстанавливается in place (live-ссылка не меняется).
   const lastSpells = {};
+  const squadPlacement = {};
   // Эфир (задача 000081): постоянный союзник — состояние
   // {level, xp, skillXp, skills, spells} — 5 полей (000111), форма
   // ЗАФИКСИРОВАНА под сейв (000085; до него — только память сессии).
@@ -529,6 +530,22 @@
     }
     return out;
   }
+  function sanitizeSquadPlacement(map) {
+    const out = {};
+    if (!map || typeof map !== 'object' || Array.isArray(map))
+      return out;
+    for (const k of Object.keys(map)) {
+      if (k !== 'player' && k !== 'efir' &&
+          !roster.some((e) => e && e.npcId === k)) continue;
+      const v = map[k];
+      if (Array.isArray(v) && v.length === 2
+          && Number.isInteger(v[0]) && Number.isInteger(v[1])
+          && v[0] >= 0 && v[0] <= 6 && v[1] >= 0 && v[1] <= 6) {
+        out[k] = [v[0], v[1]];
+      }
+    }
+    return out;
+  }
   // Конец боя (все 3 боевые точки, D2/D3/D9):
   //   * victory + res.allyXp (combat.js 000082) — applyCombatXp в
   //     записи (xp/уровни; while — несколько уровней за бой);
@@ -692,7 +709,8 @@
   // без re-wiring; onChange — хук сейва (saveNow, function-декларация
   // ниже — hoisted в этом же scope).
   if (G.squadUI && typeof G.squadUI.init === 'function') {
-    G.squadUI.init({ roster, efir, onChange: saveNow });
+    G.squadUI.init({ roster, efir, onChange: saveNow,
+      placement: squadPlacement });
   } else {
     console.error('main.js: Game.squadUI отсутствует — src/ui.js ' +
       'обязан грузиться ДО src/main.js (000086) — панель ' +
@@ -828,6 +846,7 @@
       // версию НЕ поднимаем, миграций нет; старому сейву раздела нет
       // — restore чисто (без warn, паттерн 000109 R5).
       last_spells: sanitizeLastSpells(lastSpells),
+      squad_placement: sanitizeSquadPlacement(squadPlacement),
       // Задача 000109: состояние городов (сток лавок, день последнего
       // визита). Пишется ВСЕГДА (пусто — {}); неломкое расширение v1
       // (000031): версию НЕ поднимаем, миграций нет. ОБРЕЗКА истёкших
@@ -1209,6 +1228,21 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить last_spells:', err);
+    }
+
+    try {
+      const rawSP = d.squad_placement;
+      if (rawSP != null) {
+        const cleanSP = (typeof rawSP !== 'object'
+            || Array.isArray(rawSP))
+          ? {} : sanitizeSquadPlacement(rawSP);
+        for (const k of Object.keys(squadPlacement))
+          delete squadPlacement[k];
+        for (const k of Object.keys(cleanSP))
+          squadPlacement[k] = cleanSP[k];
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить squad_placement:', err);
     }
 
     // --- Побеждённые группы (defeatedAt) ---
@@ -1873,6 +1907,7 @@
       // 000249: та же live-карта — «последнее заклинание» (сидинг
       // союзников на старте + запись на успешном касте, combat-ui).
       lastSpells: lastSpells,
+      placementLive: squadPlacement,
       tile: { mobGroup: groupType },
       // Бой «на текущем тайле»: передаём terrain реального тайла
       // (задача 000049) — согласованно с боем мира; без карты
@@ -2633,6 +2668,7 @@
       // 000249: та же live-карта — «последнее заклинание» (сидинг
       // союзников на старте + запись на успешном касте, combat-ui).
       lastSpells: lastSpells,
+      placementLive: squadPlacement,
       tile: t,
       lungeGate: mobCharge != null,
       // Фон поля боя по типу местности (задача 000049): terrain тайла,
@@ -3248,6 +3284,7 @@
       // 000249: та же live-карта — «последнее заклинание» (сидинг
       // союзников на старте + запись на успешном касте, combat-ui).
       lastSpells: lastSpells,
+      placementLive: squadPlacement,
       // Фон поля боя по типу подземелья (задача 000049): тайла мира в
       // подземелье нет, тип — DUNGEON_TYPES (ds.dg.type).
       dungeonType: ds.dg.type,
@@ -4253,6 +4290,7 @@
         // npcId → id заклинания } — зеркало live-карты (копия на
         // каждый доступ, read-only — combat-ui пишет в оригинал).
         lastSpells: Object.assign({}, lastSpells),
+        squadPlacement: Object.assign({}, squadPlacement),
         // Погибшие наёмники (000085; 000161): live-массив записей
         // {npcId, sheet, loyalty, hiredDay} — точка smoke-теста для
         // 000086/000087.

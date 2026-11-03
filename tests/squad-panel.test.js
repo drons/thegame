@@ -873,3 +873,40 @@ test('000086 S3: main.js (структурный): панель закрывае
     'входах боя (мир + подземелье + отладочный), найдено: '
     + closers.length);
 });
+
+// --- P7 (000304): порядок расстановки — секция «Расстановка» в
+// панели (копия инициализации P4 + placement) ---
+
+test('000304 P7: панель — секция «Расстановка»: meta «Расстановка:» + .cp-itemrow на юнита («Флогистон», «строка 6 · столбец 0»); без placement — секции нет (бит-в-бит)', () => {
+  // (a) placement: { player: [0, 6] } — секция в .squad-body.
+  {
+    const env = loadSquadUi();
+    const efir = env.G.efir.createEfir();
+    squadOf(env).init({
+      roster: [], efir, onChange: () => {},
+      placement: { player: [0, 6] },
+    });
+    squadOf(env).toggle();
+    const panel = panelOf(env);
+    assert.ok(panel, 'панель .squad-panel в body');
+    assert.ok(textOf(panel).includes('Расстановка:'),
+      'секция: meta «Расстановка:» (краснота: ' + textOf(panel));
+    const row = rowByName(panel, 'Флогистон');
+    assert.ok(row,
+      'строка «Флогистон» (расстановка героя; краснота: секции нет)');
+    assert.equal(rowMeta(row), 'строка 6 · столбец 0',
+      'meta расстановки героя «строка 6 · столбец 0» (0-based; '
+      + 'краснота: ' + (row ? rowMeta(row) : null));
+  }
+  // (b) без placement (P4-бит-в-бит) — секции НЕТ.
+  {
+    const env = loadSquadUi();
+    const efir = env.G.efir.createEfir();
+    squadOf(env).init({ roster: [], efir, onChange: () => {} });
+    squadOf(env).toggle();
+    const panel = panelOf(env);
+    assert.ok(panel, 'панель .squad-panel в body');
+    assert.ok(!textOf(panel).includes('Расстановка:'),
+      'без placement — секции «Расстановка» нет (бит-в-бит 000086)');
+  }
+});

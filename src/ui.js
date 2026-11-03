@@ -1564,6 +1564,7 @@
     let roster = null;      // ЖИВАЯ ссылка main.js: Array | null
     let efir = null;        // ЖИВОЙ объект {level, xp, ...} main.js | null
     let onChange = null;    // хук на изменение состояния (сейв в main.js)
+    let placement = null;
     let escHandler = null;
 
     // Каталог NPC — лениво (npc-data.js грузится ДО ui.js; паттерн
@@ -1765,6 +1766,25 @@
         }
       }
       renderEfirRow(efirData());
+      if (placement && typeof placement === 'object'
+          && Object.keys(placement).length) {
+        const nameFor = (id) => {
+          if (id === 'player') return 'Флогистон';
+          if (id === 'efir') return 'Эфир';
+          const npc = npcs().find((n) => n && n.id === id);
+          return npc ? npc.имя : id;
+        };
+        body.appendChild(el('div', 'cp-itemmeta', 'Расстановка:'));
+        for (const id of Object.keys(placement)) {
+          const v = placement[id];
+          if (!Array.isArray(v) || v.length !== 2) continue;
+          const row = el('div', 'cp-itemrow');
+          row.appendChild(el('span', 'cp-itemname', nameFor(id)));
+          row.appendChild(el('span', 'cp-itemmeta',
+            'строка ' + v[1] + ' · столбец ' + v[0]));
+          body.appendChild(row);
+        }
+      }
     }
 
     // Esc — document-слушатель, живёт пока панель открыта (attach на
@@ -1830,6 +1850,8 @@
         efir = (o && o.efir) ? o.efir : null;
         onChange = (o && typeof o.onChange === 'function')
           ? o.onChange : null;
+        placement = (o && o.placement && typeof o.placement === 'object')
+          ? o.placement : null;
         initialized = true;
         if (isOpen()) render();
       },

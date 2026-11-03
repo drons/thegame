@@ -1956,3 +1956,93 @@ test('22701-E2E-ROUNDTRIP: реальный main.js — сейв last_spells { f
     'зеркало h2: без изменений (касты — выбранными id); краснота: '
     + JSON.stringify(g2.state.lastSpells));
 });
+
+// =====================================================================
+// Задача 000304: расстановка перед боем — top-level раздел сейва
+// squad_placement (id боевого юнита 'player'/'efir'/npcId → [x, y]).
+// Красные (3): раздела нет в collectSaveData/restoreFromSave/
+// __game.state (main.js). Контракт —
+// memory/000304-squad-placement-persist.md.
+// =====================================================================
+
+test('304-SAVE-ROUNDTRIP: squad_placement — round-trip; __game.state.squadPlacement — зеркало live-карты', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: P.createCharacter(),
+    companions: [{
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+    squad_placement: { player: [0, 6], merc_volk: [1, 6] },
+  }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('squad_placement')),
+    'валидный раздел — без предупреждений: ' + h.warns.join(' | '));
+  assertRestored(h, 2);
+  const g = h.sandbox.__game;
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(g.state.squadPlacement || {})),
+    { player: [0, 6], merc_volk: [1, 6] },
+    'state.squadPlacement — зеркало live-карты (краснота: '
+    + JSON.stringify(g.state.squadPlacement) + ')');
+
+  fireBeforeUnload(h);
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'версия НЕ повышена');
+  assert.deepEqual(saved.data.squad_placement,
+    { player: [0, 6], merc_volk: [1, 6] },
+    'раздел переживает перезагрузку (краснота: '
+    + JSON.stringify(saved.data.squad_placement) + ')');
+});
+
+test('304-SAVE-OLD: старый сейв БЕЗ squad_placement — восстановление чисто (0 errors, без warn), state.squadPlacement = {}; новый сейв — squad_placement = {} (пишется всегда)', async () => {
+  const h = await boot(seedSave({ day: 2 }));
+  assert.equal(h.errors.length, 0, 'ошибок загрузки нет: '
+    + h.errors.join('; '));
+  assert.ok(!h.warns.some((m) => m.includes('squad_placement')),
+    'старому сейву — БЕЗ предупреждения об отсутствии раздела: '
+    + h.warns.join(' | '));
+  assertRestored(h, 2);
+  const g = h.sandbox.__game;
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(g.state.squadPlacement || {})), {},
+    'состояние «до фичи» — пустой объект (краснота: '
+    + JSON.stringify(g.state.squadPlacement) + ')');
+
+  fireBeforeUnload(h);
+  const saved = readSave(h);
+  assert.equal(saved.version, 1, 'версия НЕ повышена');
+  assert.deepEqual(saved.data.squad_placement, {},
+    'новый сейв — раздел пишется ВСЕГДА (даже {}); краснота: '
+    + JSON.stringify(saved.data.squad_placement));
+});
+
+test('304-SAVE-SANITIZE: битый squad_placement — игра не роняется (0 errors); вне диапазона/не-массив/призрак → отброшены; merc_volk в отряде — переживает перезагрузку', async () => {
+  const h = await boot(seedSave({
+    day: 2,
+    hero: P.createCharacter(),
+    companions: [{
+      npcId: 'merc_volk', level: 1, xp: 0, loyalty: 65, hiredDay: 2,
+    }],
+    squad_placement: {
+      player: [99, 99], efir: 'oops', ghost: 'x', a1: [1, 2],
+      merc_volk: [3, 5],
+    },
+  }));
+  assert.equal(h.errors.length, 0,
+    'битый раздел — игра не роняется: ' + h.errors.join('; '));
+  assertRestored(h, 2);
+  const g = h.sandbox.__game;
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(g.state.squadPlacement || {})),
+    { merc_volk: [3, 5] },
+    'санизация: player вне диапазона, efir не-массив, призрак ghost '
+    + 'и a1 не в отряде — отброшены (краснота: '
+    + JSON.stringify(g.state.squadPlacement) + ')');
+
+  fireBeforeUnload(h);
+  assert.deepEqual(readSave(h).data.squad_placement,
+    { merc_volk: [3, 5] },
+    'санированный раздел переживает перезагрузку (краснота: '
+    + JSON.stringify(readSave(h).data.squad_placement) + ')');
+});

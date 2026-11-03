@@ -1362,6 +1362,16 @@
             '(повторные предупреждения подавлены).', err);
         }
       }
+      if (ctx.placementLive && ctx.combat !== c0) {
+        const live = ctx.placementLive;
+        const cc = ctx.combat;
+        for (const k of Object.keys(live)) delete live[k];
+        live.player = [cc.px, cc.py];
+        for (const u of cc.units) {
+          if (u.side !== 'ally') continue;
+          live[u.id] = [u.x, u.y];
+        }
+      }
     }
     placeOpen = false;
     placeSel = null;
@@ -3735,7 +3745,30 @@
         secondary: Object.assign({}, opts.efir.secondary || {}),
         skills: Object.assign({}, opts.efir.skills || {}),
       } : null;
-      const combat = makeCore();
+      let seedPlacement = null;
+      if (opts.placementLive && typeof opts.placementLive === 'object') {
+        const cand = {};
+        const pv = opts.placementLive.player;
+        if (Array.isArray(pv) && pv.length === 2
+            && Number.isInteger(pv[0]) && Number.isInteger(pv[1])) {
+          cand.player = pv.slice();
+        }
+        for (const rec of alliesArr) {
+          if (!rec || !rec.id) continue;
+          const v = opts.placementLive[rec.id];
+          if (Array.isArray(v) && v.length === 2
+              && Number.isInteger(v[0]) && Number.isInteger(v[1])) {
+            cand[rec.id] = v.slice();
+          }
+        }
+        if (Object.keys(cand).length) seedPlacement = cand;
+      }
+      let combat;
+      try {
+        combat = seedPlacement ? makeCore(seedPlacement) : makeCore();
+      } catch (err) {
+        combat = makeCore();
+      }
       // Путь фона (задача 000049) — ОДИН раз при старте. Guard
       // G.combatBackground — УМД-ловушка «G снимается один раз»
       // (как hpBarColor, задача 000038): sprites.js отсутствует
@@ -3770,6 +3803,9 @@
         lastSpells: (opts.lastSpells
           && typeof opts.lastSpells === 'object'
           && !Array.isArray(opts.lastSpells)) ? opts.lastSpells : null,
+        placementLive: (opts.placementLive
+          && typeof opts.placementLive === 'object')
+          ? opts.placementLive : null,
         // 000260: фабрика ядра + снапшоты (свап c0→c1).
         makeCore,
         heroSnap,

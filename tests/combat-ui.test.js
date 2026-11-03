@@ -1622,6 +1622,8 @@ function scene84(opts = {}) {
     hero,
     mobs: opts.mobs || ['wolf'], mobLevel: 1, seed: 42,
     ...(opts.efir ? { efir: G.efir.createEfir() } : {}),
+    ...(opts.placementLive
+      ? { placementLive: opts.placementLive } : {}),
     ...(opts.loader
       ? { spriteLoader: fakeLoader84(requested, opts.loader) } : {}),
   });
@@ -12120,4 +12122,74 @@ test('боевой UI: 000290 — призывной с неизвестным m
     'неизвестный mobId');
   const S2 = scene();
   check(S2, addSummon84(S2.c, S2.G, 5, 2, undefined), 'без mobId');
+});
+
+// =====================================================================
+// 000304: расстановка перед боем — запоминание в общем сейве между
+// боями + порядок на вкладке «Отряд» [C] (tasks/pending/000304.md;
+// контракт memory/000304-squad-placement-persist.md)
+//
+// Краснота: scene84-пасс-трю opts.placementLive уже на месте (RED),
+// но startCombat src/combat-ui.js не читает placementLive (старт —
+// якоря) и closePlacementWindow не пишет в live-карту.
+//   U1 — placementLive {player:[2,6]}: игрок на якоря (3,6), не
+//        (2,6).
+//   U2 (guard) — битая карта (вне поля + призрак): старт на якоря
+//        (контроль scene84, seed 42), без краха — зелёный с
+//        red-стадии (осознанный guard).
+//   U3 — live-карта: успешный свап (Enter) — карта ПЕРЕЗАПИСАНА
+//        полным старт-мапом, мёртвые ключи стёрты.
+// =====================================================================
+
+test('боевой UI: 000304-U1 — placementLive {player:[2,6]}: бой стартует с сохранённой расстановки — герой (2,6), НЕ якоря (3,6)', () => {
+  const S = scene84({ placementLive: { player: [2, 6] } });
+  const { c } = S;
+  assert.ok(c, 'бой стартует');
+  assert.equal(c.px, 2,
+    '000304: x героя — из сохранённой расстановки (краснота: якоря 3)');
+  assert.equal(c.py, 6, '000304: y героя — из сохранённой расстановки');
+});
+
+test('боевой UI: 000304-U2 (guard) — битая placementLive (вне поля + призрак) — бой на якорях (контроль scene84, seed 42), без краха', () => {
+  const S = scene84({
+    placementLive: { player: [99, 99], no_such: [0, 0] },
+  });
+  const C = scene84();
+  assert.ok(S.c, 'бой стартует (невалидный seed — без краха)');
+  assert.equal(S.c.px, C.c.px, 'x — как у контроля (якоря)');
+  assert.equal(S.c.py, C.c.py, 'y — как у контроля (якоря)');
+  const wS = S.c.units.find((u) => u.id === 'm0');
+  const wC = C.c.units.find((u) => u.id === 'm0');
+  assert.ok(wS && wC, 'волк в обоих боях (фикстура)');
+  assert.deepEqual([wS.x, wS.y], [wC.x, wC.y],
+    'волк (pre-roll) — как у контроля');
+  assert.deepEqual([...S.c.turnOrder], [...C.c.turnOrder],
+    'очередь хода — как у контроля');
+});
+
+test('боевой UI: 000304-U3 — live-карта: успешный свап (Enter) — карта ПЕРЕЗАПИСАНА полным старт-мапом {player:[1,5]}; мёртвые ключи стёрты (краснота: записи нет)', () => {
+  const liveMap = { player: [9, 9], nope: [0, 0] };
+  const S = scene84({ placementLive: liveMap });
+  const { G, c } = S;
+  assert.equal(c.px, 3, 'фикстура: якоря (невалидный seed — бит-в-бит)');
+  assert.equal(c.py, 6, 'фикстура: якоря');
+  clickAt260(S, 3, 6);
+  clickAt260(S, 1, 5);
+  assert.equal(c.px, 1, 'фикстура: перенос героя (000260)');
+  assert.equal(c.py, 5, 'фикстура: перенос героя (000260)');
+  G.combatUI.handleCode('Enter');
+  const c1 = G.combatUI.current();
+  assert.ok(c1, '000304: current() — активный бой после Enter');
+  assert.notEqual(c1, c, 'свап c0→c1 (000260)');
+  assert.equal(c1.px, 1, 'фикстура: c1 — подтверждённая позиция x');
+  assert.equal(c1.py, 5, 'фикстура: c1 — подтверждённая позиция y');
+  assert.equal(Object.keys(liveMap).length, 1,
+    '000304: полный старт-мап — мёртвые ключи стёрты (nope удалён); '
+    + 'краснота: ' + JSON.stringify(Object.keys(liveMap)));
+  assert.equal(liveMap.player[0], 1,
+    '000304: player.x — подтверждённая клетка (краснота: '
+    + JSON.stringify(liveMap.player));
+  assert.equal(liveMap.player[1], 5,
+    '000304: player.y — подтверждённая клетка (краснота: '
+    + JSON.stringify(liveMap.player));
 });
