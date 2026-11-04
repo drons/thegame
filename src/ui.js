@@ -1108,8 +1108,21 @@
 
     // --- Вкладки ---
 
+    // 000299.02: АКТИВНЫЙ sheet для опций диалога (фильтр ядра по
+    // scope `для`): то же разрешение, что ряд портретов (000299.01) —
+    // partyMembersFor(c) + closure activeCharId (ОДИН источник
+    // «активного»). Party нет — hero-фолбэк внутри partyMembersFor;
+    // members/sheet нет — c (hero), бит-в-бит.
+    function activeSheetNow() {
+      const members = partyMembersFor(c);
+      if (!members) return c;
+      const active = members.find((m) => m.id === activeCharId) ||
+        members[0];
+      return (active && active.sheet) || c;
+    }
+
     function renderDialogTab() {
-      for (const entry of G.dialogOptions(npc, c)) {
+      for (const entry of G.dialogOptions(npc, activeSheetNow())) {
         const row = el('div', 'cp-itemrow');
         const btn = el('button', 'cp-btn', entry.option.текст);
         btn.dataset.npcact = 'opt';
@@ -1363,7 +1376,8 @@
       // 000299.01: портрет партии — СВОЯ ветка (НЕ data-npcact):
       // setActiveCharId + ин-плейс перерисовка ряда; оверлей НЕ
       // закрывается, записей в сейв/flash нет, вкладка не
-      // переключается.
+      // переключается. 000299.02: вкладка «диалог» перерисовывается
+      // ин-плейс — набор опций зависит от scope `для` активного.
       const pt = e && e.target;
       if (pt && typeof pt.closest === 'function') {
         const pb = pt.closest('button.cp-portrait');
@@ -1375,6 +1389,7 @@
           if (portraitsRow) {
             renderPartyPortraitsRow(portraitsRow, c, activeCharId);
           }
+          if (tab === 'dialog') renderTab();
           return;
         }
       }
@@ -1384,7 +1399,7 @@
       if (act === 'close') { npcClose(); return; }
       if (act === 'tab') { tab = btn.dataset.tab; renderTab(); return; }
       if (act === 'opt') {
-        const entry = G.dialogOptions(npc, c)
+        const entry = G.dialogOptions(npc, activeSheetNow())
           .find((x) => x.option.id === btn.dataset.optid);
         if (!entry || !entry.доступен) return;
         const o = entry.option;

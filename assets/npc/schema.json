@@ -53,6 +53,21 @@
               },
               "проверка": { "type": "integer", "minimum": 0, "maximum": 100 }
             }
+          },
+          "для": {
+            "anyOf": [
+              { "const": "все" },
+              { "const": "efir" },
+              { "const": "merc" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["роль"],
+                "properties": {
+                  "роль": { "enum": ["melee", "ranged", "shield", "support"] }
+                }
+              }
+            ]
           }
         }
       }

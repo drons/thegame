@@ -74,6 +74,60 @@
 
   // --- Диалоги ---
 
+  // 000299.02: kind/роль переданного character для scope опции `для`:
+  // identity из LIVE __game.state (main.js: efir/roster — live-ссылки;
+  // state.hero — снимок-новый-объект, identity на hero НЕ используется)
+  // → hero — ПО УМОЛЧАНИЮ. Каталог (Game.NpcData) — лениво в момент
+  // вызова (rootRef-паттерн 000038/000147, как G.Craft ниже).
+  function characterScope(character) {
+    const gs = (typeof globalThis !== 'undefined' &&
+        globalThis.__game && globalThis.__game.state &&
+        typeof globalThis.__game.state === 'object' &&
+        !Array.isArray(globalThis.__game.state))
+      ? globalThis.__game.state : null;
+    if (gs) {
+      if (gs.efir && typeof gs.efir === 'object' &&
+          !Array.isArray(gs.efir) && gs.efir === character) {
+        return { kind: 'efir', role: null };
+      }
+      if (Array.isArray(gs.roster)) {
+        for (const e of gs.roster) {
+          if (e && typeof e === 'object' && !Array.isArray(e) &&
+              e.sheet === character) {
+            const G = (typeof globalThis !== 'undefined' &&
+              typeof globalThis.Game === 'object')
+              ? globalThis.Game : null;
+            const npcs = (G && G.NpcData &&
+                Array.isArray(G.NpcData.NPCS)) ? G.NpcData.NPCS : null;
+            const npc = (npcs && typeof e.npcId === 'string')
+              ? npcs.find((n) => n && n.id === e.npcId) : null;
+            const role = (npc && npc.найм && typeof npc.найм === 'object' &&
+                typeof npc.найм.роль === 'string') ? npc.найм.роль : null;
+            return { kind: 'merc', role: role };
+          }
+        }
+      }
+    }
+    return { kind: 'hero', role: null };
+  }
+
+  // 000299.02: scope опции `для`: отсутствует/null/"все" — любому
+  // активному; "efir" — только Эфир; "merc" — любой наёмный;
+  // {роль} — наёмный с найм.роль. Несовпадение/мусор — скрыта
+  // (fail-closed).
+  function scopeAllows(scope, who) {
+    if (scope === undefined || scope === null || scope === 'все') {
+      return true;
+    }
+    if (scope === 'efir') return who.kind === 'efir';
+    if (scope === 'merc') return who.kind === 'merc';
+    if (typeof scope === 'object' && !Array.isArray(scope) &&
+        typeof scope.роль === 'string') {
+      return who.kind === 'merc' && who.role === scope.роль;
+    }
+    return false;
+  }
+
   /**
    * Опции диалога NPC: { option, доступен, причина } в порядке данных.
    * `option` — ссылка на объект опции из данных NPC. Причина — первое
@@ -82,21 +136,41 @@
    * «обучение», «квесты», «подсказка», «найм» — проходит через
    * существующий механизм требований, как «квесты»: доступ к найму —
    * требования найм-опции (паттерн Оратора), новой системы проверок нет.
+   * 000299.02: scope опции `для` — фильтр ПО ПЕРЕДАННОМУ character
+   * (kind/роль — characterScope); несовпавшая — НЕ в списке (требования
+   * харизма/навык/проверка — по тому же character, без изменений).
    */
   function dialogOptions(npc, character) {
-    const out = (npc.диалог || []).map((option) => {
-      const req = option.требования || {};
-      let причина = null;
-      if (typeof req.харизма === 'number' && character.primary.charisma < req.харизма) {
-        причина = 'нужна Харизма ' + req.харизма;
-      } else if (req.навык && skillLevel(character, req.навык.id) < req.навык.уровень) {
-        причина = 'нужен ' + skillName(req.навык.id) + ' ' + req.навык.уровень;
-      } else if (typeof req.проверка === 'number' &&
-          P.derived(character).dialogueBonus < req.проверка) {
-        причина = 'бонус к диалогу меньше ' + req.проверка;
-      }
-      return { option, доступен: причина === null, причина };
-    });
+    const who = characterScope(character);
+    const out = (npc.диалог || [])
+      .filter((option) => scopeAllows(option && option.для, who))
+      .map((option) => {
+        const req = option.требования || {};
+        let причина = null;
+        const charisma = (character &&
+            typeof character.primary === 'object' && character.primary &&
+            typeof character.primary.charisma === 'number')
+          ? character.primary.charisma : 0;
+        if (typeof req.харизма === 'number' && charisma < req.харизма) {
+          причина = 'нужна Харизма ' + req.харизма;
+        } else if (req.навык &&
+            skillLevel(character, req.навык.id) < req.навык.уровень) {
+          причина = 'нужен ' + skillName(req.навык.id) + ' ' + req.навык.уровень;
+        } else if (typeof req.проверка === 'number') {
+          let bonus = 0;
+          if (character && typeof character.primary === 'object' &&
+              character.primary) {
+            const d = P.derived(character);
+            if (d && typeof d.dialogueBonus === 'number') {
+              bonus = d.dialogueBonus;
+            }
+          }
+          if (bonus < req.проверка) {
+            причина = 'бонус к диалогу меньше ' + req.проверка;
+          }
+        }
+        return { option, доступен: причина === null, причина };
+      });
     // Наставничество по крафту (задача 000126, решение (b)): опции
     // «обучить <вид>» ПРИДВИГАЮТСЯ ПОСЛЕ каталожных опций диалога
     // (СИНТЕЗ, не данные npc.диалог). Опция существует ТОЛЬКО если
