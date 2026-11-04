@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "magic_shield"
-  }
+  },
+  "icon": "assets/sprites/items/magic_shield_scroll.svg"
 }

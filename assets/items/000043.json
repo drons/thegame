@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "fireball"
-  }
+  },
+  "icon": "assets/sprites/items/fireball_scroll.svg"
 }

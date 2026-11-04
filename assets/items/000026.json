@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "hide",
     "amount": 25
-  }
+  },
+  "icon": "assets/sprites/items/iron_hide_tome.svg"
 }

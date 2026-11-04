@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "heavy",
     "amount": 30
-  }
+  },
+  "icon": "assets/sprites/items/heavy_tome.svg"
 }

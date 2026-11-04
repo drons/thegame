@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "icelord",
     "amount": 25
-  }
+  },
+  "icon": "assets/sprites/items/ice_spellbook.svg"
 }

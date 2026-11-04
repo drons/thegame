@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "accuracy",
     "amount": 10
-  }
+  },
+  "icon": "assets/sprites/items/archery_manual.svg"
 }

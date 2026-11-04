@@ -30,7 +30,7 @@ const ITEMS_SRC = fs.readFileSync(
   path.join(__dirname, 'items.test.js'), 'utf8');
 const ITEMS_DIR = path.join(__dirname, '..', 'assets', 'items');
 
-test('000243.01-I2-M: I2-сообщение (items.test.js) — «прочие 43 предмета» + «финал 000243.01: каталог 511 = 468 с icon + 43 без» (устаревшее «68 предмета» отсутствует; 000243.03: токены 511/468 + regex «N предмет(а|ов)» = live files.length−withIcon); live-кросс-чек 43/468 = счёт каталога (паттерн 000243-I1-T)', () => {
+test('000243.01-I2-M: I2-сообщение (items.test.js) — «прочие 23 предмета» + «финал 000243.01: каталог 511 = 488 с icon + 23 без» (устаревшее «43 предмета» отсутствует; 000243.03: токены 511/488 + regex «N предмет(а|ов)» = live files.length−withIcon); live-кросс-чек 23/488 = счёт каталога (паттерн 000243-I1-T)', () => {
   const lines = ITEMS_SRC.split('\n');
   const anchors = lines
     .filter(l => l.startsWith("test('000211.06 I2:"));
@@ -58,9 +58,9 @@ test('000243.01-I2-M: I2-сообщение (items.test.js) — «прочие 4
     'вырез сообщения: конец обязан идти после строки «icon НЕ в '
     + 'required»');
   const msg = block.slice(msgIdx, endIdx + 1).join(' ');
-  assert.ok(msg.includes('43'),
-    'I2-сообщение — «прочие 43 предмета остаются валидными» (тело '
-    + 'I1: others = 43; каталог 511 = 468 с icon + 43 без); '
+  assert.ok(msg.includes('23'),
+    'I2-сообщение — «прочие 23 предмета остаются валидными» (тело '
+    + 'I1: others = 23; каталог 511 = 488 с icon + 23 без); '
     + 'факт: ' + msg);
   assert.ok(msg.includes('000243.01'),
     'I2-сообщение — атрибуция ре-пина «финал 000243.01: каталог 511 = '
@@ -69,14 +69,14 @@ test('000243.01-I2-M: I2-сообщение (items.test.js) — «прочие 4
   assert.ok(msg.includes('511'),
     'I2-сообщение — «каталог 511 = 468 с icon + 43 без» (live-счёт '
     + 'каталога; усиление 000243.03, ретро 20261028b); факт: ' + msg);
-  assert.ok(msg.includes('468'),
-    'I2-сообщение — «468 с icon» (511 = 468 + 43; live-счёт каталога; '
+  assert.ok(msg.includes('488'),
+    'I2-сообщение — «488 с icon» (511 = 488 + 23; live-счёт каталога; '
     + 'усиление 000243.03, ретро 20261028b); факт: ' + msg);
-  assert.ok(!msg.includes(' 68 предмета'),
-    'устаревшее «68 предмета» (срез 000302.05: «прочие 68 предметов») '
-    + '— отсутствует (с пробелом-якорем: ре-пин 000302.06 — live '
-    + '«43 предмета» не маскирует пин подстрокой « 68 предмета»: '
-    + '«468» не имеет пробела перед «68»); факт: ' + msg);
+  assert.ok(!msg.includes(' 43 предмета'),
+    'устаревшее «43 предмета» (срез 000302.06: «прочие 43 предмета») '
+    + '— отсутствует (с пробелом-якорем: ре-пин 000302.07 — live '
+    + '«23 предмета» не маскирует пин подстрокой « 43 предмета»: '
+    + '«488» не имеет пробела перед «43»); факт: ' + msg);
   const files = fs.readdirSync(ITEMS_DIR)
     .filter(f => /^\d{6}\.json$/.test(f));
   let withIcon = 0;
@@ -84,10 +84,10 @@ test('000243.01-I2-M: I2-сообщение (items.test.js) — «прочие 4
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
     if ('icon' in j) withIcon++;
   }
-  assert.equal(withIcon, 468,
-    'live-каталог — 468 с icon (сообщение = факт); факт: ' + withIcon);
-  assert.equal(files.length - withIcon, 43,
-    'live-каталог — 43 без icon (сообщение = факт); факт: '
+  assert.equal(withIcon, 488,
+    'live-каталог — 488 с icon (сообщение = факт); факт: ' + withIcon);
+  assert.equal(files.length - withIcon, 23,
+    'live-каталог — 23 без icon (сообщение = факт); факт: '
     + (files.length - withIcon));
   const mN = /(\d+)\s*предмет[аов]/.exec(msg);
   assert.ok(mN,

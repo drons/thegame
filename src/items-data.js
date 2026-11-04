@@ -228,6 +228,7 @@
       value: 50,
       desc: "Практический трактат алхимика: рецепты и предостережения.",
       effect: { kind: "skill_xp", skill: "alchemy", amount: 10 },
+      icon: "assets/sprites/items/alchemy_manual.svg",
     },
     // 000020.json
     {
@@ -238,6 +239,7 @@
       value: 60,
       desc: "Учение о мечах: от основ до цветка удара.",
       effect: { kind: "skill_xp", skill: "swordsman", amount: 10 },
+      icon: "assets/sprites/items/sword_treatise.svg",
     },
     // 000021.json
     {
@@ -248,6 +250,7 @@
       value: 60,
       desc: "Азбука стрельбы: ветер, дыхание и отпускание.",
       effect: { kind: "skill_xp", skill: "accuracy", amount: 10 },
+      icon: "assets/sprites/items/archery_manual.svg",
     },
     // 000022.json
     {
@@ -287,6 +290,7 @@
       value: 55,
       desc: "Гримуар каменных кулаков: техника удара, когда металл не при чём.",
       effect: { kind: "skill_xp", skill: "fists", amount: 25 },
+      icon: "assets/sprites/items/stone_fist_grimoire.svg",
     },
     // 000026.json
     {
@@ -297,6 +301,7 @@
       value: 55,
       desc: "Учение о железной коже: как принимать удар и не вспоминать о нём.",
       effect: { kind: "skill_xp", skill: "hide", amount: 25 },
+      icon: "assets/sprites/items/iron_hide_tome.svg",
     },
     // 000027.json
     {
@@ -307,6 +312,7 @@
       value: 60,
       desc: "Огненные заклинания: от искры до пламени, что ест камень.",
       effect: { kind: "skill_xp", skill: "firelord", amount: 25 },
+      icon: "assets/sprites/items/fire_spellbook.svg",
     },
     // 000028.json
     {
@@ -317,6 +323,7 @@
       value: 60,
       desc: "Ледяные заклинания: стужа, что останавливает кровь в жилах.",
       effect: { kind: "skill_xp", skill: "icelord", amount: 25 },
+      icon: "assets/sprites/items/ice_spellbook.svg",
     },
     // 000029.json
     {
@@ -327,6 +334,7 @@
       value: 70,
       desc: "Тяжёлое оружие: вес, инерция и терпение.",
       effect: { kind: "skill_xp", skill: "heavy", amount: 30 },
+      icon: "assets/sprites/items/heavy_tome.svg",
     },
     // 000030.json
     {
@@ -337,6 +345,7 @@
       value: 45,
       desc: "Свиток лучника: дыхание, прицел, отпускание.",
       effect: { kind: "skill_xp", skill: "archer", amount: 15 },
+      icon: "assets/sprites/items/archer_scroll.svg",
     },
     // 000031.json
     {
@@ -347,6 +356,7 @@
       value: 40,
       desc: "Свиток медитации: тишина, в которой ману слышно ушами.",
       effect: { kind: "skill_xp", skill: "meditation", amount: 15 },
+      icon: "assets/sprites/items/meditation_scroll.svg",
     },
     // 000032.json
     {
@@ -357,6 +367,7 @@
       value: 40,
       desc: "Свиток сердца природы: травы, их вкусы и тайны.",
       effect: { kind: "skill_xp", skill: "nature", amount: 15 },
+      icon: "assets/sprites/items/nature_scroll.svg",
     },
     // 000033.json
     {
@@ -472,6 +483,7 @@
       tier: 2,
       desc: "Свиток: изучает «Огненный шар» (нужен ранг школы).",
       effect: { kind: "spell", spell: "fireball" },
+      icon: "assets/sprites/items/fireball_scroll.svg",
     },
     // 000044.json
     {
@@ -483,6 +495,7 @@
       tier: 3,
       desc: "Свиток: изучает «Пламенный взрыв» (нужны ранг школы и «Огненный шар»).",
       effect: { kind: "spell", spell: "flame_burst" },
+      icon: "assets/sprites/items/flame_burst_scroll.svg",
     },
     // 000045.json
     {
@@ -494,6 +507,7 @@
       tier: 1,
       desc: "Свиток: изучает «Морозную стрелу» (нужен ранг школы).",
       effect: { kind: "spell", spell: "frost_bolt" },
+      icon: "assets/sprites/items/frost_bolt_scroll.svg",
     },
     // 000046.json
     {
@@ -505,6 +519,7 @@
       tier: 3,
       desc: "Свиток: изучает «Метель» (нужны ранг школы и «Морозная стрела»).",
       effect: { kind: "spell", spell: "blizzard" },
+      icon: "assets/sprites/items/blizzard_scroll.svg",
     },
     // 000047.json
     {
@@ -516,6 +531,7 @@
       tier: 1,
       desc: "Свиток: изучает «Хлад» (нужен ранг школы).",
       effect: { kind: "spell", spell: "chill" },
+      icon: "assets/sprites/items/chill_scroll.svg",
     },
     // 000048.json
     {
@@ -527,6 +543,7 @@
       tier: 2,
       desc: "Свиток: изучает «Свет исцеления» (нужен ранг школы).",
       effect: { kind: "spell", spell: "light_heal" },
+      icon: "assets/sprites/items/light_heal_scroll.svg",
     },
     // 000049.json
     {
@@ -538,6 +555,7 @@
       tier: 1,
       desc: "Свиток: изучает «Магический щит» (нужен ранг школы).",
       effect: { kind: "spell", spell: "magic_shield" },
+      icon: "assets/sprites/items/magic_shield_scroll.svg",
     },
     // 000050.json
     {
@@ -549,6 +567,7 @@
       tier: 1,
       desc: "Свиток: изучает «Плетень» (нужен ранг школы).",
       effect: { kind: "spell", spell: "vine" },
+      icon: "assets/sprites/items/vine_scroll.svg",
     },
     // 000051.json
     {
@@ -559,6 +578,7 @@
       value: 150,
       desc: "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). Цель не выбирается.",
       effect: { kind: "resurrect" },
+      icon: "assets/sprites/items/resurrect_scroll.svg",
     },
     // 000052.json
     {

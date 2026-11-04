@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "frost_bolt"
-  }
+  },
+  "icon": "assets/sprites/items/frost_bolt_scroll.svg"
 }

@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "swordsman",
     "amount": 10
-  }
+  },
+  "icon": "assets/sprites/items/sword_treatise.svg"
 }

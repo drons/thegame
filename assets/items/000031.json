@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "meditation",
     "amount": 15
-  }
+  },
+  "icon": "assets/sprites/items/meditation_scroll.svg"
 }

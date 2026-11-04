@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "firelord",
     "amount": 25
-  }
+  },
+  "icon": "assets/sprites/items/fire_spellbook.svg"
 }

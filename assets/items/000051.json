@@ -7,5 +7,6 @@
   "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). Цель не выбирается.",
   "effect": {
     "kind": "resurrect"
-  }
+  },
+  "icon": "assets/sprites/items/resurrect_scroll.svg"
 }

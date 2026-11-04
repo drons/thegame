@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "alchemy",
     "amount": 10
-  }
+  },
+  "icon": "assets/sprites/items/alchemy_manual.svg"
 }

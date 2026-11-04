@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "archer",
     "amount": 15
-  }
+  },
+  "icon": "assets/sprites/items/archer_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "chill"
-  }
+  },
+  "icon": "assets/sprites/items/chill_scroll.svg"
 }

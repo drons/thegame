@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "fists",
     "amount": 25
-  }
+  },
+  "icon": "assets/sprites/items/stone_fist_grimoire.svg"
 }

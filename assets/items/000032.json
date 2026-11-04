@@ -9,5 +9,6 @@
     "kind": "skill_xp",
     "skill": "nature",
     "amount": 15
-  }
+  },
+  "icon": "assets/sprites/items/nature_scroll.svg"
 }
