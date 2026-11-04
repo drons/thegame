@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shadow_bind"
-  }
+  },
+  "icon": "assets/sprites/items/shadow_bind_scroll.svg"
 }

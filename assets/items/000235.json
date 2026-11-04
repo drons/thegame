@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "void_arrow"
-  }
+  },
+  "icon": "assets/sprites/items/void_arrow_scroll.svg"
 }

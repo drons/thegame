@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shadowflame"
-  }
+  },
+  "icon": "assets/sprites/items/shadowflame_scroll.svg"
 }

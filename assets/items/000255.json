@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "invisibility"
-  }
+  },
+  "icon": "assets/sprites/items/invisibility_scroll.svg"
 }

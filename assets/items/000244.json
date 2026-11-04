@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "doom_mark"
-  }
+  },
+  "icon": "assets/sprites/items/doom_mark_scroll.svg"
 }

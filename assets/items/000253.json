@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "void_horror"
-  }
+  },
+  "icon": "assets/sprites/items/void_horror_scroll.svg"
 }

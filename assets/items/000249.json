@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "dark_ensnare"
-  }
+  },
+  "icon": "assets/sprites/items/dark_ensnare_scroll.svg"
 }

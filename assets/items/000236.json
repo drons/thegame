@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "night_strike"
-  }
+  },
+  "icon": "assets/sprites/items/night_strike_scroll.svg"
 }

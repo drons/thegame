@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shadow_curse"
-  }
+  },
+  "icon": "assets/sprites/items/shadow_curse_scroll.svg"
 }

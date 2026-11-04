@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "despair"
-  }
+  },
+  "icon": "assets/sprites/items/despair_scroll.svg"
 }

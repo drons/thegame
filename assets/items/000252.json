@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shadow_wraith"
-  }
+  },
+  "icon": "assets/sprites/items/shadow_wraith_scroll.svg"
 }

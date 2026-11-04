@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "dark_presence"
-  }
+  },
+  "icon": "assets/sprites/items/dark_presence_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "nightmare"
-  }
+  },
+  "icon": "assets/sprites/items/nightmare_scroll.svg"
 }

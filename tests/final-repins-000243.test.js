@@ -142,23 +142,23 @@ test('000243-RAR-H: шапочный комментарий 230.07-RAR-G (ui.tes
     'live-каталог — 222 без slot (шапка = факт); факт: ' + noSlot);
 });
 
-test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 143» / «368 с icon» / «000243: финальный» (устаревшее «прочие 118» отсутствует)', () => {
+test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 118» / «393 с icon» / «000243: финальный» (устаревшее «прочие 143» отсутствует)', () => {
   const heading = ITEMS_SRC.split('\n')
     .filter(l => l.startsWith('test("000211.06 I1:'));
   assert.equal(heading.length, 1,
     'строка test("000211.06 I1: — ровно одна; найдено: ' + heading.length);
   const line = heading[0];
-  assert.ok(line.includes('прочие 143'),
-    'заголовок I1 — «прочие 143» (тело: others = 143); '
+  assert.ok(line.includes('прочие 118'),
+    'заголовок I1 — «прочие 118» (тело: others = 118); '
     + 'факт: ' + line.slice(0, 160));
-  assert.ok(line.includes('368'),
-    'заголовок I1 — «368 с icon» (тело: icon-count = 368); '
+  assert.ok(line.includes('393'),
+    'заголовок I1 — «393 с icon» (тело: icon-count = 393); '
     + 'факт: ' + line.slice(0, 160));
   assert.ok(line.includes('000243'),
     'заголовок I1 — пометка «000243: финальный, каталог 511»; '
     + 'факт: ' + line.slice(0, 160));
-  assert.ok(!line.includes('прочие 118'),
-    'устаревшее «прочие 118» (срез эры 000235.09) — отсутствует; '
+  assert.ok(!line.includes('прочие 143'),
+    'устаревшее «прочие 143» (срез 000302.02) — отсутствует; '
     + 'факт: ' + line.slice(0, 160));
   const files = fs.readdirSync(ITEMS_DIR)
     .filter(f => /^\d{6}\.json$/.test(f));
@@ -167,14 +167,14 @@ test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
     if ('icon' in j) withIcon++;
   }
-  assert.equal(withIcon, 368,
-    'live-каталог — 368 с icon (заголовок = факт); факт: ' + withIcon);
-  assert.equal(files.length - withIcon, 143,
-    'live-каталог — 143 без icon (заголовок = факт); факт: '
+  assert.equal(withIcon, 393,
+    'live-каталог — 393 с icon (заголовок = факт); факт: ' + withIcon);
+  assert.equal(files.length - withIcon, 118,
+    'live-каталог — 118 без icon (заголовок = факт); факт: '
     + (files.length - withIcon));
 });
 
-test('000243-I1-H: шапочный блок I1 (секция 000211.06) — «прочие 143 / 368 с icon» (устаревшее «прочие 43 предмета» отсутствует)', () => {
+test('000243-I1-H: шапочный блок I1 (секция 000211.06) — «прочие 118 / 393 с icon» (устаревшее «прочие 43 предмета» отсутствует)', () => {
   const lines = ITEMS_SRC.split('\n');
   const start = lines.findIndex(l => l.startsWith('// --- Задача 000211.06:'));
   assert.notEqual(start, -1,
@@ -188,10 +188,10 @@ test('000243-I1-H: шапочный блок I1 (секция 000211.06) — «�
     'в шапочном блоке I1 ровно одна строка с «прочие»; найдено: '
     + others.length);
   const line = others[0];
-  assert.ok(line.includes('143'),
-    'шапка I1 — «143» (тело: others = 143); факт: ' + line);
-  assert.ok(line.includes('368'),
-    'шапка I1 — «368 с icon» (тело: icon-count = 368); факт: ' + line);
+  assert.ok(line.includes('118'),
+    'шапка I1 — «118» (тело: others = 118); факт: ' + line);
+  assert.ok(line.includes('393'),
+    'шапка I1 — «393 с icon» (тело: icon-count = 393); факт: ' + line);
   assert.ok(!line.includes('прочие 43 предмета'),
     'устаревшее «прочие 43 предмета» (RED-стадия 000211.06, каталог 76) '
     + '— отсутствует; факт: ' + line);

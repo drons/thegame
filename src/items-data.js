@@ -2950,6 +2950,7 @@
       tier: 1,
       desc: "Свиток: изучает «Умбровый снаряд» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "umbra_bolt" },
+      icon: "assets/sprites/items/umbra_bolt_scroll.svg",
     },
     // 000234.json
     {
@@ -2961,6 +2962,7 @@
       tier: 2,
       desc: "Свиток: изучает «Пожизненная сила» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "drain_life" },
+      icon: "assets/sprites/items/drain_life_scroll.svg",
     },
     // 000235.json
     {
@@ -2972,6 +2974,7 @@
       tier: 3,
       desc: "Свиток: изучает «Стрела пустоты» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "void_arrow" },
+      icon: "assets/sprites/items/void_arrow_scroll.svg",
     },
     // 000236.json
     {
@@ -2983,6 +2986,7 @@
       tier: 3,
       desc: "Свиток: изучает «Ночной удар» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "night_strike" },
+      icon: "assets/sprites/items/night_strike_scroll.svg",
     },
     // 000237.json
     {
@@ -2994,6 +2998,7 @@
       tier: 4,
       desc: "Свиток: изучает «Извлечение души» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "soul_drain" },
+      icon: "assets/sprites/items/soul_drain_scroll.svg",
     },
     // 000238.json
     {
@@ -3005,6 +3010,7 @@
       tier: 4,
       desc: "Свиток: изучает «Теневое пламя» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shadowflame" },
+      icon: "assets/sprites/items/shadowflame_scroll.svg",
     },
     // 000239.json
     {
@@ -3016,6 +3022,7 @@
       tier: 4,
       desc: "Свиток: изучает «Тёмная нова» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "dark_nova" },
+      icon: "assets/sprites/items/dark_nova_scroll.svg",
     },
     // 000240.json
     {
@@ -3027,6 +3034,7 @@
       tier: 1,
       desc: "Свиток: изучает «Теневая вуаль» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shroud" },
+      icon: "assets/sprites/items/shroud_scroll.svg",
     },
     // 000241.json
     {
@@ -3038,6 +3046,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ночное лезвие» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "night_blade" },
+      icon: "assets/sprites/items/night_blade_scroll.svg",
     },
     // 000242.json
     {
@@ -3049,6 +3058,7 @@
       tier: 3,
       desc: "Свиток: изучает «Вампирское прикосновение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "vampire_touch" },
+      icon: "assets/sprites/items/vampire_touch_scroll.svg",
     },
     // 000243.json
     {
@@ -3060,6 +3070,7 @@
       tier: 2,
       desc: "Свиток: изучает «Страх» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "fear" },
+      icon: "assets/sprites/items/fear_scroll.svg",
     },
     // 000244.json
     {
@@ -3071,6 +3082,7 @@
       tier: 3,
       desc: "Свиток: изучает «Печать дурного предзнаменования» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "doom_mark" },
+      icon: "assets/sprites/items/doom_mark_scroll.svg",
     },
     // 000245.json
     {
@@ -3082,6 +3094,7 @@
       tier: 3,
       desc: "Свиток: изучает «Отчаяние» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "despair" },
+      icon: "assets/sprites/items/despair_scroll.svg",
     },
     // 000246.json
     {
@@ -3093,6 +3106,7 @@
       tier: 4,
       desc: "Свиток: изучает «Теневое проклятие» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shadow_curse" },
+      icon: "assets/sprites/items/shadow_curse_scroll.svg",
     },
     // 000247.json
     {
@@ -3104,6 +3118,7 @@
       tier: 2,
       desc: "Свиток: изучает «Теневые узы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shadow_bind" },
+      icon: "assets/sprites/items/shadow_bind_scroll.svg",
     },
     // 000248.json
     {
@@ -3115,6 +3130,7 @@
       tier: 3,
       desc: "Свиток: изучает «Кошмар» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "nightmare" },
+      icon: "assets/sprites/items/nightmare_scroll.svg",
     },
     // 000249.json
     {
@@ -3126,6 +3142,7 @@
       tier: 4,
       desc: "Свиток: изучает «Тёмные оковы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "dark_ensnare" },
+      icon: "assets/sprites/items/dark_ensnare_scroll.svg",
     },
     // 000250.json
     {
@@ -3137,6 +3154,7 @@
       tier: 2,
       desc: "Свиток: изучает «Лужа тьмы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shadow_pool" },
+      icon: "assets/sprites/items/shadow_pool_scroll.svg",
     },
     // 000251.json
     {
@@ -3148,6 +3166,7 @@
       tier: 3,
       desc: "Свиток: изучает «Покров ночи» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "veil_of_night" },
+      icon: "assets/sprites/items/veil_of_night_scroll.svg",
     },
     // 000252.json
     {
@@ -3159,6 +3178,7 @@
       tier: 3,
       desc: "Свиток: изучает «Теневой виверн» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shadow_wraith" },
+      icon: "assets/sprites/items/shadow_wraith_scroll.svg",
     },
     // 000253.json
     {
@@ -3170,6 +3190,7 @@
       tier: 4,
       desc: "Свиток: изучает «Ужас пустоты» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "void_horror" },
+      icon: "assets/sprites/items/void_horror_scroll.svg",
     },
     // 000254.json
     {
@@ -3181,6 +3202,7 @@
       tier: 1,
       desc: "Свиток: изучает «Теневой шаг» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shadow_step" },
+      icon: "assets/sprites/items/shadow_step_scroll.svg",
     },
     // 000255.json
     {
@@ -3192,6 +3214,7 @@
       tier: 2,
       desc: "Свиток: изучает «Невидимость» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "invisibility" },
+      icon: "assets/sprites/items/invisibility_scroll.svg",
     },
     // 000256.json
     {
@@ -3203,6 +3226,7 @@
       tier: 3,
       desc: "Свиток: изучает «Ночной покров» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shroud_of_night" },
+      icon: "assets/sprites/items/shroud_of_night_scroll.svg",
     },
     // 000257.json
     {
@@ -3214,6 +3238,7 @@
       tier: 1,
       desc: "Свиток: изучает «Мрачное присутствие» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "dark_presence" },
+      icon: "assets/sprites/items/dark_presence_scroll.svg",
     },
     // 000258.json
     {

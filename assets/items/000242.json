@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "vampire_touch"
-  }
+  },
+  "icon": "assets/sprites/items/vampire_touch_scroll.svg"
 }

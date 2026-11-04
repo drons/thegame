@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "dark_nova"
-  }
+  },
+  "icon": "assets/sprites/items/dark_nova_scroll.svg"
 }

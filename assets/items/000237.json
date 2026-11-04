@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "soul_drain"
-  }
+  },
+  "icon": "assets/sprites/items/soul_drain_scroll.svg"
 }

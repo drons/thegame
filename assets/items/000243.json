@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "fear"
-  }
+  },
+  "icon": "assets/sprites/items/fear_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shroud"
-  }
+  },
+  "icon": "assets/sprites/items/shroud_scroll.svg"
 }

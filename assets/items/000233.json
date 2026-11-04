@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "umbra_bolt"
-  }
+  },
+  "icon": "assets/sprites/items/umbra_bolt_scroll.svg"
 }
