@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "light_sprite"
-  }
+  },
+  "icon": "assets/sprites/items/light_sprite_scroll.svg"
 }

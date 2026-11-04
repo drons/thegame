@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "holy_bind"
-  }
+  },
+  "icon": "assets/sprites/items/holy_bind_scroll.svg"
 }

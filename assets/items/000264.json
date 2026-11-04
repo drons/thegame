@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "regeneration"
-  }
+  },
+  "icon": "assets/sprites/items/regeneration_scroll.svg"
 }

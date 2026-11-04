@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "spirit_healer"
-  }
+  },
+  "icon": "assets/sprites/items/spirit_healer_scroll.svg"
 }

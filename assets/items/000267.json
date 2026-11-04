@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "guardian_blessing"
-  }
+  },
+  "icon": "assets/sprites/items/guardian_blessing_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "miracle"
-  }
+  },
+  "icon": "assets/sprites/items/miracle_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "holy_ground"
-  }
+  },
+  "icon": "assets/sprites/items/holy_ground_scroll.svg"
 }

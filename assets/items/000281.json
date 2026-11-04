@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "holy_light"
-  }
+  },
+  "icon": "assets/sprites/items/holy_light_scroll.svg"
 }

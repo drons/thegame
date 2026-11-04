@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "life_bloom"
-  }
+  },
+  "icon": "assets/sprites/items/life_bloom_scroll.svg"
 }

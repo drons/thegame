@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "purify"
-  }
+  },
+  "icon": "assets/sprites/items/purify_scroll.svg"
 }

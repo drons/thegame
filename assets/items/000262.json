@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "holy_mending"
-  }
+  },
+  "icon": "assets/sprites/items/holy_mending_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "mass_heal"
-  }
+  },
+  "icon": "assets/sprites/items/mass_heal_scroll.svg"
 }

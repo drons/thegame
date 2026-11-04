@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "divine_favor"
-  }
+  },
+  "icon": "assets/sprites/items/divine_favor_scroll.svg"
 }

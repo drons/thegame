@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "blessing"
-  }
+  },
+  "icon": "assets/sprites/items/blessing_scroll.svg"
 }

@@ -3250,6 +3250,7 @@
       tier: 1,
       desc: "Свиток: изучает «Лучистое исцеление» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "radiant_heal" },
+      icon: "assets/sprites/items/radiant_heal_scroll.svg",
     },
     // 000259.json
     {
@@ -3261,6 +3262,7 @@
       tier: 2,
       desc: "Свиток: изучает «Расцвет жизни» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "life_bloom" },
+      icon: "assets/sprites/items/life_bloom_scroll.svg",
     },
     // 000260.json
     {
@@ -3272,6 +3274,7 @@
       tier: 2,
       desc: "Свиток: изучает «Очищение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "purify" },
+      icon: "assets/sprites/items/purify_scroll.svg",
     },
     // 000261.json
     {
@@ -3283,6 +3286,7 @@
       tier: 3,
       desc: "Свиток: изучает «Массовое исцеление» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "mass_heal" },
+      icon: "assets/sprites/items/mass_heal_scroll.svg",
     },
     // 000262.json
     {
@@ -3294,6 +3298,7 @@
       tier: 3,
       desc: "Свиток: изучает «Святое исцеление» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "holy_mending" },
+      icon: "assets/sprites/items/holy_mending_scroll.svg",
     },
     // 000263.json
     {
@@ -3305,6 +3310,7 @@
       tier: 4,
       desc: "Свиток: изучает «Массовый святой свет» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "mass_holy_light" },
+      icon: "assets/sprites/items/mass_holy_light_scroll.svg",
     },
     // 000264.json
     {
@@ -3316,6 +3322,7 @@
       tier: 4,
       desc: "Свиток: изучает «Регенерация» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "regeneration" },
+      icon: "assets/sprites/items/regeneration_scroll.svg",
     },
     // 000265.json
     {
@@ -3327,6 +3334,7 @@
       tier: 1,
       desc: "Свиток: изучает «Благословение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "blessing" },
+      icon: "assets/sprites/items/blessing_scroll.svg",
     },
     // 000266.json
     {
@@ -3338,6 +3346,7 @@
       tier: 2,
       desc: "Свиток: изучает «Божественное благоволение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "divine_favor" },
+      icon: "assets/sprites/items/divine_favor_scroll.svg",
     },
     // 000267.json
     {
@@ -3349,6 +3358,7 @@
       tier: 2,
       desc: "Свиток: изучает «Хранительное благословение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "guardian_blessing" },
+      icon: "assets/sprites/items/guardian_blessing_scroll.svg",
     },
     // 000268.json
     {
@@ -3360,6 +3370,7 @@
       tier: 3,
       desc: "Свиток: изучает «Молитва о проворстве» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "swift_prayer" },
+      icon: "assets/sprites/items/swift_prayer_scroll.svg",
     },
     // 000269.json
     {
@@ -3371,6 +3382,7 @@
       tier: 1,
       desc: "Свиток: изучает «Щит веры» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "faith_shield" },
+      icon: "assets/sprites/items/faith_shield_scroll.svg",
     },
     // 000270.json
     {
@@ -3382,6 +3394,7 @@
       tier: 2,
       desc: "Свиток: изучает «Святое поразить» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "smite" },
+      icon: "assets/sprites/items/smite_scroll.svg",
     },
     // 000271.json
     {
@@ -3393,6 +3406,7 @@
       tier: 3,
       desc: "Свиток: изучает «Божественный гнев» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "unholy_wrath" },
+      icon: "assets/sprites/items/unholy_wrath_scroll.svg",
     },
     // 000272.json
     {
@@ -3404,6 +3418,7 @@
       tier: 2,
       desc: "Свиток: изучает «Сияние света» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stun_of_light" },
+      icon: "assets/sprites/items/stun_of_light_scroll.svg",
     },
     // 000273.json
     {
@@ -3415,6 +3430,7 @@
       tier: 3,
       desc: "Свиток: изучает «Священные узы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "holy_bind" },
+      icon: "assets/sprites/items/holy_bind_scroll.svg",
     },
     // 000274.json
     {
@@ -3426,6 +3442,7 @@
       tier: 2,
       desc: "Свиток: изучает «Световой sprite» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "light_sprite" },
+      icon: "assets/sprites/items/light_sprite_scroll.svg",
     },
     // 000275.json
     {
@@ -3437,6 +3454,7 @@
       tier: 3,
       desc: "Свиток: изучает «Дух-целитель» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "spirit_healer" },
+      icon: "assets/sprites/items/spirit_healer_scroll.svg",
     },
     // 000276.json
     {
@@ -3448,6 +3466,7 @@
       tier: 4,
       desc: "Свиток: изучает «Святой страж» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "holy_guardian" },
+      icon: "assets/sprites/items/holy_guardian_scroll.svg",
     },
     // 000277.json
     {
@@ -3459,6 +3478,7 @@
       tier: 2,
       desc: "Свиток: изучает «Круг света» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "circle_of_light" },
+      icon: "assets/sprites/items/circle_of_light_scroll.svg",
     },
     // 000278.json
     {
@@ -3470,6 +3490,7 @@
       tier: 3,
       desc: "Свиток: изучает «Священная земля» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "holy_ground" },
+      icon: "assets/sprites/items/holy_ground_scroll.svg",
     },
     // 000279.json
     {
@@ -3481,6 +3502,7 @@
       tier: 1,
       desc: "Свиток: изучает «Молитва» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "prayer" },
+      icon: "assets/sprites/items/prayer_scroll.svg",
     },
     // 000280.json
     {
@@ -3492,6 +3514,7 @@
       tier: 2,
       desc: "Свиток: изучает «Божественная защита» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "divine_protection" },
+      icon: "assets/sprites/items/divine_protection_scroll.svg",
     },
     // 000281.json
     {
@@ -3503,6 +3526,7 @@
       tier: 2,
       desc: "Свиток: изучает «Свет обители» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "holy_light" },
+      icon: "assets/sprites/items/holy_light_scroll.svg",
     },
     // 000282.json
     {
@@ -3514,6 +3538,7 @@
       tier: 4,
       desc: "Свиток: изучает «Чудо» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "miracle" },
+      icon: "assets/sprites/items/miracle_scroll.svg",
     },
     // 000283.json
     {

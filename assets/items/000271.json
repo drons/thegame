@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "unholy_wrath"
-  }
+  },
+  "icon": "assets/sprites/items/unholy_wrath_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stun_of_light"
-  }
+  },
+  "icon": "assets/sprites/items/stun_of_light_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "radiant_heal"
-  }
+  },
+  "icon": "assets/sprites/items/radiant_heal_scroll.svg"
 }

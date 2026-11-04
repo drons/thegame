@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "holy_guardian"
-  }
+  },
+  "icon": "assets/sprites/items/holy_guardian_scroll.svg"
 }

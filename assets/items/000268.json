@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "swift_prayer"
-  }
+  },
+  "icon": "assets/sprites/items/swift_prayer_scroll.svg"
 }
