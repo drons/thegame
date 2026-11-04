@@ -9,5 +9,6 @@
   "stats": {
     "damage": 6
   },
+  "icon": "assets/sprites/items/hunting_bow.svg",
   "slot": "right_hand"
 }

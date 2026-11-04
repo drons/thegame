@@ -9,5 +9,6 @@
   "stats": {
     "damage": 4
   },
+  "icon": "assets/sprites/items/short_bow.svg",
   "slot": "right_hand"
 }

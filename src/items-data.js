@@ -32,6 +32,7 @@
       value: 10,
       desc: "Простой деревянный меч: лёгкий, крепкий, не подводит.",
       stats: { damage: 3 },
+      icon: "assets/sprites/items/wood_sword.svg",
       slot: "right_hand",
     },
     // 000002.json
@@ -44,6 +45,7 @@
       value: 40,
       desc: "Честный железный меч из пограничной кузницы.",
       stats: { damage: 5 },
+      icon: "assets/sprites/items/iron_sword.svg",
       slot: "right_hand",
     },
     // 000003.json
@@ -56,6 +58,7 @@
       value: 120,
       desc: "Стальной меч, отполированный в рыцарской кузнице.",
       stats: { damage: 7 },
+      icon: "assets/sprites/items/steel_sword.svg",
       slot: "right_hand",
     },
     // 000004.json
@@ -68,6 +71,7 @@
       value: 30,
       desc: "Короткий охотничий лук: надёжен на близкой дистанции.",
       stats: { damage: 4 },
+      icon: "assets/sprites/items/short_bow.svg",
       slot: "right_hand",
     },
     // 000005.json
@@ -80,6 +84,7 @@
       value: 90,
       desc: "Лук охотника — стрела летит далеко и точно.",
       stats: { damage: 6 },
+      icon: "assets/sprites/items/hunting_bow.svg",
       slot: "right_hand",
     },
     // 000006.json
@@ -92,6 +97,7 @@
       value: 150,
       desc: "Боевой топор: один удар — и щит трескается.",
       stats: { damage: 8 },
+      icon: "assets/sprites/items/battle_axe.svg",
       slot: "right_hand",
     },
     // 000007.json
@@ -104,6 +110,7 @@
       value: 250,
       desc: "Боевой молот: вес и верный удар.",
       stats: { damage: 10 },
+      icon: "assets/sprites/items/war_hammer.svg",
       slot: "right_hand",
     },
     // 000008.json
@@ -115,6 +122,7 @@
       value: 35,
       desc: "Мягкий кожаный доспех: защита без скрипа.",
       stats: { armor: 2 },
+      icon: "assets/sprites/items/leather_armor.svg",
       slot: "torso",
     },
     // 000009.json
@@ -126,6 +134,7 @@
       value: 140,
       desc: "Кольчуга: кольца, вплетённые мастерской рукой.",
       stats: { armor: 4 },
+      icon: "assets/sprites/items/chainmail.svg",
       slot: "torso",
     },
     // 000010.json
@@ -137,6 +146,7 @@
       value: 400,
       desc: "Рыцарский латы: как ходячая крепость.",
       stats: { armor: 6 },
+      icon: "assets/sprites/items/knight_plate.svg",
       slot: "torso",
     },
     // 000011.json
@@ -148,6 +158,7 @@
       value: 4,
       desc: "Малое зелье лечения: раны затягиваются, сердце успокаивается.",
       effect: { kind: "heal", amount: 6 },
+      icon: "assets/sprites/items/minor_healing.svg",
     },
     // 000012.json
     {
@@ -158,6 +169,7 @@
       value: 10,
       desc: "Зелье лечения: красное, тёплое, пахнет клевером.",
       effect: { kind: "heal", amount: 15 },
+      icon: "assets/sprites/items/healing_potion.svg",
     },
     // 000013.json
     {
@@ -168,6 +180,7 @@
       value: 35,
       desc: "Большое зелье лечения: как будто целитель положил ладони.",
       effect: { kind: "heal", amount: 40 },
+      icon: "assets/sprites/items/greater_healing.svg",
     },
     // 000014.json
     {
@@ -178,6 +191,7 @@
       value: 12,
       desc: "Зелье маны: голубая искра за глазами.",
       effect: { kind: "mp", amount: 10 },
+      icon: "assets/sprites/items/mana_potion.svg",
     },
     // 000015.json
     {
@@ -188,6 +202,7 @@
       value: 40,
       desc: "Эликсир маны: ум проясняется, руны горят ярче.",
       effect: { kind: "mp", amount: 20 },
+      icon: "assets/sprites/items/mana_elixir.svg",
     },
     // 000016.json
     {
@@ -198,6 +213,7 @@
       value: 2,
       desc: "Свежий хлеб: лучшее лекарство в дороге.",
       effect: { kind: "eat", amount: 4 },
+      icon: "assets/sprites/items/bread.svg",
     },
     // 000017.json
     {
@@ -208,6 +224,7 @@
       value: 5,
       desc: "Жареное мясо с травами: силы для долгого перехода.",
       effect: { kind: "eat", amount: 8 },
+      icon: "assets/sprites/items/meat.svg",
     },
     // 000018.json
     {
@@ -218,6 +235,7 @@
       value: 8,
       desc: "Медовый пирог: немного сладкого — и день становится добрее.",
       effect: { kind: "eat", amount: 6 },
+      icon: "assets/sprites/items/honey_cake.svg",
     },
     // 000019.json
     {
@@ -260,6 +278,7 @@
       weight: 0.2,
       value: 3,
       desc: "Сера: пахнет нехорошо, зато в алхимике дорога.",
+      icon: "assets/sprites/items/sulfur.svg",
     },
     // 000023.json
     {
@@ -280,6 +299,7 @@
       weight: 0.05,
       value: 150,
       desc: "Перо феникса: тёплое на ощупь, редкая находка.",
+      icon: "assets/sprites/items/phoenix_feather.svg",
     },
     // 000025.json
     {
@@ -410,6 +430,7 @@
       weight: 1.5,
       value: 4,
       desc: "Крепкий обломок камня: и в кузню годится, и под резец.",
+      icon: "assets/sprites/items/stone_chunk.svg",
     },
     // 000037.json
     {
@@ -430,6 +451,7 @@
       weight: 0.5,
       value: 2,
       desc: "Уголь: чёрный, лёгкий, горит жарко — топит кузнечный горн.",
+      icon: "assets/sprites/items/coal.svg",
     },
     // 000039.json
     {
@@ -472,6 +494,7 @@
       weight: 0.3,
       value: 12,
       desc: "Каменный резец: грубый, но точит всё, что мягче камня.",
+      icon: "assets/sprites/items/stone_chisel.svg",
     },
     // 000043.json
     {

@@ -11248,7 +11248,7 @@ function rngQueue237(values, fallback) {
   return () => (q.length ? q.shift() : fb);
 }
 
-test('боевой UI: 000237 — victory (реальный checkVictory, принудительный лут): баннер-пин точный + узел лута: iron_ore — img.cp-itemicon, bread — без img (237-CU-LOOT-1)', () => {
+test('боевой UI: 000237 — victory (реальный checkVictory, принудительный лут): баннер-пин точный + узел лута: iron_ore и bread — img.cp-itemicon (000302.08: bread — icon в каталоге) (237-CU-LOOT-1)', () => {
   const S = scene84();
   const { G, c, body, canvas, rafStubs } = S;
   const m0 = c.units[0];
@@ -11312,16 +11312,27 @@ test('боевой UI: 000237 — victory (реальный checkVictory, при
     '000237: имя = имя каталога (qty 1 — без «×»): '
     + oreRow.children[1].textContent);
   const breadRow = rows[1];
-  assert.equal(breadRow.children[0].tagName, 'span',
-    '000237: bread (без icon в каталоге) — img НЕТ, первым идёт имя; '
+  assert.equal(breadRow.children[0].tagName, 'img',
+    '000302.08: bread (icon в каталоге) — img ПЕРВЫМ ребёнком; '
     + 'факт: ' + breadRow.children[0].tagName);
-  assert.equal(breadRow.children[0].className, 'cp-itemname',
-    '000237: первый ребёнок строки bread — имя');
-  assert.equal(breadRow.children[0].textContent, 'Хлеб',
+  assert.equal(breadRow.children[0].className, 'cp-itemicon',
+    '000302.08: класс иконки — cp-itemicon (стиль инвентаря)');
+  assert.equal(breadRow.children[0].src, 'assets/sprites/items/bread.svg',
+    '000302.08: src = icon каталога; факт: '
+    + breadRow.children[0].src);
+  assert.equal(breadRow.children[0].src, G.getItem('bread').icon,
+    '000302.08: src === G.getItem("bread").icon');
+  assert.equal(breadRow.children[0].alt, '',
+    '000237: alt пуст (иконка презентационная)');
+  assert.equal(breadRow.children[1].tagName, 'span',
+    '000237: имя — span после иконки');
+  assert.equal(breadRow.children[1].className, 'cp-itemname',
+    '000237: класс имени — cp-itemname');
+  assert.equal(breadRow.children[1].textContent, 'Хлеб',
     '000237: имя bread — «Хлеб»');
-  assert.ok(!breadRow.children.some((ch) => ch.tagName === 'img'),
-    '000237: у строки bread img НЕТ (деградация: img только при '
-    + 'ненулевой it.icon)');
+  assert.equal(breadRow.children.filter((ch) => ch.tagName === 'img')
+      .length, 1,
+    '000302.08: у строки bread ровно 1 img (иконка ПЕРВЫМ ребёнком)');
 });
 
 test('боевой UI: 000237 — два волка, один id дважды → одна строка «×2» (слияние qty ядра 000132) (237-CU-LOOT-2)', () => {
@@ -11438,7 +11449,7 @@ test('боевой UI: 000237 — outcome «fled»: узла лута НЕТ, .c
 // 'cp-itemrow' сломано фолбэк-классом cp-rarity-none (237-CU-
 // LOOT-1/2/3).
 
-test('боевой UI: 000261 — victory (принудительный лут): строка legendary — cp-rarity-legendary, расходник (без rarity) — фолбэк cp-rarity-none; строки/box.children/img.src — бит-в-бит (261-CU-LOOT-RAR)', () => {
+test('боевой UI: 000261 — victory (принудительный лут): строка legendary — cp-rarity-legendary, расходник (без rarity) — фолбэк cp-rarity-none; строки/box.children/img.src — бит-в-бит; bread — img (000302.08: icon в каталоге) (261-CU-LOOT-RAR)', () => {
   const S = scene84();
   const { G, c, body, canvas, rafStubs } = S;
   const m0 = c.units[0];
@@ -11505,15 +11516,27 @@ test('боевой UI: 000261 — victory (принудительный лут):
   assert.equal(rows[0].children[1].textContent, 'Кольцо Пустоты',
     '000261: имя = имя каталога (qty 1 — без «×»): '
     + rows[0].children[1].textContent);
-  assert.equal(rows[1].children[0].tagName, 'span',
-    '000261: bread (без icon в каталоге) — img НЕТ, первым идёт имя '
-    + '(бит-в-бит 237); факт: ' + rows[1].children[0].tagName);
-  assert.equal(rows[1].children[0].className, 'cp-itemname',
-    '000261: первый ребёнок строки bread — имя');
-  assert.equal(rows[1].children[0].textContent, 'Хлеб',
+  assert.equal(rows[1].children[0].tagName, 'img',
+    '000302.08: bread (icon в каталоге) — img ПЕРВЫМ ребёнком; '
+    + 'факт: ' + rows[1].children[0].tagName);
+  assert.equal(rows[1].children[0].className, 'cp-itemicon',
+    '000302.08: класс иконки — cp-itemicon (бит-в-бит 237)');
+  assert.equal(rows[1].children[0].src, G.getItem('bread').icon,
+    '000302.08: src === G.getItem("bread").icon');
+  assert.equal(rows[1].children[0].src,
+    'assets/sprites/items/bread.svg',
+    '000302.08: src = иконка из каталога');
+  assert.equal(rows[1].children[0].alt, '',
+    '000237: alt пуст (иконка презентационная)');
+  assert.equal(rows[1].children[1].tagName, 'span',
+    '000261: имя — span после иконки (бит-в-бит 237)');
+  assert.equal(rows[1].children[1].className, 'cp-itemname',
+    '000261: класс имени — cp-itemname (бит-в-бит 237)');
+  assert.equal(rows[1].children[1].textContent, 'Хлеб',
     '000261: имя bread — «Хлеб»');
-  assert.ok(!rows[1].children.some((ch) => ch.tagName === 'img'),
-    '000261: у строки bread img НЕТ (ит.icon нулевой)');
+  assert.equal(rows[1].children.filter((ch) => ch.tagName === 'img')
+      .length, 1,
+    '000302.08: у строки bread ровно 1 img (иконка ПЕРВЫМ)');
 });
 
 test('боевой UI: 000261 — victory (лут с неизвестным id): G.getItem → null — строка фолбэк cp-rarity-none, имя = String(id), без img (261-CU-LOOT-UNK)', () => {

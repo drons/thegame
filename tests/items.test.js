@@ -2521,8 +2521,8 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 //     terrains + строковый id — тот же строгий фильтр, что map.js
 //     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js; 000220:
 //     +5 строительных reagent) — icon = конвенции, 33/33 svg существует;
-//   * прочие 23 предмета — icon НЕ задан / 488 с icon (финал 000243:
-//     каталог 511 = 488 + 23; пин «не тронуто», L3-форма;
+//   * прочие 0 предметов — icon НЕ задан / 511 с icon (финал
+//     000302.08: каталог 511 = 511 + 0; пин «не тронуто», L3-форма;
 //     5 reagent'ов 000220 — с loot+icon);
 //   * schema.json — icon ОПЦИОНАЛЬНОЕ свойство: точная форма
 //     {type, pattern} (паттерн — дословно ТЗ), НЕ в required, верхний
@@ -2535,7 +2535,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 23 — icon undefined / 488 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / 511 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -2768,6 +2768,19 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'fireball_scroll', 'flame_burst_scroll', 'frost_bolt_scroll',
     'blizzard_scroll', 'chill_scroll', 'light_heal_scroll',
     'magic_shield_scroll', 'vine_scroll', 'resurrect_scroll']);
+  // Ре-пин 000302.08: 23 legacy-снаряжение/расходники (000001-000010
+  // оружие+броня, 000011-000015 зелья, 000016-000018 еда,
+  // 000022/000024/000036/000038/000042 реагенты) — icon в
+  // assets/sprites/items/ (паттерн BOOKS_LEGACY_00030207) —
+  // исключение из пина «icon НЕ задан»; каталог иконирован
+  // полностью (финал 000302.08).
+  const LEGACY_GEAR_00030208 = new Set(['wood_sword', 'iron_sword',
+    'steel_sword', 'short_bow', 'hunting_bow', 'battle_axe',
+    'war_hammer', 'leather_armor', 'chainmail', 'knight_plate',
+    'minor_healing', 'healing_potion', 'greater_healing',
+    'mana_potion', 'mana_elixir', 'bread', 'meat', 'honey_cake',
+    'sulfur', 'phoenix_feather', 'stone_chunk', 'coal',
+    'stone_chisel']);
   let others = 0;
   for (const it of byId.values()) {
     if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
@@ -2787,12 +2800,13 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || SCROLLS_HEALING_00030204.has(it.id)
         || SCROLLS_PROTECTION_00030205.has(it.id)
         || SCROLLS_NATURE_00030206.has(it.id)
-        || BOOKS_LEGACY_00030207.has(it.id)) continue;
+        || BOOKS_LEGACY_00030207.has(it.id)
+        || LEGACY_GEAR_00030208.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
-  assert.equal(others, 23, 'прочих предметов — ровно 23 (ре-пин 000230.09: '
+  assert.equal(others, 0, 'прочих предметов — ровно 0 (ре-пин 000230.09: '
     + '50 уши/шея — в исключении; ре-пин 000230.10: 25 torso — в '
     + 'исключении (icon); ре-пин 000230.11: 50 рук — в исключении '
     + '(icon); ре-пин 000230.12: 25 «правая рука» — в исключении '
@@ -2819,10 +2833,12 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + '+25 свитков школы Защита с icon — в исключении; '
     + 'ре-пин 000302.06: +25 свитков школы Природа с icon — '
     + 'в исключении; ре-пин 000302.07: +20 книг/legacy-свитков '
-    + 'с icon — в исключении)');
+    + 'с icon — в исключении; '
+    + 'ре-пин 000302.08: +23 legacy-снаряжение/расходники с icon — '
+    + 'в исключении; 511 − 511 = 0)');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 488,
-    'icon — ровно у 488 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 511,
+    'icon — ровно у 511 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
@@ -2834,7 +2850,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + 'ре-пин 000302.04: +25 свитков школы Исцеление; '
     + 'ре-пин 000302.05: +25 свитков школы Защита; '
     + 'ре-пин 000302.06: +25 свитков школы Природа; '
-    + 'ре-пин 000302.07: +20 книг/legacy-свитков; пин: '
+    + 'ре-пин 000302.07: +20 книг/legacy-свитков; '
+    + 'ре-пин 000302.08: +23 legacy-снаряжение/расходники; пин: '
     + 'ни больше, '
     + 'ни меньше)');
 });
@@ -2851,15 +2868,9 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + 'свойства icon в схеме нет); факт: '
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
-    'icon НЕ в required (прочие 23 предмета остаются валидными; '
-    + 'финал 000243.01: каталог 511 = 488 с icon + 23 без; '
-    + 'ре-пин 000302.01: +25 свитков школы Огонь; '
-    + 'ре-пин 000302.02: +25 свитков школы Лёд; '
-    + 'ре-пин 000302.03: +25 свитков школы Тень; '
-    + 'ре-пин 000302.04: +25 свитков школы Исцеление; '
-    + 'ре-пин 000302.05: +25 свитков школы Защита; '
-    + 'ре-пин 000302.06: +25 свитков школы Природа; '
-    + 'ре-пин 000302.07: +20 книг/legacy-свитков); '
+    'icon НЕ в required (без icon — 0 предметов; финал 000302.08: '
+    + 'каталог 511 = 511 с icon; финал 000243.01: 318 с icon + '
+    + '193 без); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');
@@ -6380,7 +6391,7 @@ const TORSO_REMAP_00023010 = [
    'Рыцарский латы: как ходячая крепость.'],
 ];
 
-test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "slot":"torso" (ТЗ п.1), всё остальное бит-в-бит: name/kind/weight/value/desc/stats; НОВЫХ полей нет (rarity/set/affixes/icon/subtype/tier/effect/loot — отсутствуют); порядок ключей = старые + slot сразу после stats (канон-субпоследовательность, D-02); позиции 8/9/10 каталога не сдвинулись; slotOf() → "torso" (краснота: у 3 броней поля slot нет)', () => {
+test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "slot":"torso" (ТЗ п.1), всё остальное бит-в-бит: name/kind/weight/value/desc/stats; icon — 000302.08 (assets/sprites/items/<id>.svg), прочие новые поля отсутствуют (rarity/set/set_bonus/affixes/subtype/tier/effect/loot); порядок ключей = старые + icon + slot сразу после stats (канон-субпоследовательность, D-02); позиции 8/9/10 каталога не сдвинулись; slotOf() → "torso" (краснота: у 3 броней поля slot нет)', () => {
   const { files } = catalogScan00023008();
   assert.equal(files[7], '000008.json',
     'позиция 8 каталога = 000008.json (не сдвинулась)');
@@ -6408,17 +6419,22 @@ test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "s
     assert.equal(j.set, undefined, file + ': set отсутствует');
     assert.equal(j.set_bonus, undefined, file + ': set_bonus отсутствует');
     assert.equal(j.affixes, undefined, file + ': affixes отсутствуют');
-    assert.equal(j.icon, undefined,
-      file + ': icon отсутствует (прецедент REAGENTS_000220)');
+    assert.equal(j.icon, 'assets/sprites/items/' + id + '.svg',
+      file + ': icon — 000302.08 (assets/sprites/items/<id>.svg); '
+      + 'факт: ' + JSON.stringify(j.icon));
+    assert.ok(fs.existsSync(path.join(__dirname, '..',
+      'assets/sprites/items/' + id + '.svg')),
+      file + ': svg-файл существует по пути icon (000302.08)');
     assert.equal(j.subtype, undefined, file + ': subtype отсутствует');
     assert.equal(j.tier, undefined, file + ': tier отсутствует');
     assert.equal(j.effect, undefined, file + ': effect отсутствует');
     assert.equal(j.loot, undefined, file + ': loot отсутствует');
     assert.deepEqual(Object.keys(j),
       ['id', 'name', 'kind', 'weight', 'value', 'desc', 'stats',
-       'slot'],
-      file + ': ключи = старые + ровно "slot" СРАЗУ ПОСЛЕ stats '
-      + '(D-02); факт: ' + Object.keys(j).join(','));
+       'icon', 'slot'],
+      file + ': ключи = старые + "icon" + "slot" СРАЗУ ПОСЛЕ '
+      + 'stats (D-02; 000302.08: icon — канон-позиция); факт: '
+      + Object.keys(j).join(','));
     // Канон-субпоследовательность (E1b-паттерн).
     let prev = -1;
     for (const k of Object.keys(j)) {
@@ -6706,7 +6722,7 @@ test('000230.10 T6: иконки — 25 SVG assets/sprites/items/<id>.svg сущ
   }
 });
 
-test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap: подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20); 3 remap — ровно старые 7 ключей + slot (краснота: файлов волны нет; у 3 броней slot отсутствует)', () => {
+test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap: подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20); 3 remap — ровно старые 7 ключей + icon + slot (000302.08: icon — канон-позиция; краснота: файлов волны нет; у 3 броней slot отсутствует)', () => {
   const { byId, fileById } = catalogScan00023008();
   for (const id of TORSO_IDS_00023010) {
     const it = byId.get(id);
@@ -6733,8 +6749,9 @@ test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap
     const keys = Object.keys(j);
     assert.deepEqual(keys,
       ['id', 'name', 'kind', 'weight', 'value', 'desc', 'stats',
-       'slot'],
-      file + ': 7 старых ключей + ровно "slot" (D-01); факт: '
+       'icon', 'slot'],
+      file + ': 7 старых ключей + ровно "icon" + "slot" (D-01; '
+      + '000302.08: icon — канон-позиция); факт: '
       + keys.join(','));
     let prev = -1;
     for (const k of keys) {
@@ -7664,7 +7681,7 @@ const RIGHT_HAND_REMAP_00023012 = [
    250, 10, 'Боевой молот: вес и верный удар.'],
 ];
 
-test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ "slot":"right_hand" (ТЗ п.1), всё остальное бит-в-бит: name/kind/subtype/weight/value/desc/stats; НОВЫХ полей кроме slot нет (rarity/set/set_bonus/affixes/icon/tier/effect/loot — отсутствуют, D-10: remap-7 не в пулах); порядок ключей = старые 8 + slot сразу после stats (канон-субпоследовательность, D-09); позиции 1–7 каталога не сдвинулись; slotOf() → "right_hand" (краснота: у 7 оружия поля slot нет)', () => {
+test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ "slot":"right_hand" (ТЗ п.1), всё остальное бит-в-бит: name/kind/subtype/weight/value/desc/stats; icon — 000302.08 (assets/sprites/items/<id>.svg), прочие новые поля кроме slot нет (rarity/set/set_bonus/affixes/tier/effect/loot — отсутствуют, D-10: remap-7 не в пулах); порядок ключей = старые 8 + icon + slot сразу после stats (канон-субпоследовательность, D-09); позиции 1–7 каталога не сдвинулись; slotOf() → "right_hand" (краснота: у 7 оружия поля slot нет)', () => {
   const { files } = catalogScan00023008();
   for (let i = 0; i < 7; i++) {
     assert.equal(files[i], '00000' + (i + 1) + '.json',
@@ -7692,16 +7709,21 @@ test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ 
     assert.equal(j.set, undefined, file + ': set отсутствует');
     assert.equal(j.set_bonus, undefined, file + ': set_bonus отсутствует');
     assert.equal(j.affixes, undefined, file + ': affixes отсутствуют');
-    assert.equal(j.icon, undefined,
-      file + ': icon отсутствует (прецедент REAGENTS_000220)');
+    assert.equal(j.icon, 'assets/sprites/items/' + id + '.svg',
+      file + ': icon — 000302.08 (assets/sprites/items/<id>.svg); '
+      + 'факт: ' + JSON.stringify(j.icon));
+    assert.ok(fs.existsSync(path.join(__dirname, '..',
+      'assets/sprites/items/' + id + '.svg')),
+      file + ': svg-файл существует по пути icon (000302.08)');
     assert.equal(j.tier, undefined, file + ': tier отсутствует');
     assert.equal(j.effect, undefined, file + ': effect отсутствует');
     assert.equal(j.loot, undefined, file + ': loot отсутствует');
     assert.deepEqual(Object.keys(j),
       ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'desc',
-       'stats', 'slot'],
-      file + ': ключи = старые 8 + ровно "slot" СРАЗУ ПОСЛЕ stats '
-      + '(D-09); факт: ' + Object.keys(j).join(','));
+       'stats', 'icon', 'slot'],
+      file + ': ключи = старые 8 + "icon" + "slot" СРАЗУ ПОСЛЕ '
+      + 'stats (D-09; 000302.08: icon — канон-позиция); факт: '
+      + Object.keys(j).join(','));
     // Канон-субпоследовательность (E1b-паттерн).
     let prev = -1;
     for (const k of Object.keys(j)) {

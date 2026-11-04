@@ -8,5 +8,6 @@
   "effect": {
     "kind": "heal",
     "amount": 6
-  }
+  },
+  "icon": "assets/sprites/items/minor_healing.svg"
 }

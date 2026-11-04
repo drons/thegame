@@ -8,5 +8,6 @@
   "stats": {
     "armor": 6
   },
+  "icon": "assets/sprites/items/knight_plate.svg",
   "slot": "torso"
 }

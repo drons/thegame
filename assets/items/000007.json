@@ -9,5 +9,6 @@
   "stats": {
     "damage": 10
   },
+  "icon": "assets/sprites/items/war_hammer.svg",
   "slot": "right_hand"
 }

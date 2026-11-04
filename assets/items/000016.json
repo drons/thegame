@@ -8,5 +8,6 @@
   "effect": {
     "kind": "eat",
     "amount": 4
-  }
+  },
+  "icon": "assets/sprites/items/bread.svg"
 }

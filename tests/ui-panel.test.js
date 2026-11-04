@@ -3025,7 +3025,7 @@ test('000123: toggle() без аргументов — поведение БЕЗ
 // iron_ore.svg), реагент; bread — БЕЗ icon (деградация — текстовая
 // строка, как на master).
 
-test('000237: вкладка «Инвентарь» — iron_ore: img.cp-itemicon ПЕРВЫМ ребёнком (src из каталога); bread — без img, строка 0 diff (237-INV-1)', () => {
+test('000237: вкладка «Инвентарь» — iron_ore и bread: img.cp-itemicon ПЕРВЫМ ребёнком (src из каталога; bread — 000302.08: icon в каталоге), строка 0 diff (237-INV-1)', () => {
   const env = loadPanelUi();
   const c = env.G.createCharacter();
   env.G.addItem(c, 'iron_ore');
@@ -3062,11 +3062,23 @@ test('000237: вкладка «Инвентарь» — iron_ore: img.cp-itemico
     '000237: alt пуст (иконка презентационная)');
   const breadRow = itemRowByName(panel._invBody, 'Хлеб');
   assert.ok(breadRow, 'строка «Хлеб» найдена');
-  assert.equal(breadRow.children[0].tagName, 'span',
-    '000237: bread (без icon) — ПЕРВЫМ идёт имя (img нет); факт: '
-    + breadRow.children[0].tagName);
-  assert.equal(breadRow.children[0].className, 'cp-itemname',
-    '000237: первый ребёнок строки bread — cp-itemname (0 diff)');
+  assert.equal(breadRow.children[0].tagName, 'img',
+    '000302.08: bread (icon в каталоге) — img ПЕРВЫМ ребёнком; '
+    + 'факт: ' + breadRow.children[0].tagName);
+  assert.equal(breadRow.children[0].className, 'cp-itemicon',
+    '000302.08: класс иконки — cp-itemicon (стиль инвентаря)');
+  assert.equal(breadRow.children[0].src, 'assets/sprites/items/bread.svg',
+    '000302.08: src = icon каталога; факт: '
+    + breadRow.children[0].src);
+  assert.equal(breadRow.children[0].src, bread.icon,
+    '000302.08: src === G.getItem("bread").icon');
+  assert.equal(breadRow.children[0].alt, '',
+    '000237: alt пуст (иконка презентационная)');
+  assert.equal(breadRow.children[1].tagName, 'span',
+    '000237: после иконки — имя (span); факт: '
+    + breadRow.children[1].tagName);
+  assert.equal(breadRow.children[1].className, 'cp-itemname',
+    '000302.08: второй ребёнок строки bread — cp-itemname');
   assert.equal(breadRow.querySelector('.cp-itemname').textContent, 'Хлеб',
     'имя bread без изменений');
   assert.equal(breadRow.querySelector('.cp-itemmeta').textContent,
@@ -3079,12 +3091,12 @@ test('000237: вкладка «Инвентарь» — iron_ore: img.cp-itemico
   assert.ok(breadRow.querySelector('.cp-tip').textContent
       .includes('Эффект: +' + bread.effect.amount + ' HP'),
     'tip bread без изменений («Эффект: +4 HP»)');
-  assert.ok(!breadRow.children.some((ch) => ch.tagName === 'img'),
-    '000237: у bread img НЕТ (деградация: img только при ненулевой '
-    + 'it.icon)');
+  assert.equal(breadRow.children.filter((ch) => ch.tagName === 'img')
+      .length, 1,
+    '000302.08: у bread ровно 1 img (иконка ПЕРВЫМ ребёнком)');
 });
 
-test('000237: «Снаряжение»/быстрые слоты — тот же стиль: iron_ore в быстром слоте — img; пустые слоты и оружие без иконки — без img (237-INV-2)', () => {
+test('000237: «Снаряжение»/быстрые слоты — тот же стиль: iron_ore в быстром слоте — img; пустые слоты — без img, оружие — img первым (237-INV-2; 000302.08: iron_sword — icon в каталоге)', () => {
   const env = loadPanelUi();
   const c = env.G.createCharacter();
   env.G.addItem(c, 'iron_ore');
@@ -3121,11 +3133,17 @@ test('000237: «Снаряжение»/быстрые слоты — тот же
   }
   const swordRow = itemRowByName(panel._equipBody, 'Железный меч');
   assert.ok(swordRow, 'строка «Железный меч» в «Снаряжение»');
-  assert.equal(swordRow.children[0].tagName, 'span',
-    '000237: оружие БЕЗ icon в каталоге — img НЕТ (деградация, единый '
-    + 'механизм); факт: ' + swordRow.children[0].tagName);
-  assert.ok(!swordRow.children.some((ch) => ch.tagName === 'img'),
-    '000237: строка оружия — img нет');
+  assert.equal(swordRow.children[0].tagName, 'img',
+    '000302.08: оружие (icon в каталоге) — img ПЕРВЫМ ребёнком; '
+    + 'факт: ' + swordRow.children[0].tagName);
+  assert.equal(swordRow.children[0].className, 'cp-itemicon',
+    '000302.08: класс иконки — cp-itemicon');
+  assert.equal(swordRow.children[0].src,
+    env.G.getItem('iron_sword').icon,
+    '000302.08: src из каталога');
+  assert.equal(swordRow.children.filter((ch) => ch.tagName === 'img')
+      .length, 1,
+    '000302.08: у строки оружия ровно 1 img (иконка ПЕРВЫМ)');
   assert.equal(swordRow.querySelector('.cp-itemmeta').textContent,
     'урон 5', 'meta оружия без изменений (0 diff)');
   assert.deepEqual(swordRow.children
@@ -3134,20 +3152,28 @@ test('000237: «Снаряжение»/быстрые слоты — тот же
     ['unequip'], 'кнопка «снять» без изменений');
 });
 
-test('000237: itemRow с 4 аргументами (существующие вызовы) — 0 diff: ПЕРВЫМ ребёнком span.cp-itemname, img нет (гвард) (237-INV-G)', () => {
+test('000237: bread/sulfur — img ПЕРВЫМ (000302.08: icon в каталоге); пустые строки — 0 diff: ПЕРВЫМ ребёнком span.cp-itemname, img нет (гвард) (237-INV-G)', () => {
   const env = loadPanelUi();
   const c = env.G.createCharacter();
   env.G.addItem(c, 'bread');
   env.G.addItem(c, 'sulfur');
   const panel = openPanel(env, c);
-  for (const namePart of ['Хлеб', 'Сера']) {
+  for (const [namePart, id] of [['Хлеб', 'bread'], ['Сера', 'sulfur']]) {
     const row = itemRowByName(panel._invBody, namePart);
     assert.ok(row, 'строка «' + namePart + '» найдена');
-    assert.equal(row.children[0].className, 'cp-itemname',
-      '4-арг. itemRow: ПЕРВЫМ ребёнком — span.cp-itemname (0 diff); '
-      + 'факт: ' + row.children[0].className);
-    assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
-      '4-арг. itemRow: img среди детей нет (icon не передан)');
+    assert.equal(row.children[0].tagName, 'img',
+      '000302.08: «' + namePart + '» (icon в каталоге) — img ПЕРВЫМ '
+      + 'ребёнком; факт: ' + row.children[0].tagName);
+    assert.equal(row.children[0].className, 'cp-itemicon',
+      '000302.08: класс иконки — cp-itemicon');
+    assert.equal(row.children[0].src, env.G.getItem(id).icon,
+      '000302.08: src из каталога (G.getItem("' + id + '").icon)');
+    assert.equal(row.children[1].className, 'cp-itemname',
+      '000237: после иконки — имя (span); факт: '
+      + row.children[1].className);
+    assert.equal(row.children.filter((ch) => ch.tagName === 'img')
+        .length, 1,
+      '000302.08: ровно 1 img (иконка ПЕРВЫМ ребёнком)');
   }
   for (const r of findAll(panel._equipBody, '.cp-itemrow')) {
     const name = r.querySelector('.cp-itemname').textContent;

@@ -8,5 +8,6 @@
   "stats": {
     "armor": 4
   },
+  "icon": "assets/sprites/items/chainmail.svg",
   "slot": "torso"
 }

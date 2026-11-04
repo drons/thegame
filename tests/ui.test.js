@@ -833,22 +833,27 @@ test('230.07-ICON-1 (регрессия 000237): itemRow с icon — img.cp-item
     'src = icon каталога (items/)');
 });
 
-test('230.07-ICON-G (гард 000237): без icon (bread/sulfur) — без img, ПЕРВЫМ ребёнком span.cp-itemname (0 diff)', () => {
+test('230.07-ICON-G (гард 000237): bread/sulfur — img ПЕРВЫМ ребёнком (000302.08: icon в каталоге — каталог иконирован полностью; деградация без icon — фикстура 000308 308-TI-G)', () => {
   const env = loadEnv();
   const c = env.G.createCharacter();
   env.G.playerUI.setCharacter(c);
   env.G.addItem(c, 'bread');
   env.G.addItem(c, 'sulfur');
   const panel = openPanel(env);
-  for (const name of ['Хлеб', 'Сера']) {
+  for (const [name, id] of [['Хлеб', 'bread'], ['Сера', 'sulfur']]) {
     const row = itemRowByName(panel._invBody, name);
     assert.ok(row, 'строка «' + name + '»');
-    assert.equal(row.children[0].tagName, 'span',
-      'ПЕРВЫМ ребёнком — имя (img нет); факт: '
+    assert.equal(row.children[0].tagName, 'img',
+      '000302.08: ПЕРВЫМ ребёнком — img (icon в каталоге); факт: '
       + row.children[0].tagName);
-    assert.equal(row.children[0].className, 'cp-itemname');
-    assert.ok(!row.children.some((ch) => ch.tagName === 'img'),
-      'img среди детей нет (icon не задан)');
+    assert.equal(row.children[0].className, 'cp-itemicon');
+    assert.equal(row.children[0].src, env.G.getItem(id).icon,
+      '000302.08: src = icon каталога (G.getItem("' + id + '").icon)');
+    assert.equal(row.children[1].className, 'cp-itemname',
+      '000237: после иконки — имя (span)');
+    assert.equal(row.children.filter((ch) => ch.tagName === 'img')
+        .length, 1,
+      '000302.08: ровно 1 img (иконка ПЕРВЫМ ребёнком)');
   }
 });
 

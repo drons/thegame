@@ -8,5 +8,6 @@
   "effect": {
     "kind": "eat",
     "amount": 6
-  }
+  },
+  "icon": "assets/sprites/items/honey_cake.svg"
 }

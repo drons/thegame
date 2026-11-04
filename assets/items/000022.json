@@ -4,5 +4,6 @@
   "kind": "reagent",
   "weight": 0.2,
   "value": 3,
-  "desc": "Сера: пахнет нехорошо, зато в алхимике дорога."
+  "desc": "Сера: пахнет нехорошо, зато в алхимике дорога.",
+  "icon": "assets/sprites/items/sulfur.svg"
 }

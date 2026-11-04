@@ -4,5 +4,6 @@
   "kind": "reagent",
   "weight": 0.3,
   "value": 12,
-  "desc": "Каменный резец: грубый, но точит всё, что мягче камня."
+  "desc": "Каменный резец: грубый, но точит всё, что мягче камня.",
+  "icon": "assets/sprites/items/stone_chisel.svg"
 }

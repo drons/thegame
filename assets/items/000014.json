@@ -8,5 +8,6 @@
   "effect": {
     "kind": "mp",
     "amount": 10
-  }
+  },
+  "icon": "assets/sprites/items/mana_potion.svg"
 }

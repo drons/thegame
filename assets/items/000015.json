@@ -8,5 +8,6 @@
   "effect": {
     "kind": "mp",
     "amount": 20
-  }
+  },
+  "icon": "assets/sprites/items/mana_elixir.svg"
 }

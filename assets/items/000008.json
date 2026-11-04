@@ -8,5 +8,6 @@
   "stats": {
     "armor": 2
   },
+  "icon": "assets/sprites/items/leather_armor.svg",
   "slot": "torso"
 }

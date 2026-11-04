@@ -214,7 +214,7 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
   m = anchor(/legacy 000001–000010 \((\d+) оружий \+ (\d+) брони\)/, 'c11l');
   const L = it.legacy;
   assert.ok(D(m[1]) === L.weapons && D(m[2]) === L.armors, 'c11l: legacy canon=' + m[1] + '/' + m[2] + ' disk=' + JSON.stringify(L));
-  assert.ok(L.total === 10 && L.noRarity === 10 && L.noIcon === 10 && L.explicitSlot === 10, 'c11l: legacy props disk=' + JSON.stringify(L));
+  assert.ok(L.total === 10 && L.noRarity === 10 && L.noIcon === 0 && L.explicitSlot === 10, 'c11l: legacy props disk=' + JSON.stringify(L) + ' (noIcon 0 — ре-пин 000302.08: legacy-снаряжение с icon)');
 
   m = anchor(/right_hand (\d+) = weapon heavy (\d+) \([^)]*\) \+ weapon staff (\d+) \+ tool (\d+); left_hand (\d+) = shield (\d+) \+ artifact (\d+) \(у (\d+) из (\d+) — stats\.armor/, 'c11c');
   const RH = it.rightHand, LH = it.leftHand;

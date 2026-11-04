@@ -4,5 +4,6 @@
   "kind": "reagent",
   "weight": 0.05,
   "value": 150,
-  "desc": "Перо феникса: тёплое на ощупь, редкая находка."
+  "desc": "Перо феникса: тёплое на ощупь, редкая находка.",
+  "icon": "assets/sprites/items/phoenix_feather.svg"
 }

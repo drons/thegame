@@ -9,5 +9,6 @@
   "stats": {
     "damage": 8
   },
+  "icon": "assets/sprites/items/battle_axe.svg",
   "slot": "right_hand"
 }

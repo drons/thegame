@@ -4,5 +4,6 @@
   "kind": "reagent",
   "weight": 1.5,
   "value": 4,
-  "desc": "Крепкий обломок камня: и в кузню годится, и под резец."
+  "desc": "Крепкий обломок камня: и в кузню годится, и под резец.",
+  "icon": "assets/sprites/items/stone_chunk.svg"
 }

@@ -8,5 +8,6 @@
   "effect": {
     "kind": "heal",
     "amount": 15
-  }
+  },
+  "icon": "assets/sprites/items/healing_potion.svg"
 }

@@ -9,5 +9,6 @@
   "stats": {
     "damage": 7
   },
+  "icon": "assets/sprites/items/steel_sword.svg",
   "slot": "right_hand"
 }
