@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "blizzard_field"
-  }
+  },
+  "icon": "assets/sprites/items/blizzard_field_scroll.svg"
 }

@@ -1580,6 +1580,7 @@
       tier: 1,
       desc: "Свиток: изучает «Ледяное копьё» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "ice_lance" },
+      icon: "assets/sprites/items/ice_lance_scroll.svg",
     },
     // 000134.json
     {
@@ -1591,6 +1592,7 @@
       tier: 2,
       desc: "Свиток: изучает «Морозный снаряд» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "rime_bolt" },
+      icon: "assets/sprites/items/rime_bolt_scroll.svg",
     },
     // 000135.json
     {
@@ -1602,6 +1604,7 @@
       tier: 2,
       desc: "Свиток: изучает «Град» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "hail" },
+      icon: "assets/sprites/items/hail_scroll.svg",
     },
     // 000136.json
     {
@@ -1613,6 +1616,7 @@
       tier: 3,
       desc: "Свиток: изучает «Расколоть» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shatter" },
+      icon: "assets/sprites/items/shatter_scroll.svg",
     },
     // 000137.json
     {
@@ -1624,6 +1628,7 @@
       tier: 3,
       desc: "Свиток: изучает «Ледяной пик» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "glacial_spike" },
+      icon: "assets/sprites/items/glacial_spike_scroll.svg",
     },
     // 000138.json
     {
@@ -1635,6 +1640,7 @@
       tier: 4,
       desc: "Свиток: изучает «Вечная мерзлота» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "permafrost" },
+      icon: "assets/sprites/items/permafrost_scroll.svg",
     },
     // 000139.json
     {
@@ -1646,6 +1652,7 @@
       tier: 4,
       desc: "Свиток: изучает «Абсолютный ноль» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "absolute_zero" },
+      icon: "assets/sprites/items/absolute_zero_scroll.svg",
     },
     // 000140.json
     {
@@ -1657,6 +1664,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ледяное поле» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "ice_field" },
+      icon: "assets/sprites/items/ice_field_scroll.svg",
     },
     // 000141.json
     {
@@ -1668,6 +1676,7 @@
       tier: 3,
       desc: "Свиток: изучает «Ледяная стена» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "wall_of_ice" },
+      icon: "assets/sprites/items/wall_of_ice_scroll.svg",
     },
     // 000142.json
     {
@@ -1679,6 +1688,7 @@
       tier: 4,
       desc: "Свиток: изучает «Поле метели» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "blizzard_field" },
+      icon: "assets/sprites/items/blizzard_field_scroll.svg",
     },
     // 000143.json
     {
@@ -1690,6 +1700,7 @@
       tier: 2,
       desc: "Свиток: изучает «Морозная аура» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "frost_aura" },
+      icon: "assets/sprites/items/frost_aura_scroll.svg",
     },
     // 000144.json
     {
@@ -1701,6 +1712,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ледяные латы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "ice_armor" },
+      icon: "assets/sprites/items/ice_armor_scroll.svg",
     },
     // 000145.json
     {
@@ -1712,6 +1724,7 @@
       tier: 3,
       desc: "Свиток: изучает «Зимняя спешка» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "winter_haste" },
+      icon: "assets/sprites/items/winter_haste_scroll.svg",
     },
     // 000146.json
     {
@@ -1723,6 +1736,7 @@
       tier: 1,
       desc: "Свиток: изучает «Благословение мороза» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "frostbite_blessing" },
+      icon: "assets/sprites/items/frostbite_blessing_scroll.svg",
     },
     // 000147.json
     {
@@ -1734,6 +1748,7 @@
       tier: 1,
       desc: "Свиток: изучает «Морозное замедление» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "slow" },
+      icon: "assets/sprites/items/slow_scroll.svg",
     },
     // 000148.json
     {
@@ -1745,6 +1760,7 @@
       tier: 2,
       desc: "Свиток: изучает «Обморожение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "frostbite" },
+      icon: "assets/sprites/items/frostbite_scroll.svg",
     },
     // 000149.json
     {
@@ -1756,6 +1772,7 @@
       tier: 2,
       desc: "Свиток: изучает «Полярное прикосновение» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "arctic_touch" },
+      icon: "assets/sprites/items/arctic_touch_scroll.svg",
     },
     // 000150.json
     {
@@ -1767,6 +1784,7 @@
       tier: 3,
       desc: "Свиток: изучает «Глубокое замерзание» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "deep_freeze" },
+      icon: "assets/sprites/items/deep_freeze_scroll.svg",
     },
     // 000151.json
     {
@@ -1778,6 +1796,7 @@
       tier: 2,
       desc: "Свиток: изучает «Заморозить» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "freeze" },
+      icon: "assets/sprites/items/freeze_scroll.svg",
     },
     // 000152.json
     {
@@ -1789,6 +1808,7 @@
       tier: 3,
       desc: "Свиток: изучает «Ледниковая хватка» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "glacier_grasp" },
+      icon: "assets/sprites/items/glacier_grasp_scroll.svg",
     },
     // 000153.json
     {
@@ -1800,6 +1820,7 @@
       tier: 2,
       desc: "Свиток: изучает «Морозный вестник» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "frost_wisp" },
+      icon: "assets/sprites/items/frost_wisp_scroll.svg",
     },
     // 000154.json
     {
@@ -1811,6 +1832,7 @@
       tier: 3,
       desc: "Свиток: изучает «Зимний элементаль» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "winter_elemental" },
+      icon: "assets/sprites/items/winter_elemental_scroll.svg",
     },
     // 000155.json
     {
@@ -1822,6 +1844,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ледяная походка» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "frost_walk" },
+      icon: "assets/sprites/items/frost_walk_scroll.svg",
     },
     // 000156.json
     {
@@ -1833,6 +1856,7 @@
       tier: 1,
       desc: "Свиток: изучает «Дыхание мороза» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "cold_breath" },
+      icon: "assets/sprites/items/cold_breath_scroll.svg",
     },
     // 000157.json
     {
@@ -1844,6 +1868,7 @@
       tier: 3,
       desc: "Свиток: изучает «Замершая неподвижность» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "frozen_stillness" },
+      icon: "assets/sprites/items/frozen_stillness_scroll.svg",
     },
     // 000158.json
     {

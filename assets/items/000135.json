@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "hail"
-  }
+  },
+  "icon": "assets/sprites/items/hail_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "frostbite_blessing"
-  }
+  },
+  "icon": "assets/sprites/items/frostbite_blessing_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "freeze"
-  }
+  },
+  "icon": "assets/sprites/items/freeze_scroll.svg"
 }

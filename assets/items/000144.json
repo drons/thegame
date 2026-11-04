@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "ice_armor"
-  }
+  },
+  "icon": "assets/sprites/items/ice_armor_scroll.svg"
 }

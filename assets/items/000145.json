@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "winter_haste"
-  }
+  },
+  "icon": "assets/sprites/items/winter_haste_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "absolute_zero"
-  }
+  },
+  "icon": "assets/sprites/items/absolute_zero_scroll.svg"
 }

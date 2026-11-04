@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "cold_breath"
-  }
+  },
+  "icon": "assets/sprites/items/cold_breath_scroll.svg"
 }

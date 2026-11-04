@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "deep_freeze"
-  }
+  },
+  "icon": "assets/sprites/items/deep_freeze_scroll.svg"
 }

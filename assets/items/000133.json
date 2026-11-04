@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "ice_lance"
-  }
+  },
+  "icon": "assets/sprites/items/ice_lance_scroll.svg"
 }

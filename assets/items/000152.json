@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "glacier_grasp"
-  }
+  },
+  "icon": "assets/sprites/items/glacier_grasp_scroll.svg"
 }

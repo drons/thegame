@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "frost_aura"
-  }
+  },
+  "icon": "assets/sprites/items/frost_aura_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "permafrost"
-  }
+  },
+  "icon": "assets/sprites/items/permafrost_scroll.svg"
 }

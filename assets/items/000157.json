@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "frozen_stillness"
-  }
+  },
+  "icon": "assets/sprites/items/frozen_stillness_scroll.svg"
 }

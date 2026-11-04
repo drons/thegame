@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "slow"
-  }
+  },
+  "icon": "assets/sprites/items/slow_scroll.svg"
 }

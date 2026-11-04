@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shatter"
-  }
+  },
+  "icon": "assets/sprites/items/shatter_scroll.svg"
 }

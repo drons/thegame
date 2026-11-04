@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "glacial_spike"
-  }
+  },
+  "icon": "assets/sprites/items/glacial_spike_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "rime_bolt"
-  }
+  },
+  "icon": "assets/sprites/items/rime_bolt_scroll.svg"
 }

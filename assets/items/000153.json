@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "frost_wisp"
-  }
+  },
+  "icon": "assets/sprites/items/frost_wisp_scroll.svg"
 }

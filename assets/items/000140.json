@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "ice_field"
-  }
+  },
+  "icon": "assets/sprites/items/ice_field_scroll.svg"
 }

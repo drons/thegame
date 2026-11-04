@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "winter_elemental"
-  }
+  },
+  "icon": "assets/sprites/items/winter_elemental_scroll.svg"
 }

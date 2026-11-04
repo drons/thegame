@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "wall_of_ice"
-  }
+  },
+  "icon": "assets/sprites/items/wall_of_ice_scroll.svg"
 }
