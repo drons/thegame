@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "path_of_vines"
-  }
+  },
+  "icon": "assets/sprites/items/path_of_vines_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "barkskin"
-  }
+  },
+  "icon": "assets/sprites/items/barkskin_scroll.svg"
 }

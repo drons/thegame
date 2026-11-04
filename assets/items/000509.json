@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "wild_growth"
-  }
+  },
+  "icon": "assets/sprites/items/wild_growth_scroll.svg"
 }

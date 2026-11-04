@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "acid_splash"
-  }
+  },
+  "icon": "assets/sprites/items/acid_splash_scroll.svg"
 }

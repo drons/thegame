@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "vine_lash"
-  }
+  },
+  "icon": "assets/sprites/items/vine_lash_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "hurricane"
-  }
+  },
+  "icon": "assets/sprites/items/hurricane_scroll.svg"
 }

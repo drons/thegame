@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "nature_wrath"
-  }
+  },
+  "icon": "assets/sprites/items/nature_wrath_scroll.svg"
 }

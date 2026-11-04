@@ -6413,6 +6413,7 @@
       tier: 1,
       desc: "Свиток: изучает «Кислотное швыряние» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "acid_splash" },
+      icon: "assets/sprites/items/acid_splash_scroll.svg",
     },
     // 000488.json
     {
@@ -6424,6 +6425,7 @@
       tier: 1,
       desc: "Свиток: изучает «Шиповая плеть» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "thorn_whip" },
+      icon: "assets/sprites/items/thorn_whip_scroll.svg",
     },
     // 000489.json
     {
@@ -6435,6 +6437,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ядовитый спор» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "poison_spore" },
+      icon: "assets/sprites/items/poison_spore_scroll.svg",
     },
     // 000490.json
     {
@@ -6446,6 +6449,7 @@
       tier: 3,
       desc: "Свиток: изучает «Витие лоз» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "vine_lash" },
+      icon: "assets/sprites/items/vine_lash_scroll.svg",
     },
     // 000491.json
     {
@@ -6457,6 +6461,7 @@
       tier: 3,
       desc: "Свиток: изучает «Шиповый шторм» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "thorn_storm" },
+      icon: "assets/sprites/items/thorn_storm_scroll.svg",
     },
     // 000492.json
     {
@@ -6468,6 +6473,7 @@
       tier: 4,
       desc: "Свиток: изучает «Гнев природы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "nature_wrath" },
+      icon: "assets/sprites/items/nature_wrath_scroll.svg",
     },
     // 000493.json
     {
@@ -6479,6 +6485,7 @@
       tier: 4,
       desc: "Свиток: изучает «Ураган» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "hurricane" },
+      icon: "assets/sprites/items/hurricane_scroll.svg",
     },
     // 000494.json
     {
@@ -6490,6 +6497,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ядовитое облако» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "poison_cloud" },
+      icon: "assets/sprites/items/poison_cloud_scroll.svg",
     },
     // 000495.json
     {
@@ -6501,6 +6509,7 @@
       tier: 2,
       desc: "Свиток: изучает «Поле шипов» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "thorn_field" },
+      icon: "assets/sprites/items/thorn_field_scroll.svg",
     },
     // 000496.json
     {
@@ -6512,6 +6521,7 @@
       tier: 3,
       desc: "Свиток: изучает «Стена шипов» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "wall_of_thorns" },
+      icon: "assets/sprites/items/wall_of_thorns_scroll.svg",
     },
     // 000497.json
     {
@@ -6523,6 +6533,7 @@
       tier: 2,
       desc: "Свиток: изучает «Живая сила» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "life_force" },
+      icon: "assets/sprites/items/life_force_scroll.svg",
     },
     // 000498.json
     {
@@ -6534,6 +6545,7 @@
       tier: 2,
       desc: "Свиток: изучает «Коростенная кожа» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "barkskin" },
+      icon: "assets/sprites/items/barkskin_scroll.svg",
     },
     // 000499.json
     {
@@ -6545,6 +6557,7 @@
       tier: 1,
       desc: "Свиток: изучает «Сердце леса» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "heart_of_forest" },
+      icon: "assets/sprites/items/heart_of_forest_scroll.svg",
     },
     // 000500.json
     {
@@ -6556,6 +6569,7 @@
       tier: 3,
       desc: "Свиток: изучает «Стремительность дикаря» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "nature_haste" },
+      icon: "assets/sprites/items/nature_haste_scroll.svg",
     },
     // 000501.json
     {
@@ -6567,6 +6581,7 @@
       tier: 3,
       desc: "Свиток: изучает «Живучесть» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "vitality" },
+      icon: "assets/sprites/items/vitality_scroll.svg",
     },
     // 000502.json
     {
@@ -6578,6 +6593,7 @@
       tier: 1,
       desc: "Свиток: изучает «Яд» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "poison" },
+      icon: "assets/sprites/items/poison_scroll.svg",
     },
     // 000503.json
     {
@@ -6589,6 +6605,7 @@
       tier: 2,
       desc: "Свиток: изучает «Гниль» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "rot" },
+      icon: "assets/sprites/items/rot_scroll.svg",
     },
     // 000504.json
     {
@@ -6600,6 +6617,7 @@
       tier: 3,
       desc: "Свиток: изучает «Парализующий спор» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "paralyzing_spore" },
+      icon: "assets/sprites/items/paralyzing_spore_scroll.svg",
     },
     // 000505.json
     {
@@ -6611,6 +6629,7 @@
       tier: 2,
       desc: "Свиток: изучает «Упутать» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "entangle" },
+      icon: "assets/sprites/items/entangle_scroll.svg",
     },
     // 000506.json
     {
@@ -6622,6 +6641,7 @@
       tier: 3,
       desc: "Свиток: изучает «Корневая хватка» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "root_grasp" },
+      icon: "assets/sprites/items/root_grasp_scroll.svg",
     },
     // 000507.json
     {
@@ -6633,6 +6653,7 @@
       tier: 2,
       desc: "Свиток: изучает «Лесной зверь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "forest_beast" },
+      icon: "assets/sprites/items/forest_beast_scroll.svg",
     },
     // 000508.json
     {
@@ -6644,6 +6665,7 @@
       tier: 3,
       desc: "Свиток: изучает «Трент» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "treant" },
+      icon: "assets/sprites/items/treant_scroll.svg",
     },
     // 000509.json
     {
@@ -6655,6 +6677,7 @@
       tier: 1,
       desc: "Свиток: изучает «Дикий рост» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "wild_growth" },
+      icon: "assets/sprites/items/wild_growth_scroll.svg",
     },
     // 000510.json
     {
@@ -6666,6 +6689,7 @@
       tier: 2,
       desc: "Свиток: изучает «Зверь-приятель» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "beast_friend" },
+      icon: "assets/sprites/items/beast_friend_scroll.svg",
     },
     // 000511.json
     {
@@ -6677,6 +6701,7 @@
       tier: 3,
       desc: "Свиток: изучает «Тропа лоз» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "path_of_vines" },
+      icon: "assets/sprites/items/path_of_vines_scroll.svg",
     },
   ];
 

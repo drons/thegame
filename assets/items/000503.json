@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "rot"
-  }
+  },
+  "icon": "assets/sprites/items/rot_scroll.svg"
 }

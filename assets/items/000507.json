@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "forest_beast"
-  }
+  },
+  "icon": "assets/sprites/items/forest_beast_scroll.svg"
 }

@@ -2521,8 +2521,8 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 //     terrains + строковый id — тот же строгий фильтр, что map.js
 //     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js; 000220:
 //     +5 строительных reagent) — icon = конвенции, 33/33 svg существует;
-//   * прочие 68 предметов — icon НЕ задан / 443 с icon (финал 000243:
-//     каталог 511 = 443 + 68; пин «не тронуто», L3-форма;
+//   * прочие 43 предмета — icon НЕ задан / 468 с icon (финал 000243:
+//     каталог 511 = 468 + 43; пин «не тронуто», L3-форма;
 //     5 reagent'ов 000220 — с loot+icon);
 //   * schema.json — icon ОПЦИОНАЛЬНОЕ свойство: точная форма
 //     {type, pattern} (паттерн — дословно ТЗ), НЕ в required, верхний
@@ -2535,7 +2535,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 68 — icon undefined / 443 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 43 — icon undefined / 468 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -2746,6 +2746,18 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'stone_wall_scroll', 'guardian_field_scroll', 'stone_golem_scroll',
     'iron_sentinel_scroll', 'stone_anchor_scroll', 'recall_scroll',
     'gate_scroll', 'warding_circle_scroll']);
+  // Ре-пин 000302.06: 25 свитков школы Природа (000487-000511) — icon в
+  // assets/sprites/items/ (паттерн TORSO_00023010) — исключение из
+  // пина «icon НЕ задан».
+  const SCROLLS_NATURE_00030206 = new Set(['acid_splash_scroll',
+    'thorn_whip_scroll', 'poison_spore_scroll', 'vine_lash_scroll',
+    'thorn_storm_scroll', 'nature_wrath_scroll', 'hurricane_scroll',
+    'poison_cloud_scroll', 'thorn_field_scroll', 'wall_of_thorns_scroll',
+    'life_force_scroll', 'barkskin_scroll', 'heart_of_forest_scroll',
+    'nature_haste_scroll', 'vitality_scroll', 'poison_scroll',
+    'rot_scroll', 'paralyzing_spore_scroll', 'entangle_scroll',
+    'root_grasp_scroll', 'forest_beast_scroll', 'treant_scroll',
+    'wild_growth_scroll', 'beast_friend_scroll', 'path_of_vines_scroll']);
   let others = 0;
   for (const it of byId.values()) {
     if (lootIds.includes(it.id) || BLUEPRINTS_000232.has(it.id)
@@ -2763,12 +2775,13 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || SCROLLS_ICE_00030202.has(it.id)
         || SCROLLS_SHADOW_00030203.has(it.id)
         || SCROLLS_HEALING_00030204.has(it.id)
-        || SCROLLS_PROTECTION_00030205.has(it.id)) continue;
+        || SCROLLS_PROTECTION_00030205.has(it.id)
+        || SCROLLS_NATURE_00030206.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
   }
-  assert.equal(others, 68, 'прочих предметов — ровно 68 (ре-пин 000230.09: '
+  assert.equal(others, 43, 'прочих предметов — ровно 43 (ре-пин 000230.09: '
     + '50 уши/шея — в исключении; ре-пин 000230.10: 25 torso — в '
     + 'исключении (icon); ре-пин 000230.11: 50 рук — в исключении '
     + '(icon); ре-пин 000230.12: 25 «правая рука» — в исключении '
@@ -2786,16 +2799,18 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + '(счёт не изменился); ре-пин 000235.11: 484 − 316 = 168 '
     + '(icon-счёт не изменился); ре-пин 000277: 486 − 318 = 168 '
     + '(icon-счёт не изменился); ре-пин 000235.12: +25 свитков '
-    + 'волны Природа без icon — входят в счёт; 511 − 443 = 68; '
+    + 'волны Природа без icon — входят в счёт; 511 − 468 = 43; '
     + 'ре-пин 000302.01: +25 свитков школы Огонь с icon — в '
     + 'исключении; ре-пин 000302.02: +25 свитков школы Лёд с icon — '
     + 'в исключении; ре-пин 000302.03: +25 свитков школы Тень с icon '
     + '— в исключении; ре-пин 000302.04: +25 свитков школы '
     + 'Исцеление с icon — в исключении; ре-пин 000302.05: '
-    + '+25 свитков школы Защита с icon — в исключении)');
+    + '+25 свитков школы Защита с icon — в исключении; '
+    + 'ре-пин 000302.06: +25 свитков школы Природа с icon — '
+    + 'в исключении)');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 443,
-    'icon — ровно у 443 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 468,
+    'icon — ровно у 468 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
@@ -2805,7 +2820,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + 'ре-пин 000302.02: +25 свитков школы Лёд; '
     + 'ре-пин 000302.03: +25 свитков школы Тень; '
     + 'ре-пин 000302.04: +25 свитков школы Исцеление; '
-    + 'ре-пин 000302.05: +25 свитков школы Защита; пин: '
+    + 'ре-пин 000302.05: +25 свитков школы Защита; '
+    + 'ре-пин 000302.06: +25 свитков школы Природа; пин: '
     + 'ни больше, '
     + 'ни меньше)');
 });
@@ -2822,13 +2838,14 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + 'свойства icon в схеме нет); факт: '
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
-    'icon НЕ в required (прочие 68 предметов остаются валидными; '
-    + 'финал 000243.01: каталог 511 = 443 с icon + 68 без; '
+    'icon НЕ в required (прочие 43 предмета остаются валидными; '
+    + 'финал 000243.01: каталог 511 = 468 с icon + 43 без; '
     + 'ре-пин 000302.01: +25 свитков школы Огонь; '
     + 'ре-пин 000302.02: +25 свитков школы Лёд; '
     + 'ре-пин 000302.03: +25 свитков школы Тень; '
     + 'ре-пин 000302.04: +25 свитков школы Исцеление; '
-    + 'ре-пин 000302.05: +25 свитков школы Защита); '
+    + 'ре-пин 000302.05: +25 свитков школы Защита; '
+    + 'ре-пин 000302.06: +25 свитков школы Природа); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');
@@ -10403,7 +10420,7 @@ const NATURE12_SCROLLS = [
 ];
 const NATURE12_SCROLL_VALUE = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
-test('000235.12 W-06: 25 свитков 000487–000511 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/icon/loot НЕТ, зеркало ≡ JSON', () => {
+test('000235.12 W-06: 25 свитков 000487–000511 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/loot НЕТ, icon = assets/sprites/items/<id>.svg (ре-пин 000302.06: пин «icon НЕТ» устарел), зеркало ≡ JSON', () => {
   const byFile = new Map();
   for (const f of fs.readdirSync(ITEMS_DIR)
       .filter((x) => /^\d{6}\.json$/.test(x))) {
@@ -10433,7 +10450,10 @@ test('000235.12 W-06: 25 свитков 000487–000511 — id <spell>_scroll, k
     assert.equal(j.value, NATURE12_SCROLL_VALUE[level],
       spellId + ': value по тьеру (' + NATURE12_SCROLL_VALUE[level] + ')');
     assert.equal(j.rarity, undefined, spellId + ': rarity НЕТ (пин RAR-G)');
-    assert.equal(j.icon, undefined, spellId + ': icon НЕТ (пин I1)');
+    assert.equal(j.icon,
+      'assets/sprites/items/' + spellId + '_scroll.svg',
+      spellId + ': icon = assets/sprites/items/<id>.svg (ре-пин '
+      + '000302.06: иконки школы Природа — пин «icon НЕТ» устарел)');
     assert.equal(j.loot, undefined, spellId + ': loot НЕТ (пин L3)');
     const it = jsById.get(spellId + '_scroll');
     assert.ok(it, 'W-06: зеркало items-data: ' + spellId + '_scroll (RED: нет)');

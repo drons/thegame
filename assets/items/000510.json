@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "beast_friend"
-  }
+  },
+  "icon": "assets/sprites/items/beast_friend_scroll.svg"
 }

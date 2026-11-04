@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "vitality"
-  }
+  },
+  "icon": "assets/sprites/items/vitality_scroll.svg"
 }

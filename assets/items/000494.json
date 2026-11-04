@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "poison_cloud"
-  }
+  },
+  "icon": "assets/sprites/items/poison_cloud_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "heart_of_forest"
-  }
+  },
+  "icon": "assets/sprites/items/heart_of_forest_scroll.svg"
 }

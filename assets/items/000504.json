@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "paralyzing_spore"
-  }
+  },
+  "icon": "assets/sprites/items/paralyzing_spore_scroll.svg"
 }

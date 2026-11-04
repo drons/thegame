@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "thorn_storm"
-  }
+  },
+  "icon": "assets/sprites/items/thorn_storm_scroll.svg"
 }

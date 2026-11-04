@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "nature_haste"
-  }
+  },
+  "icon": "assets/sprites/items/nature_haste_scroll.svg"
 }

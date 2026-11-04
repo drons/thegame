@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "treant"
-  }
+  },
+  "icon": "assets/sprites/items/treant_scroll.svg"
 }

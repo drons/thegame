@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "entangle"
-  }
+  },
+  "icon": "assets/sprites/items/entangle_scroll.svg"
 }
