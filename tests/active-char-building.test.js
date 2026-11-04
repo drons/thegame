@@ -28,6 +28,30 @@
 //     роутинга): строка действия — onAction + закрытие; кнопка
 //     «закрыть»/Esc — закрытие.
 //
+// 000311 (ретро 20261104: пины СУЩЕСТВУЮЩЕГО контракта — только
+// тесты, src/ 0-diff; зелёные с первого запуска):
+//   * AC12 — НОВОЕ: контракт «панель открыта — render()» у
+//     setActiveCharId (src/ui.js:1058-1061): [I]-панель с магазином —
+//     setActiveCharId — ин-плейс ре-рендер строк «покупка/продажа»
+//     (10/10 → 9/11), узел панели тот же;
+//   * AC13 — НОВОЕ: деградация ряда в NPC-диалоге: PortraitsData нет
+//     → ряд не рисуется + console.error ровно 1× (один-разовый
+//     флаг модуля, 000053) + повторный open — тихо; stale активный
+//     id — Party.active тихо (Флогистон), без ошибок;
+//   * AC14 — НОВОЕ: NPC-диалог без __game — ряд: ровно 1 button
+//     flogiston «cp-portrait cp-portrait-active», 0 console.error
+//     (squadUI.liveState — пустой фолбэк, тихо — 000145);
+//   * AC2 — расширение: сброс ПУСТОЙ СТРОКОЙ setActiveCharId('')
+//     (контракт «null/'' — сброс на дефолт», до — только null);
+//   * AC3 — расширение: ТОЧНАЯ позиция ряда — 2-й ребёнок
+//     .combat-side (4 ребёнка: cp-title/ряд/cp-items/подсказка);
+//     классы кнопки ⊆ {cp-portrait, cp-portrait-active}, НЕ .cp-btn,
+//     нет data-buid/data-npcact (ловушка делегирования 000098);
+//   * AC4 — расширение: после клика — ТОЧНЫЙ класс активного
+//     «cp-portrait cp-portrait-active» + нет data-buid/data-npcact;
+//   * AC9 — расширение: ДО клика в ряде диалога активен Флогистон
+//     (дефолт) + классы/dataset кнопок ряда.
+//
 // payload openNpcDialog побайтово (character: hero, roster, deadMercs)
 // — существующее покрытие W1/BA2 tests/building-actions.test.js;
 // building-actions.js в задаче 0-diff (SCOPE-ЛИМИТЫ ТЗ).
@@ -418,6 +442,10 @@ test('AC2. сеттер: идемпотентен, БЕЗ открытия/за�
   G.playerUI.setActiveCharId(null);
   assert.equal(G.playerUI.getActiveCharId(), null,
     'null — сброс на дефолт (Флогистон)');
+  G.playerUI.setActiveCharId('merc_volk');
+  G.playerUI.setActiveCharId('');
+  assert.equal(G.playerUI.getActiveCharId(), null,
+    "пустая строка — сброс на дефолт (контракт «null/'' — сброс», 000311)");
   assert.equal(saves(), 0, 'saveNow не зван (per-session, в сейв НЕ ПИШЕТСЯ)');
 });
 
@@ -432,6 +460,14 @@ test('AC3. оверлей [E]: ряд .cp-portraits перед .cp-items, N по
     (ch) => String(ch.className).includes('cp-items'));
   assert.ok(idxRow >= 0 && idxList >= 0 && idxRow < idxList,
     'ряд — В .combat-side ПЕРЕД строками действий');
+  assert.equal(side.children.length, 4,
+    '.combat-side — ровно 4 ребёнка (000311)');
+  assert.ok(String(side.children[0].className).includes('cp-title'),
+    'первый ребёнок — .cp-title');
+  assert.equal(side.children[1], row,
+    'ряд — ВТОРОЙ ребёнок .combat-side, между .cp-title и .cp-items (000311)');
+  assert.ok(String(side.children[2].className).includes('cp-items'),
+    'третий ребёнок — .cp-items');
   const btns = row.querySelectorAll('button.cp-portrait');
   assert.equal(btns.length, 4,
     '4 портрета: Флогистон + Эфир (efirMet) + 2 наёмных (roster)');
@@ -452,6 +488,15 @@ test('AC3. оверлей [E]: ряд .cp-portraits перед .cp-items, N по
     assert.ok(img.alt, 'alt — имя member');
     assert.ok(b.title.includes(' — '),
       'title — «имя — роль»');
+    const cls = String(b.className);
+    assert.ok(cls === 'cp-portrait' || cls === 'cp-portrait cp-portrait-active',
+      'классы кнопки — ТОЛЬКО cp-portrait(/-active) (000311)');
+    assert.ok(!cls.includes('cp-btn'),
+      'кнопка НЕ .cp-btn (ловушка делегирования 000098, 000311)');
+    assert.equal(b.dataset.buid, undefined,
+      'нет data-buid — своя ветка клика (000311)');
+    assert.equal(b.dataset.npcact, undefined,
+      'нет data-npcact — своя ветка клика (000311)');
   }
   assert.equal(f.querySelector('img').src,
     'assets/portraits/flogiston.svg', 'иконка героя из каталога 000142');
@@ -485,6 +530,14 @@ test('AC4. клик по портрету: активный сменился, о
   const volk2 = btns2.find((b) => b.dataset.memberid === 'merc_volk');
   assert.ok(String(volk2.className).includes('cp-portrait-active'),
     'активный — перерисован на кликнутого');
+  assert.equal(String(volk2.className), 'cp-portrait cp-portrait-active',
+    'ТОЧНЫЙ класс активного после клика (000311)');
+  assert.ok(!String(volk2.className).includes('cp-btn'),
+    'после клика — всё ещё НЕ .cp-btn (000098, 000311)');
+  assert.equal(volk2.dataset.buid, undefined,
+    'после клика — нет data-buid (000311)');
+  assert.equal(volk2.dataset.npcact, undefined,
+    'после клика — нет data-npcact (000311)');
   const f2 = btns2.find((b) => b.dataset.memberid === 'flogiston');
   assert.equal(String(f2.className), 'cp-portrait',
     'прежний активный — снят');
@@ -632,6 +685,19 @@ test('AC9. NPC-диалог: ряд .cp-portraits над вкладками; к�
     .map((b) => b.dataset.memberid);
   assert.deepEqual(ids, ['flogiston', 'efir', 'merc_volk', 'merc_ashka'],
     'состав — Party.list (hero → Эфир → roster)');
+  const flogBtn = row.querySelectorAll('button.cp-portrait')
+    .find((b) => b.dataset.memberid === 'flogiston');
+  assert.ok(String(flogBtn.className).includes('cp-portrait-active'),
+    'ДО клика — активен Флогистон (дефолт, 000311)');
+  for (const b of row.querySelectorAll('button.cp-portrait')) {
+    const cls = String(b.className);
+    assert.ok(cls === 'cp-portrait' || cls === 'cp-portrait cp-portrait-active',
+      'ряд диалога: классы — ТОЛЬКО cp-portrait(/-active) (000311)');
+    assert.ok(!cls.includes('cp-btn'),
+      'ряд диалога: НЕ .cp-btn (000098, 000311)');
+    assert.equal(b.dataset.buid, undefined, 'нет data-buid (000311)');
+    assert.equal(b.dataset.npcact, undefined, 'нет data-npcact (000311)');
+  }
   const efirBtn = row.querySelectorAll('button.cp-portrait')
     .find((b) => b.dataset.memberid === 'efir');
   overlay.listeners.click[0]({ target: efirBtn });
@@ -672,4 +738,120 @@ test('AC11. регрессия: кнопка «закрыть» и Esc — за�
   assert.ok(keydowns.length >= 1, 'keyHandler повешен на window');
   keydowns[keydowns.length - 1]({ code: 'Escape', preventDefault() {} });
   assert.equal(G.buildingUI.isActive(), false, 'Esc — закрыл');
+});
+
+test('AC12. «панель открыта — render()» у setActiveCharId: строки магазина [I] ре-рендерятся ин-плейс (000311)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const st = seedWorld(h);
+  const mira = G.Sheet.createSheet('merc', { npcId: 'merc_mira' });
+  mira.secondary.merchant = 2;
+  st.roster.push({
+    npcId: 'merc_mira', level: 1, xp: 0, loyalty: 50, hiredDay: 1,
+    sheet: mira,
+  });
+  G.addItem(st.hero, 'healing_potion', 1);
+  G.playerUI.setCharacter(st.hero);
+  G.playerUI.toggle(true);
+  const panel = findAll(h.body, '.char-panel')[0];
+  assert.ok(panel, 'панель [I] открыта');
+  const shop = {
+    x: 5, y: 5,
+    buildingType: G.BUILDING_TYPES.APOTHECARY,
+    wealth: 0,
+    stock: { healing_potion: 2 },
+  };
+  G.playerUI.setShop(shop);
+  const metas = () => panel.querySelectorAll('.cp-itemmeta')
+    .map((e) => String(e.textContent));
+  assert.equal(metas().find((s) => s.startsWith('покупка')),
+    'покупка 10 з', 'до — hero (дефолт): buy по hero');
+  assert.equal(metas().find((s) => s.startsWith('продажа')),
+    'продажа 10 з', 'до — hero (дефолт): sell по hero');
+  G.playerUI.setActiveCharId('merc_mira');
+  assert.equal(findAll(h.body, '.char-panel')[0], panel,
+    'ин-плейс: узел панели тот же (не пересобирается)');
+  assert.equal(metas().find((s) => s.startsWith('покупка')),
+    'покупка 9 з',
+    'стр. buy ре-рендерена (контракт «панель открыта — render()», 000311)');
+  assert.equal(metas().find((s) => s.startsWith('продажа')),
+    'продажа 11 з',
+    'стр. sell ре-рендерена (цена по активному merc Торговец 2)');
+  G.playerUI.setActiveCharId(null);
+  G.playerUI.toggle(false);
+});
+
+test('AC13. NPC-диалог: без PortraitsData — ряд не рисуется, console.error ровно 1× (один-разовый флаг), повторный open — тихо; stale id — тихо Party.active (000311)', async () => {
+  const h = await bootWithParty();
+  const G = h.sandbox.Game;
+  const st = h.sandbox.__game.state;
+  const npc = G.NpcData.NPCS.find((n) => n.id === '000001')
+    || G.NpcData.NPCS[0];
+  const openDlg = () => {
+    G.npcUI.open({
+      npc,
+      character: st.hero,
+      book: G.createQuestBook(),
+      tile: { x: 1, y: 1, building: { id: 44 }, buildingWealth: 1 },
+      day: 1,
+      roster: st.roster,
+      deadMercs: [],
+    });
+    return lastOverlay(h);
+  };
+  const PD = G.PortraitsData;
+  delete G.PortraitsData;
+  const before = h.errors.length;
+  const overlay = openDlg();
+  assert.ok(overlay, 'оверлей открыт (остальная поверхность жива)');
+  assert.equal(overlay.querySelectorAll('button.cp-portrait').length, 0,
+    'ряд портретов НЕ рисуется (деградация 000053)');
+  assert.equal(h.errors.length, before + 1,
+    'console.error ОДИН раз (один-разовый флаг модуля)');
+  assert.ok(h.errors[before].includes('PortraitsData'),
+    'след в консоли — про PortraitsData');
+  G.npcUI.close();
+  const before2 = h.errors.length;
+  openDlg();
+  assert.equal(h.errors.length, before2,
+    'повторный open — БЕЗ повторного console.error');
+  G.npcUI.close();
+  G.PortraitsData = PD;
+  G.playerUI.setActiveCharId('merc_ghost');
+  const overlay2 = openDlg();
+  const btns = overlay2.querySelectorAll('button.cp-portrait');
+  assert.equal(btns.length, 4, 'после восстановления — ряд на месте');
+  const f = btns.find((b) => b.dataset.memberid === 'flogiston');
+  assert.ok(String(f.className).includes('cp-portrait-active'),
+    'stale id — тихий fallback на Флогистона (Party.active)');
+  assert.equal(h.errors.length, before2, 'fallback ТИХИЙ — без ошибок');
+  G.npcUI.close();
+  G.playerUI.setActiveCharId(null);
+});
+
+test('AC14. NPC-диалог: без __game — ряд: ровно 1 button flogiston cp-portrait-active, тихо (000311)', async () => {
+  const h = await boot();
+  const G = h.sandbox.Game;
+  const hero = G.createCharacter('Флогистон');
+  const npc = G.NpcData.NPCS.find((n) => n.id === '000001')
+    || G.NpcData.NPCS[0];
+  const before = h.errors.length;
+  G.npcUI.open({
+    npc,
+    character: hero,
+    book: G.createQuestBook(),
+    tile: { x: 1, y: 1, building: { id: 44 }, buildingWealth: 1 },
+    day: 1,
+    roster: [],
+    deadMercs: [],
+  });
+  const overlay = lastOverlay(h);
+  const btns = overlay.querySelectorAll('button.cp-portrait');
+  assert.equal(btns.length, 1,
+    'мирового состояния нет — ряд только hero (liveState-фолбэк пуст)');
+  assert.equal(btns[0].dataset.memberid, 'flogiston', 'id — flogiston');
+  assert.equal(String(btns[0].className), 'cp-portrait cp-portrait-active',
+    'активный — Флогистон (дефолт)');
+  assert.equal(h.errors.length, before, 'тихо — без console.error');
+  G.npcUI.close();
 });

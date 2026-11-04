@@ -20,6 +20,20 @@
 //     ре-рендер НЕТ (строки остаются 10/6).
 // ЗЕЛЁНЫЕ с первого запуска (регрессия бит-в-бит hero): A5, B3.
 //
+// 000311 (ретро 20261104: пины СУЩЕСТВУЮЩЕГО контракта — только
+// тесты, src/ 0-diff) — ЗЕЛЁНЫЕ с первого запуска (пины, не RED):
+//   * A6 — НОВОЕ: wealth 3 + priceChar ≠ owner (до: все A3/A4 —
+//     wealth 0): buyPrice 6 / sellPrice 16 (ОБА множителя: богатство
+//     × Торговец), hero-регрессия 7/15;
+//   * B5 — НОВОЕ: npcUI ПРОДАЖКА e2e (до: проданка с активным ≠ hero
+//     не покрыта): активный merc Торговец 2 — цена 7, мутации за
+//     hero (gold +7, qty 0), лог «Продано: Деревянный меч за 7 з»,
+//     mira.gold undefined;
+//   * B6 — НОВОЕ: [I] ПРОДАЖКА e2e: «продажа 11 з», hero.gold +11,
+//     qty 0, mira.gold undefined;
+//   * B1 — расширение: после покупки — строка имени «(ост. 1)»
+//     (сток −1 ин-плейс, RED-пункт ТЗ 000299.03).
+//
 // vm-песочница — цепочка index.html БЕЗ main.js (паттерн
 // tests/npc-dialog-scope.test.js: точку __game ставит ТЕСТ).
 //
@@ -439,6 +453,23 @@ test('A5. регрессия: вызовы БЕЗ priceChar и priceChar = owner
     'buyItem priceChar = owner — бит-в-бит');
 });
 
+test('A6. buyPrice/sellPrice: wealth 3 + priceChar ≠ owner — ОБА множителя (богатство × Торговец): buy 6 / sell 16 (000311)', () => {
+  const hero = P.createCharacter();
+  const merc = mercWithMerchant();
+  const shop = {
+    x: 5, y: 5, buildingType: 2, wealth: 3,
+    stock: { healing_potion: 2 },
+  };
+  assert.equal(I.buyPrice(shop, 'healing_potion', merc), 6,
+    'round(10 × (1−0.10×3) × 0.90) = round(6.3) = 6');
+  assert.equal(I.sellPrice(shop, 'healing_potion', merc), 16,
+    'round(10 × (1+0.15×3) × 1.10) = round(15.95) = 16');
+  assert.equal(I.buyPrice(shop, 'healing_potion', hero), 7,
+    'hero (Торговец 0) при том же wealth — round(10 × 0.7) = 7');
+  assert.equal(I.sellPrice(shop, 'healing_potion', hero), 15,
+    'hero — round(10 × 1.45) = 15 (регрессия множителя богатства)');
+});
+
 // --- Часть B: vm (src/ui.js) ---
 
 function seedWorld(h, over = {}) {
@@ -527,6 +558,10 @@ test('B1. npcUI «торговля» при активном наёмном: с�
     'предмет — в инвентаре hero (общий, 000194)');
   assert.equal(mira.gold, undefined,
     'NaN-ловушка: gold наёмного НЕ тронут (owner = hero)');
+  const nameLines = overlay.querySelectorAll('.cp-itemname')
+    .map((e) => String(e.textContent));
+  assert.ok(nameLines.includes('Деревянный меч (ост. 1)'),
+    'сток −1 ин-плейс: строка имени обновлена после покупки (000311)');
   assert.equal(h.errors.length, before,
     '0 новых console.error (вкладка «торговля» + покупка)');
   G.npcUI.close();
@@ -641,4 +676,75 @@ test('B4. клик по портрету при открытой «торгов�
     .length >= 1, 'кнопка «купить» сохранена');
   G.npcUI.close();
   G.playerUI.setActiveCharId(null);
+});
+
+test('B5. npcUI ПРОДАЖКА e2e: активный merc (Торговец 2) — цена по merc, мутации за hero, лог «Продано: … за 7 з», gold наёмного undefined (000311)', async () => {
+  const h = await boot();
+  const st = seedWorld(h);
+  const mira = addMercMira(h, st);
+  const { G, overlay } = openNpc(h, 'weapons_merchant', st);
+  G.addItem(st.hero, 'wood_sword', 1);
+  G.playerUI.setActiveCharId('merc_mira');
+  clickTradeTab(overlay);
+  const metas = metaLines(overlay);
+  assert.equal(metas.find((s) => s.startsWith('покупка')),
+    'покупка 9 з / продажа 7 з',
+    'sell-строка — по Торговцу активного (merc 2): round(6×1.10)');
+  const sellBtn = overlay.querySelectorAll('button[data-npcact="sell"]')
+    .find((b) => b.dataset.item === 'wood_sword');
+  assert.ok(sellBtn, 'кнопка «продать» (wood_sword) на месте');
+  assert.equal(sellBtn.disabled, false,
+    'hero — есть предмет: кнопка активна (hasItem(c) — owner)');
+  const goldBefore = st.hero.gold;
+  const logEl = overlay.querySelector('.npc-log');
+  overlay.listeners.click[0]({ target: sellBtn });
+  assert.equal(st.hero.gold, goldBefore + 7,
+    'продажа — за hero (owner), по цене merc (7, не 6)');
+  assert.equal(G.totalQty(st.hero, 'wood_sword'), 0,
+    'предмет снят с hero');
+  assert.equal(mira.gold, undefined,
+    'NaN-ловушка: gold наёмного НЕ тронут (owner = hero)');
+  assert.ok(String(logEl.textContent)
+    .includes('Продано: Деревянный меч за 7 з'),
+    'лог — продажа по цене merc (priceChar прошёл в sell-ветку)');
+  assert.ok(G.npcUI.isActive(), 'диалог НЕ закрылся');
+  G.npcUI.close();
+  G.playerUI.setActiveCharId(null);
+});
+
+test('B6. [I] ПРОДАЖКА e2e: активный merc (Торговец 2) — «продажа 11 з», sale — с hero, qty 0, gold наёмного undefined (000311)', async () => {
+  const h = await boot();
+  const st = seedWorld(h);
+  const mira = addMercMira(h, st);
+  const G = h.sandbox.Game;
+  G.addItem(st.hero, 'healing_potion', 1);
+  G.playerUI.setCharacter(st.hero);
+  G.playerUI.toggle(true);
+  const panel = findAll(h.body, '.char-panel')[0];
+  assert.ok(panel, 'панель [I] подвешена к body');
+  const shop = {
+    x: 5, y: 5,
+    buildingType: G.BUILDING_TYPES.APOTHECARY,
+    wealth: 0,
+    stock: { healing_potion: 2 },
+  };
+  G.playerUI.setShop(shop);
+  G.playerUI.setActiveCharId('merc_mira');
+  const metas = metaLines(panel);
+  assert.equal(metas.find((s) => s.startsWith('продажа')),
+    'продажа 11 з',
+    'sell-строка — по Торговцу активного (merc 2): round(10×1.10)');
+  const sellBtn = panel.querySelectorAll('button[data-act="sell"]')
+    .find((b) => b.dataset.item === 'healing_potion');
+  assert.ok(sellBtn, 'кнопка «продать» (healing_potion) на месте');
+  const goldBefore = st.hero.gold;
+  panel.listeners.click[0]({ target: sellBtn });
+  assert.equal(st.hero.gold, goldBefore + 11,
+    'продажа — за hero (owner), по цене merc (11, не 10)');
+  assert.equal(G.totalQty(st.hero, 'healing_potion'), 0,
+    'предмет снят с hero');
+  assert.equal(mira.gold, undefined,
+    'NaN-ловушка: gold наёмного НЕ тронут (owner = hero)');
+  G.playerUI.setActiveCharId(null);
+  G.playerUI.toggle(false);
 });

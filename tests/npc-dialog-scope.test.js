@@ -30,6 +30,25 @@
 //   * B2/B3: scope-смена видна БЕЗ переключения вкладки (клик по
 //     портрету — re-render вкладки «диалог»).
 //
+// 000311 (ретро 20261104: пины СУЩЕСТВУЮЩЕГО контракта — только
+// тесты, src/ 0-diff; зелёные с первого запуска):
+//   * A9 — НОВОЕ: Game.NpcData нет → роль наёмного null: опция
+//     «merc» совпадёт, {роль} — нет (fail-closed, src/npc.js:82);
+//     save/restore globalThis в finally (node --test = 1 процесс);
+//   * A10 — НОВОЕ: лист без primary/secondary (bare {level:1}) —
+//     требования «не выполнено», строки причин ТОЖЕ («нужна Харизма
+//     3»/«нужен Оратор 2»/«бонус к диалогу меньше 3»), без краха
+//     (000053);
+//   * B6 — НОВОЕ: ВТОРОЙ call-site (ТЗ 000299.02 п.3) — opt-ветка
+//     onOverlayClick (src/ui.js:1416, G.dialogOptions(npc,
+//     activeSheetNow())): клик по scoped-опции (efir_whisper) при
+//     активном Эфире — текст в .npc-log, оверлей НЕ закрыт, вкладка
+//     НЕ переключена; регресс ветки к dialogOptions(npc, c) дал бы
+//     find→undefined→return — лог пуст;
+//   * A8c — расширение: schema ОТКЛОНЯЕТ {роль:"bogus"} (вне enum)
+//     и {} (required «роль») — отрицательная сторона объекта scope
+//     (до — только строковый мусор).
+//
 // vm-песочница — цепочка index.html БЕЗ main.js (паттерн
 // tests/active-char-building.test.js: main.js не в цепочке — точку
 // __game ставит ТЕСТ; live-ссылки (efir/roster.sheet) — норма).
@@ -586,6 +605,73 @@ test('A8c. каталог: все файлы валидны по schema.json (к
       { id: 'x', текст: 'Т', действие: 'подсказка', для: 'все' },
       'опция'),
     [], '`для:"все"` — валиден');
+  assert.notDeepEqual(
+    validateData(optSchema,
+      { id: 'x', текст: 'Т', действие: 'подсказка',
+        для: { роль: 'bogus' } },
+      'опция'),
+    [], 'объект {роль} вне enum — невалиден (000311)');
+  assert.notDeepEqual(
+    validateData(optSchema,
+      { id: 'x', текст: 'Т', действие: 'подсказка', для: {} },
+      'опция'),
+    [], 'пустой объект scope — невалиден: required «роль» (000311)');
+});
+
+test('A9. Game.NpcData нет → роль наёмного null: «merc» совпадёт, {роль} — нет (деградация, 000311)', () => {
+  const mira = P.createCharacter('Мира');
+  const w = makeWorld({ roster: [{
+    npcId: 'merc_mira', level: 1, xp: 0, loyalty: 50, hiredDay: 1,
+    sheet: mira,
+  }] });
+  const hadGame = Object.prototype.hasOwnProperty.call(globalThis, '__game');
+  const hadG = Object.prototype.hasOwnProperty.call(globalThis, 'Game');
+  const prevGame = globalThis.__game;
+  const prevG = globalThis.Game;
+  globalThis.__game = { state: w };
+  globalThis.Game = {};
+  try {
+    const got = ids(N.dialogOptions(SCOPE_NPC, mira));
+    assert.ok(got.includes('merc_opt'),
+      '«merc» — по kind, роль из каталога не нужна');
+    assert.ok(!got.includes('support_opt'),
+      '{роль} — role null → не совпадёт (fail-closed, 000311)');
+    assert.ok(!got.includes('melee_opt'),
+      '{роль} — role null → не совпадёт (fail-closed, 000311)');
+    assert.ok(!got.includes('efir_opt'),
+      'efir — не по наёмному');
+  } finally {
+    if (hadGame) globalThis.__game = prevGame;
+    else delete globalThis.__game;
+    if (hadG) globalThis.Game = prevG;
+    else delete globalThis.Game;
+  }
+});
+
+test('A10. лист без primary/secondary (bare {level:1}): требования «не выполнено», строки причин те же (000053, 000311)', () => {
+  const npc = {
+    id: 'bare_req',
+    имя: 'Каркаш',
+    роль: 'наставник',
+    постройки: [7],
+    диалог: [
+      { id: 'char', текст: 'Слух для решительных', действие: 'подсказка', требования: { харизма: 3 } },
+      { id: 'orator', текст: 'Слух для красноречивых', действие: 'подсказка', требования: { навык: { id: 'orator', уровень: 2 } } },
+      { id: 'check', текст: 'Слух для знатоков', действие: 'подсказка', требования: { проверка: 3 } },
+    ],
+  };
+  const bare = { level: 1 };
+  const o = N.dialogOptions(npc, bare);
+  assert.equal(o.length, 3, 'опции на месте (scope отсутствует)');
+  assert.deepEqual(o[0],
+    { option: npc.диалог[0], доступен: false, причина: 'нужна Харизма 3' },
+    'харизма: 0 < 3 — строка причины та же (000053)');
+  assert.deepEqual(o[1],
+    { option: npc.диалог[1], доступен: false, причина: 'нужен Оратор 2' },
+    'навык: 0 < 2 — строка причины та же (000053)');
+  assert.deepEqual(o[2],
+    { option: npc.диалог[2], доступен: false, причина: 'бонус к диалогу меньше 3' },
+    'проверка: dialogueBonus 0 < 3 — строка причины та же (000053)');
 });
 
 // --- Часть B: vm npcUI (src/ui.js) ---
@@ -778,4 +864,35 @@ test('B5. вкладка «найм» — без изменений (hero акт
   const dismissBtns = overlay.querySelectorAll('button[data-npcact="dismiss"]');
   assert.equal(dismissBtns.length, 1, 'в отряде 1 наёмный (Мира)');
   G.npcUI.close();
+});
+
+test('B6. ВТОРОЙ call-site: opt-ветка onOverlayClick — клик по scoped-опции при активном ≠ hero — действие по АКТИВНОМУ (000311)', async () => {
+  const h = await boot();
+  const st = seedWorld(h);
+  const { G, overlay } = openNpc(h, 'tavern_keeper', st);
+  const row = overlay.querySelector('.cp-portraits');
+  const efirBtn = row.querySelectorAll('button.cp-portrait')
+    .find((b) => b.dataset.memberid === 'efir');
+  assert.ok(efirBtn, 'портрет Эфира в ряду (efirMet)');
+  overlay.listeners.click[0]({ target: efirBtn });
+  assert.equal(G.playerUI.getActiveCharId(), 'efir', 'активный — «efir»');
+  const efirOpt = bertaScopeOpt(G, (o) => o.для === 'efir');
+  assert.ok(efirOpt, 'в каталоге Берты есть efir-опция');
+  const optBtn = overlay.querySelectorAll('button[data-optid]')
+    .find((b) => b.dataset.optid === efirOpt.id);
+  assert.ok(optBtn, 'efir-опция видна активному (renderDialogTab)');
+  const logEl = overlay.querySelector('.npc-log');
+  const logBefore = String(logEl.textContent);
+  overlay.listeners.click[0]({ target: optBtn });
+  const logAfter = String(logEl.textContent);
+  assert.ok(logAfter.includes(efirOpt.текст),
+    'действие применено: текст опции — в .npc-log (opt-ветка ' +
+    'резолвит по activeSheetNow(), не по hero)');
+  assert.notEqual(logAfter, logBefore, 'лог обновился');
+  assert.ok(G.npcUI.isActive(), 'диалог НЕ закрылся');
+  assert.ok(overlay.querySelectorAll('button[data-optid]')
+    .some((b) => b.dataset.optid === efirOpt.id),
+    'вкладка «диалог» НЕ переключена (renderTab перерисовал её)');
+  G.npcUI.close();
+  G.playerUI.setActiveCharId(null);
 });
