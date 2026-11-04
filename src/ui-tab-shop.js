@@ -83,6 +83,9 @@ function (G0, rootRef) {
       panel._shopBody.textContent = '';
       panel._shopBody.appendChild(ctx.el('div', 'cp-itemmeta',
         (G.buildingNameUi(shop.buildingType) || 'магазин') + ', богатство ' + shop.wealth + '/3'));
+      // 000299.03: цены — по Торговцу активного (ctx.activeSheet);
+      // инвентарь/мутабельная часть — за c (hero, 000194).
+      const priceChar = ctx.activeSheet;
       for (const [id, qty] of Object.entries(shop.stock)) {
         const it = G.getItem(id);
         if (!it || qty < 1) continue;
@@ -90,7 +93,7 @@ function (G0, rootRef) {
         // tip/иконки остаются null (магазин — зона 000101/000097).
         panel._shopBody.appendChild(ctx.itemRow(
           it.name + ' ×' + qty,
-          'покупка ' + G.buyPrice(shop, id, c) + ' з',
+          'покупка ' + G.buyPrice(shop, id, priceChar) + ' з',
           [['купить', 'buy', { item: id }]],
           null, null, it.rarity));
       }
@@ -105,7 +108,7 @@ function (G0, rootRef) {
         const it = G.getItem(id);
         panel._shopBody.appendChild(ctx.itemRow(
           it.name + ' ×' + qty,
-          'продажа ' + G.sellPrice(shop, id, c) + ' з',
+          'продажа ' + G.sellPrice(shop, id, priceChar) + ' з',
           [['продать', 'sell', { item: id }]],
           null, null, it.rarity));
       }

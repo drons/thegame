@@ -143,6 +143,9 @@
       // вкладки с персонаж-зависимыми действиями читают ctx.
       // activeMember, НЕ дублируют partySource (одна точка).
       get activeMember() { return activeMember(); },
+      // 000299.03: live-getter листа АКТИВНОГО (priceChar цен —
+      // вынесение activeSheetFor в ctx; 000147 — единая точка).
+      get activeSheet() { return activeSheetFor(character); },
       // 000194: live-ссылка на ОБЩУЮ map быстрых предметов союзников
       // (null — не раздано) — вкладка «Снаряжение» рисует запись
       // активного персонажа.
@@ -637,8 +640,12 @@
         }
         break;
       }
-      case 'buy': if (shop) r = G.buyItem(shop, c, id, 1); break;
-      case 'sell': if (shop) r = G.sellItem(shop, c, id, 1); break;
+      case 'buy':
+        if (shop) r = G.buyItem(shop, c, id, 1, activeSheetFor(c));
+        break;
+      case 'sell':
+        if (shop) r = G.sellItem(shop, c, id, 1, activeSheetFor(c));
+        break;
       // 000309: разборка предмета на составные части (Game.Craft —
       // typeof-guard: регрессия порядка загрузки — отказ, не падение;
       // успех — флэш по существующей ветке flashNotice(r.message)).
@@ -1144,6 +1151,9 @@
         body.appendChild(el('div', 'cp-itemmeta', 'Этот NPC не торгует.'));
         return;
       }
+      // 000299.03: цены — по Торговцу активного (activeSheetNow,
+      // 000299.02); «Золото»/мутабельная часть — за c (hero, 000194).
+      const priceChar = activeSheetNow();
       body.appendChild(el('div', 'cp-itemmeta', 'Золото: ' + c.gold));
       for (const p of npc.торговля.предметы) {
         const it = G.getItem(p.предмет);
@@ -1152,8 +1162,10 @@
         row.appendChild(el('span', 'cp-itemname',
           it.name + ' (ост. ' + (npcShop.stock[p.предмет] || 0) + ')'));
         row.appendChild(el('span', 'cp-itemmeta',
-          'покупка ' + G.npcBuyPrice(npcShop, p.предмет, c) + ' з / ' +
-          'продажа ' + G.npcSellPrice(npcShop, p.предмет, c) + ' з'));
+          'покупка ' + G.npcBuyPrice(npcShop, p.предмет, priceChar) +
+          ' з / ' +
+          'продажа ' + G.npcSellPrice(npcShop, p.предмет, priceChar) +
+          ' з'));
         const bBuy = el('button', 'cp-btn', 'купить');
         bBuy.dataset.npcact = 'buy';
         bBuy.dataset.item = p.предмет;
@@ -1378,6 +1390,8 @@
       // закрывается, записей в сейв/flash нет, вкладка не
       // переключается. 000299.02: вкладка «диалог» перерисовывается
       // ин-плейс — набор опций зависит от scope `для` активного.
+      // 000299.03: то же для «торговли» — цены зависят от
+      // Торговца активного (иначе открытая вкладка — stale-цены).
       const pt = e && e.target;
       if (pt && typeof pt.closest === 'function') {
         const pb = pt.closest('button.cp-portrait');
@@ -1389,7 +1403,7 @@
           if (portraitsRow) {
             renderPartyPortraitsRow(portraitsRow, c, activeCharId);
           }
-          if (tab === 'dialog') renderTab();
+          if (tab === 'dialog' || tab === 'trade') renderTab();
           return;
         }
       }
@@ -1494,9 +1508,11 @@
         return;
       }
       if (act === 'buy' || act === 'sell') {
+        // 000299.03: цена — по активному (priceChar), мутации — за c.
+        const priceChar = activeSheetNow();
         const r = act === 'buy'
-          ? G.npcBuy(npcShop, c, btn.dataset.item, 1)
-          : G.npcSell(npcShop, c, btn.dataset.item, 1);
+          ? G.npcBuy(npcShop, c, btn.dataset.item, 1, priceChar)
+          : G.npcSell(npcShop, c, btn.dataset.item, 1, priceChar);
         if (r.ok) {
           npcLog((act === 'buy' ? 'Куплено: ' : 'Продано: ') +
             G.getItem(r.item).name + ' за ' + r.price + ' з');

@@ -1558,12 +1558,12 @@
   }
 
   /** Покупка предмета в магазине. */
-  function buyItem(shop, c, itemId, qty = 1) {
+  function buyItem(shop, c, itemId, qty = 1, priceChar = c) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     const have = (shop.stock && shop.stock[itemId]) || 0;
     if (have < qty) return { ok: false, reason: 'нет в наличии' };
-    const price = buyPrice(shop, itemId, c) * qty;
+    const price = buyPrice(shop, itemId, priceChar) * qty;
     if (c.gold < price) return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
     const add = addItem(c, itemId, qty);
     if (!add.ok) return { ok: false, reason: add.reason };
@@ -1573,7 +1573,7 @@
   }
 
   /** Продажа предмета из инвентаря магазину (экипированное — нет). */
-  function sellItem(shop, c, itemId, qty = 1) {
+  function sellItem(shop, c, itemId, qty = 1, priceChar = c) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     const kinds = shopKindsFor(shop.buildingType);
@@ -1581,7 +1581,7 @@
       return { ok: false, reason: 'магазин не скупает такие предметы' };
     }
     if (!hasItem(c, itemId, qty)) return { ok: false, reason: 'предмета нет в инвентаре' };
-    const price = sellPrice(shop, itemId, c) * qty;
+    const price = sellPrice(shop, itemId, priceChar) * qty;
     removeItem(c, itemId, qty);
     c.gold += price;
     return { ok: true, item: itemId, qty, price };

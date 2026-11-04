@@ -332,13 +332,13 @@
   }
 
   /** Покупка предмета у NPC. Инварианты: gold ≥ 0, сток ≥ 0. */
-  function npcBuy(shop, character, itemId, qty = 1) {
+  function npcBuy(shop, character, itemId, qty = 1, priceChar = character) {
     if (!tradeEntry(shop, itemId)) {
       return { ok: false, reason: 'NPC не продаёт такой предмет' };
     }
     const have = shop.stock[itemId] || 0;
     if (have < qty) return { ok: false, reason: 'нет в наличии' };
-    const price = npcBuyPrice(shop, itemId, character) * qty;
+    const price = npcBuyPrice(shop, itemId, priceChar) * qty;
     if (character.gold < price) {
       return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
     }
@@ -350,14 +350,14 @@
   }
 
   /** Продажа предмета NPC. Инварианты: gold ≥ 0, сток ≥ 0. */
-  function npcSell(shop, character, itemId, qty = 1) {
+  function npcSell(shop, character, itemId, qty = 1, priceChar = character) {
     if (!tradeEntry(shop, itemId)) {
       return { ok: false, reason: 'NPC не скупает такие предметы' };
     }
     if (!I.hasItem(character, itemId, qty)) {
       return { ok: false, reason: 'предмета нет в инвентаре' };
     }
-    const price = npcSellPrice(shop, itemId, character) * qty;
+    const price = npcSellPrice(shop, itemId, priceChar) * qty;
     I.removeItem(character, itemId, qty);
     character.gold += price;
     return { ok: true, item: itemId, qty, price };
