@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "aegis"
-  }
+  },
+  "icon": "assets/sprites/items/aegis_scroll.svg"
 }

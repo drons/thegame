@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stone_wall"
-  }
+  },
+  "icon": "assets/sprites/items/stone_wall_scroll.svg"
 }

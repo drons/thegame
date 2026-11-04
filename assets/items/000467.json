@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "resilience"
-  }
+  },
+  "icon": "assets/sprites/items/resilience_scroll.svg"
 }

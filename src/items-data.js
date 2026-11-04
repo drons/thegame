@@ -6081,6 +6081,7 @@
       tier: 1,
       desc: "Свиток: изучает «Железный бастион» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "iron_bulwark" },
+      icon: "assets/sprites/items/iron_bulwark_scroll.svg",
     },
     // 000461.json
     {
@@ -6092,6 +6093,7 @@
       tier: 2,
       desc: "Свиток: изучает «Эгида» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "aegis" },
+      icon: "assets/sprites/items/aegis_scroll.svg",
     },
     // 000462.json
     {
@@ -6103,6 +6105,7 @@
       tier: 2,
       desc: "Свиток: изучает «Стена щитов» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "shield_wall" },
+      icon: "assets/sprites/items/shield_wall_scroll.svg",
     },
     // 000463.json
     {
@@ -6114,6 +6117,7 @@
       tier: 3,
       desc: "Свиток: изучает «Магический барьер» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "magical_barrier" },
+      icon: "assets/sprites/items/magical_barrier_scroll.svg",
     },
     // 000464.json
     {
@@ -6125,6 +6129,7 @@
       tier: 3,
       desc: "Свиток: изучает «Каменный панцирь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stony_hide" },
+      icon: "assets/sprites/items/stony_hide_scroll.svg",
     },
     // 000465.json
     {
@@ -6136,6 +6141,7 @@
       tier: 4,
       desc: "Свиток: изучает «Железная твердыня» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "iron_bastion" },
+      icon: "assets/sprites/items/iron_bastion_scroll.svg",
     },
     // 000466.json
     {
@@ -6147,6 +6153,7 @@
       tier: 4,
       desc: "Свиток: изучает «Ограда бастиона» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "bulwark_ward" },
+      icon: "assets/sprites/items/bulwark_ward_scroll.svg",
     },
     // 000467.json
     {
@@ -6158,6 +6165,7 @@
       tier: 1,
       desc: "Свиток: изучает «Стойкость» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "resilience" },
+      icon: "assets/sprites/items/resilience_scroll.svg",
     },
     // 000468.json
     {
@@ -6169,6 +6177,7 @@
       tier: 1,
       desc: "Свиток: изучает «Шипы» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "thorns" },
+      icon: "assets/sprites/items/thorns_scroll.svg",
     },
     // 000469.json
     {
@@ -6180,6 +6189,7 @@
       tier: 2,
       desc: "Свиток: изучает «Крепость духа» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "fortitude" },
+      icon: "assets/sprites/items/fortitude_scroll.svg",
     },
     // 000470.json
     {
@@ -6191,6 +6201,7 @@
       tier: 2,
       desc: "Свиток: изучает «Клятва хранителя» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "guardian_oath" },
+      icon: "assets/sprites/items/guardian_oath_scroll.svg",
     },
     // 000471.json
     {
@@ -6202,6 +6213,7 @@
       tier: 3,
       desc: "Свиток: изучает «Непоколебимость» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stalwart" },
+      icon: "assets/sprites/items/stalwart_scroll.svg",
     },
     // 000472.json
     {
@@ -6213,6 +6225,7 @@
       tier: 3,
       desc: "Свиток: изучает «Аура защиты» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "aura_of_protection" },
+      icon: "assets/sprites/items/aura_of_protection_scroll.svg",
     },
     // 000473.json
     {
@@ -6224,6 +6237,7 @@
       tier: 2,
       desc: "Свиток: изучает «Ослабление защиты» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "weaken_defense" },
+      icon: "assets/sprites/items/weaken_defense_scroll.svg",
     },
     // 000474.json
     {
@@ -6235,6 +6249,7 @@
       tier: 3,
       desc: "Свиток: изучает «Коррозия» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "corrode" },
+      icon: "assets/sprites/items/corrode_scroll.svg",
     },
     // 000475.json
     {
@@ -6246,6 +6261,7 @@
       tier: 2,
       desc: "Свиток: изучает «Каменная хватка» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stone_grasp" },
+      icon: "assets/sprites/items/stone_grasp_scroll.svg",
     },
     // 000476.json
     {
@@ -6257,6 +6273,7 @@
       tier: 3,
       desc: "Свиток: изучает «Замедление времени» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "time_slow" },
+      icon: "assets/sprites/items/time_slow_scroll.svg",
     },
     // 000477.json
     {
@@ -6268,6 +6285,7 @@
       tier: 2,
       desc: "Свиток: изучает «Каменная стена» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stone_wall" },
+      icon: "assets/sprites/items/stone_wall_scroll.svg",
     },
     // 000478.json
     {
@@ -6279,6 +6297,7 @@
       tier: 3,
       desc: "Свиток: изучает «Хранительное поле» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "guardian_field" },
+      icon: "assets/sprites/items/guardian_field_scroll.svg",
     },
     // 000479.json
     {
@@ -6290,6 +6309,7 @@
       tier: 3,
       desc: "Свиток: изучает «Каменный голем» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stone_golem" },
+      icon: "assets/sprites/items/stone_golem_scroll.svg",
     },
     // 000480.json
     {
@@ -6301,6 +6321,7 @@
       tier: 4,
       desc: "Свиток: изучает «Железный страж» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "iron_sentinel" },
+      icon: "assets/sprites/items/iron_sentinel_scroll.svg",
     },
     // 000481.json
     {
@@ -6312,6 +6333,7 @@
       tier: 2,
       desc: "Свиток: изучает «Каменный якорь» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "stone_anchor" },
+      icon: "assets/sprites/items/stone_anchor_scroll.svg",
     },
     // 000482.json
     {
@@ -6323,6 +6345,7 @@
       tier: 2,
       desc: "Свиток: изучает «Возврат» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "recall" },
+      icon: "assets/sprites/items/recall_scroll.svg",
     },
     // 000483.json
     {
@@ -6334,6 +6357,7 @@
       tier: 3,
       desc: "Свиток: изучает «Врата» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "gate" },
+      icon: "assets/sprites/items/gate_scroll.svg",
     },
     // 000484.json
     {
@@ -6345,6 +6369,7 @@
       tier: 3,
       desc: "Свиток: изучает «Круг защиты» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "warding_circle" },
+      icon: "assets/sprites/items/warding_circle_scroll.svg",
     },
     // 000485.json
     {

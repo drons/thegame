@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "magical_barrier"
-  }
+  },
+  "icon": "assets/sprites/items/magical_barrier_scroll.svg"
 }

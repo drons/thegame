@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "bulwark_ward"
-  }
+  },
+  "icon": "assets/sprites/items/bulwark_ward_scroll.svg"
 }

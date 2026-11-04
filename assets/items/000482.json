@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "recall"
-  }
+  },
+  "icon": "assets/sprites/items/recall_scroll.svg"
 }

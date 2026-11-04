@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "corrode"
-  }
+  },
+  "icon": "assets/sprites/items/corrode_scroll.svg"
 }

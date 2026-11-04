@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "iron_bastion"
-  }
+  },
+  "icon": "assets/sprites/items/iron_bastion_scroll.svg"
 }

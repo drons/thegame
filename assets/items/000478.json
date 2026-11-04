@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "guardian_field"
-  }
+  },
+  "icon": "assets/sprites/items/guardian_field_scroll.svg"
 }

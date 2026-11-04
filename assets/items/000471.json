@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stalwart"
-  }
+  },
+  "icon": "assets/sprites/items/stalwart_scroll.svg"
 }

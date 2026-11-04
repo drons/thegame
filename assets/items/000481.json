@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stone_anchor"
-  }
+  },
+  "icon": "assets/sprites/items/stone_anchor_scroll.svg"
 }

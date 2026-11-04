@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "fortitude"
-  }
+  },
+  "icon": "assets/sprites/items/fortitude_scroll.svg"
 }

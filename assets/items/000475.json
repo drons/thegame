@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stone_grasp"
-  }
+  },
+  "icon": "assets/sprites/items/stone_grasp_scroll.svg"
 }

@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "thorns"
-  }
+  },
+  "icon": "assets/sprites/items/thorns_scroll.svg"
 }

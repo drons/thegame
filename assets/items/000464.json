@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stony_hide"
-  }
+  },
+  "icon": "assets/sprites/items/stony_hide_scroll.svg"
 }

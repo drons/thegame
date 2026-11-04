@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "shield_wall"
-  }
+  },
+  "icon": "assets/sprites/items/shield_wall_scroll.svg"
 }

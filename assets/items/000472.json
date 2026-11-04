@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "aura_of_protection"
-  }
+  },
+  "icon": "assets/sprites/items/aura_of_protection_scroll.svg"
 }

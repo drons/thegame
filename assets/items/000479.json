@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "stone_golem"
-  }
+  },
+  "icon": "assets/sprites/items/stone_golem_scroll.svg"
 }

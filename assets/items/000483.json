@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "gate"
-  }
+  },
+  "icon": "assets/sprites/items/gate_scroll.svg"
 }

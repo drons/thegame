@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "weaken_defense"
-  }
+  },
+  "icon": "assets/sprites/items/weaken_defense_scroll.svg"
 }

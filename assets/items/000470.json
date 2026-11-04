@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "guardian_oath"
-  }
+  },
+  "icon": "assets/sprites/items/guardian_oath_scroll.svg"
 }

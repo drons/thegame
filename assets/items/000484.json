@@ -9,5 +9,6 @@
   "effect": {
     "kind": "spell",
     "spell": "warding_circle"
-  }
+  },
+  "icon": "assets/sprites/items/warding_circle_scroll.svg"
 }
