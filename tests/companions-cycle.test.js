@@ -373,6 +373,7 @@ function backfilledEntry(c) {
     npcId: c.npcId,
     sheet: {
       kind: 'merc', level: c.level, xp: c.xp, totalXp: c.xp, points: 0,
+      trainPoints: 10,
       primary: h.базовые_характеристики, secondary,
       skillXp: {}, spells: (h.spells || []).slice(), npcId: c.npcId,
     },
@@ -707,6 +708,7 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
   assert.deepEqual(host(g.state.roster),
     [{ npcId: 'merc_volk', level: 2, xp: 0, loyalty: 65, hiredDay: 2,
       sheet: { kind: 'merc', level: 2, xp: 0, totalXp: 50, points: 2,
+        trainPoints: 10,
         primary: NPC_VOLK.найм.базовые_характеристики,
         secondary: NPC_VOLK.найм.начальные_навыки,
         skillXp: {}, spells: (NPC_VOLK.найм.spells || []).slice(),
@@ -1049,8 +1051,9 @@ test('000205-E2E2: e2e — погибший мерс: deadMercs[0].sheet.totalXp
 //
 // Seed — НОВЫЙ формат записи {npcId, sheet, loyalty, hiredDay} С
 // equipment (backfill-запись СТАРОГО формата equipment НЕ несёт —
-// S2 absent→absent): sheet — канон 10 ключей (рецепт backfilledEntry)
-// + equipment через I000242.sanitizeEquipment (host-side require).
+// S2 absent→absent): sheet — канон 11 ключей (рецепт backfilledEntry;
+// 000300: +trainPoints) + equipment через I000242.sanitizeEquipment
+// (host-side require).
 //
 // КРАСНЫЕ (TDD; текущий payWages ВСЕГДА splices при уходе — предмет
 // в sheet.equipment уничтожаемой записи ПОТЕРЯН; проверка redverify):
@@ -1064,8 +1067,9 @@ test('000205-E2E2: e2e — погибший мерс: deadMercs[0].sheet.totalXp
 
 const I000242 = require('../src/items.js');
 
-// Запись Волька НОВОГО формата: backfilledEntry (канон 10 ключей) +
-// equipment {right_hand: 'iron_sword'} (канон-санитизация, 20 ключей).
+// Запись Волька НОВОГО формата: backfilledEntry (канон 11 ключей;
+// 000300: +trainPoints) + equipment {right_hand: 'iron_sword'}
+// (канон-санитизация, 20 ключей).
 function volkWithSword(loyalty) {
   const e = backfilledEntry({ npcId: 'merc_volk', level: 1, xp: 0,
     loyalty, hiredDay: 2 });

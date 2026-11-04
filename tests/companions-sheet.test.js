@@ -139,8 +139,9 @@ test('000143 CS-1: найм → запись ровно {npcId, sheet, level, xp
   assert.ok(sh && typeof sh === 'object', 'sheet — создаётся при найме');
   assert.deepEqual(Object.keys(sh).sort(), [
     'kind', 'level', 'npcId', 'points', 'primary', 'secondary',
-    'skillXp', 'spells', 'totalXp', 'xp',
-  ], 'канонический merc-лист — 10 ключей (createSheet, 000140)');
+    'skillXp', 'spells', 'totalXp', 'trainPoints', 'xp',
+  ], 'канонический merc-лист — 11 ключей (createSheet, 000140; '
+    + '000300: +trainPoints)');
   assert.equal(sh.kind, 'merc');
   assert.equal(sh.npcId, 'merc_volk', 'носитель — npcId');
   assert.equal(sh.level, 1, 'fresh-лист: уровень 1');

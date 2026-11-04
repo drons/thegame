@@ -558,6 +558,11 @@ function (settings, G) {
       spells: (Array.isArray(s.spells) ? s.spells : []).slice(),
       npcId: s.npcId,
     };
+    // 000300: trainPoints — УСЛОВНАЯ копия (absent → absent; листы из
+    // старого формата без поля не приобретают его при сериализации).
+    if (typeof s.trainPoints === 'number') {
+      out.trainPoints = s.trainPoints;
+    }
     const eq = s.equipment;
     if (eq && typeof eq === 'object' && !Array.isArray(eq)) {
       out.equipment = Object.assign({}, eq);
@@ -626,12 +631,18 @@ function (settings, G) {
       ? s.totalXp : s.xp;
     const points = (Number.isInteger(s.points) && s.points >= 0)
       ? s.points : 0;
+    // 000300: trainPoints — ВСЕ runtime-листы получают поле (absent/
+    // невалидно → 10, прецедент sanitizeSavedHero 000298 L4).
+    const trainPoints = (Number.isInteger(s.trainPoints)
+      && s.trainPoints >= 0 && s.trainPoints <= 10)
+      ? s.trainPoints : 10;
     const out = {
       kind: 'merc',
       level: s.level,
       xp: s.xp,
       totalXp,
       points,
+      trainPoints,
       primary,
       secondary,
       skillXp,

@@ -1188,11 +1188,15 @@
         body.appendChild(el('div', 'cp-itemmeta', 'Этот NPC не обучает.'));
         return;
       }
-      body.appendChild(el('div', 'cp-itemmeta', 'Свободные очки: ' + c.points));
+      // 000300: обучается АКТИВНЫЙ персонаж (activeSheetNow, 000299.02):
+      // уровень/цена/лимит — по trainChar; золото (can-чек) — за c (hero).
+      const trainChar = activeSheetNow();
+      body.appendChild(el('div', 'cp-itemmeta',
+        'Свободные очки: ' + trainChar.points));
       for (const id of skills) {
         const s = G.SECONDARY_SKILLS[id] || { name: id };
-        const lvl = c.secondary[id] || 0;
-        const price = G.schoolTrainPrice(npc, c, id);
+        const lvl = trainChar.secondary[id] || 0;
+        const price = G.schoolTrainPrice(npc, trainChar, id);
         const row = el('div', 'cp-itemrow');
         row.appendChild(el('span', 'cp-itemname',
           (lvl > 0 ? G.secondaryName(id, lvl) : s.name) + ' (' + lvl + ')'));
@@ -1201,7 +1205,7 @@
         const bTrain = el('button', 'cp-btn', '+ (' + price + ' з)');
         bTrain.dataset.npcact = 'train';
         bTrain.dataset.skill = id;
-        const can = G.canSchoolTrain(npc, c, id);
+        const can = G.canSchoolTrain(npc, trainChar, id, c);
         if (!can.ok) { bTrain.disabled = true; bTrain.title = can.reason; }
         row.appendChild(bTrain);
         body.appendChild(row);
@@ -1403,7 +1407,8 @@
           if (portraitsRow) {
             renderPartyPortraitsRow(portraitsRow, c, activeCharId);
           }
-          if (tab === 'dialog' || tab === 'trade') renderTab();
+          if (tab === 'dialog' || tab === 'trade' || tab === 'train')
+            renderTab();
           return;
         }
       }
@@ -1525,7 +1530,8 @@
         return;
       }
       if (act === 'train') {
-        const r = G.schoolTrain(npc, c, btn.dataset.skill);
+        // 000300: обучающийся — активный (activeSheetNow), платит c (hero).
+        const r = G.schoolTrain(npc, activeSheetNow(), btn.dataset.skill, c);
         npcLog(r.ok ? 'Уровень: ' + r.level + ' (−' + r.price + ' з)' : r.reason);
         if (r.ok && onChange) onChange();
         renderTab();

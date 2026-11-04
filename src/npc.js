@@ -228,8 +228,12 @@
     return SCHOOL_TRAIN_BASE_COST + SCHOOL_TRAIN_QUAD_COEFF * L * L;
   }
 
-  /** Можно ли обучить навык. Проверки по порядку, первая неудача. */
-  function canSchoolTrain(npc, character, skillId) {
+  /** Можно ли обучить навык. Проверки по порядку, первая неудача.
+   *  000300: payChar — хвостовой опциональный (payChar = character):
+   *  золото-чек — по платильщику (в UI — всегда hero), бюджет/навык —
+   *  по character (обучающемуся). 3-арг. вызовы — бит-в-бит. */
+  function canSchoolTrain(npc, character, skillId, payChar) {
+    if (payChar === undefined) payChar = character;
     if (!schoolSkills(npc).includes(skillId)) {
       return { ok: false, reason: 'навык не обучается здесь' };
     }
@@ -249,7 +253,7 @@
       return { ok: false, reason: 'нет очков обучения на этом уровне' };
     }
     const price = schoolTrainPrice(npc, character, skillId);
-    if (character.gold < price) {
+    if (payChar.gold < price) {
       return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
     }
     return { ok: true };
@@ -270,13 +274,16 @@
 
   /**
    * Прокачка за золото: +1 уровень, очки НЕ тратит (в отличие от P.raiseSkill).
+   * 000300: payChar — хвостовой опциональный (payChar = character): gold —
+   * с платильщика (в UI — hero), навык/trainPoints — по character.
    * @returns {{ok:boolean, level?:number, price?:number, reason?:string}}
    */
-  function schoolTrain(npc, character, skillId) {
-    const check = canSchoolTrain(npc, character, skillId);
+  function schoolTrain(npc, character, skillId, payChar) {
+    if (payChar === undefined) payChar = character;
+    const check = canSchoolTrain(npc, character, skillId, payChar);
     if (!check.ok) return { ok: false, reason: check.reason };
     const price = schoolTrainPrice(npc, character, skillId);
-    character.gold -= price;
+    payChar.gold -= price;
     character.secondary[skillId] = (character.secondary[skillId] || 0) + 1;
     if (typeof character.trainPoints === 'number') {
       character.trainPoints -= 1;

@@ -701,6 +701,7 @@
       xp: state.xp,
       totalXp: state.totalXp,
       points: state.points,
+      trainPoints: state.trainPoints,
       primary: Object.assign({}, state.primary),
       secondary: Object.assign({}, state.secondary),
       skillXp: Object.assign({}, state.skillXp),
@@ -769,6 +770,7 @@
     let primary;
     let totalXp;
     let points;
+    let trainPoints;
     let secondary;
     let mirror;
     if (isNewFormat) {
@@ -801,6 +803,16 @@
       } else {
         points = raw.points;
       }
+      // 000300: trainPoints — absent/невалидно (forged) → 10 (НЕ null —
+      // санация, прецедент sanitizeSavedHero 000298 L4).
+      if (raw.trainPoints === undefined) {
+        trainPoints = 10;
+      } else if (Number.isInteger(raw.trainPoints)
+          && raw.trainPoints >= 0 && raw.trainPoints <= 10) {
+        trainPoints = raw.trainPoints;
+      } else {
+        trainPoints = 10;
+      }
       secondary = readSkillMap(raw.secondary, skillIds, 'int');
       if (secondary === null) return null;
       mirror = readSkillMap(raw.skills, skillIds, 'int');
@@ -814,6 +826,7 @@
       primary = Object.assign({}, EFIR_START_PRIMARY);
       totalXp = 0;
       points = 0;
+      trainPoints = 10;
       const cached = readSkillMap(raw.skills, skillIds, 'int');
       if (cached === null) return null;
       secondary = Object.assign({}, cached);
@@ -851,6 +864,7 @@
       xp: raw.xp,
       totalXp: totalXp,
       points: points,
+      trainPoints: trainPoints,
       primary: primary,
       secondary: secondary,
       skillXp: skillXp,

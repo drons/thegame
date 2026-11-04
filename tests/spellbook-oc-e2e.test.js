@@ -1956,13 +1956,13 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
   assert.equal(saveHero(h).mp, 44, 'фикстура: герой mp 44 (maxMP 70)');
   // deadMercs после загрузки (порядок сид-массива): string → backfill
   // (каталог volk: str 3/con 2, swordsman 2, spells []), record →
-  // sanitize (10 ключей, свежая копия).
+  // sanitize (11 ключей, 000300: +trainPoints; свежая копия).
   assert.deepEqual(host(g.state.deadMercs), [
     {
       npcId: 'merc_volk',
       sheet: {
         kind: 'merc', npcId: 'merc_volk', level: 1, xp: 0, totalXp: 0,
-        points: 0,
+        points: 0, trainPoints: 10,
         primary: { strength: 3, dexterity: 1, constitution: 2,
           intelligence: 1, wisdom: 1, charisma: 1 },
         secondary: { swordsman: 2 }, skillXp: {}, spells: [],
@@ -1973,7 +1973,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
       npcId: 'merc_mira',
       sheet: {
         kind: 'merc', npcId: 'merc_mira', level: 3, xp: 100, totalXp: 100,
-        points: 0,
+        points: 0, trainPoints: 10,
         primary: { strength: 1, dexterity: 1, constitution: 1,
           intelligence: 3, wisdom: 2, charisma: 1 },
         secondary: { meditation: 2 }, skillXp: {},
@@ -2002,7 +2002,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
       npcId: 'merc_mira',
       sheet: {
         kind: 'merc', npcId: 'merc_mira', level: 3, xp: 100, totalXp: 100,
-        points: 0,
+        points: 0, trainPoints: 10,
         primary: { strength: 1, dexterity: 1, constitution: 1,
           intelligence: 3, wisdom: 2, charisma: 1 },
         secondary: { meditation: 2 }, skillXp: {},
@@ -2014,7 +2014,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
       npcId: 'merc_volk',
       sheet: {
         kind: 'merc', npcId: 'merc_volk', level: 1, xp: 0, totalXp: 0,
-        points: 0,
+        points: 0, trainPoints: 10,
         primary: { strength: 3, dexterity: 1, constitution: 2,
           intelligence: 1, wisdom: 1, charisma: 1 },
         secondary: { swordsman: 2 }, skillXp: {}, spells: [],

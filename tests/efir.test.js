@@ -247,15 +247,16 @@ test('000081 R1: efir.js грузится (node + браузерная ветк�
     'в src/efir.js НОЛЬ require( — чистый UMD (прецедент 000053/000038)');
 });
 
-test('000081 R2: createEfir() — лист (10 ключей, без npcId; 000139: осознанный пере-пин 000085→000115); независимые объекты; старт [spark, mend] — данные модуля, копия на вызов, id ∈ assets/spells', () => {
+test('000081 R2: createEfir() — лист (11 ключей, без npcId; 000139: осознанный пере-пин 000085→000115; 000300: +trainPoints); независимые объекты; старт [spark, mend] — данные модуля, копия на вызов, id ∈ assets/spells', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const s = E.createEfir();
     assert.deepEqual(
       Object.keys(s).sort(),
       ['kind', 'level', 'points', 'primary', 'secondary', 'skillXp',
-       'skills', 'spells', 'totalXp', 'xp'],
-      'состояние — лист (10 ключей, без npcId; HP/MP НЕТ) ' +
+       'skills', 'spells', 'totalXp', 'trainPoints', 'xp'],
+      'состояние — лист (11 ключей, без npcId; HP/MP НЕТ; ' +
+      '000300: trainPoints) ' +
       '(000139: единый лист — осознанный пере-пин 000085→000115)');
     assert.equal(s.kind, 'efir', "kind — 'efir' (000139)");
     assert.equal(s.level, 1);
@@ -860,8 +861,9 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   assert.ok(res !== null, 'каталогически-валидные id — приняты');
   assert.deepEqual(Object.keys(res).sort(),
     ['kind', 'level', 'points', 'primary', 'secondary', 'skillXp',
-     'skills', 'spells', 'totalXp', 'xp'],
-    'ровно 10 полей — лист (000139: осознанный пере-пин 000085→000115)');
+     'skills', 'spells', 'totalXp', 'trainPoints', 'xp'],
+    'ровно 11 полей — лист (000139: осознанный пере-пин 000085→000115; '
+    + '000300: trainPoints)');
   assert.equal(res.kind, 'efir', "kind — 'efir' (000139)");
   assert.equal(res.totalXp, 0, 'totalXp — 0 (backfill: истории нет) (000139)');
   assert.equal(res.points, 0, 'points — 0 (backfill) (000139)');

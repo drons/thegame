@@ -187,6 +187,7 @@
       xp: 0,
       totalXp: 0,
       points: 0,
+      trainPoints: TRAIN_POINTS_PER_LEVEL,
       primary,
       secondary: {},
       skillXp: {},

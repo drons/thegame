@@ -4,8 +4,9 @@
 // База: master c627b38 (000140 смержен — Game.Sheet в src/sheet.js).
 // Падают, пока src/efir.js не переехал на лист (контракт
 // memory/000144-efir-sheet.md): состояние Эфира = Game.Sheet (kind
-// 'efir', 10 ключей: kind, level, xp, totalXp, points, primary,
-// secondary, skillXp, skills, spells — npcId нет), XP/уровни/очки
+// 'efir', 11 ключей: kind, level, xp, totalXp, points, trainPoints
+// (000300), primary, secondary, skillXp, skills, spells — npcId
+// нет), XP/уровни/очки
 // 2-за-уровень — через API Sheet (обёртки addEfirXp/levelUp),
 // статки боя — derived-модификатор от primary (не от уровня),
 // serde — sheet-лейаут + backfill старого 5-полевого формата.
@@ -13,7 +14,7 @@
 // Краснота ОСМЫСЛЕННАЯ («функциональности нет»), не синтаксическая:
 // модули существуют и грузятся, каталоги читаются; падение —
 // AssertionError на отсутствии нового поведения:
-//   * ES-1 — createEfir() → стартовый sheet (10 ключей; Int=Wis=Con=3,
+//   * ES-1 — createEfir() → стартовый sheet (11 ключей; Int=Wis=Con=3,
 //     остальные 1; начальный список {firelord:1, icelord:0,
 //     perception:1, precog:0}) — сейчас: 5-полевой объект;
 //   * ES-2 — XP → level → points = 2/уровень (addEfirXp — обёртка,
@@ -31,7 +32,7 @@
 //     15/20/22/25/30) накладываются на лист (append-only, без дублей),
 //     сосуществование с очками — сейчас: на состоянии нет sheet-
 //     лейаута/полей;
-//   * ES-6 — serde: serializeEfir → sheet-лейаут (ровно 10 ключей);
+//   * ES-6 — serde: serializeEfir → sheet-лейаут (ровно 11 ключей);
 //     deserializeEfir — старое 5-полевое JSON → BACKFILL в sheet
 //     (primary по старт-формуле, кэш skills → secondary как есть,
 //     points/totalXp 0, reprocess); INVALID обоих форматов → null;
@@ -110,10 +111,10 @@ const SPELL_FILES = () => fs.readdirSync(SPELLS_DIR)
 const SPELL_CATALOG = SPELL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')));
 
-// Sheet-лейаут Эфира (10 ключей, без npcId — контракт 000144):
-// отсортирован (пины — Object.keys().sort()).
+// Sheet-лейаут Эфира (11 ключей, без npcId — контракт 000144;
+// 000300: +trainPoints): отсортирован (пины — Object.keys().sort()).
 const SHEET_KEYS = ['kind', 'level', 'points', 'primary', 'secondary',
-  'skillXp', 'skills', 'spells', 'totalXp', 'xp'];
+  'skillXp', 'skills', 'spells', 'totalXp', 'trainPoints', 'xp'];
 // Старт-формула (решение аудита; SPEC «Дух Эфира» — тройка 3,
 // остальные 1): эквивалентно старой таблице a = 3 при L1.
 const START_PRIMARY = { strength: 1, dexterity: 1, constitution: 3,
@@ -129,12 +130,12 @@ function hero() {
   return p;
 }
 
-test('000144 ES-1: createEfir() — стартовый sheet kind "efir" (ровно 10 ключей): Int/Wis/Con = 3, остальные 1; начальный список {firelord:1, icelord:0, perception:1, precog:0}; spells [spark, mend]; skillXp чист', () => {
+test('000144 ES-1: createEfir() — стартовый sheet kind "efir" (ровно 11 ключей): Int/Wis/Con = 3, остальные 1; начальный список {firelord:1, icelord:0, perception:1, precog:0}; spells [spark, mend]; skillXp чист', () => {
   withGame(gameWithXp(), () => {
     const E = loadEfir();
     const s = E.createEfir();
     assert.deepEqual(Object.keys(s).sort(), SHEET_KEYS,
-      'состояние — sheet (10 ключей, без npcId; 000139: единый лист)');
+      'состояние — sheet (11 ключей, без npcId; 000139: единый лист)');
     assert.equal(s.kind, 'efir', "kind — 'efir'");
     assert.equal(s.level, 1);
     assert.equal(s.xp, 0);
@@ -338,7 +339,7 @@ test('000144 ES-5: авто-разблокировки EFIR_SPELL_UNLOCKS (9 ш�
     };
     toLevel(5);
     assert.deepEqual(Object.keys(s).sort(), SHEET_KEYS,
-      'состояние на любом уровне — sheet (10 ключей)');
+      'состояние на любом уровне — sheet (11 ключей)');
     assert.equal(s.level, 5, 'L1 → L5 (levelUp-цикл, без хардкода сумм)');
     assert.equal(s.points, 8, 'L5: 4 уровня × 2 очка (сосуществование)');
     assert.deepEqual(s.spells, ['spark', 'mend', 'light_heal'],
@@ -362,7 +363,7 @@ test('000144 ES-5: авто-разблокировки EFIR_SPELL_UNLOCKS (9 ш�
   });
 });
 
-test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 10 ключей, без npcId); deserializeEfir — старое 5-полевое JSON (фикс) → BACKFILL в sheet (primary — старт, кэш skills → secondary как есть, points/totalXp = 0, ОБЯЗАТЕЛЬНЫЙ reprocess); INVALID (оба формата) → null; serialize «голого» (без primary) → null', () => {
+test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 11 ключей, без npcId); deserializeEfir — старое 5-полевое JSON (фикс) → BACKFILL в sheet (primary — старт, кэш skills → secondary как есть, points/totalXp = 0, ОБЯЗАТЕЛЬНЫЙ reprocess); INVALID (оба формата) → null; serialize «голого» (без primary) → null', () => {
   const E = loadEfir();
   // Фиксированное JSON СТАРОГО формата (000115-лейаут 5 полей):
   // банк 999 за потолком L1 (cap 6), кэш firelord 3, L5-книга.
@@ -378,7 +379,7 @@ test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 10
   const s = E.deserializeEfir(OLD, SKILL_CATALOG, SPELL_CATALOG);
   assert.ok(s !== null, 'старый 5-полевой лейаут — принят (backfill)');
   assert.deepEqual(Object.keys(s).sort(), SHEET_KEYS,
-    'выход — sheet-лейаут (10 ключей, без npcId)');
+    'выход — sheet-лейаут (11 ключей, без npcId)');
   assert.equal(s.kind, 'efir');
   assert.equal(s.level, 5, 'level — перенесён 1:1');
   assert.equal(s.xp, 20, 'xp — перенесён 1:1');
@@ -396,11 +397,11 @@ test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 10
     'skillXp: 999 − 225 (уровни 4/5/6) = 774 (плотный 4 id)');
   assert.deepEqual(s.spells, ['spark', 'mend', 'light_heal'],
     'spells — сохранены');
-  // serializeEfir — sheet-лейаут (ровно 10 ключей; копия по значениям).
+  // serializeEfir — sheet-лейаут (ровно 11 ключей; копия по значениям).
   const snap = E.serializeEfir(s);
   assert.ok(snap !== null, 'serializeEfir(sheet) — не null');
   assert.deepEqual(Object.keys(snap).sort(), SHEET_KEYS,
-    'serialize — ровно 10 ключей (C3: раздел сейва = sheet-лейаут)');
+    'serialize — ровно 11 ключей (C3: раздел сейва = sheet-лейаут)');
   assert.deepEqual(snap, s, 'снимок — идентичен по значениям');
   // Round-trip на sheet-форме — идентично (неподвижная точка
   // reprocess: firelord уже = cap 6 → while (level < cap) не крутится,
