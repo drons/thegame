@@ -1229,14 +1229,7 @@
           // возвращает reason — в журнал, а не тишина (задача 000048;
           // 000168: c.move стал контекстным — диспатч по активному).
           const mv = c.move(r.dx, r.dy);
-          if (mv && mv.ok) {
-            if (closePlacementWindow()) {
-              c = ctx.combat;
-              logRejection(c, c.move(r.dx, r.dy));
-            }
-          } else {
-            logRejection(c, mv);
-          }
+          if (!mv || !mv.ok) logRejection(c, mv);
         }
       } else if (r.kind === 'action') {
         if (r.reason) {

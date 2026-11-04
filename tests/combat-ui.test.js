@@ -1502,20 +1502,37 @@ test('боевой UI: handleCode — единый путь «code → дейс�
 
   // (в) Шаг: handleCode('ArrowUp') — как keydown ArrowUp. Две
   // идентичные песочницы (один seed) — поведение бит-в-бит.
+  // 000310 (ре-пин 000121(в), ретро-000305): после 000305 окно
+  // расстановки открыто — обе песочницы исполняли no-op (строка
+  // причины), и паритет «молча» сравнивал отклонение c отклонением.
+  // Enter закрывает окно ДО шага в обеих песочницах (keydown — a,
+  // handleCode — b; паттерн CU199.01-STEPS-1), obstacle-клетка (3,5)
+  // снята — шаг РЕАЛЬНЫЙ, принятый ядром (3,6)→(3,5).
   const a = loadCombatUi();
   const ca = a.G.combatUI.startCombat({
     hero: a.G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
   });
+  ca.obstacles.clear();
+  press(a.keydown, 'Enter');
   const an = ca.log.length;
+  const ax0 = ca.px, ay0 = ca.py;
   press(a.keydown, 'ArrowUp');
+  assert.equal(ca.px, ax0, 'песочница a: шаг без горизонтального смещения');
+  assert.equal(ca.py, ay0 - 1,
+    'песочница a: РЕАЛЬНЫЙ шаг вверх (окно закрыто, клетка свободна)');
+  assert.equal(ca.ps.moveLeft, 0, 'песочница a: шаг сожжён (1→0)');
   const b = loadCombatUi();
   const cb = b.G.combatUI.startCombat({
     hero: b.G.createCharacter(), mobs: ['wolf', 'spider'], mobLevel: 1, seed: 42,
   });
+  cb.obstacles.clear();
+  assert.equal(b.G.combatUI.handleCode('Enter'), true,
+    'Enter — consumed (окно расстановки закрыто)');
   const bn = cb.log.length;
   assert.equal(b.G.combatUI.handleCode('ArrowUp'), true, 'шаг — consumed');
   assert.equal(cb.px, ca.px, 'шаг: позиция x — как у keydown ArrowUp');
   assert.equal(cb.py, ca.py, 'шаг: позиция y — как у keydown ArrowUp');
+  assert.equal(cb.ps.moveLeft, 0, 'песочница b: шаг сожжён (1→0)');
   assert.deepEqual(Array.from(cb.log).slice(bn), Array.from(ca.log).slice(an),
     'шаг: журнал — как у keydown ArrowUp');
 
@@ -12298,4 +12315,68 @@ test('боевой UI: 000305-M2 — полный сценарий: переме
     'без переносов — тот же бой (свапа нет)');
   assert.equal(c.phase, 'player', 'бой активен (ввод игрока)');
   tickSlice(canvas, rafStubs);
+});
+
+// =====================================================================
+// 000310 (ретро-фикс 000305, tasks/result/000305-retro-20261104.md):
+// re-arm строки-предупреждения «раз на окно» между боями (reset
+// placeMoveWarned — точки finish/catch, правило 000170) и явный пин
+// Enter-пути закрытия окна расстановки. Пины текущего поведения:
+// если красный — найденный баг (ТЗ), а не правка теста.
+// =====================================================================
+
+test('боевой UI: 000310-REARM — строка-предупреждение «раз на окно» РЕ-АРМИРУЕТСЯ между боями: бой1 (move → строка) → «В бой» → finish (victory + Space) → бой2 (move → строка СНОВА) (000310-REARM)', () => {
+  const S = scene84();
+  const { G, c, body } = S;
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, 'фикстура: бар расстановки (окно открыто)');
+  const log0 = c.log.length;
+  assert.equal(G.combatUI.handleCode('ArrowUp'), true,
+    'бой1: перемещение в режиме расстановки — потреблено (no-op)');
+  const added = Array.from(c.log).slice(log0);
+  assert.equal(added.length, 1,
+    'бой1: строка-предупреждение — РАЗ на окно: ' + JSON.stringify(added));
+  const go = bar.children[2];
+  go.listeners.click[0]();
+  assert.equal(bar.style.display, 'none',
+    'бой1: «В бой» — окно закрыто (бар none)');
+  assert.equal(G.combatUI.current(), c,
+    'бой1: без переносов — тот же бой (свапа нет)');
+  c.result = { outcome: 'victory' };
+  assert.equal(G.combatUI.handleCode('Space'), true,
+    'бой1: Space — finish (consumed)');
+  const c2 = G.combatUI.startCombat({
+    hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
+  });
+  assert.ok(c2, 'бой2: стартует (после finish — isActive false)');
+  assert.notEqual(c2, c, 'бой2: новый объект боя');
+  const last = body.children[body.children.length - 1];
+  const bar2 = findByClass(last, 'combat-placebar');
+  assert.ok(bar2, 'бой2: бар расстановки (окно открыто)');
+  assert.notEqual(bar2, bar, 'бой2: НОВЫЙ бар (overlay пересобран)');
+  const log1 = c2.log.length;
+  assert.equal(G.combatUI.handleCode('ArrowUp'), true,
+    'бой2: перемещение в режиме расстановки — потреблено (no-op)');
+  const added2 = Array.from(c2.log).slice(log1);
+  assert.equal(added2.length, 1,
+    '000310: строка-предупреждение СНОВА (латча placeMoveWarned '
+    + 'между боями нет): ' + JSON.stringify(added2));
+});
+
+test('боевой UI: 000310-ENTER — Enter закрывает окно расстановки (без переносов): бар none, свапа нет, без новых строк, бой активен (000310-ENTER)', () => {
+  const S = scene84();
+  const { G, c, body } = S;
+  const bar = findByClass(body, 'combat-placebar');
+  assert.ok(bar, 'фикстура: бар расстановки (окно открыто)');
+  assert.equal(bar.style.display, '', 'фикстура: бар виден (placeGate)');
+  const log0 = c.log.length;
+  assert.equal(G.combatUI.handleCode('Enter'), true,
+    'Enter — consumed (единый путь handleCode)');
+  assert.equal(bar.style.display, 'none',
+    '000310: Enter — окно закрыто (бар none)');
+  assert.equal(G.combatUI.current(), c,
+    'без переносов — тот же бой (свапа нет)');
+  assert.equal(c.log.length, log0,
+    '000310: без переносов — без новых строк в журнале');
+  assert.equal(c.phase, 'player', 'бой активен (ввод игрока)');
 });
