@@ -11430,3 +11430,202 @@ test('000283.01-REF-2: «отражение» — союзник (t.buff): mobAt
   assert.equal(a.calls, b.calls, 'RNG-гварда: 0 новых c._rng');
   assert.ok(a.calls > 0, 'фикстура: волк реально бил');
 });
+
+// =====================================================================
+// Задача 000283.01.01: «иммунитет_контроля» — потребитель + новый
+// mob-источник контроля (суккуб) — RED-тесты (TDD). Файл задачи:
+// tasks/pending/000283.01.01.md.
+//
+// Решение дизайнера (императив): (1) источник — суккуб: УДАР суккуба
+// становится полным контролем цели — полный провал действия (bind-
+//подобный) на 1 ход; реализуется ЗАМЕНА трейта debuff (−1 действие
+// из случайного пула, лог «Воля подорвана: −1 действие.»); (2) триггер
+// — существующая вероятностная гейта СОХРАНЯЕТСЯ (c._rng() < 0.25 /
+// d.magicResistMult; у союзника мультипликатор = 1 — нет производных
+// статов); старый роул выбора пула УБИРАЕТСЯ; (3) цели — игрок И
+// союзники (канал союзника — НОВЫЙ, mobAttackAlly); (4) длительность —
+// 1 ход на применение; тик — вместе со скипом («…скован — пропускает
+// действие.»); (5) потребитель — гейт ДО мутации: носитель
+// {стат: 'иммунитет_контроля', turns > 0} в слоте c.ps.buff (игрок) /
+// t.buff (союзник) → контроль НЕ применяется (урон обычный; чистое
+// чтение, 0 новых c._rng); (6) детерминизм — legacy бит-в-бит за
+// исключением кейса триггера: на 1 роул меньше (пул-роул убран);
+// новый роул на канале союзника — часть НОВОГО источника (разрешено).
+//
+// Фикстуры: очередь ['m0','player','a0'] (инициатива суккуба (1+4) >
+// игрока (1+1) > наёмника (0)); один удар суккуба на 2 endTurn
+// (паттерн REF-2: 6 endTurn → 3 удара r2, r3, r4). Геометрия канала
+// союзника — паттерн BR-5 (obstacles.clear, seed 13): наёмник спавнится
+// (2,5), игрок (3,6); суккуб ставим (2,4) — вплотную к наёмнику
+// (манхэттен 1), до игрока 3 → nearestPlayerSide = наёмник (без RNG).
+//
+// expectedRedCount (блок) = 3 (CTL-1, CTL-2, IMM-1; RNG-1 — гард,
+// зелёный и на RED, и на GREEN).
+// =====================================================================
+
+test('000283.01.01-CTL-1: полный провал действия игрока от удара суккуба (c.ps.bind {turns: 1}; тик со скипом; пулы НЕ тратятся) — RED', () => {
+  const p = strongHero();
+  const c = createCombat({
+    player: p, mobs: ['succubus'], mobLevel: 2, seed: 1,
+  });
+  standNextTo(c, c.units[0]);
+  const s = c.units[0];
+  s.damage = 10;
+  s.maxHP = 200;
+  s.hp = 200;
+  s.armor = 0;
+  const hp0 = p.hp;
+  const a0 = c.ps.attack;
+  const si0 = c.ps.spellInt;
+  const sw0 = c.ps.spellWis;
+  let n = 0;
+  // Первый удар: попадание + триггер (0.01 < hitChance, 0.01 < 0.25);
+  // дальше 0.99 — промах (повторного контроля нет).
+  c._rng = () => (++n <= 2 ? 0.01 : 0.99);
+  c.endTurn();
+  assert.equal(p.hp, hp0 - 10, 'урон от удара обычный (10)');
+  assert.ok(
+    c.log.includes('Скован: следующий ход пропущен.'),
+    'лог применения контроля: «Скован: следующий ход пропущен.»');
+  assert.equal(
+    c.log.filter((l) => l === 'Скован: следующий ход пропущен.').length, 1,
+    'контроль применён ровно один раз');
+  assert.ok(
+    c.log.includes('Скован — пропускает действие.'),
+    'тик: «Скован — пропускает действие.» (пропуск вместе с тиком)');
+  assert.deepEqual(c.ps.bind, { turns: 0 },
+    'c.ps.bind = { turns: 1 } установлен и исчерпан тиком');
+  assert.equal(c.round, 3,
+    'ход пропущен: очередь прошла дальше (новый раунд)');
+  assert.equal(c.phase, 'player', 'игрок в очереди (контроль — 1 ход)');
+  assert.equal(c.ps.attack, a0, 'пул «Удар» НЕ потрачен (нет −1 действия)');
+  assert.equal(c.ps.spellInt, si0, 'пул «Заклинание» (int) НЕ потрачен');
+  assert.equal(c.ps.spellWis, sw0, 'пул «Заклинание» (wis) НЕ потрачен');
+  assert.ok(!c.log.includes('Воля подорвана'),
+    'старый лог дебаффа «Воля подорвана: −1 действие.» отсутствует');
+});
+
+test('000283.01.01-CTL-2: полный провал действия СОЮЗНИКА от удара суккуба (t.bind {turns: 1}; новый канал mobAttackAlly; мультипликатор 1) — RED', () => {
+  const p = strongHero();
+  const c = createCombat({
+    player: p, allies: [mercData()], mobs: ['succubus'], mobLevel: 2,
+    seed: 13,
+  });
+  c.obstacles.clear();
+  const s = c.units.find((u) => u.id === 'm0');
+  const merc = c.units.find((u) => u.id === 'a0');
+  assert.equal(merc.x, 2);
+  assert.equal(merc.y, 5);
+  s.x = 2;
+  s.y = 4;
+  s.damage = 10;
+  s.maxHP = 200;
+  s.hp = 200;
+  s.armor = 0;
+  merc.maxHP = 100;
+  merc.hp = 100;
+  assert.deepEqual(c.turnOrder, ['m0', 'player', 'a0'],
+    'фикстура: суккуб (5) > игрок (2) > наёмник (0)');
+  const mercHp0 = merc.hp;
+  let n = 0;
+  // Мультипликатор у союзника = 1 (нет производных) — тот же порог 0.25.
+  c._rng = () => (++n <= 2 ? 0.01 : 0.99);
+  c.endTurn();
+  c.endTurn(); // r2: удар суккуба — попадание + триггер (n = 1, 2)
+  assert.equal(merc.hp, mercHp0 - 10, 'урон по союзнику обычный (10)');
+  assert.ok(
+    c.log.includes('Наёмник: следующий ход пропущен.'),
+    'лог применения (канал союзника): «Наёмник: следующий ход пропущен.»');
+  assert.equal(c.ps.bind, null, 'игрок НЕ скован (контроль — по цели)');
+  assert.ok(!c.log.includes('Воля подорвана'),
+    'канала «Воля подорвана» для союзника нет');
+  c.endTurn(); // слот наёмника: тик вместе со скипом (до efirBreath)
+  assert.ok(
+    c.log.includes('Наёмник скован — пропускает действие.'),
+    'тик по союзнику: «Наёмник скован — пропускает действие.»');
+  assert.deepEqual(merc.bind, { turns: 0 },
+    't.bind = { turns: 1 } установлен и исчерпан тиком');
+  assert.equal(c.round, 3, 'ход наёмника потрачен: очередь прошла дальше');
+  assert.equal(c.phase, 'player', 'возврат к игроку');
+});
+
+test('000283.01.01-IMM-1: потребитель «иммунитет_контроля» (fortitude) — гейт ДО мутации: контроль сорван, урон обычный, 0 новых c._rng — RED', () => {
+  const { castSpell } = spells();
+  const p = strongHero();
+  p.primary.wisdom = 10;
+  p.spells = ['fortitude'];
+  p.mp = 40;
+  const c = createCombat({
+    player: p, mobs: ['succubus'], mobLevel: 2, seed: 7,
+  });
+  standNextTo(c, c.units[0]);
+  const s = c.units[0];
+  s.damage = 10;
+  s.maxHP = 200;
+  s.hp = 200;
+  s.armor = 0;
+  const r = castSpell(c, 'fortitude');
+  assert.equal(r.ok, true, 'каст fortitude — ок');
+  assert.deepEqual(c.ps.buff,
+    { stat: 'иммунитет_контроля', value: 1, turns: 3 },
+    'слот бафа {стат: иммунитет_контроля, value: 1, turns: 3}');
+  const hp0 = p.hp;
+  const a0 = c.ps.attack;
+  let n = 0;
+  c._rng = () => { n += 1; return 0.01; };
+  c.endTurn();
+  assert.ok(
+    c.log.includes('Иммунитет к контролю: контроль сорван.'),
+    'лог гейта: «Иммунитет к контролю: контроль сорван.»');
+  assert.ok(!c.ps.bind, 'bind НЕ установлен (контроль сорван)');
+  assert.equal(p.hp, hp0 - 10, 'урон обычный (сорван только контроль)');
+  assert.ok(!c.log.includes('Скован'), 'нет тика контроля');
+  assert.ok(!c.log.includes('Воля подорвана'),
+    'старый лог дебаффа «Воля подорвана» отсутствует');
+  assert.equal(c.ps.attack, a0, 'пул «Удар» НЕ потрачен');
+  assert.equal(n, 2,
+    'ровно 2 c._rng (попадание + гейта): 0 новых на immunity-чтение');
+  assert.equal(c.round, 2, 'ход игрока НЕ пропущен');
+  assert.equal(c.phase, 'player', 'фаза игрока — ход жив');
+});
+
+test('000283.01.01-RNG-1: гард детерминизма (паттерн 000267 REG-1) — бой с носимым стату = бой без него, 0 новых c._rng — GREEN', () => {
+  const { castSpell } = spells();
+  const mk = (cast) => {
+    const p = strongHero();
+    if (cast) {
+      p.primary.wisdom = 10;
+      p.spells = ['fortitude'];
+      p.mp = 40;
+    }
+    const c = createCombat({
+      player: p, mobs: ['succubus'], mobLevel: 2, seed: 5,
+    });
+    standNextTo(c, c.units[0]);
+    const s = c.units[0];
+    s.damage = 10;
+    s.maxHP = 200;
+    s.hp = 200;
+    s.armor = 0;
+    if (cast) {
+      const r = castSpell(c, 'fortitude');
+      assert.equal(r.ok, true, 'каст fortitude — ок');
+    }
+    let calls = 0;
+    // 0.99 ≥ hitChance и ≥ 0.25/mult — суккуб всегда промахивается:
+    // legacy-поток (попадание + гейта) должен совпасть бит-в-бит.
+    c._rng = () => { calls += 1; return 0.99; };
+    const log0 = c.log.length;
+    const snap = [];
+    for (let i = 0; i < 3; i++) {
+      c.endTurn();
+      snap.push([p.hp, c.round, s.hp, c.log.length - log0]);
+    }
+    return { calls, snap };
+  };
+  const a = mk(true);
+  const b = mk(false);
+  assert.ok(b.calls > 0, 'фикстура: суккуб реально действовал (роулы есть)');
+  assert.equal(a.calls, b.calls, '0 новых c._rng (стат не смещает поток)');
+  assert.deepEqual(a.snap, b.snap, 'боевые снапшоты совпадают');
+});
