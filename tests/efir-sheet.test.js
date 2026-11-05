@@ -99,7 +99,7 @@ function withGame(fake, fn) {
 const gameWithXp = () => ({ xpForNext: P.xpForNext, Sheet });
 
 // Каталоги — полные зеркала assets (id-валидация serde, 000115):
-// skills — 37 записей (6 primary + 31 secondary), spells — 16.
+// skills — 43 записи (6 primary + 31 secondary + 6 school, ре-пин 000324: 37→43), spells — 167 (ре-пин 000235.12: 142→167).
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 const SKILL_FILES = () => fs.readdirSync(SKILLS_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f));

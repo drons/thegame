@@ -1699,27 +1699,27 @@ test('SP-C3: vm без каталога (perlin→map→sprites): citySprite —
   assert.equal(G.citySprite(0), null, 'слотовый id → null');
 });
 
-// --- Тайлы пола подземелья (задача 000069) ---
+// --- Тайлы пола подземелья (задача 000069; 000323: 8 вариантов, 40 файлов) ---
 //
-// DUNGEON_FLOOR_FRAMES — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES (0..4 → три
-// пути assets/dungeon/floor/<slug>_<n>.svg), тот же паттерн, что
-// COMBAT_BG_DUNGEON (000049): sprites.js НЕ зависит от dungeon.js
-// (vm-песочница tests/combat-ui.test.js dungeon.js не грузит; require
-// в node-ветке UMD рассинхронил бы node/браузер — см. комментарий в
-// sprites.js). Равенство зеркала с DUNGEON_TYPES и каталогом
-// assets/dungeons закрывают тесты ниже (тест импортирует dungeon.js
-// напрямую в node).
+// DUNGEON_FLOOR_FRAMES — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES (0..4 → 8
+// путей assets/dungeon/floor/<slug>_<n>.svg, n = 1..8, 40 файлов),
+// тот же паттерн, что COMBAT_BG_DUNGEON (000049): sprites.js НЕ
+// зависит от dungeon.js (vm-песочница tests/combat-ui.test.js не
+// грузит dungeon.js; require в node-ветке UMD рассинхронил бы
+// node/браузер — см. комментарий в sprites.js). Равенство зеркала с
+// DUNGEON_TYPES и каталогом assets/dungeons закрывают тесты ниже
+// (тест импортирует dungeon.js напрямую в node).
 //
-// dungeonFloorFrame(type, x, y) — чистая функция выбора варианта 1..3
-// (паттерн tileVisuals: hash2 от координат, детерминизм, без
-// RNG-состояния и факта загрузки). Раскладка ГЛОБАЛЬНАЯ (только
-// (type, x, y), как мирские тайлы — без per-dungeon сида).
+// dungeonFloorFrame(type, x, y[, floorSeed]) — чистая функция выбора
+// варианта 1..8 (паттерн tileVisuals: hash2 от координат,
+// детерминизм, без RNG-состояния и факта загрузки): floorSeed —
+// основной путь (000323), раскладка per-подземелье/этаж; без floorSeed —
+// легаси 3-арг. ветка (000069), глобальная раскладка (type, x, y) —
+// API для фикстур без формы подземелья (3-арг. вызовы — только тесты).
 // Неизвестный type → null (рендерер 000066 рисует фолбэк #182029).
 //
-// Стадия красных тестов: DUNGEON_FLOOR_FRAMES / dungeonFloorFrame в
-// sprites.js, scripts/gen-dungeon-tiles.js и 15 файлов
-// assets/dungeon/floor ещё не существуют — тесты ниже падают, пока
-// нет реализации.
+// Реализация существует (000323: ВСЕ 15 legacy переделаны в flat + 25
+// новых = 40 файлов; 8 вариантов на тип) — тесты ниже зелёные.
 
 const FLOOR_DIR = 'assets/dungeon/floor/';
 const FLOOR_KEYS = [

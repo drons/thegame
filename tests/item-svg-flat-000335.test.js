@@ -1,13 +1,13 @@
 // Задача 000335 — sweep: flat-SVG-контракт 000302 по
 // assets/sprites/items. Ретро b2-20261105 (системная finding по
-// 000302.01–.08): стиль 218 иконок 000302 (viewBox 64×64, без
+// 000302.01–.08): стиль 193 иконок 000302 (viewBox 64×64, без
 // градиентов/<text>/<path>/<use>/stroke=) закреплён только в
 // memory/000302-icon-registry.md §2/§3 — дрейф не ловили.
 // svg.test.js НАМЕРЕННО не проверяет размеры viewBox и запрещённые
 // теги (шапка «ЧТО НАМЕРЕННО НЕ ПРОВЕРЯЕТСЯ ЗДЕСЬ»): только
 // well-formedness / viewBox-числа / NaN / покаталожный счёт.
 // stroke= — заморозка 46 legacy-файлов 000230.x
-// (LEGACY_STROKE_000335); ни один из 218 SVG волн 000302 stroke=
+// (LEGACY_STROKE_000335); ни один из 193 SVG волн 000302 stroke=
 // не содержит. kind=node; require — только
 // node:test/assert/fs/path/os (без src-require).
 
