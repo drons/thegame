@@ -118,6 +118,35 @@
           "maxItems": 6
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "id",
+        "type",
+        "name",
+        "desc",
+        "icon"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "type": {
+          "const": "school"
+        },
+        "name": {
+          "type": "string"
+        },
+        "desc": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        }
+      }
     }
   ]
 }

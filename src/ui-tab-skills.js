@@ -59,6 +59,7 @@ function (G0, rootRef) {
   let partyErrorShown = false;
   let portraitsErrorShown = false;
   let sheetErrorShown = false;
+  let schoolsErrorShown = false;
 
   // --- Тултипы (000097): носитель для строк навыков ---
   // Отдельная ПУСТАЯ ячейка в конце <tr>: render() каждый раз
@@ -400,6 +401,33 @@ function (G0, rootRef) {
         }
         section.appendChild(table);
         pane.appendChild(section);
+      }
+
+      // 000324: «Школы магии» — каталог (без уровней/кнопок: школа —
+      // свойство заклинания, не навык).
+      let schoolsList = null;
+      if (G.SkillsData && Array.isArray(G.SkillsData.SCHOOLS)) {
+        schoolsList = G.SkillsData.SCHOOLS;
+      } else if (!schoolsErrorShown) {
+        schoolsErrorShown = true;
+        console.error('src/ui-tab-skills.js: Game.SkillsData.SCHOOLS ' +
+          'не найден — src/skills-data.js обязан грузиться ДО ' +
+          'вкладочных модулей (задача 000324)');
+      }
+      if (schoolsList && schoolsList.length) {
+        const schoolsSec = ctx.el('div', 'cp-section', 'Школы магии');
+        const schoolsTable = ctx.el('table', 'cp-table');
+        for (const sc of schoolsList) {
+          const tr = ctx.el('tr');
+          tr.appendChild(ctx.el('td', 'cp-name', sc.name));
+          tr.appendChild(ctx.el('td', 'cp-level', '—'));
+          const tipTd = ctx.el('td', 'cp-tipcell');
+          tipTd.appendChild(ctx.el('div', 'cp-tip', sc.desc));
+          tr.appendChild(tipTd);
+          schoolsTable.appendChild(tr);
+        }
+        schoolsSec.appendChild(schoolsTable);
+        pane.appendChild(schoolsSec);
       }
 
       // 000145: «Книга заклинаний» (ВСЕГДА — для любого kind;

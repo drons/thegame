@@ -828,8 +828,9 @@ test('000111 T9: боевая проекция — u.attrs из primary (L20: м
 test('000115: deserializeEfir — id-валидация по каталогам-параметрам (чужой id → null; валидные → 5 полей, ПЛОТНЫЕ 4 id пула) + ОБЯЗАТЕЛЬНЫЙ reprocess; тихая; Game НЕ нужен', () => {
   const E = loadEfir();
   // Каталоги — полные зеркала assets (записи, не только id-набор).
-  assert.equal(SKILL_CATALOG.length, 37,
-    'каталог skills: 37 записей (6 primary + 31 secondary)');
+  // Ре-пин 000324: +6 школ (type school) — 37 → 43.
+  assert.equal(SKILL_CATALOG.length, 43,
+    'каталог skills: 43 записей (6 primary + 31 secondary + 6 school)');
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
   // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
   // Ре-пин 000235.09: +25 заклинаний волны Тень — 67 → 92.

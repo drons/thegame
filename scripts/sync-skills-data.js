@@ -47,8 +47,9 @@ const skills = [];
 for (const f of files) {
   const data = JSON.parse(
     fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
-  if (!data || (data.type !== 'primary' && data.type !== 'secondary')) {
-    console.error(`${f}: поле type должно быть "primary" или "secondary"`);
+  if (!data || (data.type !== 'primary' && data.type !== 'secondary'
+      && data.type !== 'school')) {
+    console.error(`${f}: поле type должно быть "primary", "secondary" или "school"`);
     process.exit(1);
   }
   if (data.type === 'secondary') {
@@ -62,6 +63,7 @@ for (const f of files) {
 
 const primary = skills.filter((s) => s.data.type === 'primary');
 const secondary = skills.filter((s) => s.data.type === 'secondary');
+const schools = skills.filter((s) => s.data.type === 'school');
 if (primary.length === 0 || secondary.length === 0) {
   console.error('assets/skills: каталог должен содержать основные и вторичные навыки');
   process.exit(1);
@@ -72,6 +74,9 @@ const primaryRange =
   `${primary[0].file} … ${primary[primary.length - 1].file}`;
 const secondaryRange =
   `${secondary[0].file} … ${secondary[secondary.length - 1].file}`;
+const schoolsRange = schools.length
+  ? `${schools[0].file} … ${schools[schools.length - 1].file}`
+  : 'пусто';
 
 // Форматирует значение JS-литералом (JSON-совместимо).
 function jsValue(v) {
@@ -147,11 +152,27 @@ for (const s of secondary) {
 }
 L.push('  };');
 L.push('');
-L.push('  return { PRIMARY_SKILLS, SECONDARY_SKILLS };');
+L.push(`  // Школы магии (assets/skills/${schoolsRange}).`);
+L.push('  // Школа — свойство заклинания, не навык: без primary/effect.');
+L.push('  const SCHOOLS = [');
+for (const s of schools) {
+  const ordered = {
+    id: s.data.id,
+    type: s.data.type,
+    name: s.data.name,
+    desc: s.data.desc,
+    icon: s.data.icon,
+  };
+  L.push(`    // ${s.file}`);
+  L.push(jsObjectAt(ordered, 4) + ',');
+}
+L.push('  ];');
+L.push('');
+L.push('  return { PRIMARY_SKILLS, SECONDARY_SKILLS, SCHOOLS };');
 L.push('});');
 L.push('');
 
 // Атомарная замена (tmp + rename): параллельные require под node --test
 // не видят частичный файл (задача 000054, правки по итогам ревью).
 writeFileAtomic(OUT_FILE, L.join('\n'));
-console.log(`src/skills-data.js перегенерирован: ${primary.length} основных, ${secondary.length} вторичных навыков.`);
+console.log(`src/skills-data.js перегенерирован: ${primary.length} основных, ${secondary.length} вторичных навыков, ${schools.length} школ.`);

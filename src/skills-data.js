@@ -453,5 +453,58 @@
     },
   };
 
-  return { PRIMARY_SKILLS, SECONDARY_SKILLS };
+  // Школы магии (assets/skills/000038.json … 000043.json).
+  // Школа — свойство заклинания, не навык: без primary/effect.
+  const SCHOOLS = [
+    // 000038.json
+    {
+      id: "protection",
+      type: "school",
+      name: "Защита",
+      desc: "Щиты и бафы союзников, телепорт, создание и призыв.",
+      icon: "assets/school-icons/protection.svg",
+    },
+    // 000039.json
+    {
+      id: "healing",
+      type: "school",
+      name: "Исцеление",
+      desc: "Лечение и воскрешение союзников, бафы, контроль.",
+      icon: "assets/school-icons/healing.svg",
+    },
+    // 000040.json
+    {
+      id: "ice",
+      type: "school",
+      name: "Лёд",
+      desc: "Урон и контроль холодом, дебафы, создание и призыв.",
+      icon: "assets/school-icons/ice.svg",
+    },
+    // 000041.json
+    {
+      id: "fire",
+      type: "school",
+      name: "Огонь",
+      desc: "Урон огнём, бафы и дебафы, телепорт и внебойные действия.",
+      icon: "assets/school-icons/fire.svg",
+    },
+    // 000042.json
+    {
+      id: "nature",
+      type: "school",
+      name: "Природа",
+      desc: "Урон и бафы природы, контроль, создание и призыв.",
+      icon: "assets/school-icons/nature.svg",
+    },
+    // 000043.json
+    {
+      id: "shadow",
+      type: "school",
+      name: "Тень",
+      desc: "Урон и дебафы, невидимость и контроль.",
+      icon: "assets/school-icons/shadow.svg",
+    },
+  ];
+
+  return { PRIMARY_SKILLS, SECONDARY_SKILLS, SCHOOLS };
 });

@@ -31,7 +31,7 @@
 //   tests/spec-000230.16-wording.test.js — константы-иглы (regex по
 //       тексту, НЕ require; файл не модифицируется);
 //   assets/items (511 JSON + schema.json), assets/craft (343 JSON +
-//       schema.json), assets/skills (37 нумерованных),
+//       schema.json), assets/skills (43 нумерованных; ре-пин 000324: +6 школ),
 //       assets/sprites/items (existsSync по it.icon каждого
 //       rarity-предмета) — диск;
 //   src/loot-equip-data.js — require (UMD node-ветка, чистая): RARITY /

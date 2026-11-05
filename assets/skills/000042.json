@@ -1,0 +1,7 @@
+{
+  "id": "nature",
+  "type": "school",
+  "name": "Природа",
+  "desc": "Урон и бафы природы, контроль, создание и призыв.",
+  "icon": "assets/school-icons/nature.svg"
+}

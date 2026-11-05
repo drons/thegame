@@ -1,0 +1,7 @@
+{
+  "id": "healing",
+  "type": "school",
+  "name": "Исцеление",
+  "desc": "Лечение и воскрешение союзников, бафы, контроль.",
+  "icon": "assets/school-icons/healing.svg"
+}

@@ -288,7 +288,7 @@ for (const name of CATALOGS) {
     const data = JSON.parse(
       fs.readFileSync(path.join(catalogDir(name), files[0]), 'utf8'));
     // Обязательные поля: верхний уровень или первый вариант oneOf
-    // (skills: схема — oneOf primary | secondary).
+    // (skills: схема — oneOf primary | secondary | school).
     const required = schema.required ||
       (schema.oneOf ? schema.oneOf[0].required : null);
     assert.ok(Array.isArray(required) && required.length > 0,

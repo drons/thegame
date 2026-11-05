@@ -37,6 +37,7 @@ const PRIMARY_FIELDS = ['id', 'type', 'name', 'desc', 'combat', 'world'];
 const SECONDARY_FIELDS =
   ['id', 'type', 'name', 'primary', 'effect', 'effectType', 'desc', 'names'];
 const KNOWN_SECONDARY_FIELDS = SECONDARY_FIELDS.concat('requires');
+const SCHOOL_FIELDS = ['id', 'type', 'name', 'desc', 'icon'];
 
 function listSkillFiles() {
   return fs.readdirSync(SKILLS_DIR)
@@ -89,16 +90,19 @@ test('каталог: нумерация файлов подряд с 000001', (
   });
 });
 
-test('каталог: 6 основных и 31 вторичный навык', () => {
+test('каталог: 6 основных, 31 вторичный и 6 школ', () => {
   const { byNumber } = loadCatalog();
   let primary = 0;
   let secondary = 0;
+  let school = 0;
   for (const { data } of byNumber.values()) {
     if (data.type === 'primary') primary += 1;
     else if (data.type === 'secondary') secondary += 1;
+    else if (data.type === 'school') school += 1;
   }
   assert.equal(primary, 6, 'основных навыков должно быть 6');
   assert.equal(secondary, 31, 'вторичных навыков должно быть 31 (SPEC.md)');
+  assert.equal(school, 6, 'школ магии должно быть 6 (задача 000324)');
 });
 
 test('каждый файл: известные поля, без лишних', () => {
@@ -108,10 +112,13 @@ test('каждый файл: известные поля, без лишних', 
   for (const { file, data } of byNumber.values()) {
     assert.ok(data && typeof data === 'object' && !Array.isArray(data),
       `${file}: не объект`);
-    assert.ok(data.type === 'primary' || data.type === 'secondary',
+    assert.ok(data.type === 'primary' || data.type === 'secondary'
+      || data.type === 'school',
       `${file}: type = ${data.type}`);
-    const fields = data.type === 'primary' ? PRIMARY_FIELDS : SECONDARY_FIELDS;
-    const known = data.type === 'primary' ? fields : KNOWN_SECONDARY_FIELDS;
+    const fields = data.type === 'primary' ? PRIMARY_FIELDS
+      : (data.type === 'secondary' ? SECONDARY_FIELDS : SCHOOL_FIELDS);
+    const known = data.type === 'primary' ? fields
+      : (data.type === 'secondary' ? KNOWN_SECONDARY_FIELDS : SCHOOL_FIELDS);
     for (const f of fields) {
       assert.ok(f in data, `${file}: нет поля ${f}`);
     }
@@ -121,6 +128,12 @@ test('каждый файл: известные поля, без лишних', 
     if (data.type === 'primary') {
       assert.equal(data.type, 'primary', `${file}`);
       for (const f of ['name', 'desc', 'combat', 'world']) {
+        assert.equal(typeof data[f], 'string', `${file}: ${f} — строка`);
+        assert.ok(data[f].length > 0, `${file}: ${f} — не пустая строка`);
+      }
+    } else if (data.type === 'school') {
+      assert.equal(data.type, 'school', `${file}`);
+      for (const f of ['name', 'desc', 'icon']) {
         assert.equal(typeof data[f], 'string', `${file}: ${f} — строка`);
         assert.ok(data[f].length > 0, `${file}: ${f} — не пустая строка`);
       }
@@ -207,6 +220,20 @@ test('skills-data.js — точное зеркало каталога JSON (фо
   const catCount = [...byNumber.values()].filter((x) => x.data.type === 'secondary').length;
   assert.equal(Object.keys(skillsData.SECONDARY_SKILLS).length, catCount,
     'skills-data.js: лишний/недостающий вторичный навык');
+  // Школы (000324): порядок в модуле = порядку номеров файлов.
+  const catSchools = [];
+  for (const { data } of byNumber.values()) {
+    if (data.type === 'school') catSchools.push(data);
+  }
+  assert.deepEqual(skillsData.SCHOOLS, catSchools,
+    'школы: JS-модуль != JSON-каталог');
+  for (const { file, data } of byNumber.values()) {
+    if (data.type !== 'school') continue;
+    assert.deepEqual(Object.keys(
+      skillsData.SCHOOLS.find((s) => s.id === data.id)),
+      ['id', 'type', 'name', 'desc', 'icon'],
+      `skills-data.js: "${data.id}" (${file}) — канон-порядок ключей`);
+  }
 });
 
 test('player.js читает каталог из skills-data.js', () => {
@@ -264,12 +291,12 @@ test('schema.json: только ключи минимального валида
   assert.ok(keyCount > 5, 'схема подозрительно маленькая');
 });
 
-test('schema.json: структура (oneOf: primary | secondary)', () => {
+test('schema.json: структура (oneOf: primary | secondary | school)', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(SKILLS_DIR, 'schema.json'), 'utf8'));
-  assert.ok(Array.isArray(schema.oneOf) && schema.oneOf.length === 2,
-    'схема: верхний уровень — oneOf из двух вариантов');
-  const [prim, sec] = [schema.oneOf[0], schema.oneOf[1]];
+  assert.ok(Array.isArray(schema.oneOf) && schema.oneOf.length === 3,
+    'схема: верхний уровень — oneOf из трёх вариантов');
+  const [prim, sec, sch] = [schema.oneOf[0], schema.oneOf[1], schema.oneOf[2]];
   for (const [branch, type] of [[prim, 'primary'], [sec, 'secondary']]) {
     assert.equal(branch.type, 'object', `${type}: type object`);
     assert.equal(branch.additionalProperties, false,
@@ -300,6 +327,18 @@ test('schema.json: структура (oneOf: primary | secondary)', () => {
   assert.ok(sec.required.includes('effect'), 'secondary: effect обязателен');
   assert.ok(!sec.required.includes('requires'),
     'secondary: requires опционален (отсутствует в JSON, если нет требований)');
+  assert.equal(sch.type, 'object', 'school: type object');
+  assert.equal(sch.additionalProperties, false,
+    'school: additionalProperties false');
+  assert.deepEqual(sch.properties.type, { const: 'school' },
+    'school: type закреплено константой');
+  assert.deepEqual(sch.required, ['id', 'type', 'name', 'desc', 'icon'],
+    'school: required — канонический порядок');
+  assert.equal(sch.properties.id.pattern, '^[a-z][a-z0-9_]*$',
+    'school: id — паттерн как у навыков');
+  assert.deepEqual(Object.keys(sch.properties).sort(),
+    ['desc', 'icon', 'id', 'name', 'type'],
+    'school: наборы свойств');
 });
 
 test('ранги: 6 рангов покрывают уровни 1..100 без разрывов', () => {

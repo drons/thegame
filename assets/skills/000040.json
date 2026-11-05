@@ -1,0 +1,7 @@
+{
+  "id": "ice",
+  "type": "school",
+  "name": "Лёд",
+  "desc": "Урон и контроль холодом, дебафы, создание и призыв.",
+  "icon": "assets/school-icons/ice.svg"
+}

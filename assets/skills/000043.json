@@ -1,0 +1,7 @@
+{
+  "id": "shadow",
+  "type": "school",
+  "name": "Тень",
+  "desc": "Урон и дебафы, невидимость и контроль.",
+  "icon": "assets/school-icons/shadow.svg"
+}

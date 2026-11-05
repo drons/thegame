@@ -1,0 +1,7 @@
+{
+  "id": "protection",
+  "type": "school",
+  "name": "Защита",
+  "desc": "Щиты и бафы союзников, телепорт, создание и призыв.",
+  "icon": "assets/school-icons/protection.svg"
+}
