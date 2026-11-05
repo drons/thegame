@@ -215,6 +215,8 @@
   // Сигнатура строк (правки ревью 000149): перестроение книги — ТОЛЬКО
   // при её изменении (см. renderBook); null — перестроить при открытии.
   let bookSig = null;
+  let bookSchool = null;
+  let bookTabsEl = null;
   // «Быстрый предмет» — список (задача 000194): контейнер
   // .combat-quicklist, флаг открытости и сигнатура строк (паттерн
   // bookBox/bookOpen/bookSig 000149).
@@ -658,6 +660,15 @@
     bookBox.style.display = 'none';
     bookOpen = false;
     bookSig = null;
+    bookSchool = null;
+    bookTabsEl = (G.SpellBook
+      && typeof G.SpellBook.buildTabs === 'function')
+      ? G.SpellBook.buildTabs(document, 'div', selectBookSchool)
+      : null;
+    if (bookTabsEl) {
+      bookTabsEl.className = 'combat-spellbook-tabs';
+      bookTabsEl.style.display = 'none';
+    }
 
     logEl = document.createElement('div');
     logEl.className = 'combat-log';
@@ -666,6 +677,7 @@
     side.appendChild(actions);
 
     box.appendChild(bookBox);
+    if (bookTabsEl) box.appendChild(bookTabsEl);
 
     fleeBox = document.createElement('div');
     fleeBox.className = 'combat-flee-confirm';
@@ -2819,6 +2831,13 @@
   // слушателей/таймеров).
   function toggleBook() {
     bookOpen = !bookOpen;
+    if (!bookOpen) bookSchool = null;
+  }
+
+  function selectBookSchool(id) {
+    if (!bookOpen) return;
+    bookSchool = (bookSchool === id) ? null : id;
+    render();
   }
 
   // Строки книги — Game.SpellBook.entriesFor (src/spellbook.js):
@@ -2988,6 +3007,7 @@
         castFx: castFxOf(c, u, r.spell, toIdOf(c, r.spell, c.targetId), n),
       };
       bookOpen = false;
+      bookSchool = null;
       recordLastSpell(c, u, spellId);
     } else {
       logRejection(c, r);
@@ -3092,6 +3112,7 @@
         castFx: castFxOf(c, c.player, r.spell, tid || autoResurrectId(c), n),
       };
       bookOpen = false;
+      bookSchool = null;
     } else {
       logRejection(c, r);
     }
@@ -3314,10 +3335,21 @@
   function renderBook(c) {
     if (!bookBox) return;
     bookBox.style.display = bookOpen ? '' : 'none';
+    if (bookTabsEl) {
+      bookTabsEl.style.display = bookOpen ? 'flex' : 'none';
+    }
     if (!bookOpen) return;
+    if (bookTabsEl && G.SpellBook
+        && typeof G.SpellBook.refreshTabs === 'function') {
+      G.SpellBook.refreshTabs(bookTabsEl, bookSchool);
+    }
     const rows = bookRows(c);
-    const pairs = rows.map((row) => [row, rowChk(c, row)]);
-    const sig = rows.length
+    const catalog = G.SpellsData ? G.SpellsData.SPELLS_BY_ID : null;
+    const pairs = rows
+      .filter((row) => bookSchool === null || !catalog
+        || (catalog[row.id] && catalog[row.id]['школа'] === bookSchool))
+      .map((row) => [row, rowChk(c, row)]);
+    const sig = pairs.length
       ? pairs.map(([row, chk]) => [
           row.id, row.name, row.desc, row.mana, row.poolName, row.icon,
           chk ? !!chk.ok : false, (chk && chk.reason) || '',
@@ -3329,7 +3361,7 @@
         && typeof bookBox.innerHTML === 'string') {
       bookBox.innerHTML = ''; // реальное DOM: чистим до перестроения
     }
-    if (rows.length === 0) {
+    if (pairs.length === 0) {
       // Пустая книга — одна строка «—» (паттерн 000145). Класс -off:
       // строка НЕ кликабельна (слушателей нет) — без pointer-курсора
       // (ревью 000149: «одно действие — одно поведение», 000037).
@@ -3574,6 +3606,8 @@
     bookBox = null;
     bookOpen = false;
     bookSig = null;
+    bookSchool = null;
+    bookTabsEl = null;
     quickBox = null;
     lootEl = null;
     quickOpen = false;
@@ -3858,6 +3892,8 @@
         bookBox = null;
         bookOpen = false;
         bookSig = null;
+        bookSchool = null;
+        bookTabsEl = null;
         quickBox = null;
         lootEl = null;
         quickOpen = false;

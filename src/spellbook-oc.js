@@ -33,18 +33,6 @@ function (G0, rootRef) {
   "use strict";
   void G0;
 
-  const SCHOOLS = [
-    { id: "защита", name: "Защита",
-      icon: "assets/school-icons/protection.svg" },
-    { id: "исцеление", name: "Исцеление",
-      icon: "assets/school-icons/healing.svg" },
-    { id: "лёд", name: "Лёд", icon: "assets/school-icons/ice.svg" },
-    { id: "огонь", name: "Огонь", icon: "assets/school-icons/fire.svg" },
-    { id: "природа", name: "Природа",
-      icon: "assets/school-icons/nature.svg" },
-    { id: "тень", name: "Тень", icon: "assets/school-icons/shadow.svg" },
-  ];
-
   function curGame() {
     const r = (rootRef && typeof rootRef === "object") ? rootRef
       : (typeof globalThis !== "undefined" ? globalThis : null);
@@ -123,22 +111,12 @@ function (G0, rootRef) {
     const title = d.createElement("div");
     title.className = "spoc-title";
     title.textContent = "Книга заклинаний (вне боя)";
-    tabsEl = d.createElement("div");
-    tabsEl.className = "spoc-tabs";
-    for (const s of SCHOOLS) {
-      const tab = d.createElement("button");
-      tab.type = "button";
-      tab.className = "spoc-tab";
-      tab.title = s.name;
-      tab.setAttribute("data-school", s.id);
-      tab.setAttribute("aria-label", s.name);
-      const icon = d.createElement("img");
-      icon.className = "spoc-tab-icon";
-      icon.src = s.icon;
-      icon.alt = s.name;
-      tab.appendChild(icon);
-      tab.addEventListener("click", () => selectSchool(s.id));
-      tabsEl.appendChild(tab);
+    const g0 = curGame();
+    if (g0 && g0.SpellBook && typeof g0.SpellBook.buildTabs === "function") {
+      tabsEl = g0.SpellBook.buildTabs(d, "button", (id) => selectSchool(id));
+    } else {
+      tabsEl = d.createElement("div");
+      tabsEl.className = "spoc-tabs";
     }
     rowsEl = d.createElement("div");
     const hint = d.createElement("div");
@@ -159,13 +137,9 @@ function (G0, rootRef) {
   }
 
   function refreshTabs() {
-    const kids = tabsEl ? tabsEl.children : null;
-    if (!kids || typeof kids.length !== "number") return;
-    for (let i = 0; i < kids.length; i++) {
-      const t = kids[i];
-      if (!t || !t.dataset || t.dataset.school === undefined) continue;
-      t.className = (t.dataset.school === activeSchool)
-        ? "spoc-tab spoc-tab--active" : "spoc-tab";
+    const g = curGame();
+    if (g && g.SpellBook && typeof g.SpellBook.refreshTabs === "function") {
+      g.SpellBook.refreshTabs(tabsEl, activeSchool);
     }
   }
 
@@ -200,8 +174,11 @@ function (G0, rootRef) {
     if (!entries.length) {
       const empty = d.createElement("div");
       empty.className = "spoc-empty";
+      const schools = (g && g.SpellBook
+        && Array.isArray(g.SpellBook.SCHOOLS))
+        ? g.SpellBook.SCHOOLS : [];
       const school = (activeSchool === null) ? null
-        : SCHOOLS.find((x) => x.id === activeSchool);
+        : schools.find((x) => x.id === activeSchool);
       empty.textContent = (school === null)
         ? "Нет изученных заклинаний вне боя"
         : "Нет изученных заклинаний школы «"

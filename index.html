@@ -497,11 +497,25 @@
       box-sizing: border-box;
       width: min(100vh - 32px, 100vw - 304px);
       height: min(100vh - 32px, 100vw - 304px);
-      padding: 10px;
+      padding: 54px 10px 10px;
       overflow-y: auto;
       background: rgba(10, 12, 16, 0.85);
       border-radius: 8px;
       pointer-events: none;
+    }
+    .combat-overlay--combat .combat-spellbook-tabs {
+      position: absolute;
+      top: calc(50% - min(100vh - 32px, 100vw - 304px) / 2 + 10px);
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: calc(min(100vh - 32px, 100vw - 304px) - 20px);
+      pointer-events: none;
+    }
+    .combat-overlay--combat .combat-spellbook-tabs .spoc-tab {
+      pointer-events: auto;
     }
     .combat-overlay--combat .combat-spellbook .combat-spellrow {
       pointer-events: auto;
@@ -794,6 +808,10 @@
       .combat-overlay--combat .combat-spellbook {
         width: min(100vw - 16px, 100vh - 16px - 520px);
         height: min(100vw - 16px, 100vh - 16px - 520px);
+      }
+      .combat-overlay--combat .combat-spellbook-tabs {
+        top: calc(50% - min(100vw - 16px, 100vh - 16px - 520px) / 2 + 10px);
+        max-width: calc(min(100vw - 16px, 100vh - 16px - 520px) - 20px);
       }
       .combat-overlay--combat .combat-flee-confirm {
         width: min(100vw - 16px, 100vh - 16px - 520px);

@@ -8978,17 +8978,20 @@ test('боевой UI: 000196 — книга (.combat-spellbook) — в .combat-
     + 'книга между .combat-actions и .combat-log): '
     + JSON.stringify(side.children.map((ch) => ch.className)));
   const canvas = findCanvas(body);
-  assert.equal(box.children.length, 4,
-    '000196: .combat-box — 4 ребёнка (canvas, книга, flee-confirm, '
-    + 'баннер; 000210 — технический ре-пин 3→4); факт: '
+  assert.equal(box.children.length, 5,
+    '000196: .combat-box — 5 детей (canvas, книга, ряд вкладок, '
+    + 'flee-confirm, баннер; 000210 — технический ре-пин 3→4; '
+    + '000331 — технический ре-пин 4→5); факт: '
     + box.children.length);
   assert.equal(box.children[0], canvas,
     '000196: первый ребёнок .combat-box — боевой canvas');
   assert.deepEqual(box.children.map((ch) => ch.className),
-    ['', 'combat-spellbook', 'combat-flee-confirm', 'combat-banner'],
+    ['', 'combat-spellbook', 'combat-spellbook-tabs',
+      'combat-flee-confirm', 'combat-banner'],
     '000196: .combat-box — [canvas, .combat-spellbook, '
-    + '.combat-flee-confirm, .combat-banner] (краснота: [canvas, '
-    + '.combat-banner] — книга была в .combat-side): '
+    + '.combat-spellbook-tabs, .combat-flee-confirm, .combat-banner] '
+    + '(краснота: [canvas, .combat-banner] — книга была в '
+    + '.combat-side): '
     + JSON.stringify(box.children.map((ch) => ch.className)));
   const bookBox = findByClass(body, 'combat-spellbook');
   assert.ok(bookBox, 'фикстура: .combat-spellbook существует');
@@ -11274,12 +11277,13 @@ test('боевой UI: 000237 — victory (реальный checkVictory, при
     'баннер — только текст (0 детей; узел лута — СИБЛИНГ, не ребёнок): '
     + banner.children.length);
   const box = findByClass(body, 'combat-box');
-  assert.equal(box.children.length, 5,
-    '000237: .combat-box — 5 детей в victory-сцене (canvas, spellbook, '
-    + 'flee-confirm, banner, узел лута); факт: ' + box.children.length);
+  assert.equal(box.children.length, 6,
+    '000237: .combat-box — 6 детей в victory-сцене (canvas, spellbook, '
+    + 'ряд вкладок, flee-confirm, banner, узел лута; 000331 — '
+    + 'технический ре-пин 5→6); факт: ' + box.children.length);
   assert.deepEqual(box.children.map((ch) => ch.className),
-    ['', 'combat-spellbook', 'combat-flee-confirm', 'combat-banner',
-      'combat-victory-loot'],
+    ['', 'combat-spellbook', 'combat-spellbook-tabs',
+      'combat-flee-confirm', 'combat-banner', 'combat-victory-loot'],
     '000237: порядок детей .combat-box (узел лута — ПОСЛЕ баннера): '
     + JSON.stringify(box.children.map((ch) => ch.className)));
   const loot = findByClass(body, 'combat-victory-loot');
@@ -11422,8 +11426,9 @@ test('боевой UI: 000237 — outcome «fled»: узла лута НЕТ, .c
   assert.equal(findByClass(body, 'combat-victory-loot'), null,
     '000237: «fled» — узла лута в DOM НЕТ (строится только victory)');
   const box = findByClass(body, 'combat-box');
-  assert.equal(box.children.length, 4,
-    '000237: .combat-box — 4 ребёнка (узел лута не появился): '
+  assert.equal(box.children.length, 5,
+    '000237: .combat-box — 5 детей (узел лута не появился; 000331 — '
+    + 'технический ре-пин 4→5): '
     + box.children.length);
 });
 
@@ -11473,12 +11478,12 @@ test('боевой UI: 000261 — victory (принудительный лут):
   assert.equal(banner.children.length, 0,
     'баннер — только текст (0 детей; узел лута — СИБЛИНГ, не ребёнок)');
   const box = findByClass(body, 'combat-box');
-  assert.equal(box.children.length, 5,
-    '000261: .combat-box — 5 детей в victory-сцене (бит-в-бит 237); '
-    + 'факт: ' + box.children.length);
+  assert.equal(box.children.length, 6,
+    '000261: .combat-box — 6 детей в victory-сцене (бит-в-бит 237; '
+    + '000331 — технический ре-пин 5→6); факт: ' + box.children.length);
   assert.deepEqual(box.children.map((ch) => ch.className),
-    ['', 'combat-spellbook', 'combat-flee-confirm', 'combat-banner',
-      'combat-victory-loot'],
+    ['', 'combat-spellbook', 'combat-spellbook-tabs',
+      'combat-flee-confirm', 'combat-banner', 'combat-victory-loot'],
     '000261: порядок детей .combat-box (бит-в-бит 237): '
     + JSON.stringify(box.children.map((ch) => ch.className)));
   const loot = findByClass(body, 'combat-victory-loot');
