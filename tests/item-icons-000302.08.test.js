@@ -52,6 +52,12 @@ const LEGACY_GEAR_00030208 = [
   ['000042.json', 'stone_chisel'],
 ];
 
+const NON_EQUIP_000335 = new Set([
+  'minor_healing', 'healing_potion', 'greater_healing', 'mana_potion',
+  'mana_elixir', 'bread', 'meat', 'honey_cake', 'sulfur',
+  'phoenix_feather', 'stone_chunk', 'coal', 'stone_chisel',
+]);
+
 for (const [file, id] of LEGACY_GEAR_00030208) {
   test('000302.08 ' + file + ' (' + id + '): "icon" = '
     + 'assets/sprites/items/' + id + '.svg, svg-файл существует',
@@ -71,6 +77,11 @@ for (const [file, id] of LEGACY_GEAR_00030208) {
         + JSON.stringify(j.icon));
       assert.ok(fs.existsSync(path.join(ROOT, j.icon)),
         icon + ': svg-файл существует (path.join(ROOT, it.icon))');
+      if (NON_EQUIP_000335.has(id)) {
+        assert.equal(Object.keys(j).at(-1), 'icon',
+          id + ': "icon" — КОНЕЦ объекта в JSON (позиционный пин '
+          + '000335); факт: ' + JSON.stringify(Object.keys(j).at(-1)));
+      }
     });
 }
 

@@ -64,5 +64,8 @@ for (const [file, id] of BOOKS_LEGACY_00030207) {
         + JSON.stringify(j.icon));
       assert.ok(fs.existsSync(path.join(ROOT, j.icon)),
         icon + ': svg-файл существует (path.join(ROOT, it.icon))');
+      assert.equal(Object.keys(j).at(-1), 'icon',
+        id + ': "icon" — КОНЕЦ объекта в JSON (позиционный пин '
+        + '000335); факт: ' + JSON.stringify(Object.keys(j).at(-1)));
     });
 }

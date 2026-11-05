@@ -6224,7 +6224,7 @@ test('000230.09 EN8 (vm, e2e): РЕАЛЬНЫЕ ears/neck-предметы из 
 // Контракт: memory/000235.08-ice-wave-content.md §1.7. Свитки
 // 000133–00157 (тот же порядок, что spell-файлы 000043–000067).
 // tier = уровень спелла (D8-пин); value {T1:45, T2:60, T3:115, T4:240};
-// rarity/icon/loot — НЕТ (пины RAR-G/I1/L3).
+// rarity/loot — НЕТ (пины RAR-G/L3); icon = assets/sprites/items/<id>.svg (ре-пин 000302).
 
 const ICE08_SCROLLS = [
   ['ice_lance', 'Ледяное копьё', 1],
