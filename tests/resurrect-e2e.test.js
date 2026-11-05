@@ -456,10 +456,11 @@ function deadRecord(npcId, over = {}) {
   for (const [id, lv] of Object.entries(h.начальные_навыки || {})) {
     if (Number.isInteger(lv) && lv >= 1) secondary[id] = lv;
   }
-  // Канонический merc-лист — 10 ключей (000140/000143, §2.6):
-  // kind, level, xp, totalXp, points, primary{6}, secondary, skillXp,
-  // spells, npcId (sanitizeMercSheet: sheet.npcId === npcId записи —
-  // иначе revive → null → запись отброшена как подделка).
+  // Канонический merc-лист — 11 ключей (000140/000143, §2.6;
+  // 10 — old-format-фикстура ниже): kind, level, xp, totalXp, points,
+  // primary{6}, secondary, skillXp, spells, npcId
+  // (sanitizeMercSheet: sheet.npcId === npcId записи — иначе revive
+  // → null → запись отброшена как подделка).
   const sheet = Object.assign({
     kind: 'merc',
     level: 1, xp: 0, totalXp: 0, points: 0,

@@ -482,3 +482,55 @@ test('000144 RF-1: 3-полевой legacy-сейв (до 000111, без spells)
       'повторный XP — дублей в книге нет');
   });
 });
+
+// --- 000334 (ретро-фикс 000300, ретро b2-20261105) ---
+
+test('000300 ES-7: deserializeEfir — санация trainPoints: НОВЫЙ формат — absent → 10, валидный 3 → 3, forged 99/"x"/−1/2.5/null → 10 (лист ЖИВ, не null); СТАРЫЙ формат — backfill 10', () => {
+  withGame(gameWithXp(), () => {
+    const E = loadEfir();
+    const base = E.serializeEfir(E.createEfir());
+    assert.ok(base, 'база — sheet-лейаут (11 ключей)');
+    const noTp = Object.assign({}, base);
+    delete noTp.trainPoints;
+    const s1 = E.deserializeEfir(noTp, SKILL_CATALOG, SPELL_CATALOG);
+    assert.ok(s1 !== null, 'НОВЫЙ формат без trainPoints — принят (санация)');
+    assert.equal(s1.trainPoints, 10, 'absent → 10 (НЕ null — санация)');
+    const s2 = E.deserializeEfir({ ...noTp, trainPoints: 3 },
+      SKILL_CATALOG, SPELL_CATALOG);
+    assert.ok(s2 !== null, 'валидный trainPoints 3 — принят');
+    assert.equal(s2.trainPoints, 3, 'валидный 3 → 3 (сохраняется)');
+    for (const [label, bad] of [
+      ['99', 99], ['"x"', 'x'], ['−1', -1], ['2.5', 2.5], ['null', null],
+    ]) {
+      const s3 = E.deserializeEfir({ ...noTp, trainPoints: bad },
+        SKILL_CATALOG, SPELL_CATALOG);
+      assert.ok(s3 !== null,
+        'forged ' + label + ': лист ЖИВ (санация, не null)');
+      assert.equal(s3.trainPoints, 10, 'forged ' + label + ' → 10');
+    }
+    const s4 = E.deserializeEfir({
+      level: 5, xp: 20, skillXp: {}, skills: { firelord: 3 },
+      spells: ['spark', 'mend', 'light_heal'],
+    }, SKILL_CATALOG, SPELL_CATALOG);
+    assert.ok(s4 !== null, 'СТАРОЙ 5-полевой формат — backfill');
+    assert.equal(s4.trainPoints, 10, 'backfill: trainPoints — 10');
+  });
+});
+
+test('000334 ES-8: createEfir() fallback (Game.Sheet недоступен) — канонический лейаут (11 ключей, trainPoints 10 — паритет 000300)', () => {
+  const E = loadEfir();
+  const had = Object.prototype.hasOwnProperty.call(globalThis, 'Game');
+  const prev = globalThis.Game;
+  delete globalThis.Game;
+  let s;
+  try {
+    s = E.createEfir();
+  } finally {
+    if (had) globalThis.Game = prev;
+  }
+  assert.deepEqual(Object.keys(s).sort(), SHEET_KEYS,
+    'fallback — тот же канонический лейаут (11 ключей, без npcId; '
+    + '000300: trainPoints)');
+  assert.equal(s.trainPoints, 10,
+    'fallback: trainPoints = 10 (поле ЛЮБОГО листа — 000300)');
+});

@@ -80,8 +80,9 @@ test('SH-1: createSheet — 3 kinds; hero — точный лейаут createCh
   assert.deepEqual(h2.spells, ['spark', 'mend'], 'spells — дефолт героя');
 
   // efir/merc (база для 000144/000143): {kind, level, xp, totalXp,
-  // points, primary, secondary, skillXp, spells, npcId} — БЕЗ
-  // name/gold/hp/mp/alive (их save-форматы — территория 000144/143).
+  // points, trainPoints, primary, secondary, skillXp, spells, npcId}
+  // — БЕЗ name/gold/hp/mp/alive (их save-форматы — территория
+  // 000144/143).
   const e = Sheet.createSheet('efir');
   assert.equal(e.kind, 'efir');
   assert.equal(e.level, 1);

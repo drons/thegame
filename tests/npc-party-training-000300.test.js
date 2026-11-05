@@ -436,6 +436,26 @@ test('A6. merc-путь (зеркало A1): навык/trainPoints по наё�
     'NaN-ловушка: gold наёмного НЕ существует (owner = hero)');
 });
 
+test('A7. 000334: «мало золота» — 4-арг. (payChar ≠ character): отказ ДО мутаций (hero.gold 10 < 60); gold-чек — по платильщику', () => {
+  const hero = P.createCharacter();
+  const efir = S.createSheet('efir');
+  efir.secondary.swordsman = 2;
+  hero.gold = 10;
+  assert.deepEqual(N.canSchoolTrain(trainNpc, efir, 'swordsman', hero),
+    { ok: false, reason: 'мало золота (нужно 60)' },
+    'цена 20 + 10·2² = 60 > hero.gold 10 — отказ (чек — по '
+    + 'платильщику, не по обучающемуся)');
+  const r = N.schoolTrain(trainNpc, efir, 'swordsman', hero);
+  assert.deepEqual(r, { ok: false, reason: 'мало золота (нужно 60)' },
+    'schoolTrain — тот же отказ (gold-чек ДО мутаций)');
+  assert.equal(hero.gold, 10, 'gold платильщика НЕ списан (отказ)');
+  assert.equal(efir.trainPoints, 10, 'бюджет обучающегося нетронут');
+  assert.equal(hero.trainPoints, 10, 'бюджет hero нетронут');
+  assert.equal(efir.secondary.swordsman, 2, 'навык не вырос');
+  assert.equal(efir.gold, undefined,
+    'NaN-ловушка: gold Эфира НЕ существует (чек — payChar.gold)');
+});
+
 // --- Часть B: vm (src/ui.js) ---
 
 function seedWorld(h, over = {}) {
@@ -487,10 +507,12 @@ function metaLines(root) {
     .map((e) => String(e.textContent));
 }
 
-test('B1. train-таб при активном Эфире: уровень/цена — по Эфиру (swordsman 2 → 60), строка «Свободные очки» — points активного', async () => {
+test('B1. train-таб при активном Эфире: уровень/цена — по Эфиру (swordsman 2 → 60), ТОЧНАЯ строка «Свободные очки: 3» — points активного (000334)', async () => {
   const h = await boot();
   const st = seedWorld(h);
   st.efir.secondary.swordsman = 2;
+  st.hero.points = 0;
+  st.efir.points = 3;
   const { G, overlay } = openNpc(h, 'arena_master', st);
   const before = h.errors.length;
   G.playerUI.setActiveCharId('efir');
@@ -505,8 +527,9 @@ test('B1. train-таб при активном Эфире: уровень/цен
   const priceLine = metas.find((s) => s.startsWith('+1 за 60 з'));
   assert.ok(priceLine, 'цена +1 за 60 з (L=2, по активному Эфиру): '
     + JSON.stringify(metas));
-  assert.ok(metas.some((s) => s.startsWith('Свободные очки:')),
-    'строка «Свободные очки» на месте');
+  assert.ok(metas.includes('Свободные очки: 3'),
+    'ТОЧНАЯ строка «Свободные очки: 3» — points АКТИВНОГО (efir.points '
+    + '3, hero.points 0): ' + JSON.stringify(metas));
   assert.equal(h.errors.length, before,
     '0 новых console.error (вкладка «школа» при активном Эфире)');
   G.npcUI.close();
@@ -580,6 +603,30 @@ test('B4. клик по портрету при открытой «школе» 
     + JSON.stringify(metas));
   assert.ok(overlay.querySelectorAll('button[data-npcact="train"]')
     .length >= 1, 'вкладка «школа» остаётся открытой (не переключилась)');
+  G.npcUI.close();
+  G.playerUI.setActiveCharId(null);
+});
+
+test('B5. 000334: «мало золота» в vm (зеркало A7): hero.gold 10 < 60 → bTrain disabled + title «мало золота (нужно 60)»; мутаций нет', async () => {
+  const h = await boot();
+  const st = seedWorld(h);
+  st.efir.secondary.swordsman = 2;
+  st.hero.gold = 10;
+  const { G, overlay } = openNpc(h, 'arena_master', st);
+  const before = h.errors.length;
+  G.playerUI.setActiveCharId('efir');
+  clickTrainTab(overlay);
+  const swBtn = overlay.querySelectorAll('button[data-npcact="train"]')
+    .find((b) => b.dataset.skill === 'swordsman');
+  assert.ok(swBtn, 'кнопка train (swordsman) на месте');
+  assert.equal(swBtn.disabled, true,
+    'gold платильщика (hero) 10 < 60 → кнопка заблокирована');
+  assert.equal(swBtn.title, 'мало золота (нужно 60)',
+    'title — reason gold-чека (по платильщику, не по обучающемуся)');
+  assert.equal(st.hero.gold, 10, 'gold не списан (отказ)');
+  assert.equal(st.efir.trainPoints, 10, 'бюджет Эфира нетронут');
+  assert.equal(st.efir.secondary.swordsman, 2, 'навык не вырос');
+  assert.equal(h.errors.length, before, '0 новых console.error');
   G.npcUI.close();
   G.playerUI.setActiveCharId(null);
 });

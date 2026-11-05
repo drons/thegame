@@ -494,9 +494,10 @@ function (settings, G) {
   // мердж с 000141: исходные данные — из каталога найма
   // (базовые_характеристики / начальные_навыки / spells).
   //
-  // Канонический merc-лист — 10 ключей createSheet('merc') (000140):
-  // {kind:'merc', level, xp, totalXp, points, primary{6}, secondary{},
-  // skillXp{}, spells[], npcId}. level/xp меняются ТОЛЬКО через
+  // Канонический merc-лист — 11 ключей createSheet('merc') (000140):
+  // {kind:'merc', level, xp, totalXp, points, trainPoints, primary{6},
+  // secondary{}, skillXp{}, spells[], npcId}. level/xp меняются
+  // ТОЛЬКО через
   // Sheet.addXp; запись дублирует их плоскими зеркалами e.level/e.xp
   // (§2.1 — ровно 4 точки синхронизации: hire, applyCombatXp,
   // deserializeRoster, reviveEntryFromRecord (000161)).
@@ -542,7 +543,7 @@ function (settings, G) {
     return sheet;
   }
 
-  // Свежая глубокая копия 10/12 ключей (сериализация — fresh-copy-пин
+  // Свежая глубокая копия 11/13 ключей (сериализация — fresh-copy-пин
   // T1/CS-5: мутация input не меняет снапшот); equipment/equipmentBonus
   // (000230.06) — опционально, только при наличии (as-is).
   function copyMercSheet(s) {
@@ -589,7 +590,7 @@ function (settings, G) {
    *     с id из каталога вторичных навыков и int ≥ 0; spells — только
    *     строки; totalXp — finite ≥ 0, иначе xp (инвариант
    *     totalXp ≥ xp, 000140); points — int ≥ 0, иначе 0.
-   * @returns {object|null} канонические 10 ключей со свежими вложенными
+   * @returns {object|null} канонические 11 ключей со свежими вложенными
    *   объектами | null (ядро битое).
    */
   function sanitizeMercSheet(s, npcId) {

@@ -340,7 +340,7 @@ test('000143 CS-5: round-trip — найм → +50 xp → serialize: ровно 
 //       тихая (0 console.warn — warn печатает main.js по dropped).
 // =====================================================================
 
-test('000143 CS-6: sanitize — битый sheet → drop (kind ≠ merc / npcId ≠ / primary не полон / level 0); чистка (чужой id и отрицательный secondary, totalXp −1 → xp, points −3 → 0) — запись жива; тихая', () => {
+test('000143 CS-6: sanitize — битый sheet → drop (kind ≠ merc / npcId ≠ / primary не полон / level 0); чистка (чужой id и отрицательный secondary, totalXp −1 → xp, points −3 → 0) — запись жива; тихая; 000334: trainPoints ВСЕГДА (absent/forged → 10)', () => {
   // Базовая ВАЛИДНАЯ запись новой формы (Вольк L3, xp 40).
   const valid = entryWithSheet(NPC_VOLK, { level: 3, xp: 40, loyalty: 77, day: 5 });
   // top-level поля — ВЕРНЫ (изолируем именно sheet): drop обязан
@@ -385,6 +385,40 @@ test('000143 CS-6: sanitize — битый sheet → drop (kind ≠ merc / npcId
   assert.equal(s.totalXp, 40, 'totalXp < 0 → fallback xp');
   assert.equal(s.points, 0, 'points < 0 → 0');
   assert.equal(q.n, 0, 'deserializeRoster ТИХАЯ (warn печатает main.js)');
+
+  // 000334 (minor-1): trainPoints — ВСЕГДА (absent/невалидно → 10,
+  // прецедент sanitizeSavedHero 000298 L4).
+  const noTp = Object.assign({}, valid.sheet);
+  delete noTp.trainPoints;
+  const q1 = quiet(() => C.deserializeRoster(NPCS, raw(noTp)));
+  assert.equal(q1.res.roster.length, 1, 'sheet без trainPoints — жива');
+  assert.deepEqual(q1.res.dropped, []);
+  assert.equal(q1.res.roster[0].sheet.trainPoints, 10,
+    'trainPoints absent → 10 (ВСЕГДА)');
+  const forged = Object.assign({}, valid.sheet, { trainPoints: 99 });
+  const q2 = quiet(() => C.deserializeRoster(NPCS, raw(forged)));
+  assert.equal(q2.res.roster.length, 1, 'trainPoints 99 — жива (санация)');
+  assert.deepEqual(q2.res.dropped, []);
+  assert.equal(q2.res.roster[0].sheet.trainPoints, 10,
+    'trainPoints forged (99) → 10');
+});
+
+test('000334 CS-8: copyMercSheet — УСЛОВНАЯ копия trainPoints (absent → absent, 4 → 4); fresh-copy (мутация input после снапшота снапшот не трогает)', () => {
+  const noTp = entryWithSheet(NPC_VOLK, { level: 1, xp: 0 });
+  delete noTp.sheet.trainPoints;
+  const snap = C.serializeRoster([noTp]);
+  assert.equal(snap.length, 1, 'снапшот записи на месте');
+  assert.equal('trainPoints' in snap[0].sheet, false,
+    'лист БЕЗ trainPoints → в снапшоте поля НЕТ (absent → absent; '
+    + 'безусловная копия сломала бы бит-в-бит hand-crafted-листы '
+    + 'T1 sh()/000230.06 S1–S4)');
+  const with4 = entryWithSheet(NPC_VOLK, { level: 1, xp: 0 });
+  with4.sheet.trainPoints = 4;
+  const snap2 = C.serializeRoster([with4]);
+  assert.equal(snap2[0].sheet.trainPoints, 4, '4 → 4 (копируется)');
+  with4.sheet.trainPoints = 7;
+  assert.equal(snap2[0].sheet.trainPoints, 4,
+    'fresh-copy: мутация input после снапшота снапшот не меняет');
 });
 
 // =====================================================================

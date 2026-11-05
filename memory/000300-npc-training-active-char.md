@@ -66,9 +66,13 @@ UI (src/ui.js): `renderTrainTab` — `trainChar = activeSheetNow()`:
   без поля → сломала бы T1 sh()/S1–S4 бит-в-бит.
 * deserializeEfir — absent → 10 (НЕ null): null в состоянии
   сломал бы typeof-guard и UI-строку; 10 — дефолт нового листа.
-* [I]-панель НЕ тронута: строка «Очки обучения: N» (000298) — по
-  листу вкладки (активному) — механика 000298 без изменений; эта
-  задача — только школа в npcUI.
+* [I]-панель НЕ тронута (000300 — только школа в npcUI): строка
+  «Очки обучения: N» (000298) — ТОЛЬКО hero-ветка
+  src/ui-tab-skills.js; у Эфира/наёмного — 2-строчный
+  статы-лейаут (уровень/опыт + «Свободные очки: points») БЕЗ
+  строки обучения — остаток trainPoints активного (не Флогистона)
+  НЕ отображается (000334 исправил ложный буллет «по листу
+  вкладки (активному)»).
 
 ## Ре-пины (значения — по диску, R5)
 * SPEC: spec/npc.md 26→37 (+11 блок «Обучение в школах (задача
@@ -79,6 +83,11 @@ UI (src/ui.js): `renderTrainTab` — `trainChar = activeSheetNow()`:
   backfill «trainPoints — 10», 2 строки рефлоу, счёт 147).
 * SPEC_FILE_LINES (tests/spec-split.test.js): npc 26→37,
   companions 203→211; efir-spirit 147 — НЕ тронут.
+* memory/000143-merc-sheet.md §2.4 «Канонический merc-лист
+  (10 ключей, порядок createSheet)» — ЗАМЕНЁН 000300 (канон —
+  11 ключей: trainPoints после points); файл 000143 НЕ
+  переписывается (исторический контракт); источник правды —
+  src/sheet.js; ре-пины «10 ключей» → «11 ключей» исполнены 000334.
 * Guard wording (companions/npc-пины): spec-000295-wording L88
   203→211 (title + assert), spec-000304-wording 203→211 (title +
   assert), spec-000296-wording npc 26→37, spec-000297-wording W1

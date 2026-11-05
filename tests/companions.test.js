@@ -1395,7 +1395,7 @@ test('000230.06 C1: наёмник с экипировкой — формула 
 test('000230.06 C2: наёмник без экипировки — allyDataForEntry bit-for-bit как сейчас (пин формы, deepEqual всего объекта)', () => {
   const e = entryWithSheet(NPC_VOLK, { level: 5 });
   assert.equal('equipment' in e.sheet, false,
-    'свежий лист — без секции (10 ключей)');
+    'свежий лист — без секции (11 ключей)');
   const d = C.allyDataForEntry(e, NPC_VOLK);
   assert.deepEqual(d, {
     id: 'merc_volk',
@@ -1419,7 +1419,7 @@ test('000230.06 C3: Эфир — отказ от экипировки (точн�
   I.addItem(hero, 'iron_sword');
   const efirSheet = S.createSheet('efir', { npcId: 'efir' });
   assert.equal('equipment' in efirSheet, false,
-    'лист Эфира — 10 ключей, без секции');
+    'лист Эфира — 11 ключей, без секции');
   const r1 = C.allyEquip(hero, efirSheet, 'iron_sword');
   assert.deepEqual(r1, { ok: false, reason: 'Эфир — дух, не экипируется' },
     'RED: C.allyEquip — не функция на текущем коде');

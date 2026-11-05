@@ -34,9 +34,10 @@
 // 000144 (follow-up 000139, P1, волна B; ТЗ — tasks/pending/
 // 000144.md; контракт — memory/000144-efir-sheet.md): состояние
 // Эфира — ЕДИНЫЙ «лист персонажа» Game.Sheet (src/sheet.js, 000140)
-// kind 'efir': ровно 10 полей {kind, level, xp, totalXp, points,
-// primary, secondary, skillXp, skills, spells} — npcId НЕТ (delete
-// после createSheet: у листа Эфира нет иди). Перенесено в sheet.js
+// kind 'efir': ровно 11 полей {kind, level, xp, totalXp, points,
+// trainPoints, primary, secondary, skillXp, skills, spells} — npcId
+// НЕТ (delete после createSheet: у листа Эфира нет иди).
+// Перенесено в sheet.js
 // ЧЕРЕЗ API (не копией кода): порог xp (xpForNext — тот же, что у
 // героя), начисление (addXp), points 2/уровень, рост характеристик
 // (raiseSkill), requires-гейты (canRaise), каскад (reprocessSkillXp).
@@ -68,7 +69,7 @@
 // rootRef); снапшота Game при загрузке НЕТ (000038), throw на
 // загрузке — НЕТ (мягкая зависимость).
 //
-// Состояние — лист (10 полей, 000144; форма ЗАФИКСИРОВАНА под сейв):
+// Состояние — лист (11 полей, 000144; форма ЗАФИКСИРОВАНА под сейв):
 // HP/MP в состоянии НЕТ: каждый бой — новый makeAlly + buildEfirUnit
 // (hp = maxHP) → «возврат со 100% HP» — СТРУКТУРНО, кода
 // восстановления нет (serializeEfir/deserializeEfir — 000085, в этом
@@ -238,7 +239,7 @@
 
   /**
    * «Мини-персонаж» Эфира: состояние — лист Game.Sheet kind 'efir'
-   * (000144, 10 полей, npcId НЕТ): primary — старт-формула
+   * (000144, 11 полей, npcId НЕТ): primary — старт-формула
    * (3/3/3/1/1/1); secondary = skills — начальный список (зеркало —
    * отдельный объект); skillXp — пустой банк; spells — старт
    * [spark, mend]. HP/MP в состоянии НЕТ: каждый бой — новый
@@ -257,7 +258,7 @@
         primary: Object.assign({}, EFIR_START_PRIMARY),
         spells: EFIR_SPELL_START.slice(),
       });
-      delete s.npcId; // у листа Эфира нет иди (10 ключей — пин 000118)
+      delete s.npcId; // у листа Эфира нет иди (11 ключей — пин 000118)
       s.secondary = Object.assign({}, EFIR_START_LIST);
       s.skills = Object.assign({}, EFIR_START_LIST); // зеркало
       return s;
@@ -268,6 +269,7 @@
       xp: 0,
       totalXp: 0,
       points: 0,
+      trainPoints: 10,
       primary: Object.assign({}, EFIR_START_PRIMARY),
       secondary: Object.assign({}, EFIR_START_LIST),
       skillXp: {},
@@ -616,9 +618,9 @@
   // memory/000144-efir-sheet.md (D-H: backfill; D-F: serialize —
   // только лист). Функции ЧИСТЫЕ и тихие (0 console, 0 require,
   // 0 обращений к Game — чистый UMD сохранён); warn печатает
-  // main.js. 000144: serialize — sheet-лейаут РОВНО 10 ключей
+  // main.js. 000144: serialize — sheet-лейаут РОВНО 11 ключей
   // (runtime-эфир ВСЕГДА лист; backfill-пути в serialize НЕТ —
-  // голий 5-полевой → null); deserialize — новый формат (10
+  // голий 5-полевой → null); deserialize — новый формат (11
   // ключей) + backfill старого 5-полевого + ОБЯЗАТЕЛЬНЫЙ
   // reprocessEfirSkills до return (выход ПЛОТНЫЙ).
 
@@ -683,15 +685,16 @@
 
   /**
    * Снапшот состояния Эфира для сейва (data.efir): 000144 — ЧИСТАЯ
-   * копия лист-лейаута РОВНО 10 ключей {kind, level, xp, totalXp,
-   * points, primary, secondary, skillXp, skills, spells} (порядок —
+   * копия лист-лейаута РОВНО 11 ключей {kind, level, xp, totalXp,
+   * points, trainPoints, primary, secondary, skillXp, skills, spells}
+   * (порядок —
    * единый; НИКАКОГО npcId). null при: state не plain-object, либо
    * нет plain primary (счёт не-листа — старый формат сериализовать
    * невозможно: после 000144 runtime-эфир ВСЕГДА лист, backfill —
    * только в deserialize; решение D-F). main.js пишет null в
    * data.efir — restore пропустит раздел.
    * @param {*} state состояние Эфира (лист).
-   * @returns {object|null} 10 ключей; не лист → null.
+   * @returns {object|null} 11 ключей; не лист → null.
    */
   function serializeEfir(state) {
     if (!isEfirSheet(state)) return null;
@@ -714,7 +717,7 @@
    * Восстановление состояния Эфира из сейва (data.efir) — структурно
    * (000085 D5) + id-валидация по каталогам (000115 D2) +
    * ОБЯЗАТЕЛЬНЫЙ reprocessEfirSkills до return (000115 D3, канон
-   * 000111 §9). 000144: НОВЫЙ формат — лист (10 ключей; raw.primary
+   * 000111 §9). 000144: НОВЫЙ формат — лист (11 ключей; raw.primary
    * есть); СТАРЫЙ 5-полевой формат → backfill (решение D-H:
    * level/xp/skillXp/spells — 1:1; primary — старт-формула; кэш
    * skills → secondary КАК ЕСТЬ; points/totalXp 0). ЛЮБОЙ дефект →
@@ -725,7 +728,7 @@
    *   ВЫКЛ (структурный режим — 1-арг. вызовы легальны).
    * @param {Array} [spellCatalog] записи каталога assets/spells;
    *   null/нет → ВЫКЛ.
-   * @returns {object|null} НОВОЕ состояние — лист 10 ключей, ВЫХОД
+   * @returns {object|null} НОВОЕ состояние — лист 11 ключей, ВЫХОД
    *   ПЛОТНЫЙ (reprocess: ВСЕ 4 id пула материализованы в
    *   secondary/skillXp/skills); null —
    *   * raw == null (старый сейв, поля нет — main.js гвардит и НЕ

@@ -483,7 +483,7 @@ function mkHero(over = {}) {
 
 // Запись о погибшем (000161, форма сейва 000143): {npcId, sheet,
 // loyalty, hiredDay}; level/xp ВНУТРИ sheet (канонический merc-лист
-// 10 ключей — sanitizeMercSheet: sheet.npcId === npcId, иначе revive
+// 11 ключей — sanitizeMercSheet: sheet.npcId === npcId, иначе revive
 // → null → запись отброшена как подделка).
 function deadRecord(npcId, over = {}) {
   const npc = NPCS.find((n) => n.id === npcId);
