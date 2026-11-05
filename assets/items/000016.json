@@ -4,6 +4,7 @@
   "kind": "food",
   "weight": 0.2,
   "value": 2,
+  "base_price": 2,
   "desc": "Свежий хлеб: лучшее лекарство в дороге.",
   "effect": {
     "kind": "eat",

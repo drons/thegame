@@ -4,6 +4,7 @@
   "kind": "armor",
   "weight": 7,
   "value": 400,
+  "base_price": 420,
   "desc": "Рыцарский латы: как ходячая крепость.",
   "stats": {
     "armor": 6

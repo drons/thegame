@@ -5,6 +5,7 @@
   "subtype": "heavy",
   "weight": 3,
   "value": 150,
+  "base_price": 158,
   "desc": "Боевой топор: один удар — и щит трескается.",
   "stats": {
     "damage": 8

@@ -4,6 +4,7 @@
   "kind": "potion",
   "weight": 0.5,
   "value": 35,
+  "base_price": 37,
   "desc": "Большое зелье лечения: как будто целитель положил ладони.",
   "effect": {
     "kind": "heal",

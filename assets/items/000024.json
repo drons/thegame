@@ -4,6 +4,7 @@
   "kind": "reagent",
   "weight": 0.05,
   "value": 150,
+  "base_price": 158,
   "desc": "Перо феникса: тёплое на ощупь, редкая находка.",
   "icon": "assets/sprites/items/phoenix_feather.svg"
 }

@@ -8,6 +8,7 @@
     "subtype": { "type": "string", "enum": ["sword", "bow", "heavy", "staff"] },
     "weight": { "type": "number", "minimum": 0.05, "maximum": 200 },
     "value": { "type": "number", "minimum": 1, "maximum": 100000 },
+    "base_price": { "type": "integer", "minimum": 1, "maximum": 100000 },
     "tier": { "type": "integer", "minimum": 1, "maximum": 4 },
     "desc": { "type": "string" },
     "stats": {

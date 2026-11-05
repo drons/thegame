@@ -4,6 +4,7 @@
   "kind": "reagent",
   "weight": 0.2,
   "value": 12,
+  "base_price": 12,
   "tier": 2,
   "desc": "Кварц: полупрозрачный кристалл с белёсым блеском.",
   "loot": {

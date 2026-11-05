@@ -5,6 +5,7 @@
   "subtype": "sword",
   "weight": 2,
   "value": 120,
+  "base_price": 126,
   "desc": "Стальной меч, отполированный в рыцарской кузнице.",
   "stats": {
     "damage": 7

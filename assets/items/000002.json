@@ -5,6 +5,7 @@
   "subtype": "sword",
   "weight": 1.5,
   "value": 40,
+  "base_price": 42,
   "desc": "Честный железный меч из пограничной кузницы.",
   "stats": {
     "damage": 5

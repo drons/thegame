@@ -4,6 +4,7 @@
   "kind": "potion",
   "weight": 0.5,
   "value": 10,
+  "base_price": 11,
   "desc": "Зелье лечения: красное, тёплое, пахнет клевером.",
   "effect": {
     "kind": "heal",

@@ -52,8 +52,8 @@ const tradeNpc = {
   диалог: [{ id: 'trade', текст: 'Товары', действие: 'торговля' }],
   торговля: {
     предметы: [
-      { предмет: 'wood_sword', цена_покупки: 10, цена_продажи: 6, количество: 2 },
-      { предмет: 'moonstone', цена_покупки: 25, цена_продажи: 15, количество: 1 },
+      { предмет: 'wood_sword', mult_продажи: 0.6, количество: 2 },
+      { предмет: 'moonstone', mult_покупки: 0.9259259259259259, mult_продажи: 0.5555555555555556, количество: 1 },
     ],
   },
 };
@@ -470,7 +470,7 @@ test('торговля: сток и цены (с учётом «Торговца
   const c = P.createCharacter();
   c.secondary.merchant = 5; // buyPriceMult 0.75, sellPriceMult 1.25
   assert.equal(N.npcBuyPrice(shop, 'wood_sword', c), 8, 'round(10*0.75)');
-  assert.equal(N.npcSellPrice(shop, 'wood_sword', c), 8, 'round(6*1.25)');
+  assert.equal(N.npcSellPrice(shop, 'wood_sword', c), 8, 'round(10*0.6*1.25)');
   const c0 = P.createCharacter();
   assert.equal(N.npcBuyPrice(shop, 'wood_sword', c0), 10);
   assert.equal(N.npcSellPrice(shop, 'wood_sword', c0), 6);

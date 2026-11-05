@@ -2,8 +2,8 @@
 // (ТЗ строка 3).
 //
 // Контракты — memory/000232-craft-learned-kinds.md:
-//   D5 — NPC: каждый из 6 чертежей — ≥1 продавец (цена_покупки > 0,
-//        количество ≥ 1, статичный сток, RNG 0); НАСТАВНИК вида
+//   D5 — NPC: каждый из 6 чертежей — ≥1 продавец (base_price — 120
+//        (000322), количество ≥ 1, статичный сток, RNG 0); НАСТАВНИК вида
 //        обязан продавать чертёж этого вида (data-driven по
 //        canMentorCraft; сейчас единственный живой наставник крафта
 //        — Торн (blacksmith) → кузнечное_дело).
@@ -67,17 +67,18 @@ function track() {
   };
 }
 
-test('SRC-1: NPC — каждый из 6 чертежей продаётся ≥1 NPC (цена_покупки > 0, количество ≥ 1); наставник вида — продаёт чертёж этого вида (Торн → кузнечное_дело); RED: чертежей никто не продаёт', () => {
+test('SRC-1: NPC — каждый из 6 чертежей продаётся ≥1 NPC (base_price — 120 (000322), количество ≥ 1); наставник вида — продаёт чертёж этого вида (Торн → кузнечное_дело); RED: чертежей никто не продаёт', () => {
+  const refOf = {};
+  for (const [ref, id] of Object.entries(BLUEPRINT_REF)) refOf[id] = ref;
   const t = track();
   for (const n of NPCS) {
     const items = (n.торговля && Array.isArray(n.торговля.предметы))
       ? n.торговля.предметы : [];
     for (const e of items) {
       if (BLUEPRINT_TYPE[e.предмет] === undefined) continue;
-      assert.equal(typeof e.цена_покупки, 'number',
-        n.имя + ': цена_покупки — число; факт: ' + JSON.stringify(e));
-      assert.ok(e.цена_покупки > 0,
-        n.имя + ': цена_покупки > 0; факт: ' + e.цена_покупки);
+      assert.equal(readJson(refOf[e.предмет]).base_price, 120,
+        n.имя + ': ' + e.предмет + ': base_price — 120 (000322); факт: '
+        + JSON.stringify(readJson(refOf[e.предмет]).base_price));
       assert.ok(Number.isInteger(e.количество) && e.количество >= 1,
         n.имя + ': количество ≥ 1; факт: ' + e.количество);
       t.push(e.предмет, n.имя);

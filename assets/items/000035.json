@@ -4,6 +4,7 @@
   "kind": "reagent",
   "weight": 2,
   "value": 3,
+  "base_price": 3,
   "desc": "Тяжёлое бревно: основа всякой столярной работы.",
   "loot": {
     "terrains": [

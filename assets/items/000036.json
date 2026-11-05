@@ -4,6 +4,7 @@
   "kind": "reagent",
   "weight": 1.5,
   "value": 4,
+  "base_price": 4,
   "desc": "Крепкий обломок камня: и в кузню годится, и под резец.",
   "icon": "assets/sprites/items/stone_chunk.svg"
 }

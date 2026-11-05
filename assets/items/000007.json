@@ -5,6 +5,7 @@
   "subtype": "heavy",
   "weight": 4,
   "value": 250,
+  "base_price": 263,
   "desc": "Боевой молот: вес и верный удар.",
   "stats": {
     "damage": 10

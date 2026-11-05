@@ -4,6 +4,7 @@
   "kind": "reagent",
   "weight": 0.5,
   "value": 5,
+  "base_price": 5,
   "desc": "Кожа зверя, высушенная и отбитая: мягкая, но держит удар.",
   "loot": {
     "terrains": [

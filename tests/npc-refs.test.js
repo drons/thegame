@@ -236,13 +236,13 @@ test('sync-npc-data.js: битая/чужая ссылка — exit 1, зерк�
     (dir) => expectSyncFailure(dir, ['000047.json']));
 
   withTmpRepo(
-    NPC_BODY([44], { предметы: [{ предмет: 'wood_sword', цена_покупки: 1, цена_продажи: 1, количество: 1 }] }),
+    NPC_BODY([44], { предметы: [{ предмет: 'wood_sword', mult_продажи: 1, количество: 1 }] }),
     GOOD_ASSETS,
     (dir) => expectSyncFailure(dir, ['000001.json']));
 
   withTmpRepo(
     NPC_BODY(['assets/buildings/000047.json'],
-      { предметы: [{ предмет: 'assets/items/000001.json', цена_покупки: 1, цена_продажи: 1, количество: 1 }] }),
+      { предметы: [{ предмет: 'assets/items/000001.json', mult_продажи: 1, количество: 1 }] }),
     GOOD_ASSETS,
     (dir) => {
       const ok = runNpcSync(dir);

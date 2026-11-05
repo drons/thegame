@@ -5,6 +5,7 @@
   "subtype": "sword",
   "weight": 1,
   "value": 10,
+  "base_price": 10,
   "desc": "Простой деревянный меч: лёгкий, крепкий, не подводит.",
   "stats": {
     "damage": 3

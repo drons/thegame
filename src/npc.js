@@ -328,14 +328,22 @@
   function npcBuyPrice(shop, itemId, character) {
     const p = tradeEntry(shop, itemId);
     if (!p) return null;
-    return Math.max(1, Math.round(p.цена_покупки * P.derived(character).buyPriceMult));
+    const it = I.getItem(itemId);
+    const base = it && typeof it.base_price === 'number'
+      ? it.base_price : it ? it.value : 0;
+    return Math.max(1, Math.round(
+      base * (p.mult_покупки || 1) * P.derived(character).buyPriceMult));
   }
 
   /** Цена продажи 1 шт. NPC с учётом «Торговца» | null. */
   function npcSellPrice(shop, itemId, character) {
     const p = tradeEntry(shop, itemId);
     if (!p) return null;
-    return Math.max(1, Math.round(p.цена_продажи * P.derived(character).sellPriceMult));
+    const it = I.getItem(itemId);
+    const base = it && typeof it.base_price === 'number'
+      ? it.base_price : it ? it.value : 0;
+    return Math.max(1, Math.round(
+      base * p.mult_продажи * P.derived(character).sellPriceMult));
   }
 
   /** Покупка предмета у NPC. Инварианты: gold ≥ 0, сток ≥ 0. */

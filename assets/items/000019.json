@@ -4,6 +4,7 @@
   "kind": "skill_book",
   "weight": 0.5,
   "value": 50,
+  "base_price": 53,
   "desc": "Практический трактат алхимика: рецепты и предостережения.",
   "effect": {
     "kind": "skill_xp",

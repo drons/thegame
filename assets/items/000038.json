@@ -4,6 +4,7 @@
   "kind": "reagent",
   "weight": 0.5,
   "value": 2,
+  "base_price": 2,
   "desc": "Уголь: чёрный, лёгкий, горит жарко — топит кузнечный горн.",
   "icon": "assets/sprites/items/coal.svg"
 }

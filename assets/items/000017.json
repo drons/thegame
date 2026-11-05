@@ -4,6 +4,7 @@
   "kind": "food",
   "weight": 0.4,
   "value": 5,
+  "base_price": 5,
   "desc": "Жареное мясо с травами: силы для долгого перехода.",
   "effect": {
     "kind": "eat",

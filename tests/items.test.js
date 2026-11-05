@@ -3018,15 +3018,17 @@ test('000230.01 E1: schema.json — slot ОПЦИОНАЛЬНО {type: string, e
     'верхний additionalProperties остаётся false (000141)');
 });
 
-test('000230.01 E1b: schema.json — порядок properties = 17 канонических ключей (связка с KEYS sync-items-data.js, E20)', () => {
+test('000230.01 E1b: schema.json — порядок properties = 18 канонических ключей (связка с KEYS sync-items-data.js, E20; 000322: +base_price после value)', () => {
   const s = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   assert.deepEqual(Object.keys(s.properties),
-    ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
-     'desc', 'stats', 'effect', 'loot', 'icon',
+    ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'base_price',
+     'tier', 'desc', 'stats', 'effect', 'loot', 'icon',
      'slot', 'rarity', 'set', 'affixes', 'set_bonus'],
     'порядок properties — append 5 новых ключей КОНЦОМ (после icon; '
-    + 'set_bonus — 000230.04, ПОСЛЕ affixes); '
+    + 'set_bonus — 000230.04, ПОСЛЕ affixes; 000322: base_price — '
+    + 'сразу ПОСЛЕ value, append-конец нарушен осознанно — база '
+    + 'цены привязана к value); '
     + 'краснота: 12 ключей (slot/rarity/set/affixes/set_bonus нет); '
     + 'факт: '
     + JSON.stringify(Object.keys(s.properties)));
@@ -5351,13 +5353,14 @@ test('000230.08 H5: иконки — у всех 25 icon = assets/sprites/items/
     '25 id различны (анти-коллизия в волне)');
 });
 
-// 17 канонических KEYS sync-items-data.js (связка E1b/E20 —
-// порядок properties schema.json; канон-порядок, append-only).
+// 18 канонических KEYS sync-items-data.js (000322: +base_price
+// после value; связка E1b/E20 — порядок properties schema.json;
+// канон-порядок, append-only).
 const KEYS_SYNC_00023008 = ['id', 'name', 'kind', 'subtype', 'weight',
-  'value', 'tier', 'desc', 'stats', 'effect', 'loot', 'icon', 'slot',
-  'rarity', 'set', 'affixes', 'set_bonus'];
+  'value', 'base_price', 'tier', 'desc', 'stats', 'effect', 'loot',
+  'icon', 'slot', 'rarity', 'set', 'affixes', 'set_bonus'];
 
-test('000230.08 H6: порядок ключей JSON — подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20)', () => {
+test('000230.08 H6: порядок ключей JSON — подмножество 18 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20; 000322: +base_price)', () => {
   const { byId, fileById } = catalogScan00023008();
   for (const id of HEAD_IDS_00023008) {
     const it = byId.get(id);
@@ -6048,7 +6051,7 @@ test('000230.09 EN5: иконки — у всех 50 icon = assets/sprites/items
   }
 });
 
-test('000230.09 EN6: порядок ключей JSON 50 файлов — подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20)', () => {
+test('000230.09 EN6: порядок ключей JSON 50 файлов — подмножество 18 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20; 000322: +base_price)', () => {
   const { byId, fileById } = catalogScan00023008();
   for (const id of EARSNECK_IDS_00023009) {
     const it = byId.get(id);
@@ -6383,15 +6386,15 @@ const TORSO_ID_SET_00023010 = new Set(TORSO_IDS_00023010);
 // "slot":"torso" СРАЗУ ПОСЛЕ stats, всё остальное бит-в-бит.
 // [id, файл, name, stats.armor, weight, value, desc]
 const TORSO_REMAP_00023010 = [
-  ['leather_armor', '000008.json', 'Кожаный доспех', 2, 2, 35,
+  ['leather_armor', '000008.json', 'Кожаный доспех', 2, 2, 35, 36,
    'Мягкий кожаный доспех: защита без скрипа.'],
-  ['chainmail', '000009.json', 'Кольчуга', 4, 4, 140,
+  ['chainmail', '000009.json', 'Кольчуга', 4, 4, 140, 147,
    'Кольчуга: кольца, вплетённые мастерской рукой.'],
-  ['knight_plate', '000010.json', 'Рыцарский доспех', 6, 7, 400,
+  ['knight_plate', '000010.json', 'Рыцарский доспех', 6, 7, 400, 420,
    'Рыцарский латы: как ходячая крепость.'],
 ];
 
-test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "slot":"torso" (ТЗ п.1), всё остальное бит-в-бит: name/kind/weight/value/desc/stats; icon — 000302.08 (assets/sprites/items/<id>.svg), прочие новые поля отсутствуют (rarity/set/set_bonus/affixes/subtype/tier/effect/loot); порядок ключей = старые + icon + slot сразу после stats (канон-субпоследовательность, D-02); позиции 8/9/10 каталога не сдвинулись; slotOf() → "torso" (краснота: у 3 броней поля slot нет)', () => {
+test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "slot":"torso" (ТЗ п.1), всё остальное бит-в-бит: name/kind/weight/value/desc/stats; base_price — 000322 (после value); icon — 000302.08 (assets/sprites/items/<id>.svg), прочие новые поля отсутствуют (rarity/set/set_bonus/affixes/subtype/tier/effect/loot); порядок ключей = старые + base_price + icon + slot (канон-субпоследовательность, D-02); позиции 8/9/10 каталога не сдвинулись; slotOf() → "torso" (краснота: у 3 броней поля slot нет)', () => {
   const { files } = catalogScan00023008();
   assert.equal(files[7], '000008.json',
     'позиция 8 каталога = 000008.json (не сдвинулась)');
@@ -6399,7 +6402,7 @@ test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "s
     'позиция 9 каталога = 000009.json (не сдвинулась)');
   assert.equal(files[9], '000010.json',
     'позиция 10 каталога = 000010.json (не сдвинулась)');
-  for (const [id, file, name, armor, weight, value, desc]
+  for (const [id, file, name, armor, weight, value, base, desc]
       of TORSO_REMAP_00023010) {
     const j = JSON.parse(
       fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
@@ -6411,6 +6414,9 @@ test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "s
     assert.equal(j.kind, 'armor', file + ': kind armor');
     assert.equal(j.weight, weight, file + ': weight бит-в-бит');
     assert.equal(j.value, value, file + ': value бит-в-бит');
+    assert.equal(j.base_price, base,
+      file + ': base_price (000322) — MIN цены покупки у '
+      + 'продавцов; факт: ' + j.base_price);
     assert.equal(j.desc, desc, file + ': desc бит-в-бит');
     assert.deepEqual(j.stats, { armor },
       file + ': stats — ровно { armor: ' + armor + ' } (бит-в-бит)');
@@ -6430,10 +6436,11 @@ test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "s
     assert.equal(j.effect, undefined, file + ': effect отсутствует');
     assert.equal(j.loot, undefined, file + ': loot отсутствует');
     assert.deepEqual(Object.keys(j),
-      ['id', 'name', 'kind', 'weight', 'value', 'desc', 'stats',
-       'icon', 'slot'],
-      file + ': ключи = старые + "icon" + "slot" СРАЗУ ПОСЛЕ '
-      + 'stats (D-02; 000302.08: icon — канон-позиция); факт: '
+      ['id', 'name', 'kind', 'weight', 'value', 'base_price',
+       'desc', 'stats', 'icon', 'slot'],
+      file + ': ключи = старые + "base_price" (000322, ПОСЛЕ '
+      + 'value) + "icon" + "slot" СРАЗУ ПОСЛЕ stats (D-02; '
+      + '000302.08: icon — канон-позиция); факт: '
       + Object.keys(j).join(','));
     // Канон-субпоследовательность (E1b-паттерн).
     let prev = -1;
@@ -6722,7 +6729,7 @@ test('000230.10 T6: иконки — 25 SVG assets/sprites/items/<id>.svg сущ
   }
 });
 
-test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap: подмножество 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20); 3 remap — ровно старые 7 ключей + icon + slot (000302.08: icon — канон-позиция; краснота: файлов волны нет; у 3 броней slot отсутствует)', () => {
+test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap: подмножество 18 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн: нарушение = неидемпотентная sync-дифф, ловят пины E1b/E20); 3 remap — ровно старые 7 ключей + base_price (000322, после value) + icon + slot (000302.08: icon — канон-позиция; краснота: файлов волны нет; у 3 броней slot отсутствует)', () => {
   const { byId, fileById } = catalogScan00023008();
   for (const id of TORSO_IDS_00023010) {
     const it = byId.get(id);
@@ -6748,9 +6755,10 @@ test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap
       fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
     const keys = Object.keys(j);
     assert.deepEqual(keys,
-      ['id', 'name', 'kind', 'weight', 'value', 'desc', 'stats',
-       'icon', 'slot'],
-      file + ': 7 старых ключей + ровно "icon" + "slot" (D-01; '
+      ['id', 'name', 'kind', 'weight', 'value', 'base_price',
+       'desc', 'stats', 'icon', 'slot'],
+      file + ': 7 старых ключей + ровно "base_price" (000322, '
+      + 'после value) + "icon" + "slot" (D-01; '
       + '000302.08: icon — канон-позиция); факт: '
       + keys.join(','));
     let prev = -1;
@@ -7666,29 +7674,30 @@ test('000230.12 R6: free_cast — ровно 2 (flame_staff → fireball, ice_st
 // [id, файл, name, kind, subtype, weight, value, stats.damage, desc]
 const RIGHT_HAND_REMAP_00023012 = [
   ['wood_sword', '000001.json', 'Деревянный меч', 'weapon', 'sword', 1,
-   10, 3, 'Простой деревянный меч: лёгкий, крепкий, не подводит.'],
+   10, 10, 3, 'Простой деревянный меч: лёгкий, крепкий, не подводит.'],
   ['iron_sword', '000002.json', 'Железный меч', 'weapon', 'sword', 1.5,
-   40, 5, 'Честный железный меч из пограничной кузницы.'],
+   40, 42, 5, 'Честный железный меч из пограничной кузницы.'],
   ['steel_sword', '000003.json', 'Стальной меч', 'weapon', 'sword', 2,
-   120, 7, 'Стальной меч, отполированный в рыцарской кузнице.'],
+   120, 126, 7, 'Стальной меч, отполированный в рыцарской кузнице.'],
   ['short_bow', '000004.json', 'Короткий лук', 'weapon', 'bow', 1,
-   30, 4, 'Короткий охотничий лук: надёжен на близкой дистанции.'],
+   30, 32, 4, 'Короткий охотничий лук: надёжен на близкой дистанции.'],
   ['hunting_bow', '000005.json', 'Охотничий лук', 'weapon', 'bow', 1.5,
-   90, 6, 'Лук охотника — стрела летит далеко и точно.'],
+   90, 95, 6, 'Лук охотника — стрела летит далеко и точно.'],
   ['battle_axe', '000006.json', 'Боевой топор', 'weapon', 'heavy', 3,
-   150, 8, 'Боевой топор: один удар — и щит трескается.'],
+   150, 158, 8, 'Боевой топор: один удар — и щит трескается.'],
   ['war_hammer', '000007.json', 'Боевой молот', 'weapon', 'heavy', 4,
-   250, 10, 'Боевой молот: вес и верный удар.'],
+   250, 263, 10, 'Боевой молот: вес и верный удар.'],
 ];
 
-test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ "slot":"right_hand" (ТЗ п.1), всё остальное бит-в-бит: name/kind/subtype/weight/value/desc/stats; icon — 000302.08 (assets/sprites/items/<id>.svg), прочие новые поля кроме slot нет (rarity/set/set_bonus/affixes/tier/effect/loot — отсутствуют, D-10: remap-7 не в пулах); порядок ключей = старые 8 + icon + slot сразу после stats (канон-субпоследовательность, D-09); позиции 1–7 каталога не сдвинулись; slotOf() → "right_hand" (краснота: у 7 оружия поля slot нет)', () => {
+test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ "slot":"right_hand" (ТЗ п.1), всё остальное бит-в-бит: name/kind/subtype/weight/value/desc/stats; base_price — 000322 (после value); icon — 000302.08 (assets/sprites/items/<id>.svg), прочие новые поля кроме slot нет (rarity/set/set_bonus/affixes/tier/effect/loot — отсутствуют, D-10: remap-7 не в пулах); порядок ключей = старые 8 + base_price + icon + slot (канон-субпоследовательность, D-09); позиции 1–7 каталога не сдвинулись; slotOf() → "right_hand" (краснота: у 7 оружия поля slot нет)', () => {
   const { files } = catalogScan00023008();
   for (let i = 0; i < 7; i++) {
     assert.equal(files[i], '00000' + (i + 1) + '.json',
       'позиция ' + (i + 1) + ' каталога = 00000' + (i + 1)
       + '.json (не сдвинулась)');
   }
-  for (const [id, file, name, kind, subtype, weight, value, damage, desc]
+  for (const [id, file, name, kind, subtype, weight, value, base,
+      damage, desc]
       of RIGHT_HAND_REMAP_00023012) {
     const j = JSON.parse(
       fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
@@ -7701,6 +7710,9 @@ test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ 
     assert.equal(j.subtype, subtype, file + ': subtype бит-в-бит');
     assert.equal(j.weight, weight, file + ': weight бит-в-бит');
     assert.equal(j.value, value, file + ': value бит-в-бит');
+    assert.equal(j.base_price, base,
+      file + ': base_price (000322) — MIN цены покупки у '
+      + 'продавцов; факт: ' + j.base_price);
     assert.equal(j.desc, desc, file + ': desc бит-в-бит');
     assert.deepEqual(j.stats, { damage },
       file + ': stats — ровно { damage: ' + damage + ' } (бит-в-бит)');
@@ -7719,10 +7731,11 @@ test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ 
     assert.equal(j.effect, undefined, file + ': effect отсутствует');
     assert.equal(j.loot, undefined, file + ': loot отсутствует');
     assert.deepEqual(Object.keys(j),
-      ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'desc',
-       'stats', 'icon', 'slot'],
-      file + ': ключи = старые 8 + "icon" + "slot" СРАЗУ ПОСЛЕ '
-      + 'stats (D-09; 000302.08: icon — канон-позиция); факт: '
+      ['id', 'name', 'kind', 'subtype', 'weight', 'value',
+       'base_price', 'desc', 'stats', 'icon', 'slot'],
+      file + ': ключи = старые 8 + "base_price" (000322, ПОСЛЕ '
+      + 'value) + "icon" + "slot" СРАЗУ ПОСЛЕ stats (D-09; '
+      + '000302.08: icon — канон-позиция); факт: '
       + Object.keys(j).join(','));
     // Канон-субпоследовательность (E1b-паттерн).
     let prev = -1;

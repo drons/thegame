@@ -91,9 +91,9 @@ for (const f of files) {
 // 'slot'/'rarity'/'set'/'affixes' — 000230.01 (поля экипировки; конец).
 // 'set_bonus' — 000230.04 (наборы; конец — после 'affixes', позиция
 // свойства в схеме).
-const KEYS = ['id', 'name', 'kind', 'subtype', 'weight', 'value', 'tier',
-  'desc', 'stats', 'effect', 'loot', 'icon', 'slot', 'rarity', 'set',
-  'affixes', 'set_bonus'];
+const KEYS = ['id', 'name', 'kind', 'subtype', 'weight', 'value',
+  'base_price', 'tier', 'desc', 'stats', 'effect', 'loot', 'icon',
+  'slot', 'rarity', 'set', 'affixes', 'set_bonus'];
 
 // --- Генерация JS ---
 const range = `${files[0]} … ${files[files.length - 1]}`;

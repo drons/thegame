@@ -5,6 +5,7 @@
   "subtype": "bow",
   "weight": 1.5,
   "value": 90,
+  "base_price": 95,
   "desc": "Лук охотника — стрела летит далеко и точно.",
   "stats": {
     "damage": 6

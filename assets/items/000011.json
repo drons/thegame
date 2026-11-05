@@ -4,6 +4,7 @@
   "kind": "potion",
   "weight": 0.3,
   "value": 4,
+  "base_price": 4,
   "desc": "Малое зелье лечения: раны затягиваются, сердце успокаивается.",
   "effect": {
     "kind": "heal",

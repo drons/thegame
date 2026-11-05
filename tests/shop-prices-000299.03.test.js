@@ -335,7 +335,7 @@ async function boot() {
 
 // --- Часть A: ядро (require src/npc.js, src/items.js) ---
 
-// Фикстура торгового NPC: wood_sword 10/6 (×2), iron_sword 42/24 (×1).
+// Фикстура торгового NPC: wood_sword base 10, ms 0.6 (×2); iron_sword base 42, ms 24/42 (×1) (000322).
 const TRADE_NPC = {
   id: 'price_test_merchant',
   имя: 'Тест-торговец',
@@ -343,8 +343,8 @@ const TRADE_NPC = {
   постройки: [0],
   торговля: {
     предметы: [
-      { предмет: 'wood_sword', цена_покупки: 10, цена_продажи: 6, количество: 2 },
-      { предмет: 'iron_sword', цена_покупки: 42, цена_продажи: 24, количество: 1 },
+      { предмет: 'wood_sword', mult_продажи: 0.6, количество: 2 },
+      { предмет: 'iron_sword', mult_продажи: 0.5714285714285714, количество: 1 },
     ],
   },
 };
@@ -387,7 +387,7 @@ test('A2. npcSell(shop, hero, id, 1, priceChar) — цена продажи по
   const r = N.npcSell(shop, hero, 'wood_sword', 1, merc);
   assert.equal(r.ok, true, 'продажа успешна: ' + JSON.stringify(r));
   assert.equal(r.price, 7,
-    'round(6 × 1.10) = 7 — цена по priceChar');
+    'round(10 × 0.6 × 1.10) = 7 — цена по priceChar');
   assert.equal(hero.gold, 100 + 7, 'золото начислено owner (hero)');
   assert.equal(I.totalQty(hero, 'wood_sword'), 0,
     'предмет снят с owner');
@@ -544,7 +544,7 @@ test('B1. npcUI «торговля» при активном наёмном: с�
   const line = metas.find((s) => s.startsWith('покупка'));
   assert.ok(line, 'строка цены wood_sword на месте');
   assert.equal(line, 'покупка 9 з / продажа 7 з',
-    'цены — по Торговцу активного (merc 2): round(10×0.90)/round(6×1.10)');
+    'цены — по Торговцу активного (merc 2): round(10×0.90)/round(10×0.6×1.10)');
   assert.equal(metas.find((s) => s.startsWith('Золото:')),
     'Золото: ' + st.hero.gold,
     '«Золото» — за owner (hero), активный не меняет владельца');
@@ -689,7 +689,7 @@ test('B5. npcUI ПРОДАЖКА e2e: активный merc (Торговец 2)
   const metas = metaLines(overlay);
   assert.equal(metas.find((s) => s.startsWith('покупка')),
     'покупка 9 з / продажа 7 з',
-    'sell-строка — по Торговцу активного (merc 2): round(6×1.10)');
+    'sell-строка — по Торговцу активного (merc 2): round(10×0.6×1.10)');
   const sellBtn = overlay.querySelectorAll('button[data-npcact="sell"]')
     .find((b) => b.dataset.item === 'wood_sword');
   assert.ok(sellBtn, 'кнопка «продать» (wood_sword) на месте');

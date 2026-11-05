@@ -5,6 +5,7 @@
   "subtype": "bow",
   "weight": 1,
   "value": 30,
+  "base_price": 32,
   "desc": "Короткий охотничий лук: надёжен на близкой дистанции.",
   "stats": {
     "damage": 4

@@ -83,11 +83,11 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["предмет", "цена_покупки", "цена_продажи"],
+            "required": ["предмет", "mult_продажи"],
             "properties": {
               "предмет": { "type": "string", "pattern": "^assets/items/\\d{6}\\.json$" },
-              "цена_покупки": { "type": "integer", "minimum": 1, "maximum": 100000 },
-              "цена_продажи": { "type": "integer", "minimum": 1, "maximum": 100000 },
+              "mult_покупки": { "type": "number", "minimum": 0 },
+              "mult_продажи": { "type": "number", "minimum": 0 },
               "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
             }
           }

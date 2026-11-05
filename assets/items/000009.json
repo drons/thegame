@@ -4,6 +4,7 @@
   "kind": "armor",
   "weight": 4,
   "value": 140,
+  "base_price": 147,
   "desc": "Кольчуга: кольца, вплетённые мастерской рукой.",
   "stats": {
     "armor": 4
