@@ -1158,6 +1158,7 @@
       for (const p of npc.торговля.предметы) {
         const it = G.getItem(p.предмет);
         if (!it) continue;
+        if ((npcShop.stock[p.предмет] || 0) < 1) continue;
         const row = el('div', 'cp-itemrow');
         row.appendChild(el('span', 'cp-itemname',
           it.name + ' (ост. ' + (npcShop.stock[p.предмет] || 0) + ')'));

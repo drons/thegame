@@ -1810,10 +1810,17 @@ test('CI-V2. «Диалог» из buildingUI → npcUI: Бренн — сток
   const tradeW = textOf(ovW);
   for (const p of npcW.торговля.предметы) {
     const it = G.getItem(p.предмет);
-    assert.ok(
-      tradeW.includes(it.name + ' (ост. ' + (expW.stock[p.предмет] || 0) + ')'),
-      'строка «' + it.name + ' (ост. N)» — ГОРОДСКОЙ сток (cityShops): ' +
-        tradeW.slice(0, 240));
+    const q = expW.stock[p.предмет] || 0;
+    if (q > 0) {
+      assert.ok(
+        tradeW.includes(it.name + ' (ост. ' + q + ')'),
+        'строка «' + it.name + ' (ост. N)» — ГОРОДСКОЙ сток (cityShops): ' +
+          tradeW.slice(0, 240));
+    } else {
+      assert.ok(!tradeW.includes(it.name + ' (ост. '),
+        'строка «' + it.name + ' …» ОТСУТСТВУЕТ (сток 0, 000314): ' +
+          tradeW.slice(0, 240));
+    }
   }
   key(h, 'Escape');
   assert.equal(G.npcUI.isActive(), false, 'диалог закрыт (Esc)');
@@ -2410,11 +2417,18 @@ test('CI-V15. 000148.03 (ревью major): торговля на ИГРОКОВ
   const ovN2 = npcOverlayOf(h);
   clickTab(h, ovN2, 'trade');
   const tradeTxt2 = textOf(npcOverlayOf(h));
-  assert.ok(tradeTxt2.includes(it.name + ' (ост. ' +
-      (fresh.stock[buyable] - 1) + ')'),
-    'REVIEW: после повторного входа сток живой: «' + it.name +
-    ' (ост. ' + (fresh.stock[buyable] - 1) + ')» (не «свежий» ' +
-    fresh.stock[buyable] + '): ' + tradeTxt2.slice(0, 300));
+  const leftW = fresh.stock[buyable] - 1;
+  if (leftW > 0) {
+    assert.ok(tradeTxt2.includes(it.name + ' (ост. ' + leftW + ')'),
+      'REVIEW: после повторного входа сток живой: «' + it.name +
+      ' (ост. ' + leftW + ')» (не «свежий» ' +
+      fresh.stock[buyable] + '): ' + tradeTxt2.slice(0, 300));
+  } else {
+    assert.ok(!tradeTxt2.includes(it.name + ' (ост. '),
+      'REVIEW: после повторного входа сток живой (0): строка ' +
+      'отсутствует (000314, не «свежий» ' +
+      fresh.stock[buyable] + '): ' + tradeTxt2.slice(0, 300));
+  }
   assert.equal(h.errors.length, errsBefore,
     'без console.error: ' + h.errors.slice(errsBefore).join('; '));
 });
