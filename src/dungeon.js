@@ -433,6 +433,32 @@
   const idx = (d, x, y) => y * d.width + x;
   const inGrid = (d, x, y) => x >= 0 && y >= 0 && x < d.width && y < d.height;
 
+  const BOSS_SIZE = { w: 3, h: 3 };
+
+  function mobFootprint(m) {
+    if (!m.boss) return [m.x + ',' + m.y];
+    const hx = (BOSS_SIZE.w - 1) / 2;
+    const hy = (BOSS_SIZE.h - 1) / 2;
+    const out = [];
+    for (let dy = -hy; dy <= hy; dy++) {
+      for (let dx = -hx; dx <= hx; dx++) {
+        out.push((m.x + dx) + ',' + (m.y + dy));
+      }
+    }
+    return out;
+  }
+
+  function footprintFits(d, m) {
+    for (const k of mobFootprint(m)) {
+      const i = k.indexOf(',');
+      const x = Number(k.slice(0, i)), y = Number(k.slice(i + 1));
+      if (!inGrid(d, x, y) || d.cells[idx(d, x, y)] !== CELL_FLOOR) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   // --- Автотайлинг кромки стены (задачи 000070/000258) ---
   //
   // Вид стены на wall-клетке (rock/column/stalactite) —
@@ -569,12 +595,13 @@
    * Клетка stairs-down (спуск на этажи ниже) — чистая функция от ФОРМЫ
    * (d.cells/rooms/entrance/exit/type/seed), БЕЗ вызовов rng. Правило:
    * среди достижимых от entrance FLOOR-клеток, исключая 5×5 safe-блоки
-   * entrance/exit и клетку босса ABYSS (rooms[last], 000183), выбирается
+   * entrance/exit и footprint босса ABYSS 3×3 (rooms[last], 000183/
+   * 000330 — только если босс ставится: footprintFits), выбирается
    * МАКСИМАЛЬНО ДАЛЬНЯЯ (BFS-дистанция) — спуск в «конце» этажа; тай —
    * min hash2(x, y, STAIRS_SALT ^ d.seed); финальный тай — min (y·W+x).
    * Fail-open: кандидатов нет (все достижимые клетки в safe/босс) →
    * все достижимые FLOOR; всё равно нет → null. В реальных формах
-   * (5–8 комнат 4×4 + коридоры ≫ 25 safe-клеток + 1 босс-клетка)
+   * (5–8 комнат 4×4 + коридоры ≫ 25 safe-клеток + 9 босс-клеток)
    * null недостижим; ПОТРЕБИТЕЛИ (000153.03) всё равно гвардят null.
    * @param {object} d результат createDungeon (до cells достаточно)
    * @returns {{x:number, y:number}|null}
@@ -588,8 +615,10 @@
       }
     }
     const far = d.rooms[d.rooms.length - 1];
-    const bossKey = (d.type === DUNGEON_TYPES.ABYSS)
-      ? far.cx + ',' + far.cy : null;
+    const bossCells = (d.type === DUNGEON_TYPES.ABYSS
+      && footprintFits(d, { x: far.cx, y: far.cy, boss: true }))
+      ? new Set(mobFootprint({ x: far.cx, y: far.cy, boss: true }))
+      : null;
     let best = null;
     const consider = (x, y, k) => {
       const cand = {
@@ -605,7 +634,7 @@
     };
     for (const k of dist.keys()) {
       if (safeCells.has(k)) continue;
-      if (bossKey && k === bossKey) continue;
+      if (bossCells && bossCells.has(k)) continue;
       const [x, y] = k.split(',').map(Number);
       consider(x, y, k);
     }
@@ -640,7 +669,8 @@
    * `stairsDown` (000153.02) — клетка спуска на нижний этаж, ПОЛЕ
    * ФОРМЫ (stairsDownFor: детерминировано, 0 rng): на FLOOR,
    * достижима от entrance, вне 5×5 safe-зон entrance/exit; ABYSS —
-   * ≠ клетка босса (rooms[last]). null — только дегенеративные формы
+   * вне footprint босса 3×3 (rooms[last], 000330). null — только
+   * дегенеративные формы
    * (fail-open; потребители 000153.03 гвардят).
    */
   function createDungeon(x, y, pixels, terrain, depth = 1) {
@@ -771,9 +801,10 @@
     // Входная комната остаётся безопасной (000177: выход — тот же
     // тайл, что вход: Set дедуплицирует две одинаковые точки →
     // ОДИН 5×5-блок; цикл не меняется — форма safe не изменилась).
-    // 000183: клетка босса (ABYSS, дальняя комната) дополнительно
-    // исключена из спавна через occupied — см. ниже (регрессия 000177:
-    // safe-зона переехала из дальней комнаты с боссом в комнаты входа).
+    // 000183/000330: footprint босса (ABYSS, дальняя комната) 3×3
+    // дополнительно исключена из спавна через occupied — см. ниже
+    // (регрессия 000177: safe-зона переехала из дальней комнаты с
+    // боссом в комнаты входа).
     const safe = new Set();
     for (const [cx, cy] of [[d.entrance.x, d.entrance.y], [d.exit.x, d.exit.y]]) {
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) safe.add((cx + dx) + ',' + (cy + dy));
@@ -805,15 +836,20 @@
     // старая формула бит-в-бит; число вызовов rng не меняется).
     const mobLevel = () => Math.max(1, effLevel + Math.floor(rng() * (2 * delta + 1)) - delta);
 
-    // 000183: клетка босса ABYSS — не точка спавна для блуждающих групп и
-    // сундуков (wanderStep уже не пускает группы на занятую клетку босса —
-    // taken-сет; асимметрия генерации — регрессия 000177, когда safe-зона
-    // 5×5 переехала из дальней комнаты с боссом в комнаты входа-выхода).
-    // До первого takeSpot: 1 Set.add, 0 новых вызовов rng; guard по типу
-    // — все не-ABYSS подземелья бит-в-бит неизменны.
+    // 000183/000330: footprint босса ABYSS 3×3 — не точки спавна для
+    // блуждающих групп и сундуков (wanderStep не пускает группы на
+    // занятые клетки босса — taken-сет по footprint). Fail-closed: босс
+    // ставится только если ВСЕ 9 клеток FLOOR (footprintFits); occupied —
+    // все 9 клеток до первого takeSpot (0 новых вызовов rng); guard по
+    // типу — все не-ABYSS подземелья бит-в-бит неизменны.
     const far = d.rooms[d.rooms.length - 1];
-    if (d.type === DUNGEON_TYPES.ABYSS) {
-      occupied.add(far.cx + ',' + far.cy);
+    let bossPlaced = false;
+    if (d.type === DUNGEON_TYPES.ABYSS &&
+        footprintFits(d, { x: far.cx, y: far.cy, boss: true })) {
+      for (const k of mobFootprint({ x: far.cx, y: far.cy, boss: true })) {
+        occupied.add(k);
+      }
+      bossPlaced = true;
     }
 
     // Блуждающие группы: 3-6, по 1-3 моба (SPEC: «мобы подземелий — блуждающие»).
@@ -828,15 +864,14 @@
       mobs.push({ id: 'g' + i, mobIds, x: s[0], y: s[1], level: mobLevel(), defeated: false });
     }
 
-    // Бездна: босс в дальней комнате (SPEC: «Бездна — мобы бездны, босс»).
-    if (d.type === DUNGEON_TYPES.ABYSS) {
+    // Бездна: босс в дальней комнате (SPEC: «Бездна — мобы бездны, босс»);
+    // 000330 — только если footprintFits (fail-closed, см. occupied выше).
+    if (bossPlaced) {
       const s = [far.cx, far.cy];
       mobs.push({
         id: 'boss',
         mobIds: ['abomination', 'lower_demon', 'lower_demon'],
         x: s[0], y: s[1],
-        // 000153.02: босс = effLevel + δ (сдвиг БАЗЫ; depth=1 — старая
-        // формула бит-в-бит, 000183 D-BOSS).
         level: Math.max(1, effLevel + delta),
         defeated: false,
         boss: true,
@@ -864,8 +899,9 @@
     // бит-в-бит). СВОЙ поток: mulberry32(hash2(seed, depth, 0x0DE5))
     // — соль 0x0DE5 ЗАПИНЕНА (ORE-7: смена = репин всей зоны). Клетка
     // — СОБСТВЕННЫЙ takeSpot-клёшер на rng_dep + ОБЩИЙ occupied:
-    // взаимоисключение с мобами/сундуками/босс-клеткой БЕСПЛАТНО
-    // (паттерн 000183); безопасная зона 5×5 недоступна (spots уже
+    // взаимоисключение с мобами/сундуками/footprint босса 3×3
+    // БЕСПЛАТНО (паттерн 000183/000330); безопасная зона 5×5
+    // недоступна (spots уже
     // без неё). Guard: нет «руда» ИЛИ нет записей с tier ≤ T →
     // deposits = [] (защитный путь; с текущими данными не
     // срабатывает — у каждого пула T1).
@@ -1211,14 +1247,25 @@
       ? 0 : Math.min(AGGRO_CHANCE_CAP, AGGRO_CHANCE_PER_LV * levelDiff);
   }
 
-  function chaseDir(m, px, py, d, taken) {
+  function footprintFree(d, nx, ny, boss, taken, selfFoot) {
+    for (const k of mobFootprint({ x: nx, y: ny, boss: boss })) {
+      if (selfFoot.has(k)) continue;
+      const i = k.indexOf(',');
+      const x = Number(k.slice(0, i)), y = Number(k.slice(i + 1));
+      if (!inGrid(d, x, y)
+          || d.cells[idx(d, x, y)] !== CELL_FLOOR
+          || taken.has(k)) return false;
+    }
+    return true;
+  }
+
+  function chaseDir(m, px, py, d, taken, selfFoot) {
     const dx = px - m.x, dy = py - m.y;
     const horiz = Math.abs(dx) >= Math.abs(dy);
     const primary = horiz ? [Math.sign(dx), 0] : [0, Math.sign(dy)];
     const secondary = horiz ? [0, Math.sign(dy)] : [Math.sign(dx), 0];
-    const free = (nx, ny) => inGrid(d, nx, ny)
-      && d.cells[idx(d, nx, ny)] === CELL_FLOOR
-      && !taken.has(nx + ',' + ny);
+    const free = (nx, ny) => footprintFree(d, nx, ny, m.boss, taken,
+      selfFoot);
     if ((primary[0] || primary[1])
         && free(m.x + primary[0], m.y + primary[1])) {
       return primary;
@@ -1238,39 +1285,43 @@
     contents.step = (contents.step || 0) + 1;
     const rng = mulberry32((hash2(contents.step, contents.seed, 0x7777)) >>> 0);
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-    const taken = new Set(
-      contents.mobs.filter((m) => !m.defeated).map((m) => m.x + ',' + m.y));
+    const taken = new Set();
+    for (const m of contents.mobs) {
+      if (m.defeated) continue;
+      for (const k of mobFootprint(m)) taken.add(k);
+    }
     const aggro = !!player && typeof player.level === 'number';
     let landed = null;
     for (const m of contents.mobs) {
       if (m.defeated) continue;
       const [dx, dy] = dirs[Math.floor(rng() * 4)];
+      const selfFoot = new Set(mobFootprint(m));
       if (aggro) {
         const diff = (m.level || 0) - player.level;
         const cheb = Math.max(Math.abs(m.x - player.x),
           Math.abs(m.y - player.y));
         if (diff > 0 && cheb >= 1 && cheb <= aggroDistance(diff)) {
           if (rng() < aggroChance(diff)) {
-            const dir = chaseDir(m, player.x, player.y, d, taken);
+            const dir = chaseDir(m, player.x, player.y, d, taken,
+              selfFoot);
             if (dir) {
               const nx = m.x + dir[0], ny = m.y + dir[1];
-              taken.delete(m.x + ',' + m.y);
+              const newFoot = mobFootprint({ x: nx, y: ny, boss: m.boss });
+              for (const k of selfFoot) taken.delete(k);
               m.x = nx; m.y = ny;
-              taken.add(nx + ',' + ny);
-              if (nx === player.x && ny === player.y) landed = m;
+              for (const k of newFoot) taken.add(k);
+              if (newFoot.includes(player.x + ',' + player.y)) landed = m;
             }
             continue;
           }
         }
       }
       const nx = m.x + dx, ny = m.y + dy;
-      if (!inGrid(d, nx, ny)) continue;
-      if (d.cells[idx(d, nx, ny)] !== CELL_FLOOR) continue;
-      const k = nx + ',' + ny;
-      if (taken.has(k)) continue;
-      taken.delete(m.x + ',' + m.y);
+      if (!footprintFree(d, nx, ny, m.boss, taken, selfFoot)) continue;
+      const newFoot = mobFootprint({ x: nx, y: ny, boss: m.boss });
+      for (const k of selfFoot) taken.delete(k);
       m.x = nx; m.y = ny;
-      taken.add(k);
+      for (const k of newFoot) taken.add(k);
     }
     if (player) return { contents, landed };
     return contents;
@@ -1301,6 +1352,7 @@
   return {
     DUNGEON_TYPES, DUNGEON_NAMES, DUNGEON_MOBS, DUNGEON_ITEMS, DUNGEON_SIZE,
     DUNGEON_WALL_KINDS, DUNGEON_ORES,
+    BOSS_SIZE, mobFootprint,
     DUNGEON_MEMORY_DAYS, LEVEL_DELTA_MAX,
     CELL_WALL, CELL_FLOOR,
     dungeonTypeFor, createDungeon, generateDungeonContents,

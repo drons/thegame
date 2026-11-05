@@ -63,6 +63,17 @@
     return typeof globalThis !== 'undefined' ? globalThis.Game : null;
   }
 
+  // Живая группа занимает клетку (x, y): 1×1 — якорь, босс — footprint
+  // 3×3 (dungeon.js mobFootprint; 000330). Fallback без mobFootprint —
+  // якорь (1×1 бит-в-бит legacy).
+  function mobOnCell(G, m, x, y) {
+    if (!m || m.defeated) return false;
+    if (G && typeof G.mobFootprint === 'function') {
+      return G.mobFootprint(m).includes(x + ',' + y);
+    }
+    return m.x === x && m.y === y;
+  }
+
   // Имя подземелья для строк лога/flash: DUNGEON_NAMES[type]
   // (dungeon.js). Деградация (D13): таблицы нет — console.error +
   // fallback-литерал «подземелье» (недостижимо в браузере — dungeon.js
@@ -262,8 +273,8 @@
         p.x >= 0 && p.y >= 0 && p.x < d.width && p.y < d.height &&
         G.CELL_FLOOR !== undefined &&
         d.cells[p.y * d.width + p.x] === G.CELL_FLOOR &&
-        !(contents && contents.mobs.some((m) => m && !m.defeated
-          && m.x === p.x && m.y === p.y))) {
+        !(contents && contents.mobs.some(
+          (m) => mobOnCell(G, m, p.x, p.y)))) {
       ds.x = ds.prevX = p.x; ds.y = ds.prevY = p.y;
       if (ds.mover) ds.mover.teleport(p.x, p.y);
     }
@@ -431,8 +442,7 @@
     const d = ds.dg, c = ds.contents;
     // Блуждающая группа на клетке → бой (startDungeonCombat —
     // проводка).
-    const g = c.mobs.find((m) => !m.defeated && m.x === ds.x
-      && m.y === ds.y);
+    const g = c.mobs.find((m) => mobOnCell(G, m, ds.x, ds.y));
     if (g) {
       return { type: 'combat', group: g }; // wanderStep НЕ вызывается
     }
@@ -751,8 +761,8 @@
       !!G && G.CELL_FLOOR !== undefined &&
       d2.cells[sd.y * d2.width + sd.x] === G.CELL_FLOOR &&
       !(ds2.contents && Array.isArray(ds2.contents.mobs)
-        && ds2.contents.mobs.some((m) => m && !m.defeated
-          && m.x === sd.x && m.y === sd.y));
+        && ds2.contents.mobs.some(
+          (m) => mobOnCell(G, m, sd.x, sd.y)));
     if (free) {
       ds2.x = ds2.prevX = sd.x; ds2.y = ds2.prevY = sd.y;
       if (ds2.mover) ds2.mover.teleport(sd.x, sd.y);

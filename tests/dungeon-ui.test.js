@@ -1281,7 +1281,19 @@ function allMobFramePaths(G) {
 }
 
 // Юниты группы (спека 000067): mobIds по индексу юнита со смещениями.
-function mobUnits(m) {
+// 000330: босс — 3 юнита на 3 РАЗНЫХ клетках footprint 3×3
+// ((−1,0), (0,+1), (+1,0) от центра) — смещения из G.BOSS_SIZE.
+function mobUnits(m, G) {
+  if (m.boss && G && G.BOSS_SIZE) {
+    const hx = (G.BOSS_SIZE.w - 1) / 2;
+    const hy = (G.BOSS_SIZE.h - 1) / 2;
+    const off = [[-hx, 0], [0, hy], [hx, 0]];
+    return m.mobIds.map((id, i) => ({
+      id,
+      x: m.x + off[i % off.length][0],
+      y: m.y + off[i % off.length][1],
+    }));
+  }
   return m.mobIds.map((id, i) => ({
     id,
     x: m.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
@@ -1295,7 +1307,7 @@ function mobUnits(m) {
 // юнита возвращает ДРОБНЫЙ индекс, frames[1.6] = undefined), размер
 // zoom*1.2 (мобы мира), центр — (ux+0.5, uy+0.5).
 function expectedMobSprite(G, now, m, i, zoom, camX, camY) {
-  const u = mobUnits(m)[i];
+  const u = mobUnits(m, G)[i];
   const frames = G.MOB_FRAMES[G.mobSpriteKind(u.id)];
   const fi = Math.floor(G.frameIndex(now, u.x, u.y, frames.length));
   const p = G.worldToScreen(u.x + 0.5, u.y + 0.5, camX, camY, zoom, VW, VH);
@@ -1415,12 +1427,14 @@ test('подземелье UI 000067: мобы — по числу mobIds, zoom*
   }
 });
 
-test('подземелье UI 000067: босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник группы; без босса — подсветки нет', () => {
+test('подземелье UI 000067: босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник; без босса — подсветки нет (ре-пин 000330: footprint 3×3)', () => {
   // Босс Бездны — 3 юнита (abomination + 2 lower_demon, все 'abyss'):
   // 3 drawImage (число вызовов, а не distinct-путей — фаза кадра
-  // различается по юнитам) + ОДИН #b06ad4-прямоугольник (bounding box
-  // юнитов, рисован ДО спрайтов, покрывает центр группы). Обычная
-  // группа — без #b06ad4.
+  // различается по юнитам). РЕ-ПИН 000330: юниты на 3 РАЗНЫХ клетках
+  // footprint (босс (2,2) → (1,2), (2,3), (3,2)) + ОДИН #b06ad4-
+  // прямоугольник — ТОЧНЫЙ footprint 3×3 (клетки (1,1)..(3,3),
+  // P(1,1), 3×zoom), рисован ДО спрайтов. Обычная группа — без
+  // #b06ad4.
   const boss = {
     x: 2, y: 2, level: 7, defeated: false, boss: true,
     mobIds: ['abomination', 'lower_demon', 'lower_demon'],
@@ -1453,12 +1467,14 @@ test('подземелье UI 000067: босс — N спрайтов юнито
   const purple = calls.filter((c) => c[0] === 'fillRect' && c[2] === '#b06ad4');
   assert.equal(purple.length, 1,
     'boss-подсветка — ровно ОДИН прямоугольник #b06ad4: ' + purple.length);
-  const [bx, by, bw, bh] = purple[0][1];
+  // РЕ-ПИН 000330: подсветка — ТОЧНЫЙ footprint босса 3×3: босс (2,2)
+  // → прямоугольник от P(1,1) размером 3×zoom (144) — не bounding box
+  // юнитов, а клетки (1,1)..(3,3).
+  const pTop = G.worldToScreen(1, 1, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#b06ad4', pTop.x, pTop.y, 144, 144),
+    'подсветка — точный 3×3-прямоугольник footprint босса (000330): '
+    + '[' + pTop.x + ',' + pTop.y + ' 144x144]');
   const bc = G.worldToScreen(2.5, 2.5, 2.5, 2.5, 48, VW, VH); // центр босса
-  assert.ok(bx <= bc.x + 1e-9 && bc.x <= bx + bw + 1e-9
-    && by <= bc.y + 1e-9 && bc.y <= by + bh + 1e-9,
-    'подсветка покрывает центр группы босса (bounding box юнитов): '
-    + '[' + bx + ',' + by + ' ' + bw + 'x' + bh + ']');
   const bossRectIdx = calls.indexOf(purple[0]);
   for (let i = 0; i < 3; i++) {
     const e = expectedMobSprite(G, 1000, boss, i, 48, 2.5, 2.5);
@@ -1553,12 +1569,15 @@ test('подземелье UI 000067: без лоадера (spriteLoader=null) 
   const pMob = G.worldToScreen(2, 2, 2.5, 2.5, 48, VW, VH);
   assert.ok(fillRectAt(calls, '#d9483b', pMob.x + 3, pMob.y + 3, 42, 42),
     'не-босс группа — красный квадрат #d9483b');
-  const pBoss = G.worldToScreen(3, 1, 2.5, 2.5, 48, VW, VH);
-  assert.ok(fillRectAt(calls, '#b06ad4', pBoss.x + 3, pBoss.y + 3, 42, 42),
-    'босс — фиолетовый квадрат #b06ad4');
+  // РЕ-ПИН 000330: босс — фиолетовый 3×3-прямоугольник footprint
+  // (босс (3,1) → от P(2,0), 3×zoom = 144), не квадрат клетки.
+  const pBossTop = G.worldToScreen(2, 0, 2.5, 2.5, 48, VW, VH);
+  assert.ok(fillRectAt(calls, '#b06ad4', pBossTop.x, pBossTop.y, 144, 144),
+    'босс — фиолетовый 3×3-прямоугольник footprint #b06ad4 (000330)');
+  const pBossC = G.worldToScreen(3.5, 1.5, 2.5, 2.5, 48, VW, VH);
   assert.ok(!fillTextNear(calls, '5', '#fff', pMob.x + 24, pMob.y + 24, 4),
     'номер группы «5» НЕ рисуется (000153.04)');
-  assert.ok(!fillTextNear(calls, '7', '#fff', pBoss.x + 24, pBoss.y + 24, 4),
+  assert.ok(!fillTextNear(calls, '7', '#fff', pBossC.x, pBossC.y, 4),
     'номер босса «7» НЕ рисуется (000153.04)');
   // Сундук — прежний золотой квадрат + полоса.
   const pCh = G.worldToScreen(1, 3, 2.5, 2.5, 48, VW, VH);

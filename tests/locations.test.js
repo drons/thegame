@@ -103,6 +103,9 @@ function makeFakeGame() {
     // дословно как в игре), обёрнутые в шпионы для порядка вызовов.
     openChest: (c, id) => { log.push('openChest'); return D.openChest(c, id); },
     wanderStep: (c, d) => { log.push('wanderStep'); return D.wanderStep(c, d); },
+    // 000330: footprint-проверка стоящих мобов (для 1×1 идентична
+    // старой клеточной — аддитивный экспорт dungeon.js).
+    mobFootprint: D.mobFootprint,
   };
   return { G, log, moverCalls };
 }
@@ -575,6 +578,43 @@ test('LOC-8: dungeonMove: моб → {type: \'combat\', group} без wanderStep
     assert.equal((B.log.join(' ').match(/wanderStep/g) || []).length, 3,
       'wanderStep — 3 раза за 3 успешных шага');
     assert.equal(B.moverCalls.steps.length, 3);
+  });
+});
+
+test('000330: dungeonMove: герой на НЕ-якорной клетке footprint босса 3×3 → {type: \'combat\', group} (mobOnCell по footprint)', () => {
+  const L = loadLocations();
+  const d = makeDungeon();
+  // (а) Босс-якорь (3,3): footprint = клетки (2..4, 2..4). Герой
+  // (1,2) — ВНЕ footprint — шагает на (2,2) (НЕ якорь, но клетка
+  // footprint) → бой с босс-группой, wanderStep НЕ вызывается.
+  // Краснота против старой клеточной проверки: (2,2) ≠ (3,3) →
+  // 'moved' (без боя).
+  const A = makeFakeGame();
+  withGame(A.G, () => {
+    const boss = { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'],
+      x: 3, y: 3, level: 7, defeated: false, boss: true };
+    const dsB = makeDs(L, A.G, d, makeContents([boss], []), '7,3', 'dungeon');
+    dsB.x = 1; dsB.y = 2; dsB.prevX = 1; dsB.prevY = 2;
+    const evB = L.dungeonMove(dsB, 1, 0, NOW, { inCombat: false });
+    assert.equal(evB.type, 'combat',
+      'шаг на клетку footprint босса (не якорь) → combat');
+    assert.equal(evB.group, boss, 'group — босс-группа из contents');
+    assert.equal(dsB.x, 2); assert.equal(dsB.y, 2);
+    assert.ok(!A.log.includes('wanderStep'),
+      'ветка combat: wanderStep НЕ вызывается');
+  });
+  // (б) Негатив: (1,2) — ВНЕ footprint босса (3,3) — обычный шаг
+  // (moved), боя нет.
+  const B = makeFakeGame();
+  withGame(B.G, () => {
+    const boss = { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'],
+      x: 3, y: 3, level: 7, defeated: false, boss: true };
+    const dsN = makeDs(L, B.G, d, makeContents([boss], []), '7,3', 'dungeon');
+    dsN.x = 1; dsN.y = 1; dsN.prevX = 1; dsN.prevY = 1;
+    const evN = L.dungeonMove(dsN, 0, 1, NOW, { inCombat: false });
+    assert.equal(evN.type, 'moved',
+      '(1,2) вне footprint босса (3,3) → обычный шаг');
+    assert.equal(evN.chest, null);
   });
 });
 

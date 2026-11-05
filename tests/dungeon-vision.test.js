@@ -1096,7 +1096,7 @@ test('мобы MOBV-2: видимая legacy-группа — рисуется (
   assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
 });
 
-test('мобы MOBV-3: босс (bbox + спрайты юнитов) — explored вне радиуса: не показывается', () => {
+test('мобы MOBV-3: босс (footprint 3×3 + спрайты юнитов) — explored вне радиуса: не показывается (ре-пин 000330)', () => {
   const pre = loadDungeonUi({ withSprites: true });
   const loader = makeSpriteLoader(allMobFramePaths(pre.G));
   const boss = {
@@ -1117,27 +1117,22 @@ test('мобы MOBV-3: босс (bbox + спрайты юнитов) — explore
   const calls = findCanvas(body).drawCalls.slice(f0End);
   const zoom = 40;
   const ms = zoom * 1.2;
+  // РЕ-ПИН 000330: юниты босса — на 3 РАЗНЫХ клетках footprint
+  // (смещения (−1,0), (0,+1), (+1,0) от центра (8,1)); подсветка —
+  // ТОЧНЫЙ 3×3-прямоугольник footprint: P(7,0), 3×zoom = 120.
+  const bossOff = [[-1, 0], [0, 1], [1, 0]];
   const units = boss.mobIds.map((id, i) => ({
     id,
-    x: boss.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
-    y: boss.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
+    x: boss.x + bossOff[i][0],
+    y: boss.y + bossOff[i][1],
   }));
-  let minX = Infinity, minY = Infinity;
-  let maxX = -Infinity, maxY = -Infinity;
-  for (const u of units) {
-    minX = Math.min(minX, u.x - 0.1);
-    maxX = Math.max(maxX, u.x + 1.1);
-    minY = Math.min(minY, u.y - 0.1);
-    maxY = Math.max(maxY, u.y + 1.1);
-  }
-  const bb = P(minX, minY);
+  const bb = P(7, 0);
   const f1End = findCanvas(body).drawCalls.length;
-  assert.ok(fillRectAt(calls, '#b06ad4', bb.x, bb.y,
-      (maxX - minX) * zoom, (maxY - minY) * zoom),
-    'кадр 1: босс — bbox #b06ad4 (юниты ±0.1/+1.1)');
+  assert.ok(fillRectAt(calls, '#b06ad4', bb.x, bb.y, 120, 120),
+    'кадр 1: босс — точный 3×3-прямоугольник footprint #b06ad4 (000330)');
   assert.equal(calls.filter((c) => c[0] === 'fillRect'
     && c[2] === '#b06ad4').length, 1,
-    'кадр 1: bbox ровно ОДИН (юниты — спрайты)');
+    'кадр 1: подсветка ровно ОДИН (юниты — спрайты)');
   for (let i = 0; i < units.length; i++) {
     const u = units[i];
     const frames = G.MOB_FRAMES[G.mobSpriteKind(u.id)];

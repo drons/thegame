@@ -1067,8 +1067,19 @@ test('D-BOSS-1: ABYSS — клетка босса (дальняя комната
 // формы подземелья (анти-ваккуум: фикс не «случайно» чистит только
 // золотую решётку). Золотой пин (11,3)/xp=2000 (тест «golden:
 // детерминизм») ПОСЛЕ фикса бит-в-бит тот же — репин не требовался.
+//
+// РЕ-ПИН 000330 (footprint босса 3×3): occupied — 9 клеток вместо 1
+// ДО первого takeSpot. (11,3): старый g3 (13,7) — ВНУТРИ footprint
+// (13..15, 5..7) → коллизия takeSpot g3 → сдвиг rng-потока: g3
+// переехал (mobIds/level/позиция), nChests 4→3, позиции/gold/предметы
+// сундуков — по новому потоку; c1 = linen_trousers через редкостный
+// блок (r2 0.8092278488911688 → common[90], узкая граница 90/112 —
+// тот же r2, что в цепи 000230.12..000277). Case A: НИКТО из старого
+// контента не стоял на footprint (23..25, 23..25) → бит-в-бит без
+// изменений (анти-ваккуум). Case B: старый c0 (20,29) — внутри
+// footprint (20..22, 28..30) → сдвиг ТОЛЬКО сундуков (мобы не тронуты).
 // =============================================================
-test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземелий, босс-клетка чиста (000183)', () => {
+test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземелий, footprint босса 3×3 чист (000183/000330)', () => {
   const PINS = [
     {
       // РЕ-ПИН 000232+000235.05 (пост-мерж): depth 1 → tier-фильтр
@@ -1090,24 +1101,32 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       // 000277: common-пул 111 → 112 (+traveler_bracer концом) →
       // floor(r2·112) = 90 — c1 = linen_trousers (узкая граница
       // 90/112≈0.803571; post-merge ре-симуляция).
-      // Позиции/gold/mobs/seed — бит-в-бит.
+      // РЕ-ПИН 000330: footprint босса 3×3 (13..15, 5..7) занял
+      // старый g3 (13,7) → коллизия takeSpot → сдвиг rng-потока:
+      // g3 (mobIds/level/позиция) и ВСЕ сундуки (nChests 4→3,
+      // позиции/gold/предметы) — по факту новой генерации (node-
+      // пробой). c1 — linen_trousers БЕЗ ИЗМЕНЕНИЙ: редкостный блок
+      // 000230.05, тот же r2 → common[90] (pool-112). dseed/cseed —
+      // бит-в-бит.
       name: '(11,3) xp=18', args: [11, 3], xp: 18,
       dseed: 2941640529, cseed: 4033219701,
       mobs: [
         { id: 'g0', mobIds: ['lower_demon', 'abomination', 'succubus'], x: 5, y: 23, level: 4, defeated: false },
         { id: 'g1', mobIds: ['lower_demon', 'lower_demon'], x: 3, y: 13, level: 1, defeated: false },
         { id: 'g2', mobIds: ['lower_demon'], x: 7, y: 5, level: 3, defeated: false },
-        { id: 'g3', mobIds: ['abomination', 'abomination'], x: 13, y: 7, level: 1, defeated: false },
+        { id: 'g3', mobIds: ['abomination', 'lower_demon', 'succubus'], x: 4, y: 13, level: 4, defeated: false },
         { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 4, defeated: false, boss: true },
       ],
       chests: [
-        { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
-        { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: 'linen_trousers' },
-        { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blueprint_enchant' },
-        { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blueprint_enchant' },
+        { id: 'c0', x: 21, y: 18, opened: false, gold: 18, item: 'phoenix_feather' },
+        { id: 'c1', x: 9, y: 7, opened: false, gold: 21, item: 'linen_trousers' },
+        { id: 'c2', x: 7, y: 24, opened: false, gold: 13, item: null },
       ],
     },
     {
+      // РЕ-ПИН 000330: БЕЗ ИЗМЕНЕНИЙ — ни один объект старого
+      // контента не стоял на footprint босса (23..25, 23..25) →
+      // 0 коллизий takeSpot → rng-поток бит-в-бит (анти-ваккуум).
       name: 'Case A (−25,−20) xp=100', args: [-25, -20], xp: 100,
       dseed: 3164924960, cseed: 3522625240,
       mobs: [
@@ -1129,6 +1148,11 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       ],
     },
     {
+      // РЕ-ПИН 000330: старый c0 (20,29) — ВНУТРИ footprint (20..22,
+      // 28..30) → коллизия takeSpot в цикле сундуков → сдвиг rng-
+      // потока ТОЛЬКО после мобов: mobIds/позиции групп и dseed/
+      // cseed — бит-в-бит, c0/c1 (позиции/gold) — по факту новой
+      // генерации (node-пробой); оба предмета null (main-роллы).
       name: 'Case B (−15,−20) xp=321', args: [-15, -20], xp: 321,
       dseed: 2383094398, cseed: 1222898703,
       mobs: [
@@ -1138,8 +1162,8 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
         { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 21, y: 29, level: 4, defeated: false, boss: true },
       ],
       chests: [
-        { id: 'c0', x: 20, y: 29, opened: false, gold: 15, item: null },
-        { id: 'c1', x: 14, y: 26, opened: false, gold: 25, item: null },
+        { id: 'c0', x: 14, y: 13, opened: false, gold: 32, item: null },
+        { id: 'c1', x: 4, y: 24, opened: false, gold: 20, item: null },
       ],
     },
   ];
@@ -1152,14 +1176,18 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
     assert.deepEqual(c.mobs, p.mobs, p.name + ': mobs (полный deepEqual)');
     assert.deepEqual(c.chests, p.chests, p.name + ': chests (полный deepEqual)');
     assert.equal(c.createdAtXp, p.xp, p.name + ': createdAtXp');
-    // Инвариант D-BOSS-1 на закреплённом контенте.
-    const far = d.rooms[d.rooms.length - 1];
-    for (const m of c.mobs)
-      assert.ok(m.boss || (m.x !== far.cx || m.y !== far.cy),
-        p.name + ': моб ' + m.id + ' на клетке босса (' + far.cx + ',' + far.cy + ')');
-    for (const ch of c.chests)
-      assert.ok(ch.x !== far.cx || ch.y !== far.cy,
-        p.name + ': сундук ' + ch.id + ' на клетке босса (' + far.cx + ',' + far.cy + ')');
+    // Инвариант D-BOSS-1 (000330: весь footprint 3×3) на закреплённом
+    // контенте: ни моб, ни сундук — ни на одной из 9 клеток босса.
+    const boss = c.mobs.find((m) => m.boss);
+    if (boss) {
+      const fp = new Set(D.mobFootprint(boss));
+      for (const m of c.mobs)
+        assert.ok(m.boss || !fp.has(m.x + ',' + m.y),
+          p.name + ': моб ' + m.id + ' на footprint босса (' + m.x + ',' + m.y + ')');
+      for (const ch of c.chests)
+        assert.ok(!fp.has(ch.x + ',' + ch.y),
+          p.name + ': сундук ' + ch.id + ' на footprint босса (' + ch.x + ',' + ch.y + ')');
+    }
   }
 });
 
@@ -3007,28 +3035,33 @@ test('DUN-RENAME-1: переименование поля видов стен: 0
 const CH_FIX_ID = 'ch_fixture_eq';
 const CH_FIX_POOL_B = 'ch_fixture_pool_b';
 
-// Сценарий D-BOSS-2 (11,3) xp=18: mobs — бит-в-бит (пин :895-901).
+// Сценарий D-BOSS-2 (11,3) xp=18: mobs — ре-пин 000330 (g3: старый
+// (13,7) внутри footprint босса 3×3 → сдвиг потока; g0/g1/g2/boss —
+// бит-в-бит).
 const CH1_MOBS = [
   { id: 'g0', mobIds: ['lower_demon', 'abomination', 'succubus'], x: 5, y: 23, level: 4, defeated: false },
   { id: 'g1', mobIds: ['lower_demon', 'lower_demon'], x: 3, y: 13, level: 1, defeated: false },
   { id: 'g2', mobIds: ['lower_demon'], x: 7, y: 5, level: 3, defeated: false },
-  { id: 'g3', mobIds: ['abomination', 'abomination'], x: 13, y: 7, level: 1, defeated: false },
+  { id: 'g3', mobIds: ['abomination', 'lower_demon', 'succubus'], x: 4, y: 13, level: 4, defeated: false },
   { id: 'boss', mobIds: ['abomination', 'lower_demon', 'lower_demon'], x: 14, y: 6, level: 4, defeated: false, boss: true },
 ];
 // Deposits сценария — по ФАКТУ рабочей генерации (node-пробой
 // master-базы; блок .05 ПОСЛЕ залежей — deposits не трогает).
+// РЕ-ПИН 000330: БЕЗ ИЗМЕНЕНИЙ (d0 (24,16) вне footprint; СВОЙ
+// rng-поток (seed, depth, 0x0DE5) не зависит от occupied-коллизий
+// главного потока — только от takeSpotDep-коллизий, и d0 мимо).
 const CH1_DEPOSITS = [
   { id: 'd0', x: 24, y: 16, item: 'stone_chunk', amount: 2, gathered: false },
 ];
-// Golden chests: c1 (fixture с явным slot) → common, pool[1];
-// c0 — null; c2/c3 — ре-пин 000232+000235.05 (пост-мерж): depth 1 →
-// tier-фильтр T=1 (свитки T3 вне пула: 8→6) + blueprint_enchant
-// концом → c2/c3 (фильтр-индекс 5, без slot) = blueprint_enchant.
+// Golden chests: РЕ-ПИН 000330 — сдвиг потока (g3-коллизия): nChests
+// 4→3, позиции/gold — по факту; c1 — main-роллит индекс 0 (fixture с
+// явным slot) → common, pool[1] (поток CH1: r1/r2 — те же, первый
+// триггер по-прежнему c1); c0 — phoenix_feather (без slot — не
+// триггерится, без slot = расходник-ролл main-потока); c2 — null.
 const CH1_GOLDEN_CHESTS = [
-  { id: 'c0', x: 17, y: 23, opened: false, gold: 20, item: null },
-  { id: 'c1', x: 13, y: 11, opened: false, gold: 12, item: CH_FIX_POOL_B },
-  { id: 'c2', x: 13, y: 13, opened: false, gold: 14, item: 'blueprint_enchant' },
-  { id: 'c3', x: 11, y: 12, opened: false, gold: 28, item: 'blueprint_enchant' },
+  { id: 'c0', x: 21, y: 18, opened: false, gold: 18, item: 'phoenix_feather' },
+  { id: 'c1', x: 9, y: 7, opened: false, gold: 21, item: CH_FIX_POOL_B },
+  { id: 'c2', x: 7, y: 24, opened: false, gold: 13, item: null },
 ];
 
 function chFixItem() {
@@ -3065,7 +3098,7 @@ function chTeardown(L, sav) {
   ITEMS.splice(sav.itemsLen);
 }
 
-test('000230.05-CH1: сундук-редкость — СВОЙ rng-поток: соль 0x0E5C (export + текст-пин), формула mulberry32(hash2(seed, depth, 0x0E5C)>>>0); golden ABYSS (11,3) xp=18: c1 = common-пул pool[1], c0/c2/c3/seed/mobs/deposits — бит-в-бит (RED)', () => {
+test('000230.05-CH1: сундук-редкость — СВОЙ rng-поток: соль 0x0E5C (export + текст-пин), формула mulberry32(hash2(seed, depth, 0x0E5C)>>>0); golden ABYSS (11,3) xp=18: c1 = common-пул pool[1], seed/deposits — бит-в-бит (ре-пин 000330: nChests 4→3, позиции/gold — сдвинутый поток, mobs — g3 переехал) (RED)', () => {
   let L = null;
   let sav = null;
   try {
@@ -3094,18 +3127,20 @@ test('000230.05-CH1: сундук-редкость — СВОЙ rng-поток: 
     assert.equal(c.seed, 4033219701,
       'сид контента — бит-в-бит (главный поток не тронут)');
     assert.deepEqual(c.mobs, CH1_MOBS,
-      'mobs — без изменений (D-BOSS-2 пин; потоки изолированы)');
+      'mobs — D-BOSS-2 пин (ре-пин 000330: g3; редкостный поток '
+      + 'изолирован от main)');
     assert.deepEqual(c.deposits, CH1_DEPOSITS,
       'deposits — без изменений (блок .05 ПОСЛЕ залежей)');
     assert.deepEqual(c.chests, CH1_GOLDEN_CHESTS,
       'golden: c1 (fixture с явным slot) → common tier, pool[1]; '
-      + 'c0 (null), c2/c3 (без slot) — дословно D-BOSS-2');
+      + 'c0 (phoenix_feather, без slot), c2 (null) — main-роллы '
+      + '(ре-пин 000330)');
   } finally {
     chTeardown(L, sav);
   }
 });
 
-test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixture, slot right_hand) → предмет роулнутой редкости (common) из пула; c2/c3 (без slot) — без изменений; c0 (null) — без изменений; gold/позиции — без изменений (RED)', () => {
+test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixture, slot right_hand) → предмет роулнутой редкости (common) из пула; c0 (phoenix_feather, без slot), c2 (null) — без изменений (ре-пин 000330: nChests 4→3, c3 нет) (RED)', () => {
   let L = null;
   let sav = null;
   try {
@@ -3123,17 +3158,18 @@ test('000230.05-CH2: триггер — ЯВНЫЙ slot ТОЛЬКО: c1 (fixtur
     assert.equal(c1.item, 'ch2_fixture_b',
       'c1: select idx = floor(0.8092…·2) = 1 (поток CH1)');
     assert.deepEqual({ x: c1.x, y: c1.y, gold: c1.gold },
-      { x: 13, y: 11, gold: 12 },
-      'c1: позиция/gold — без изменений (главный rng бит-в-бит)');
-    // РЕ-ПИН 000232+000235.05 (пост-мерж): c2/c3 (фильтр-индекс 5) —
-    // blueprint_enchant (расходник, slot undefined — без редкостной
-    // замены).
-    assert.equal(chest('c2').item, 'blueprint_enchant',
-      'c2 (slot undefined): БЕЗ ИЗМЕНЕНИЙ (расходник — '
-      + 'как сейчас, DUNGEON_ITEMS)');
-    assert.equal(chest('c3').item, 'blueprint_enchant',
-      'c3 (slot undefined): БЕЗ ИЗМЕНЕНИЙ');
-    assert.equal(chest('c0').item, null, 'c0 (null): без изменений');
+      { x: 9, y: 7, gold: 21 },
+      'c1: позиция/gold — РЕ-ПИН 000330 (сдвиг main-потока после '
+      + 'g3-коллизии; редкостный блок позиции не трогает)');
+    // РЕ-ПИН 000330: nChests 4→3 → c2 — null (main-ролл), c3 — нет;
+    // c0 — phoenix_feather (расходник, slot undefined — без
+    // редкостной замены).
+    assert.equal(chest('c2').item, null,
+      'c2: null (main-ролл; slot undefined — без замены)');
+    assert.equal(chest('c3'), undefined,
+      'c3: отсутствует (000330: nChests 4→3)');
+    assert.equal(chest('c0').item, 'phoenix_feather',
+      'c0 (slot undefined): без редкостной замены');
   } finally {
     chTeardown(L, sav);
   }

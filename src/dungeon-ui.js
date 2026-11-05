@@ -1088,9 +1088,10 @@
     // Фолбэки ПЕР-ЮНИТ: image не готов / вида нет → прежний квадрат
     // ИМЕННО для этого юнита, остальные — спрайты. Legacy-группа
     // БЕЗ mobIds (или sprites.js не в цепочке) — один групповой
-    // квадрат, как раньше. Boss — #b06ad4-прямоугольник bounding box
-    // юнитов (± половина спрайта 0.6 клетки), рисуется ПЕРЕД
-    // спрайтами юнитов.
+    // квадрат, как раньше. Boss (000330) — #b06ad4-прямоугольник
+    // ТОЧНО footprint 3×3 (BOSS_SIZE из dungeon.js; юниты на
+    // РАЗНЫХ клетках footprint: (−1,0), (0,+1), (+1,0)), рисуется
+    // ПЕРЕД спрайтами юнитов; фолбэк без спрайтов — тот же 3×3.
     const mobSpriteOk = typeof live.mobSpriteKind === 'function'
       && live.MOB_FRAMES && typeof live.MOB_FRAMES === 'object'
       && typeof live.frameIndex === 'function';
@@ -1104,29 +1105,26 @@
       // сохраняется (допущенный артефакт, 000136 D7).
       // memory/000225-dungeon-mob-vision.md.
       if (!isCity && mask[m.y * d.width + m.x] !== 2) continue;
+      const bossSize = (m.boss && live.BOSS_SIZE) || { w: 3, h: 3 };
+      const bhalf = { x: (bossSize.w - 1) / 2, y: (bossSize.h - 1) / 2 };
       const units = (Array.isArray(m.mobIds) && m.mobIds.length > 0
         && mobSpriteOk)
-        ? m.mobIds.map((id, i) => ({
-          id,
-          x: m.x + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][0],
-          y: m.y + MOB_UNIT_OFF[i % MOB_UNIT_OFF.length][1],
-        }))
+        ? m.mobIds.map((id, i) => {
+          const off = m.boss
+            ? [[-bhalf.x, 0], [0, bhalf.y], [bhalf.x, 0]][i % 3]
+            : MOB_UNIT_OFF[i % MOB_UNIT_OFF.length];
+          return {
+            id,
+            x: m.x + off[0],
+            y: m.y + off[1],
+          };
+        })
         : null;
       if (units) {
         if (m.boss) {
-          // Boss-подсветка — bounding box юнитов (центр ± 0.6 клетки),
-          // ДО спрайтов (слой под ними).
-          let minX = Infinity, minY = Infinity;
-          let maxX = -Infinity, maxY = -Infinity;
-          for (const u of units) {
-            minX = Math.min(minX, u.x - 0.1);
-            maxX = Math.max(maxX, u.x + 1.1);
-            minY = Math.min(minY, u.y - 0.1);
-            maxY = Math.max(maxY, u.y + 1.1);
-          }
-          const bb = proj(minX, minY);
+          const bb = proj(m.x - bhalf.x, m.y - bhalf.y);
           g2.fillStyle = '#b06ad4';
-          g2.fillRect(bb.x, bb.y, (maxX - minX) * zoom, (maxY - minY) * zoom);
+          g2.fillRect(bb.x, bb.y, bossSize.w * zoom, bossSize.h * zoom);
         }
         for (const u of units) {
           const kind = live.mobSpriteKind(u.id);
@@ -1147,15 +1145,19 @@
             const ms = zoom * 1.2; // формула мобов мира
             const mc = proj(u.x + 0.5, u.y + 0.5);
             g2.drawImage(img, mc.x - ms / 2, mc.y - ms / 2, ms, ms);
-          } else {
+          } else if (!m.boss) {
             const pu = proj(u.x, u.y);
-            g2.fillStyle = m.boss ? '#b06ad4' : '#d9483b';
+            g2.fillStyle = '#d9483b';
             g2.fillRect(pu.x + 3, pu.y + 3, zoom - 6, zoom - 6);
           }
         }
+      } else if (m.boss) {
+        const p = proj(m.x - bhalf.x, m.y - bhalf.y);
+        g2.fillStyle = '#b06ad4';
+        g2.fillRect(p.x, p.y, bossSize.w * zoom, bossSize.h * zoom);
       } else {
         const p = proj(m.x, m.y);
-        g2.fillStyle = m.boss ? '#b06ad4' : '#d9483b';
+        g2.fillStyle = '#d9483b';
         g2.fillRect(p.x + 3, p.y + 3, zoom - 6, zoom - 6);
       }
     }
