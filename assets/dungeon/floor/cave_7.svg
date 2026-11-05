@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#5d554d"/>
+  <g>
+    <polygon points="15.3,29.1 18.4,26.5 22.7,27.8 24,31.7 16.6,32.6" fill="#4b423a" opacity="0.6" />
+    <polygon points="15.4,49.7 18.6,47 23.1,48.3 24.5,52.4 16.7,53.4" fill="#4b423a" opacity="0.7" />
+    <polygon points="30.3,51.8 32.7,49.8 36.2,50.8 37.3,53.9 31.3,54.6" fill="#4b423a" opacity="0.7" />
+    <polygon points="50.3,17.1 53,14.8 56.8,16 57.9,19.4 51.5,20.1" fill="#4b423a" opacity="0.7" />
+    <polygon points="49.8,43.8 52.8,41.2 57,42.5 58.3,46.3 51,47.2" fill="#4b423a" opacity="0.6" />
+    <polygon points="33.3,12.1 36.1,9.7 40,10.9 41.2,14.5 34.5,15.2" fill="#4b423a" opacity="0.7" />
+    <ellipse cx="10.4" cy="47.2" rx="1.4" ry="1" fill="#574e44" opacity="0.7" />
+    <ellipse cx="10.1" cy="31.9" rx="1.5" ry="1" fill="#574e44" opacity="0.8" />
+    <ellipse cx="47.9" cy="25.7" rx="2.5" ry="1.8" fill="#574e44" opacity="0.6" />
+    <ellipse cx="12.1" cy="28" rx="2.4" ry="1.7" fill="#574e44" opacity="0.7" />
+    <ellipse cx="16.1" cy="26.8" rx="2.2" ry="1.6" fill="#574e44" opacity="0.6" />
+    <polygon points="12,17.1 8.7,17.7 8.9,18.6 12.1,17.9" fill="#362f29" opacity="0.3" />
+    <polygon points="53.1,7.1 48.3,10 48.8,10.8 53.6,7.9" fill="#362f29" opacity="0.4" />
+    <polygon points="42.6,30.6 46,35 46.7,34.4 43.3,30.1" fill="#362f29" opacity="0.4" />
+    <polygon points="53.3,10.4 56.2,11.4 56.5,10.6 53.6,9.6" fill="#362f29" opacity="0.4" />
+    <circle cx="11.2" cy="8" r="1.2" fill="#837969" opacity="0.4" />
+    <circle cx="45.3" cy="44.7" r="0.9" fill="#837969" opacity="0.4" />
+    <circle cx="26.1" cy="18.6" r="0.8" fill="#837969" opacity="0.6" />
+    <circle cx="43.3" cy="18.2" r="1" fill="#837969" opacity="0.4" />
+    <circle cx="54.8" cy="55" r="0.8" fill="#837969" opacity="0.6" />
+  </g>
+</svg>

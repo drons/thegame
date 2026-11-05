@@ -1,25 +1,18 @@
-// Генератор 15 статичных SVG-тайлов пола подземелья (задача 000069) —
-// assets/dungeon/floor/<slug>_<n>.svg: 5 типов подземелий
-// (cave/crypt/ruins/drowned/abyss — те же слоги, что у фонов боя 000049),
-// по 3 варианта на тип (n = 1..3).
+// Генератор 40 статичных SVG-тайлов пола подземелья (задачи 000069/
+// 000294 — градиентная база, 000323 — плоская flat-база, 8 вариантов
+// на тип) — assets/dungeon/floor/<slug>_<n>.svg: 5 типов подземелий
+// (cave/crypt/ruins/drowned/abyss — те же слоги, что у фонов боя
+// 000049), по 8 вариантов на тип (n = 1..8).
 //
-// Стиль — единый, как у assets/tiles/*.svg и assets/combat/bg:
-// вертикальный linearGradient из двух близких тонов + мягкая текстура
-// (пятна света/тени через radialGradient, fade до opacity 0) + мелкие
-// низкоконтрастные детали (stroke-linecap round). Ключевое отличие от
-// фонов боя — требования к стыкам при по-клеточной отрисовке:
-// * базовый linearGradient ОДИНАКОВ для всех 3 вариантов одного типа
-//   (сид меняет только раскладку деталей) — тональный фон клеток
-//   одного типа совпадает, без «шахматных» контрастных прыжков;
-// * детали НИЗКОКОНТРАСТНЫЕ и стоят во ВНУТРЕННОСТИ тайла (не доходят
-//   до краёв) — жёсткий контраст на границе тайла дал бы видимый шов
-//   на стыке клеток;
-// * виньетки НЕТ (у фонов боя она есть): потемнение краёв каждого
-//   тайла дало бы сетку тёмных линий между клетками.
+// Flat-SVG (паттерн 000302): базовый rect 64×64 fill=hex + детали
+// ТОЛЬКО rect/circle/ellipse/polygon — без градиентов/defs/path/
+// текста/transform/обводок. Бесшовность: база типа — ОДИН плоский
+// тон у всех 8 вариантов (края совпадают в произвольном порядке);
+// детали (камешки, швы, волны, лужи, искры) строго внутри [0.5,
+// 63.5]². Контракт — memory/000323-dungeon-tiles.md.
 //
-// Генерация полностью детерминирована: фиксированный сид на тайл,
-// стабильный порядок элементов и атрибутов, округление до 0.1 px,
-// без дат — повторный запуск даёт byte-identical файлы
+// Детерминирован: фиксированный сид на тайл, стабильный порядок,
+// округление до 0.1 px, без дат — повторный запуск byte-identical
 // (проверка: второй запуск → git diff пуст).
 //
 // Запуск: node scripts/gen-dungeon-tiles.js  (или npm run gen:dungeon)
@@ -29,9 +22,8 @@ const { join } = require('node:path');
 
 const isMain = require.main === module;
 
-const SIZE = 64; // 64×64 — тот же базовый размер, что у мировых тайлов
+const SIZE = 64;
 
-/** Детерминированный PRNG (mulberry32) — один поток на тайл. */
 function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
@@ -43,24 +35,25 @@ function mulberry32(seed) {
   };
 }
 
-/** Число с 1 знаком после точки (устойчивый вывод, без шума -0). */
 function f(v) {
   const r = Math.round(v * 10) / 10;
   return Object.is(r, -0) ? 0 : r;
 }
 
-/** Точка во внутренней части тайла (margin — запас от краёв). */
 function inner(rnd, margin) {
-  const m = margin === undefined ? 10 : margin;
+  const m = margin === undefined ? 8 : margin;
   return { x: m + rnd() * (SIZE - 2 * m), y: m + rnd() * (SIZE - 2 * m) };
 }
 
-// --- Детали (одна строка SVG на элемент) ---
-//
-// Все размеры — малые (2..8 px), контраст — низкий (opacity 0.15..0.8,
-// оттенки той же палитры, что базовый градиент): деталь читается как
-// фактура, а не как чужеродный объект, и на стыках клеток не
-// «прыгает».
+function unit(rnd) {
+  const a = rnd() * Math.PI;
+  return [Math.cos(a), Math.sin(a)];
+}
+
+function poly(pts, c, o) {
+  const s = pts.map((p) => `${f(p[0])},${f(p[1])}`).join(' ');
+  return `<polygon points="${s}" fill="${c}" opacity="${o}" />`;
+}
 
 function dot(x, y, r, c, o) {
   return `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="${c}" opacity="${o}" />`;
@@ -70,77 +63,34 @@ function pebble(x, y, r, c, o) {
   return `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(r)}" ry="${f(r * 0.7)}" fill="${c}" opacity="${o}" />`;
 }
 
-/** Неровный камешек — неправильный пятиугольник вокруг (x, y). */
 function stone(x, y, s, c, o) {
-  const pts = [[-1, -0.2], [-0.3, -0.8], [0.7, -0.5], [1, 0.4], [-0.7, 0.6]]
-    .map((p) => `${f(x + p[0] * s)},${f(y + p[1] * s)}`).join(' ');
-  return `<polygon points="${pts}" fill="${c}" opacity="${o}" />`;
+  return poly([
+    [x - s, y - 0.2 * s], [x - 0.3 * s, y - 0.8 * s], [x + 0.7 * s, y - 0.5 * s],
+    [x + s, y + 0.4 * s], [x - 0.7 * s, y + 0.6 * s],
+  ], c, o);
 }
 
-/** Трещина — короткая ломаная (три звена). */
-function crack(x, y, s, c, o) {
-  return `<path d="M${f(x)} ${f(y)} l${f(s * 0.7)} ${f(s * 0.4)} l${f(s * 0.5)} ${f(-s * 0.3)} l${f(s * 0.6)} ${f(s * 0.5)}" ` +
-    `stroke="${c}" stroke-width="1" fill="none" stroke-linecap="round" opacity="${o}" />`;
-}
-
-/** Шов плиты (склеп) — короткий отрезок. */
-function seam(x, y, w, h, c, o) {
-  return `<path d="M${f(x)} ${f(y)} l${f(w)} ${f(h)}" stroke="${c}" stroke-width="1" stroke-linecap="round" opacity="${o}" />`;
-}
-
-/** Косточка (склеп) — короткая линия с «головкой». */
-function boneFrag(x, y, s, c, o) {
-  return `<path d="M${f(x)} ${f(y)} l${f(s)} ${f(s * 0.4)}" stroke="${c}" ` +
-    `stroke-width="${f(s * 0.4)}" stroke-linecap="round" opacity="${o}" />` +
-    dot(x + s * 0.2, y - s * 0.25, s * 0.22, c, o);
-}
-
-/** Рунный след (склеп) — короткая ломаная из двух звеньев. */
-function runeFrag(x, y, s, c, o) {
-  return `<path d="M${f(x)} ${f(y)} l${f(s)} 0 l${f(-s * 0.5)} ${f(s * 0.7)}" ` +
-    `stroke="${c}" stroke-width="1" fill="none" stroke-linecap="round" opacity="${o}" />`;
-}
-
-/** Обломок кладки (руины) — скошенная пластина. */
 function slab(x, y, w, h, c, o) {
-  return `<polygon points="${f(x)},${f(y)} ${f(x + w)},${f(y + h * 0.3)} ${f(x + w * 0.8)},${f(y + h)} ${f(x + w * 0.1)},${f(y + h * 0.8)}" ` +
-    `fill="${c}" opacity="${o}" />`;
+  return poly([
+    [x, y], [x + w, y + h * 0.3], [x + w * 0.8, y + h], [x + w * 0.1, y + h * 0.8],
+  ], c, o);
 }
 
-/** Волна (затопленная) — короткая S-дуга (приём фонов боя). */
-function wavelet(x, y, len, c, o) {
-  const h = len / 2;
-  return `<path d="M${f(x)} ${f(y)} Q${f(x + h / 2)} ${f(y - 2.2)} ${f(x + h)} ${f(y)} Q${f(x + h * 1.5)} ${f(y + 2.2)} ${f(x + len)} ${f(y)}" ` +
-    `stroke="${c}" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="${o}" />`;
+function strip(x, y, len, ux, uy, w, c, o) {
+  const hl = len / 2;
+  const px = -uy * w / 2, py = ux * w / 2;
+  return poly([
+    [x - ux * hl + px, y - uy * hl + py],
+    [x + ux * hl + px, y + uy * hl + py],
+    [x + ux * hl - px, y + uy * hl - py],
+    [x - ux * hl - px, y - uy * hl - py],
+  ], c, o);
 }
-
-/** Подтёк (затопленная) — короткая вертикальная дуга с каплей. */
-function drip(x, y, h, c, o) {
-  return `<path d="M${f(x)} ${f(y)} q${f(h * 0.2)} ${f(h * 0.4)} 0 ${f(h)}" ` +
-    `stroke="${c}" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="${o}" />` +
-    dot(x, y + h, 0.9, c, f(o * 0.8));
-}
-
-/** Тусклый огонёк (бездна). */
-function glowDot(x, y, r, o) {
-  return `<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" fill="#8a6fc0" opacity="${o}" />`;
-}
-
-// --- Состав 5 типов (5 типов × 3 варианта = 15 тайлов) ---
-//
-// Палитры — те же базовые пары тонов, что у фонов боя 000049 (crypt —
-// холодный серый, ruins — тёплая кладка, drowned — синий с
-// сине-зелёными подтёками, abyss — чёрно-фиолетовый); исключение —
-// cave (000294): плоский средний тон прежней пары #5d554d, боевой фон
-// cave.svg не пересоздан (known-следствие, memory/000294-cave-tiles.md §8).
-// «пять типов — пять разных видов». Базовый градиент типа общий для
-// всех 3 вариантов — сид меняет только раскладку деталей.
 
 const TYPES = [
   {
-    slug: 'cave', top: '#5d554d', bottom: '#5d554d',
-    spotMargin: 16, spotRxSpan: 5,
-    light: '#837969', lightOp: 0.35, dark: '#362f29', darkOp: 0.45,
+    slug: 'cave',
+    base: '#5d554d',
     details(rnd, out) {
       for (let i = 0; i < 6; i++) {
         const p = inner(rnd);
@@ -151,8 +101,9 @@ const TYPES = [
         out.push(pebble(p.x, p.y, 1.2 + rnd() * 1.6, '#574e44', f(0.5 + rnd() * 0.3)));
       }
       for (let i = 0; i < 4; i++) {
-        const p = { x: 10 + rnd() * 36, y: 10 + rnd() * 44 };
-        out.push(crack(p.x, p.y, 3 + rnd() * 3, '#362f29', f(0.3 + rnd() * 0.2)));
+        const p = inner(rnd);
+        const [ux, uy] = unit(rnd);
+        out.push(strip(p.x, p.y, 3 + rnd() * 3, ux, uy, 0.9, '#362f29', f(0.3 + rnd() * 0.2)));
       }
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
@@ -161,25 +112,28 @@ const TYPES = [
     },
   },
   {
-    slug: 'crypt', top: '#5a6170', bottom: '#3a404e',
-    spotMargin: 14, spotRxSpan: 8,
-    light: '#6d7586', lightOp: 0.35, dark: '#2a2f3c', darkOp: 0.45,
+    slug: 'crypt',
+    base: '#5a6170',
     details(rnd, out) {
       for (let i = 0; i < 5; i++) {
-        // Отрезок целиком внутри тайла: старт ≤ 46, длина ≤ 16 → ≤ 62.
         const p = { x: 8 + rnd() * 38, y: 8 + rnd() * 38 };
         const horiz = rnd() < 0.5;
-        out.push(seam(p.x, p.y,
-          horiz ? 10 + rnd() * 6 : 0, horiz ? 0 : 10 + rnd() * 6,
+        const len = 10 + rnd() * 6;
+        out.push(strip(p.x, p.y, len, horiz ? 1 : 0, horiz ? 0 : 1, 0.9,
           '#2a2f3c', 0.35));
       }
       for (let i = 0; i < 4; i++) {
         const p = inner(rnd);
-        out.push(boneFrag(p.x, p.y, 3 + rnd() * 2.5, '#cfd3da', f(0.45 + rnd() * 0.25)));
+        const s = 3 + rnd() * 2.5;
+        out.push(pebble(p.x, p.y, s * 0.55, '#cfd3da', f(0.45 + rnd() * 0.25)));
+        out.push(dot(p.x + s * 0.3, p.y - s * 0.25, s * 0.22, '#cfd3da', f(0.45 + rnd() * 0.25)));
+        out.push(dot(p.x - s * 0.3, p.y + s * 0.25, s * 0.22, '#cfd3da', f(0.45 + rnd() * 0.25)));
       }
       for (let i = 0; i < 3; i++) {
         const p = inner(rnd);
-        out.push(runeFrag(p.x, p.y, 3.5 + rnd() * 2.5, '#8fa3c4', f(0.3 + rnd() * 0.2)));
+        const s = 3.5 + rnd() * 2.5;
+        out.push(strip(p.x, p.y, s, 1, 0, 0.9, '#8fa3c4', f(0.3 + rnd() * 0.2)));
+        out.push(strip(p.x + s / 2, p.y, s, -0.45, 1, 0.9, '#8fa3c4', f(0.3 + rnd() * 0.2)));
       }
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
@@ -188,13 +142,12 @@ const TYPES = [
     },
   },
   {
-    slug: 'ruins', top: '#7a6f60', bottom: '#544c41',
-    spotMargin: 14, spotRxSpan: 8,
-    light: '#8f8574', lightOp: 0.35, dark: '#403a31', darkOp: 0.45,
+    slug: 'ruins',
+    base: '#7a6f60',
     details(rnd, out) {
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
-        out.push(slab(p.x, p.y, 4 + rnd() * 4, 3 + rnd() * 3, '#5b5344', f(0.5 + rnd() * 0.3)));
+        out.push(slab(p.x, p.y, 4 + rnd() * 4, 3 + rnd() * 3, '#6a5f50', f(0.5 + rnd() * 0.3)));
       }
       for (let i = 0; i < 4; i++) {
         const p = inner(rnd);
@@ -202,7 +155,8 @@ const TYPES = [
       }
       for (let i = 0; i < 4; i++) {
         const p = inner(rnd);
-        out.push(crack(p.x, p.y, 3 + rnd() * 5, '#403a31', f(0.3 + rnd() * 0.2)));
+        const [ux, uy] = unit(rnd);
+        out.push(strip(p.x, p.y, 3 + rnd() * 5, ux, uy, 0.9, '#544c41', f(0.3 + rnd() * 0.2)));
       }
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
@@ -211,37 +165,42 @@ const TYPES = [
     },
   },
   {
-    slug: 'drowned', top: '#2a5494', bottom: '#16295c',
-    spotMargin: 14, spotRxSpan: 8,
-    light: '#3a6cb0', lightOp: 0.4, dark: '#0f1f4a', darkOp: 0.5,
+    slug: 'drowned',
+    base: '#2a5494',
     details(rnd, out) {
-      for (let i = 0; i < 6; i++) {
-        // Волна целиком внутри тайла: старт ≤ 40, длина ≤ 14 → ≤ 54.
+      for (let i = 0; i < 3; i++) {
+        const p = inner(rnd, 10);
+        const rx = 4 + rnd() * 4.5;
+        out.push(`<ellipse cx="${f(p.x)}" cy="${f(p.y)}" rx="${f(rx)}" ry="${f(rx * 0.62)}" fill="#16325c" opacity="0.55" />`);
+        out.push(`<ellipse cx="${f(p.x + rx * 0.18)}" cy="${f(p.y - rx * 0.1)}" rx="${f(rx * 0.5)}" ry="${f(rx * 0.3)}" fill="#4a7fc0" opacity="0.4" />`);
+      }
+      for (let i = 0; i < 4; i++) {
         const p = { x: 10 + rnd() * 30, y: 10 + rnd() * 44 };
-        out.push(wavelet(p.x, p.y, 8 + rnd() * 6, '#4a7fc0', f(0.3 + rnd() * 0.2)));
+        const len = 8 + rnd() * 6;
+        const seg = len / 3;
+        out.push(strip(p.x, p.y, seg, 1, 0.4, 1, '#4a7fc0', f(0.3 + rnd() * 0.2)));
+        out.push(strip(p.x + seg, p.y, seg, 1, -0.4, 1, '#4a7fc0', f(0.3 + rnd() * 0.2)));
+        out.push(strip(p.x + 2 * seg, p.y, seg, 1, 0.4, 1, '#4a7fc0', f(0.3 + rnd() * 0.2)));
       }
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
         out.push(dot(p.x, p.y, 0.9 + rnd() * 1.4, '#7fa8d9', f(0.3 + rnd() * 0.25)));
       }
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {
         const p = { x: 10 + rnd() * 44, y: 10 + rnd() * 34 };
-        out.push(drip(p.x, p.y, 5 + rnd() * 5, '#3f7f8f', f(0.3 + rnd() * 0.2)));
-      }
-      for (let i = 0; i < 4; i++) {
-        const p = inner(rnd);
-        out.push(dot(p.x, p.y, 0.6 + rnd() * 0.8, '#3f7f8f', f(0.35 + rnd() * 0.25)));
+        const h = 5 + rnd() * 5;
+        out.push(strip(p.x, p.y, h, 0.2, 1, 1.1, '#3f7f8f', f(0.3 + rnd() * 0.2)));
+        out.push(dot(p.x, p.y + h / 2, 0.9, '#3f7f8f', f(0.3 + rnd() * 0.2)));
       }
     },
   },
   {
-    slug: 'abyss', top: '#171221', bottom: '#0a0713',
-    spotMargin: 14, spotRxSpan: 8,
-    light: '#241a33', lightOp: 0.5, dark: '#04020a', darkOp: 0.5,
+    slug: 'abyss',
+    base: '#171221',
     details(rnd, out) {
       for (let i = 0; i < 7; i++) {
         const p = inner(rnd);
-        out.push(glowDot(p.x, p.y, 0.7 + rnd() * 1.1, f(0.25 + rnd() * 0.25)));
+        out.push(dot(p.x, p.y, 0.7 + rnd() * 1.1, '#8a6fc0', f(0.25 + rnd() * 0.25)));
       }
       for (let i = 0; i < 5; i++) {
         const p = inner(rnd);
@@ -249,7 +208,8 @@ const TYPES = [
       }
       for (let i = 0; i < 3; i++) {
         const p = inner(rnd);
-        out.push(crack(p.x, p.y, 3 + rnd() * 4, '#04020a', f(0.4 + rnd() * 0.2)));
+        const [ux, uy] = unit(rnd);
+        out.push(strip(p.x, p.y, 3 + rnd() * 4, ux, uy, 0.9, '#04020a', f(0.4 + rnd() * 0.2)));
       }
       for (let i = 0; i < 3; i++) {
         const p = inner(rnd);
@@ -259,60 +219,23 @@ const TYPES = [
   },
 ];
 
-// 15 спецификаций: ключ <slug>_<n> (n = 1..3), свой сид (сид меняет
-// только раскладку — базовые тона типа общие, см. TYPES).
 const TILES = [];
 TYPES.forEach((t, i) => {
-  for (let n = 1; n <= 3; n++) {
+  for (let n = 1; n <= 8; n++) {
     TILES.push({
       key: t.slug + '_' + n,
-      seed: 0x69000100 + i * 3 + n,
-      top: t.top, bottom: t.bottom,
-      spotMargin: t.spotMargin, spotRxSpan: t.spotRxSpan,
-      light: t.light, lightOp: t.lightOp,
-      dark: t.dark, darkOp: t.darkOp,
+      seed: 0x69000100 + i * 8 + n,
+      base: t.base,
       details: t.details,
     });
   }
 });
 
-/** SVG-документ тайла (чистая функция от t-спецификации). */
 function buildDungeonFloorTile(t) {
   const rnd = mulberry32(t.seed);
   const L = [];
   L.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}">`);
-  L.push(`  <defs>`);
-  // Базовый градиент — ПЕРВЫЙ и ОДИНАКОВ для всех 3 вариантов типа
-  // (тест сверяет пару stop-цветов первого linearGradient).
-  L.push(`    <linearGradient id="gb" x1="0" y1="0" x2="0" y2="1">`);
-  L.push(`      <stop offset="0" stop-color="${t.top}"/>`);
-  L.push(`      <stop offset="1" stop-color="${t.bottom}"/>`);
-  L.push(`    </linearGradient>`);
-  L.push(`    <radialGradient id="gl">`);
-  L.push(`      <stop offset="0" stop-color="${t.light}" stop-opacity="${t.lightOp}"/>`);
-  L.push(`      <stop offset="1" stop-color="${t.light}" stop-opacity="0"/>`);
-  L.push(`    </radialGradient>`);
-  L.push(`    <radialGradient id="gd">`);
-  L.push(`      <stop offset="0" stop-color="${t.dark}" stop-opacity="${t.darkOp}"/>`);
-  L.push(`      <stop offset="1" stop-color="${t.dark}" stop-opacity="0"/>`);
-  L.push(`    </radialGradient>`);
-  L.push(`  </defs>`);
-  L.push(`  <rect width="${SIZE}" height="${SIZE}" fill="url(#gb)"/>`);
-  // Мягкая текстура: пятна света/тени (radialGradient, fade до opacity
-  // 0 — без периода и без жёсткого края, на стыках не рвётся).
-  L.push(`  <g>`);
-  for (let i = 0; i < 4; i++) {
-    const p = inner(rnd, t.spotMargin);
-    const rx = 8 + rnd() * t.spotRxSpan, ry = rx * (0.55 + rnd() * 0.3);
-    L.push(`    <ellipse cx="${f(p.x)}" cy="${f(p.y)}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#gl)"/>`);
-  }
-  for (let i = 0; i < 4; i++) {
-    const p = inner(rnd, t.spotMargin);
-    const rx = 8 + rnd() * t.spotRxSpan, ry = rx * (0.55 + rnd() * 0.3);
-    L.push(`    <ellipse cx="${f(p.x)}" cy="${f(p.y)}" rx="${f(rx)}" ry="${f(ry)}" fill="url(#gd)"/>`);
-  }
-  L.push(`  </g>`);
-  // Мелкие детали (низкоконтрастные, во внутренности тайла).
+  L.push(`  <rect width="${SIZE}" height="${SIZE}" fill="${t.base}"/>`);
   const det = [];
   t.details(rnd, det);
   if (det.length) {

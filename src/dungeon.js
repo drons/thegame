@@ -410,6 +410,13 @@
       ^ ((depth * 0x9e3779b9) >>> 0)) >>> 0;
   }
 
+  const FLOOR_TILE_SALT = 0x5f00d323;
+
+  function dungeonFloorTileSeed(gx, gy, depth) {
+    return (hash2(gx, gy, FLOOR_TILE_SALT)
+      ^ ((depth * 0x9e3779b9) >>> 0)) >>> 0;
+  }
+
   // 000153.01: ключ dungeonMemory — worldKey ('x,y') + глубина →
   // 'x,y:depth'. Разделитель ':' — прецедент 'x,y:effectId'
   // (buildingOncePerDay); ',' сделал бы ключ неоднозначным (worldKey
@@ -702,6 +709,7 @@
       // Additive: контент depth=1 от поля не зависит (0 новых вызовов
       // rng в createDungeon/generateDungeonContents).
       depth,
+      floorSeed: dungeonFloorTileSeed(x, y, depth),
     };
 
     // 000153.02: stairs-down — поле ФОРМЫ (детерминировано, 0 rng —
@@ -1308,6 +1316,7 @@
     // 000153.01: модель глубины + сериализатор раздела сейва
     // dungeonMemory (additive — существующие экспорты не тронуты).
     dungeonDepthSeed, dungeonMemoryKey, DUNGEON_MEMORY_KEY_RE,
+    dungeonFloorTileSeed, FLOOR_TILE_SALT,
     validateDungeonContents, serializeDungeonMemory, restoreDungeonMemory,
     // 000153.02: генерация этажа — размер per-глубина + stairs-down
     // (additive; bfsDistances — внутренний хелпер, НЕ экспортируется).

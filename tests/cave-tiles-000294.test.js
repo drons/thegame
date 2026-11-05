@@ -214,21 +214,29 @@ function elementBoxes(svg, label) {
   return boxes;
 }
 
-const isBaseRect = (x) => x.tag === 'rect' && x.fill.startsWith('url(');
+const isBaseRect = (x) => x.tag === 'rect' && x.b.minX === 0
+  && x.b.maxX === 64 && x.b.minY === 0 && x.b.maxY === 64;
 const touchesEdge = (b) =>
   b.minX <= EDGE_EPS || b.maxX >= 64 - EDGE_EPS
   || b.minY <= EDGE_EPS || b.maxY >= 64 - EDGE_EPS;
 const inRect = (b, r) =>
   b.minX >= r.min && b.maxX <= r.max && b.minY >= r.min && b.maxY <= r.max;
 
-// Плоская база: ровно один базовый rect на весь тайл + цвета в серединах
-// рёбер: верх == низ (вертикальный стык) и лево == право (горизонтальный).
+// Бесшовная база: ровно один базовый rect на весь тайл. Градиентная
+// база (стены): цвета в серединах рёбер верх == низ и лево == право.
+// Плоская база (полы, 000323): fill = один 6-значный hex (все кромки
+// идентичны тождественно).
 function assertSeamlessBase(svg, label) {
   const bases = elementBoxes(svg, label).filter(isBaseRect);
-  assert.equal(bases.length, 1, `${label}: ровно 1 базовый rect (fill url)`);
+  assert.equal(bases.length, 1, `${label}: ровно 1 базовый rect`);
   const bb = bases[0].b;
   assert.ok(bb.minX <= 0 && bb.maxX >= 64 && bb.minY <= 0 && bb.maxY >= 64,
     `${label}: базовый rect = весь тайл (${fmtBox(bb)})`);
+  if (!svg.includes('<linearGradient')) {
+    assert.match(bases[0].fill, /^#[0-9a-fA-F]{6}$/,
+      `${label}: плоская база — fill базового rect = 6-значный hex`);
+    return;
+  }
   const g = baseGradient(svg, label);
   const top = edgeMidpointColor(g, 'top', label);
   const bottom = edgeMidpointColor(g, 'bottom', label);
@@ -240,10 +248,19 @@ function assertSeamlessBase(svg, label) {
     `${label}: ГОРИЗОНТАЛЬНЫЙ шов — цвет у левой кромки ≠ у правой`);
 }
 
+// Стопы базовой заливки пола: градиент (до 000323) — стопы
+// linearGradient; плоская (000323) — единственный стоп = fill базы.
+function floorBaseStops(svg, label) {
+  if (svg.includes('<linearGradient')) return baseGradient(svg, label).stops;
+  const base = elementBoxes(svg, label).filter(isBaseRect)[0];
+  assert.ok(base, `${label}: базовый rect`);
+  return [{ t: 0, rgb: hexToRgb(base.fill), op: 1 }];
+}
+
 // --- CT-1: пол пещеры — бесшовная база в оба направления ---
 
-test('CT-1: пол пещеры (cave_1..3): базовая заливка бесшовна вертикально (верх == низ) и горизонтально (лево == право) — диск + генератор', () => {
-  for (const n of [1, 2, 3]) {
+test('CT-1: пол пещеры (cave_1..8): базовая заливка бесшовна вертикально (верх == низ) и горизонтально (лево == право) — диск + генератор', () => {
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const t = TILES.find((x) => x.key === `cave_${n}`);
     assert.ok(t, `в генераторе есть тайл cave_${n}`);
     assertSeamlessBase(read(`assets/dungeon/floor/cave_${n}.svg`), `cave_${n} (диск)`);
@@ -253,8 +270,8 @@ test('CT-1: пол пещеры (cave_1..3): базовая заливка бе�
 
 // --- CT-2: пол пещеры — элементы тела не пересекают край тайла ---
 
-test('CT-2: пол пещеры (cave_1..3): ни один текстурный элемент не выходит за внутреннюю зону [0.5, 63.5]² (bbox строго внутри) — диск + генератор', () => {
-  for (const n of [1, 2, 3]) {
+test('CT-2: пол пещеры (cave_1..8): ни один текстурный элемент не выходит за внутреннюю зону [0.5, 63.5]² (bbox строго внутри) — диск + генератор', () => {
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const t = TILES.find((x) => x.key === `cave_${n}`);
     assert.ok(t, `в генераторе есть тайл cave_${n}`);
     const sources = [
@@ -283,8 +300,8 @@ test('CT-3: стены каждого подземелья из каталога
   for (const c of cats) {
     const slug = SLUG_BY_ID[c.id];
     assert.ok(slug, `тип ${c.id}: слог пола известен`);
-    const floorStops = baseGradient(
-      read(`assets/dungeon/floor/${slug}_1.svg`), `пол ${slug}_1`).stops;
+    const floorStops = floorBaseStops(
+      read(`assets/dungeon/floor/${slug}_1.svg`), `пол ${slug}_1`);
     for (const K of c['объекты_стен']) {
       assert.ok(WALL_KINDS.includes(K),
         `${slug}: объект_стен ${K} ∈ {${WALL_KINDS.join(', ')}}`);
@@ -347,7 +364,7 @@ test('CT-4b (гвард): стены (60 плиток): любой элемен�
 
 // --- CT-5 (гвард): диск ≡ генераторы, побайтово ---
 
-test('CT-5 (гвард): 63 пересоздаваемых тайла на диске byte-идентичны выходу генераторов (3 пола cave + 60 стен rock/column/stalactite)', () => {
+test('CT-5 (гвард): 68 пересоздаваемых тайла на диске byte-идентичны выходу генераторов (8 пола cave + 60 стен rock/column/stalactite)', () => {
   let n = 0;
   for (const t of TILES) {
     if (!t.key.startsWith('cave_')) continue;
@@ -361,5 +378,5 @@ test('CT-5 (гвард): 63 пересоздаваемых тайла на ди�
       `файл на диске ≠ выход генератора: ${t.path}`);
     n += 1;
   }
-  assert.equal(n, 63, 'пересоздаваемых тайлов = 3 + 60');
+  assert.equal(n, 68, 'пересоздаваемых тайлов = 8 + 60');
 });

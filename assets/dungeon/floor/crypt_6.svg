@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#5a6170"/>
+  <g>
+    <polygon points="10.9,36.6 25.3,36.6 25.3,35.7 10.9,35.7" fill="#2a2f3c" opacity="0.35" />
+    <polygon points="21.2,23.7 21.2,35.8 22.1,35.8 22.1,23.7" fill="#2a2f3c" opacity="0.35" />
+    <polygon points="39.9,40.1 39.9,51 40.8,51 40.8,40.1" fill="#2a2f3c" opacity="0.35" />
+    <polygon points="10,13.4 10,27.6 10.9,27.6 10.9,13.4" fill="#2a2f3c" opacity="0.35" />
+    <polygon points="17.9,20.1 28.6,20.1 28.6,19.2 17.9,19.2" fill="#2a2f3c" opacity="0.35" />
+    <ellipse cx="11.9" cy="37.7" rx="2.3" ry="1.6" fill="#cfd3da" opacity="0.6" />
+    <circle cx="13.2" cy="36.6" r="0.9" fill="#cfd3da" opacity="0.7" />
+    <circle cx="10.7" cy="38.7" r="0.9" fill="#cfd3da" opacity="0.6" />
+    <ellipse cx="9.2" cy="12.4" rx="2.5" ry="1.7" fill="#cfd3da" opacity="0.5" />
+    <circle cx="10.5" cy="11.2" r="1" fill="#cfd3da" opacity="0.7" />
+    <circle cx="7.8" cy="13.5" r="1" fill="#cfd3da" opacity="0.5" />
+    <ellipse cx="14.6" cy="27.7" rx="2.2" ry="1.5" fill="#cfd3da" opacity="0.7" />
+    <circle cx="15.8" cy="26.7" r="0.9" fill="#cfd3da" opacity="0.7" />
+    <circle cx="13.4" cy="28.7" r="0.9" fill="#cfd3da" opacity="0.7" />
+    <ellipse cx="50" cy="34.3" rx="1.8" ry="1.3" fill="#cfd3da" opacity="0.6" />
+    <circle cx="51" cy="33.5" r="0.7" fill="#cfd3da" opacity="0.5" />
+    <circle cx="49.1" cy="35.1" r="0.7" fill="#cfd3da" opacity="0.5" />
+    <polygon points="18.8,13.1 24.1,13.1 24.1,12.2 18.8,12.2" fill="#8fa3c4" opacity="0.5" />
+    <polygon points="24.8,9.8 22.4,15.1 23.3,15.5 25.7,10.3" fill="#8fa3c4" opacity="0.4" />
+    <polygon points="52.8,44.6 57.6,44.6 57.6,43.7 52.8,43.7" fill="#8fa3c4" opacity="0.5" />
+    <polygon points="58.3,41.5 56.1,46.4 57,46.8 59.2,41.9" fill="#8fa3c4" opacity="0.5" />
+    <polygon points="5.2,47.6 11.1,47.6 11.1,46.7 5.2,46.7" fill="#8fa3c4" opacity="0.4" />
+    <polygon points="12,43.9 9.4,49.9 10.3,50.3 12.9,44.3" fill="#8fa3c4" opacity="0.4" />
+    <circle cx="49.7" cy="13.6" r="1.6" fill="#6d7586" opacity="0.4" />
+    <circle cx="15.3" cy="52.1" r="0.9" fill="#6d7586" opacity="0.3" />
+    <circle cx="37.8" cy="18.3" r="1.5" fill="#6d7586" opacity="0.5" />
+    <circle cx="28" cy="10.7" r="1.4" fill="#6d7586" opacity="0.5" />
+    <circle cx="44" cy="23.7" r="1.1" fill="#6d7586" opacity="0.3" />
+  </g>
+</svg>

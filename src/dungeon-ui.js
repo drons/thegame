@@ -322,7 +322,8 @@
           }
           continue;
         }
-        const path = floorFrameFn ? floorFrameFn(d.type, tx, ty) : null;
+        const path = floorFrameFn
+          ? floorFrameFn(d.type, tx, ty, d.floorSeed) : null;
         const img = (path && loader
             && typeof loader.image === 'function')
           ? ((typeof loader.isReady === 'function'
@@ -790,7 +791,7 @@
           continue;
         }
         const path = live.dungeonFloorFrame
-          ? live.dungeonFloorFrame(d.type, x, y) : null;
+          ? live.dungeonFloorFrame(d.type, x, y, d.floorSeed) : null;
         const img = (path && loader && typeof loader.image === 'function')
           ? ((typeof loader.isReady === 'function' ? loader.isReady(path) : true)
             && loader.image(path))
