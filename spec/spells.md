@@ -428,6 +428,12 @@
 * Ссылочная целостность: `база` → заклинание каталога (одна школа,
   `степень` = +1 к базовой, `уровень` не ниже, без циклов); `предметы` →
   `assets/items`; `здания` → `assets/buildings`.
+* Ссылки тэгов на каталоги (000327): `школа` — кириллический id школы
+  (enum 000301) — резолв в JSON школы assets/skills (000038–000043) по
+  `name.toLowerCase()`; `атрибут` — id основного навыка assets/skills
+  (000004 intelligence / 000005 wisdom); `параметры.summon` у действия
+  `призыв` — id моба assets/mobs (движок: MOB_TYPES[summon],
+  src/spells.js). Sweep — tests/spell-links-000327.test.js.
 * JSON-файлы — source of truth. Тест `tests/spells.test.js` проверяет
   нумерацию, валидность по схеме, правила каталога и ссылки.
 * Игровой код реализован (задача 000045): `src/spells-data.js` —
