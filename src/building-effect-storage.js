@@ -1,9 +1,11 @@
 // Задача 000221: город — здание «Хранилище» (склад предметов из
 // инвентаря). UMD-спец-модуль (паттерн building-effect-fullrest.js):
-// node — module.exports {storageHandler}; browser — саморегистрация
-// Game.buildingActions.registerSpecial('storage', …). НОЛЬ require:
-// всё — из спец-ctx 000128 ({t, b, hero, world: deps}) и world.game.
-// Контракты: memory/000221-city-storage.md (D9).
+// node — module.exports {storageHandler, transfer}; browser —
+// саморегистрация Game.buildingActions.registerSpecial('storage', …).
+// НОЛЬ require: всё — из спец-ctx 000128 ({t, b, hero, world: deps})
+// и world.game. Контракты: memory/000221-city-storage.md (D9);
+// 000313: transfer — ОДНА мутация (кнопка И dnd), контракты —
+// memory/000313-storage-panels.md.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) {
     module.exports = factory(null);
@@ -86,11 +88,29 @@
       storage: storage, capacity: capacity, hero: ctx && ctx.hero };
   }
 
+  // ADDITIVE поля строки из каталога (000313): icon/rarity/meta —
+  // формат вкладки [I] (ui-tab-inventory: «X.X кг, Y з»); нет каталожной
+  // записи — поля отсутствуют (деградация строки без меток).
+  function itemFields(row, g, e) {
+    const it = g && typeof g.getItem === 'function'
+      ? g.getItem(e.id) : null;
+    if (!it || typeof it !== 'object' || Array.isArray(it)) return;
+    if (typeof it.icon === 'string' && it.icon !== '') row.icon = it.icon;
+    if (typeof it.rarity === 'string' && it.rarity !== '') {
+      row.rarity = it.rarity;
+    }
+    if (typeof it.weight === 'number' && typeof it.value === 'number') {
+      row.meta = (it.weight * (e.qty || 0)).toFixed(1)
+        + ' кг, ' + it.value + ' з';
+    }
+  }
+
   // Строки оверлея FLAT (buildingUI): put-* ПЕРЕД take-*; имя —
   // «Сложить: <имя> ×<qty>» / «Вынуть: <имя> ×<qty>» (+ «(улучш.)»);
   // put — доступен при месте (иначе reason «хранилище полное (N/M)»);
   // take — dry-run canAddItem (reason — из dry-run); оба пусты — одна
-  // disabled-строка 'empty'.
+  // disabled-строка 'empty'. 000313 (ADDITIVE): side (inv/stock —
+  // панель), btn («Сложить»/«Вынуть» — текст кнопки), icon/rarity/meta.
   function buildRows(res) {
     const rows = [];
     const hero = res.hero;
@@ -102,6 +122,7 @@
       const row = { id: 'put-' + i, itemId: e.id,
         bonus: e.bonus === undefined ? null : e.bonus,
         qty: e.qty,
+        side: 'inv', btn: 'Сложить',
         имя: 'Сложить: ' + itemName(res.g, e.id) + ' ×' + e.qty
           + bonusSuffix(e),
         доступен: res.storage.length < res.capacity };
@@ -109,6 +130,7 @@
         row.reason = 'хранилище полное (' + res.storage.length + '/'
           + res.capacity + ')';
       }
+      itemFields(row, res.g, e);
       rows.push(row);
     }
     for (let j = 0; j < res.storage.length; j++) {
@@ -119,16 +141,19 @@
         ? res.g.canAddItem(hero, e.id, e.qty, bns) : { ok: true };
       const row = { id: 'take-' + j, itemId: e.id, bonus: bns,
         qty: e.qty,
+        side: 'stock', btn: 'Вынуть',
         имя: 'Вынуть: ' + itemName(res.g, e.id) + ' ×' + e.qty
           + bonusSuffix(e),
         доступен: !!(chk && chk.ok) };
       if (!row.доступен) {
         row.reason = chk && chk.reason ? chk.reason : 'недоступно';
       }
+      itemFields(row, res.g, e);
       rows.push(row);
     }
     if (!rows.length) {
-      rows.push({ id: 'empty', имя: 'Хранилище и инвентарь пусты',
+      rows.push({ id: 'empty', side: 'stock',
+        имя: 'Хранилище и инвентарь пусты',
         доступен: false, reason: 'пусто' });
     }
     return rows;
@@ -149,12 +174,15 @@
   }
 
   // Re-open оверлея (новый объект: open() начинается с close() —
-  // дублей нет; строки — из LIVE-состояния).
+  // дублей нет; строки — из LIVE-состояния). 000313 (ADDITIVE):
+  // layout:'storage' (две панели) + capacity {n, m} (заголовок).
   function openOverlay(res, ctx) {
     res.g.buildingUI.open({
       title: 'Хранилище',
       actions: buildRows(res),
       onAction: (a) => perform(ctx, a),
+      layout: 'storage',
+      capacity: { n: res.storage.length, m: res.capacity },
     });
   }
 
@@ -164,82 +192,99 @@
     openOverlay(res, ctx);
   }
 
-  function doPut(ctx, res, a) {
-    const i = Number(a.id.slice(4));
-    if (!Number.isInteger(i) || i < 0) return;
-    const hero = res.hero;
-    const inv = hero && hero.inventory;
-    const slots = inv && Array.isArray(inv.slots) ? inv.slots : [];
-    const e = slots[i];
-    if (!e || typeof e !== 'object' || Array.isArray(e)) {
-      reopen(ctx);
-      return;
-    }
-    if (a.itemId !== undefined && e.id !== a.itemId) {
-      reopen(ctx);
-      return;
-    }
-    const bonus = e.bonus === undefined ? null : e.bonus;
-    const put = res.C.storagePut(res.storage, e.id, e.qty, bonus,
-      res.capacity);
-    if (!put || put.ok !== true) {
-      flash(res.w, 'Хранилище полное');
-      reopen(ctx);
-      return;
-    }
-    const at = slots.indexOf(e);
-    if (at >= 0) slots.splice(at, 1);
-    assignStorage(res, put.storage);
-    saveNow(res.w);
-    flash(res.w, 'Сложено: ' + itemName(res.g, e.id) + ' ×' + e.qty
-      + bonusSuffix(e));
-    playerRender(res.w);
-    reopen(ctx);
-  }
-
-  function doTake(ctx, res, a) {
-    const j = Number(a.id.slice(4));
-    if (!Number.isInteger(j) || j < 0) return;
-    const take = res.C.storageTake(res.storage, j);
-    if (!take || take.ok !== true) {
-      reopen(ctx);
-      return;
-    }
-    const en = take.entry;
-    if (a.itemId !== undefined && en.id !== a.itemId) {
-      reopen(ctx);
-      return;
-    }
-    const hero = res.hero;
+  // ОДНА мутация (000313): spec {from: 'inv'|'storage', index, itemId?}
+  // — КНОПКА и DRAG-N-DROP оверлея — один и тот же путь. put: слот
+  // СПЛАЙСНУТ (quick не трогается) → storagePut (чистый, merge по
+  // (id, bonusState)) → полный — flash «Хранилище полное» +
+  // {ok:false, reason:'full'} БЕЗ мутирования; успех — assignStorage
+  // (ЛIVE built-запись) + saveNow + flash «Сложено: …» + playerRender.
+  // take: storageTake (чистый) → itemId-гард → dry-run canAddItem
+  // (отказ — flash reason, all-or-nothing) → addItem (merge) →
+  // assignStorage + saveNow + flash «Вынуто: …» + playerRender.
+  // stale-индекс/stale-itemId/не-ок-резолв — {ok:false} ТИХО.
+  function transferWith(res, spec) {
+    if (!res || res.ok !== true) return { ok: false };
+    const w = res.w;
     const g = res.g;
-    const bns = en.bonus === undefined ? null : en.bonus;
-    const chk = typeof g.canAddItem === 'function'
-      ? g.canAddItem(hero, en.id, en.qty, bns) : { ok: true };
-    if (!chk || chk.ok !== true) {
-      flash(res.w, chk && chk.reason ? chk.reason
-        : 'Не удалось вернуть предмет');
-      reopen(ctx);
-      return;
+    const C = res.C;
+    const hero = res.hero;
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec)) {
+      return { ok: false };
     }
-    const add = typeof g.addItem === 'function'
-      ? g.addItem(hero, en.id, en.qty, bns) : null;
-    if (!add || add.ok !== true) {
-      flash(res.w, add && add.reason ? add.reason
-        : 'Не удалось вернуть предмет');
-      reopen(ctx);
-      return;
+    if (spec.from === 'inv') {
+      const i = spec.index;
+      if (!Number.isInteger(i) || i < 0) return { ok: false };
+      const inv = hero && hero.inventory;
+      const slots = inv && Array.isArray(inv.slots) ? inv.slots : [];
+      const e = slots[i];
+      if (!e || typeof e !== 'object' || Array.isArray(e)) {
+        return { ok: false };
+      }
+      if (spec.itemId !== undefined && e.id !== spec.itemId) {
+        return { ok: false };
+      }
+      const bonus = e.bonus === undefined ? null : e.bonus;
+      const put = C.storagePut(res.storage, e.id, e.qty, bonus,
+        res.capacity);
+      if (!put || put.ok !== true) {
+        flash(w, 'Хранилище полное');
+        return { ok: false, reason: 'full' };
+      }
+      const at = slots.indexOf(e);
+      if (at >= 0) slots.splice(at, 1);
+      assignStorage(res, put.storage);
+      saveNow(w);
+      flash(w, 'Сложено: ' + itemName(g, e.id) + ' ×' + e.qty
+        + bonusSuffix(e));
+      playerRender(w);
+      return { ok: true };
     }
-    assignStorage(res, take.storage);
-    saveNow(res.w);
-    flash(res.w, 'Вынуто: ' + itemName(g, en.id) + ' ×' + en.qty
-      + bonusSuffix(en));
-    playerRender(res.w);
-    reopen(ctx);
+    if (spec.from === 'storage') {
+      const j = spec.index;
+      if (!Number.isInteger(j) || j < 0) return { ok: false };
+      const take = C.storageTake(res.storage, j);
+      if (!take || take.ok !== true) return { ok: false };
+      const en = take.entry;
+      if (spec.itemId !== undefined && en.id !== spec.itemId) {
+        return { ok: false };
+      }
+      const bns = en.bonus === undefined ? null : en.bonus;
+      const chk = typeof g.canAddItem === 'function'
+        ? g.canAddItem(hero, en.id, en.qty, bns) : { ok: true };
+      if (!chk || chk.ok !== true) {
+        flash(w, chk && chk.reason ? chk.reason
+          : 'Не удалось вернуть предмет');
+        return { ok: false };
+      }
+      const add = typeof g.addItem === 'function'
+        ? g.addItem(hero, en.id, en.qty, bns) : null;
+      if (!add || add.ok !== true) {
+        flash(w, add && add.reason ? add.reason
+          : 'Не удалось вернуть предмет');
+        return { ok: false };
+      }
+      assignStorage(res, take.storage);
+      saveNow(w);
+      flash(w, 'Вынуто: ' + itemName(g, en.id) + ' ×' + en.qty
+        + bonusSuffix(en));
+      playerRender(w);
+      return { ok: true };
+    }
+    return { ok: false };
   }
 
-  // put-*/take-* (строки [E]-меню И оверлея): пере-резолв LIVE,
-  // исполнение, save/flash/render — САМ хендлер, возврат пайплайну
-  // {ok:false} БЕЗ message («спец обработал сам»).
+  // Экспорт (node-тесты + будущее переиспользование): полный путь —
+  // resolveCtx (гарды) + transferWith; не-ок — {ok:false} ТИХО.
+  function transfer(ctx, spec) {
+    const res = resolveCtx(ctx);
+    if (!res.ok) return { ok: false };
+    return transferWith(res, spec);
+  }
+
+  // put-*/take-* (строки [E]-меню И оверлея, КНОПКА и dnd): пере-
+  // резолв LIVE, ОДНА мутация (transferWith), reopen — ВСЕГДА, save/
+  // flash/render — САМ хендлер, возврат пайплайну {ok:false} БЕЗ
+  // message («спец обработал сам»).
   function perform(ctx, a) {
     const id = a && typeof a.id === 'string' ? a.id : '';
     if (id.indexOf('put-') !== 0 && id.indexOf('take-') !== 0) return;
@@ -253,8 +298,11 @@
       if (res.fail && res.fail.message) flash(res.w, res.fail.message);
       return;
     }
-    if (id.indexOf('put-') === 0) doPut(ctx, res, a);
-    else doTake(ctx, res, a);
+    const spec = id.indexOf('put-') === 0
+      ? { from: 'inv', index: Number(id.slice(4)), itemId: a.itemId }
+      : { from: 'storage', index: Number(id.slice(4)), itemId: a.itemId };
+    transferWith(res, spec);
+    reopen(ctx);
   }
 
   // Спец-«storage»: action 'storage' (или прямой вызов без action —
@@ -281,7 +329,7 @@
   }
 
   if (root === null) {
-    return { storageHandler };
+    return { storageHandler, transfer };
   }
   const G = typeof root.Game === 'object' ? root.Game : null;
   if (!G) {

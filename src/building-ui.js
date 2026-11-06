@@ -45,6 +45,7 @@
   let cursor = -1;  // индекс строки под курсором (-1 — нет доступных)
   let portraitsRow = null;      // 000299.01: ряд портретов партии
   let portraitsErrorShown = false;
+  let dragging = null;  // 000313: {id, side} — активный dnd-перенос
 
   function el(tag, cls, text) {
     const n = document.createElement(tag);
@@ -278,12 +279,123 @@
     onAction = null;
     rows = [];
     cursor = -1;
+    dragging = null;
+  }
+
+  // --- 000313: layout 'storage' — две панели «инвентарь | склад» ---
+  // Панель по стороне действия (side из buildRows: put-* → 'inv',
+  // take-*/'empty' → 'stock'); заголовки — «Инвентарь» /
+  // «Склад (N/M)» (capacity из payload). dnd: dragstart строки
+  // фиксирует {id, side} (dataTransfer.setData — только id); dragover
+  // — preventDefault ТОЛЬКО на колонке-ЦЕЛИ (противоположная сторона);
+  // drop — executeAction(findAction(id)) — ОДНА и та же мутация, что
+  // клик/кнопка (executeAction → close + onAction).
+
+  function colSideOf(a) {
+    return a && a.side === 'inv' ? 'inv' : 'stock';
+  }
+
+  function onRowDragStart(e, a) {
+    if (!a || !a.доступен) return;
+    dragging = { id: String(a.id), side: colSideOf(a) };
+    const dt = e && e.dataTransfer;
+    if (dt) {
+      dt.effectAllowed = 'move';
+      dt.setData('text/plain', String(a.id));
+    }
+  }
+
+  function onRowDragEnd() {
+    dragging = null;
+  }
+
+  function onColDragOver(e, side) {
+    if (dragging && dragging.side !== side) e.preventDefault();
+  }
+
+  function onColDrop(e, side) {
+    if (!dragging || dragging.side === side) return;
+    e.preventDefault();
+    const id = dragging.id;
+    dragging = null;
+    executeAction(findAction(id));
+  }
+
+  function makeItemRow(a, i, o, opts) {
+    const row = el('div', (typeof opts.rarity === 'string' && opts.rarity !== '')
+      ? 'cp-itemrow cp-rarity-' + opts.rarity : 'cp-itemrow');
+    row.setAttribute('data-buid', String(a.id));
+    row.disabled = !a.доступен;
+    if (opts.draggable) row.draggable = !!a.доступен;
+    if (!a.доступен && (opts.dimAlways || !o.reasonRed)) {
+      row.style.opacity = '0.3';
+    }
+    if (typeof a.icon === 'string' && a.icon !== '') {
+      const icon = el('img', 'cp-itemicon');
+      icon.src = a.icon;
+      icon.alt = '';
+      row.appendChild(icon);
+    } else {
+      row.appendChild(el('span', 'cp-btn', String(i + 1)));
+    }
+    const nameSpan = el('span', 'cp-itemname');
+    row.appendChild(nameSpan);
+    if (typeof opts.meta === 'string' && opts.meta !== '') {
+      row.appendChild(el('span', 'cp-itemmeta', opts.meta));
+    }
+    if (a.reason) {
+      row.appendChild(el('span',
+        o.reasonRed ? 'cp-itemmeta cp-itemreason' : 'cp-itemmeta',
+        ' — ' + a.reason));
+    }
+    if (typeof opts.btn === 'string' && opts.btn !== '') {
+      const btn = el('button', 'cp-btn', opts.btn);
+      btn.disabled = !a.доступен;
+      row.appendChild(btn);
+    }
+    if (opts.draggable) {
+      row.addEventListener('dragstart', (ev) => onRowDragStart(ev, a));
+      row.addEventListener('dragend', onRowDragEnd);
+    }
+    return { row, nameSpan, action: a };
+  }
+
+  function buildStorageDom(o, side) {
+    const wrap = el('div', 'storage-cols');
+    const invCol = el('div', 'storage-col storage-col--inv');
+    const stockCol = el('div', 'storage-col storage-col--stock');
+    invCol.appendChild(el('div', 'cp-title', 'Инвентарь'));
+    const cap = o && o.capacity;
+    stockCol.appendChild(el('div', 'cp-title',
+      cap && Number.isFinite(cap.n) && Number.isFinite(cap.m)
+        ? 'Склад (' + cap.n + '/' + cap.m + ')' : 'Склад'));
+    rows = [];
+    actions.forEach((a, i) => {
+      const r = makeItemRow(a, i, o, {
+        rarity: a.rarity, meta: a.meta, btn: a.btn,
+        draggable: true, dimAlways: true,
+      });
+      rows.push(r);
+      (colSideOf(a) === 'inv' ? invCol : stockCol).appendChild(r.row);
+    });
+    invCol.addEventListener('dragover', (e) => onColDragOver(e, 'inv'));
+    invCol.addEventListener('drop', (e) => onColDrop(e, 'inv'));
+    stockCol.addEventListener('dragover', (e) => onColDragOver(e, 'stock'));
+    stockCol.addEventListener('drop', (e) => onColDrop(e, 'stock'));
+    wrap.appendChild(invCol);
+    wrap.appendChild(stockCol);
+    side.appendChild(wrap);
+    const avail = availableIndexes();
+    cursor = avail.length ? avail[0] : -1;
+    renderCursor();
   }
 
   function buildDom(o) {
     closeDom(); // повторное открытие — разбирать прежний оверлей
-    overlay = el('div', o.scroll
-      ? 'combat-overlay combat-overlay--build' : 'combat-overlay');
+    overlay = el('div', o.layout === 'storage'
+      ? 'combat-overlay combat-overlay--storage'
+      : (o.scroll
+        ? 'combat-overlay combat-overlay--build' : 'combat-overlay'));
     const side = el('div', 'combat-side');
 
     const title = el('div', 'cp-title');
@@ -307,38 +419,24 @@
     // не 24px), span.cp-itemname (flex:1), span.cp-itemmeta (reason).
     // Клик — по ВСЕЙ строке (hit-area широкая); голый button.cp-btn
     // (24px) был тесен: текст не влезал, кликалась только кнопка.
-    const list = el('div', 'cp-items');
-    rows = [];
-    actions.forEach((a, i) => {
-      const row = el('div', 'cp-itemrow');
-      row.setAttribute('data-buid', String(a.id));
-      row.disabled = !a.доступен;
-      if (!a.доступен && !o.reasonRed) row.style.opacity = '0.3';
-      if (typeof a.icon === 'string' && a.icon !== '') {
-        const icon = el('img', 'cp-itemicon');
-        icon.src = a.icon;
-        icon.alt = '';
-        row.appendChild(icon);
-      } else {
-        row.appendChild(el('span', 'cp-btn', String(i + 1)));
-      }
-      const nameSpan = el('span', 'cp-itemname');
-      row.appendChild(nameSpan);
-      if (a.reason) {
-        row.appendChild(el('span',
-          o.reasonRed ? 'cp-itemmeta cp-itemreason' : 'cp-itemmeta',
-          ' — ' + a.reason));
-      }
-      rows.push({ row, nameSpan, action: a });
-      list.appendChild(row);
-    });
-    side.appendChild(list);
+    if (o.layout === 'storage') {
+      buildStorageDom(o, side);
+    } else {
+      const list = el('div', 'cp-items');
+      rows = [];
+      actions.forEach((a, i) => {
+        const r = makeItemRow(a, i, o, {});
+        rows.push(r);
+        list.appendChild(r.row);
+      });
+      side.appendChild(list);
 
-    // Курсор — первая доступная строка (доступных нет — -1); маркер
-    // «▸ » — только в тексте имени (новых CSS-классов нет).
-    const avail = availableIndexes();
-    cursor = avail.length ? avail[0] : -1;
-    renderCursor();
+      // Курсор — первая доступная строка (доступных нет — -1); маркер
+      // «▸ » — только в тексте имени (новых CSS-классов нет).
+      const avail = availableIndexes();
+      cursor = avail.length ? avail[0] : -1;
+      renderCursor();
+    }
 
     side.appendChild(el('div', 'cp-itemmeta',
       '1–9 — действие, ↑↓ — выбор, Enter — действие, [Esc] — закрыть'));
