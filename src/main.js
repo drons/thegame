@@ -2193,6 +2193,7 @@
   // hero/clock — live-ссылки; flash — функция-декларация ниже
   // (hoisting); startWindow (000138) — в блок-списке модуля (книга не
   // открывается, пока показано стартовое окно).
+  let sbBtn = null;
   if (G.spellbookOC) {
     G.spellbookOC.init({ hero, clock, flash, startWindow,
       flameStep: performFlameStep,
@@ -2207,6 +2208,22 @@
         teleport: (tx, ty) => { moveHero(tx, ty); saveNow(); },
       }),
     });
+    if (typeof document.createElement === 'function'
+        && document.body) {
+      sbBtn = document.createElement('button');
+      sbBtn.className = 'spellbook-oc-btn';
+      sbBtn.type = 'button';
+      sbBtn.title = 'Книга заклинаний (вне боя) [B]';
+      sbBtn.ariaLabel = 'Книга заклинаний (вне боя)';
+      const sbIcon = document.createElement('img');
+      sbIcon.src = 'assets/ui/combat_spellbook.svg';
+      sbIcon.alt = 'Книга заклинаний';
+      sbBtn.appendChild(sbIcon);
+      sbBtn.addEventListener('click', () => {
+        G.spellbookOC.toggle();
+      });
+      document.body.appendChild(sbBtn);
+    }
   } else {
     console.error('main.js: книга вне боя (000235.02) — Game.spellbookOC '
       + 'отсутствует — src/spellbook-oc.js обязан грузиться ДО '
@@ -4105,6 +4122,10 @@
       if (fsBtn && fsBtn.style) {
         const z = fsOver ? '25' : '';
         if (fsBtn.style.zIndex !== z) fsBtn.style.zIndex = z;
+      }
+      if (sbBtn && sbBtn.style) {
+        const z = fsOver ? '25' : '';
+        if (sbBtn.style.zIndex !== z) sbBtn.style.zIndex = z;
       }
       // 000235.02: книга вне боя — frame-driven мягкое скрытие при
       // активных оверлеях + ре-рендер при смене дня (дешёвый no-op,
