@@ -496,7 +496,7 @@ function (perlin, items, buildings, rootRef) {
     const effWealth = Math.min(3, Math.floor(wealth) +
       Math.floor((L - 1) / 2));
     const shop = I.makeShop(cityX * CITY_SHOP_CELL_BASE + tx,
-      cityY * CITY_SHOP_CELL_BASE + ty, pp.map_index, effWealth);
+      cityY * CITY_SHOP_CELL_BASE + ty, pp.map_index, effWealth, L);
     if (!shop)
       return null; // «виды» нет — не лавка (Арена/Стрельбище/кузнец)
     // x/y — ЛОКАЛЬНАЯ клетка города (ключ 000109 «tx,ty»), а не

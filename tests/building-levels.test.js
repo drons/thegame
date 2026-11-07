@@ -478,9 +478,18 @@ test('000222-R6. makeCityShop: length 7; level absent/1 ≡ 6-арг. (бит-в
     'RED: level 7 → effWealth = min(3, 1+3) = 3');
   assert.deepEqual(l7a.stock, l7b.stock, 'детерминизм');
   assert.notEqual(l7a, l7b, 'новый объект');
+  // Ре-пин 000317: сток L7 — универсам wealth 3 + расширение уровнем
+  // (bit-deepEqual 4-арг. makeShop больше не канон — ⊇/strict).
+  const base3 = IT.makeShop(500 * 256 + 2, -100 * 256 + 3, 0, 3);
+  assert.ok(Object.keys(base3.stock).every((id) =>
+    id in l7a.stock && l7a.stock[id] >= base3.stock[id]),
+    '000317: сток L7 ⊇ базы wealth 3 (ключи и количества)');
+  assert.ok(Object.keys(l7a.stock).length >
+    Object.keys(base3.stock).length,
+    'RED 000317: сток L7 строго шире базы (расширение ассортиментом)');
   assert.deepEqual(l7a.stock,
-    IT.makeShop(500 * 256 + 2, -100 * 256 + 3, 0, 3).stock,
-    'RED: сток L7 — универсам (allItems, wealth 3)');
+    IT.makeShop(500 * 256 + 2, -100 * 256 + 3, 0, 3, 7).stock,
+    'RED: сток L7 — универсам (allItems, wealth 3) + расширение (level 7)');
   assert.equal(C.makeCityShop(500, -100, 2, 3, 1, 1, 3).wealth, 2,
     'level 3, wealth 1 → min(3, 1+1) = 2');
   assert.equal(C.makeCityShop(500, -100, 2, 3, 1, 2, 3).wealth, 3,
@@ -1898,11 +1907,14 @@ test('000222-R15. vm e2e магазин: build-1 (Оружейная, wealth 1-2
   assert.ok(dgF && dgF.kind === 'city', 'fresh-вход');
   const stockFresh = JSON.parse(JSON.stringify(
     g.cities[anchor].stock[cellKey]));
+  // Ре-пин 000317: fresh-сток — универсам wealth 3 + расширение
+  // уровнем из реестра (level 5).
   const expectStock = JSON.parse(JSON.stringify(
     G.makeShop(found.ax * 256 + target.x, found.ay * 256 + target.y,
-      0, 3).stock));
+      0, 3, 5).stock));
   assert.deepEqual(stockFresh, expectStock,
-    'RED: fresh-сток — wealth min(3, w+3) = 3 (реестр по level 5): '
+    'RED: fresh-сток — wealth min(3, w+3) = 3 (реестр по level 5) + '
+    + 'расширение 000317: '
     + JSON.stringify(stockFresh).slice(0, 200));
   assert.ok(Object.keys(stockFresh)
     .some((id) => G.getItem(id).kind !== 'weapon'),

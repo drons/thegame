@@ -1681,23 +1681,58 @@
     return SHOP_KINDS_FALLBACK[buildingType] || null;
   }
 
+  const SHOP_EXPAND_SEED = 0x45585031;
+  const SHOP_EXPAND_QTY_SALT = 0x51747931;
+
+  function fnv1a(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
   /**
    * Магазин постройки: детерминированный ассортимент из координат,
    * типа постройки и богатства. Не магазин — null.
    * @returns {null|{x,y,buildingType,wealth,stock:{itemId:qty}}}
    */
-  function makeShop(x, y, buildingType, wealth) {
+  function makeShop(x, y, buildingType, wealth, level) {
     const kinds = shopKindsFor(buildingType);
     if (!kinds) return null;
     wealth = Math.max(0, Math.min(3, Math.floor(wealth || 0)));
+    let L = 1;
+    if (Number.isInteger(level) && level >= 2) L = level;
     const seed = (hash2(x, y, 0x154075) ^ (buildingType + 1)) >>> 0;
-    const rng = mulberry32(seed);
+    const kindPool = allItems().filter((it) => kinds.includes(it.kind));
     // Универсам (богатство 3) — смесь всего (SPEC: «Универсам»).
-    const pool = wealth === 3 ? allItems() : allItems().filter((it) => kinds.includes(it.kind));
+    const pool = wealth === 3 ? allItems() : kindPool;
     const stock = {};
-    for (const it of pool) {
-      if (rng() < 0.55 + 0.1 * wealth) {
-        stock[it.id] = 1 + Math.floor(rng() * (2 + wealth));
+    const merge = (id, qty) => {
+      if (!(id in stock) || qty > stock[id]) stock[id] = qty;
+    };
+    const lo = Math.max(0, wealth - Math.floor((L - 1) / 2));
+    for (let w = wealth; w >= lo; w--) {
+      const wPool = w === 3 ? allItems() : kindPool;
+      const rng = mulberry32(seed);
+      for (const it of wPool) {
+        if (rng() < 0.55 + 0.1 * w) merge(it.id, 1 + Math.floor(rng() * (2 + w)));
+      }
+    }
+    if (L >= 2) {
+      merge(kindPool[0].id, 1);
+      const expSeed = (hash2(x, y, SHOP_EXPAND_SEED) ^
+        (buildingType + 1)) >>> 0;
+      const ranked = kindPool.slice().sort((a, b) => {
+        const ha = (expSeed ^ fnv1a(a.id)) >>> 0;
+        const hb = (expSeed ^ fnv1a(b.id)) >>> 0;
+        return (ha - hb) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      });
+      for (const it of ranked.slice(0, L - 1)) {
+        const h = ((expSeed ^ fnv1a(it.id)) >>> 0 ^
+          SHOP_EXPAND_QTY_SALT) >>> 0;
+        merge(it.id, 1 + Math.floor((h / 4294967296) * (2 + wealth)));
       }
     }
     if (!Object.keys(stock).length) stock[pool[0].id] = 1; // магазин не пуст
