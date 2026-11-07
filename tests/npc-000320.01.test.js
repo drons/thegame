@@ -53,17 +53,17 @@ function readJson(file) {
 
 // --- N1: размер каталога -------------------------------------------------
 
-test('N1: каталог — ровно 19 файлов 000001..000019 подряд; зеркало NPCS 19 записей', () => {
+test('N1: каталог — ровно 20 файлов 000001..000020 подряд; зеркало NPCS 20 записей', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 19,
-    'в каталоге NPC 19 файлов (000320.01: +Корд), факт: ' + files.length);
+  assert.equal(files.length, 20,
+    'в каталоге NPC 20 файлов (000320.01: +Корд; 000320.02: +Родар), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 19,
-    'зеркало src/npc-data.js — 19 записей (sync не прогнан?)');
+  assert.equal(NPCS.length, 20,
+    'зеркало src/npc-data.js — 20 записей (sync не прогнан?)');
   assert.equal(NPCS[18].id, 'blade_merchant',
     '19-я запись зеркала — blade_merchant (порядок = нумерация файлов)');
 });
@@ -185,10 +185,11 @@ test('N6: торговля — 5 входов меч/лук; пути на ди�
 
 // --- N7: npcsForBuilding — ВСЕ NPC постройки (реальный каталог) -----------
 
-test('N7: npcsForBuilding(NPCS, 1) — ОБА NPC Оружейной в порядке каталога', () => {
+test('N7: npcsForBuilding(NPCS, 1) — ТРИ NPC Оружейной в порядке каталога', () => {
   const list = N.npcsForBuilding(NPCS, 1);
-  assert.deepEqual(list.map((n) => n.id), ['weapons_merchant', 'blade_merchant'],
-    'Оружейная (1): Бренн + Корд, порядок = нумерация файлов; факт: '
+  assert.deepEqual(list.map((n) => n.id),
+    ['weapons_merchant', 'blade_merchant', 'fencing_instructor'],
+    'Оружейная (1): Бренн + Корд + Родар, порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 1).id, 'weapons_merchant',
     'npcForBuilding — ПЕРВЫЙ (бит-в-бит, HUD/«Здесь:» не тронуты)');
