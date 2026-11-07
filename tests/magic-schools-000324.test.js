@@ -2,7 +2,7 @@
 // навыков [I]; ТЗ tasks/pending/000324.md; контракт
 // memory/000324-magic-schools.md) — RED-тесты.
 //
-// 6 школ по факту диска (поле «школа» assets/spells — 167 заклинаний,
+// 6 школ по факту диска (поле «школа» assets/spells — 169 заклинаний,
 // 28/29/27/29/27/27; enum — 000301): защита, исцеление, лёд, огонь,
 // природа, тень. Имена/иконки — байт-в-байт SCHOOLS src/spellbook-oc.js
 // (000301): assets/school-icons/<id>.svg (иконки уже на диске).
@@ -11,7 +11,7 @@
 //   A1 — 6 файлов 000038–000043.json отсутствуют (type «school»);
 //   A2 — id-набор/порядок 000301, icon = assets/school-icons/<id>.svg
 //        на диске, name байт-в-байт — файлы отсутствуют;
-//   A3 — каждое различное «школа» из 167 spells совпадает ровно одной
+//   A3 — каждое различное «школа» из 169 spells совпадает ровно одной
 //        школой каталога (name.toLowerCase()) — школ нет;
 //   A4 — школьные JSON проходят schema.json — файлов нет;
 //   A5 — schema.oneOf — 2 ветви, не 3 (ветви school нет);
@@ -93,7 +93,7 @@ test('A2: id ровно {protection,healing,ice,fire,nature,shadow} в поря�
     ['protection', 'healing', 'ice', 'fire', 'nature', 'shadow']);
 });
 
-test('A3: каждое различное «школа» 167 spells совпадает ровно одной школой каталога (name.toLowerCase())', () => {
+test('A3: каждое различное «школа» 169 spells совпадает ровно одной школой каталога (name.toLowerCase())', () => {
   const present = [];
   for (const [file] of SCHOOLS_EXPECTED) {
     const p = path.join(SKILLS_DIR, file);
@@ -103,7 +103,7 @@ test('A3: каждое различное «школа» 167 spells совпад
   }
   const spellFiles = fs.readdirSync(SPELLS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(spellFiles.length, 167, '167 заклинаний (факт диска)');
+  assert.equal(spellFiles.length, 169, '169 заклинаний (факт диска; ре-пин 000333: +2 навигации)');
   const values = new Set();
   for (const f of spellFiles) {
     const d = JSON.parse(

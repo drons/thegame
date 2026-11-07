@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000511.json);
+  // Предметы (assets/items/000001.json … 000513.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -6786,6 +6786,30 @@
       desc: "Свиток: изучает «Тропа лоз» (нужен ранг школы.)",
       effect: { kind: "spell", spell: "path_of_vines" },
       icon: "assets/sprites/items/path_of_vines_scroll.svg",
+    },
+    // 000512.json
+    {
+      id: "way_up_scroll",
+      name: "Свиток: Путь наверх",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Путь наверх» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "way_up" },
+      icon: "assets/sprites/items/way_up_scroll.svg",
+    },
+    // 000513.json
+    {
+      id: "way_down_scroll",
+      name: "Свиток: Путь вниз",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 60,
+      tier: 2,
+      desc: "Свиток: изучает «Путь вниз» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "way_down" },
+      icon: "assets/sprites/items/way_down_scroll.svg",
     },
   ];
 

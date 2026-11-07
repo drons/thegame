@@ -99,14 +99,15 @@ test('000243-S1-B: S1 per-school цикл несёт верхнюю границ
     + JSON.stringify(kmap) + ' ≠ ' + JSON.stringify(liveBySchool));
 });
 
-test('000243-S1-T: заголовок S1 = телу: «158 свитков» + волна «Природа» + «финальный ре-пин 000243» (устаревшее «133 свитка» отсутствует)', () => {
+test('000243-S1-T: заголовок S1 = телу: «160 свитков» + волна «Природа» + «финальный ре-пин 000243» (устаревшее «133 свитка» отсутствует)', () => {
   const heading = ITEMS_SRC.split('\n')
     .filter(l => l.startsWith("test('S1. 000133:"));
   assert.equal(heading.length, 1,
     'строка test(\'S1. 000133: — ровно одна; найдено: ' + heading.length);
   const line = heading[0];
-  assert.ok(line.includes('158'),
-    'заголовок S1 — «158 свитков» (тело: scrolls.length === 158); '
+  assert.ok(line.includes('160'),
+    'заголовок S1 — «160 свитков» (тело: scrolls.length === 160; '
+    + 'ре-пин 000333: 158 → 160); '
     + 'факт: ' + line.slice(0, 160));
   assert.ok(line.includes('Природа'),
     'заголовок S1 — 6-я волна «Природа» (тело: все 6 школ); '
@@ -119,30 +120,30 @@ test('000243-S1-T: заголовок S1 = телу: «158 свитков» + в
     + 'факт: ' + line.slice(0, 160));
 });
 
-test('000243-RAR-H: шапочный комментарий 230.07-RAR-G (ui.test.js) = телу: «каталог 511 шт.», «прочие 222» (устаревшее «182 шт.» отсутствует; title :739 — пин 000252, вне scope)', () => {
+test('000243-RAR-H: шапочный комментарий 230.07-RAR-G (ui.test.js) = телу: «каталог 513 шт.», «прочие 224» (ре-пин 000333: 511 → 513, 222 → 224; устаревшее «182 шт.» отсутствует; title :739 — пин 000252, вне scope)', () => {
   const heading = UI_SRC.split('\n')
     .filter(l => l.startsWith('//   230.07-RAR-G'));
   assert.equal(heading.length, 1,
     'строка комментария //   230.07-RAR-G — ровно одна (строка test( '
     + ':739 не матчит — прецедент 000252); найдено: ' + heading.length);
   const line = heading[0];
-  assert.ok(line.includes('каталог 511 шт.'),
-    'шапка RAR-G — «каталог 511 шт.» (тело: ITEMS.length === 511); '
-    + 'факт: ' + line);
-  assert.ok(line.includes('прочие 222'),
-    'шапка RAR-G — «прочие 222» (тело: others = 222, по slot); '
-    + 'факт: ' + line);
+  assert.ok(line.includes('каталог 513 шт.'),
+    'шапка RAR-G — «каталог 513 шт.» (тело: ITEMS.length === 513; '
+    + 'ре-пин 000333: 511 → 513); факт: ' + line);
+  assert.ok(line.includes('прочие 224'),
+    'шапка RAR-G — «прочие 224» (тело: others = 224, по slot; '
+    + 'ре-пин 000333: 222 → 224); факт: ' + line);
   assert.ok(!line.includes('182 шт.'),
     'устаревшее «182 шт.» (срез 000230.08) — отсутствует; факт: ' + line);
   const items = DATA.ITEMS;
-  assert.equal(items.length, 511,
-    'live-каталог — 511 (шапка = факт); факт: ' + items.length);
+  assert.equal(items.length, 513,
+    'live-каталог — 513 (шапка = факт); факт: ' + items.length);
   const noSlot = items.filter(it => it.slot === undefined).length;
-  assert.equal(noSlot, 222,
-    'live-каталог — 222 без slot (шапка = факт); факт: ' + noSlot);
+  assert.equal(noSlot, 224,
+    'live-каталог — 224 без slot (шапка = факт); факт: ' + noSlot);
 });
 
-test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 0» / «511 с icon» / «000243: финальный» (устаревшее «прочие 23» отсутствует — срез 000302.07)', () => {
+test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 0» / «513 с icon» (ре-пин 000333: 511 → 513) / «000243: финальный» (устаревшее «прочие 23» отсутствует — срез 000302.07)', () => {
   const heading = ITEMS_SRC.split('\n')
     .filter(l => l.startsWith('test("000211.06 I1:'));
   assert.equal(heading.length, 1,
@@ -151,11 +152,12 @@ test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 
   assert.ok(line.includes('прочие 0'),
     'заголовок I1 — «прочие 0» (тело: others = 0); '
     + 'факт: ' + line.slice(0, 160));
-  assert.ok(line.includes('511'),
-    'заголовок I1 — «511 с icon» (тело: icon-count = 511); '
-    + 'факт: ' + line.slice(0, 160));
+  assert.ok(line.includes('513'),
+    'заголовок I1 — «513 с icon» (тело: icon-count = 513; '
+    + 'ре-пин 000333: 511 → 513); факт: ' + line.slice(0, 160));
   assert.ok(line.includes('000243'),
-    'заголовок I1 — пометка «000243: финальный, каталог 511»; '
+    'заголовок I1 — пометка «000243: финальный, каталог 511» '
+    + '(историческая; ре-пин 000333 — каталог 513); '
     + 'факт: ' + line.slice(0, 160));
   assert.ok(!line.includes('прочие 23'),
     'устаревшее «прочие 23» (срез 000302.07) — отсутствует; '
@@ -167,14 +169,15 @@ test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
     if ('icon' in j) withIcon++;
   }
-  assert.equal(withIcon, 511,
-    'live-каталог — 511 с icon (заголовок = факт); факт: ' + withIcon);
+  assert.equal(withIcon, 513,
+    'live-каталог — 513 с icon (заголовок = факт; ре-пин 000333); '
+    + 'факт: ' + withIcon);
   assert.equal(files.length - withIcon, 0,
     'live-каталог — 0 без icon (заголовок = факт); факт: '
     + (files.length - withIcon));
 });
 
-test('000243-I1-H: шапочный блок I1 (секция 000211.06) — «прочие 0 / 511 с icon» (устаревшее «прочие 23 предмета» отсутствует — срез 000302.07)', () => {
+test('000243-I1-H: шапочный блок I1 (секция 000211.06) — «прочие 0 / 513 с icon» (ре-пин 000333; устаревшее «прочие 23 предмета» отсутствует — срез 000302.07)', () => {
   const lines = ITEMS_SRC.split('\n');
   const start = lines.findIndex(l => l.startsWith('// --- Задача 000211.06:'));
   assert.notEqual(start, -1,
@@ -190,8 +193,9 @@ test('000243-I1-H: шапочный блок I1 (секция 000211.06) — «�
   const line = others[0];
   assert.ok(line.includes('0'),
     'шапка I1 — «0» (тело: others = 0); факт: ' + line);
-  assert.ok(line.includes('511'),
-    'шапка I1 — «511 с icon» (тело: icon-count = 511); факт: ' + line);
+  assert.ok(line.includes('513'),
+    'шапка I1 — «513 с icon» (тело: icon-count = 513; '
+    + 'ре-пин 000333); факт: ' + line);
   assert.ok(!line.includes('прочие 23 предмета'),
     'устаревшее «прочие 23 предмета» (срез 000302.07: live-шапка '
     + 'стала «прочие 0 предметов» — прежний пин сделал бы себя '

@@ -1027,6 +1027,19 @@
       if (!free) p.mp -= spell['мани'] || 0;
       return { ok: true, spell, expiresDay: null };
     }
+    if (spellId === 'way_up' || spellId === 'way_down') {
+      if (ctx !== undefined) {
+        const cb = ctx && typeof ctx.navPath === 'function'
+          ? ctx.navPath : null;
+        if (!cb) {
+          return { ok: false, reason: 'не здесь' };
+        }
+        const r = cb(spellId);
+        if (r && r.ok === false) {
+          return { ok: false, reason: r.reason || 'пути нет' };
+        }
+      }
+    }
     // Мутации — ПОСЛЕ всех проверок (мана проверена вверху).
     if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
     const prior = p.outOfCombatEffects.findIndex(

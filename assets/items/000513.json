@@ -1,0 +1,14 @@
+{
+  "id": "way_down_scroll",
+  "name": "Свиток: Путь вниз",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Путь вниз» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "way_down"
+  },
+  "icon": "assets/sprites/items/way_down_scroll.svg"
+}

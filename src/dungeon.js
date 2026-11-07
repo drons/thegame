@@ -591,6 +591,55 @@
     return dist;
   }
 
+  function navPath(d, sx, sy, tx, ty) {
+    if (!inGrid(d, sx, sy) || !inGrid(d, tx, ty)) return null;
+    if (d.cells[idx(d, sx, sy)] !== CELL_FLOOR) return null;
+    if (d.cells[idx(d, tx, ty)] !== CELL_FLOOR) return null;
+    if (sx === tx && sy === ty) return [{ x: sx, y: sy }];
+    const h = (x, y) => Math.abs(x - tx) + Math.abs(y - ty);
+    const gScore = new Map([[sx + ',' + sy, 0]]);
+    const prev = new Map();
+    const closed = new Set();
+    const open = [{ x: sx, y: sy, g: 0, h: h(sx, sy), ord: 0 }];
+    let ord = 1;
+    while (open.length) {
+      let bi = 0;
+      for (let i = 1; i < open.length; i++) {
+        const a = open[i], b = open[bi];
+        const af = a.g + a.h, bf = b.g + b.h;
+        if (af < bf || (af === bf && (a.h < b.h
+            || (a.h === b.h && a.ord < b.ord)))) bi = i;
+      }
+      const cur = open.splice(bi, 1)[0];
+      const ck = cur.x + ',' + cur.y;
+      if (closed.has(ck)) continue;
+      closed.add(ck);
+      if (cur.x === tx && cur.y === ty) {
+        const out = [];
+        let k = ck;
+        while (k !== undefined) {
+          const c = k.indexOf(',');
+          out.push({ x: Number(k.slice(0, c)), y: Number(k.slice(c + 1)) });
+          k = prev.get(k);
+        }
+        return out.reverse();
+      }
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+        const nx = cur.x + dx, ny = cur.y + dy;
+        if (!inGrid(d, nx, ny)) continue;
+        if (d.cells[idx(d, nx, ny)] !== CELL_FLOOR) continue;
+        const nk = nx + ',' + ny;
+        if (closed.has(nk)) continue;
+        const ng = cur.g + 1;
+        if (gScore.has(nk) && ng >= gScore.get(nk)) continue;
+        gScore.set(nk, ng);
+        prev.set(nk, ck);
+        open.push({ x: nx, y: ny, g: ng, h: h(nx, ny), ord: ord++ });
+      }
+    }
+    return null;
+  }
+
   /**
    * Клетка stairs-down (спуск на этажи ниже) — чистая функция от ФОРМЫ
    * (d.cells/rooms/entrance/exit/type/seed), БЕЗ вызовов rng. Правило:
@@ -1373,6 +1422,7 @@
     // 000153.02: генерация этажа — размер per-глубина + stairs-down
     // (additive; bfsDistances — внутренний хелпер, НЕ экспортируется).
     DUNGEON_SIZE_CAP, dungeonSizeFor, STAIRS_SALT, stairsDownFor,
+    navPath,
     // 000230.05: соль СВОЕГО rng-потока редкости сундуков (CH1-пин).
     CHEST_EQ_SALT,
   };

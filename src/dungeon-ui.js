@@ -163,6 +163,10 @@
   // неисследованная — чистый фон → два различимых состояния.
   const FOG_DIM_FILL = 'rgba(10, 13, 18, 0.65)';
 
+  const NAV_LINE_COLORS = { way_up: '#59ffb0', way_down: '#ff7a4d' };
+  const NAV_LINE_ALPHA = 0.5;
+  const NAV_LINE_WIDTH_RATIO = 0.22;
+
   // R = ceil(VISION_BASE_RADIUS × mult − 1e-9), int ≥ 1 (D2): уровень 1
   // навыка (×1.1 → 5.5) УЖЕ даёт +1 клетку (5→6); ε — защита от float
   // (5×1.8 = 9.0000000000000002 — без ε ceil дал бы 10 ≠ +80%).
@@ -806,6 +810,35 @@
     }
     }
 
+    if (!isCity && s.navPaths) {
+      const navVisible = (c) => c.x >= 0 && c.y >= 0
+        && c.x < d.width && c.y < d.height
+        && mask[c.y * d.width + c.x] !== 0;
+      for (const navId of Object.keys(NAV_LINE_COLORS)) {
+        const navCells = s.navPaths[navId];
+        if (!Array.isArray(navCells) || navCells.length < 2) continue;
+        g2.save();
+        g2.globalAlpha = NAV_LINE_ALPHA;
+        g2.strokeStyle = NAV_LINE_COLORS[navId];
+        g2.lineWidth = Math.max(2, zoom * NAV_LINE_WIDTH_RATIO);
+        g2.lineJoin = 'round';
+        g2.lineCap = 'round';
+        for (let i = 0; i + 1 < navCells.length; i++) {
+          const a = navCells[i], b = navCells[i + 1];
+          if (!a || !b || !Number.isInteger(a.x) || !Number.isInteger(a.y)
+              || !Number.isInteger(b.x) || !Number.isInteger(b.y)) continue;
+          if (!navVisible(a) || !navVisible(b)) continue;
+          const pa = proj(a.x + 0.5, a.y + 0.5);
+          const pb = proj(b.x + 0.5, b.y + 0.5);
+          g2.beginPath();
+          g2.moveTo(pa.x, pa.y);
+          g2.lineTo(pb.x, pb.y);
+          g2.stroke();
+        }
+        g2.restore();
+      }
+    }
+
     // 000148.02 (G1): постройки внутри города — слой СПРАЙТОВ поверх
     // пола (z-порядок: пол → ПОСТРОЙКИ → дверь → игрок; стена города
     // — в floor-pass, 000258, клетки постройки/стены не пересекаются).
@@ -991,7 +1024,8 @@
     // ТОТ ЖЕ, что exit (000136/000177 §2.4: mask ≠ 0 — исследована
     // ИЛИ видима); город — никогда. Порядок отрисовки (фиксировать):
     // floor (стены — в floor-pass, 000258: ПОД постройками/дверью/
-    // маркерами/сундуками/залежами/мобами/игроком) → exit-маркер →
+    // маркерами/сундуками/залежами/мобами/игроком) → линии 000333
+    // (navPaths) → exit-маркер →
     // stairs-down-маркер → сундуки → мобы/босс → игрок (оба маркера
     // — floor-level, ПОД контентом).
     if (!isCity && d.stairsDown &&

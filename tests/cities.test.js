@@ -1721,7 +1721,13 @@ const SHOP_GOLDEN = {
     poison_cloud_scroll: 4, thorn_field_scroll: 1, wall_of_thorns_scroll: 2,
     nature_haste_scroll: 1, vitality_scroll: 2, poison_scroll: 2,
     rot_scroll: 3, paralyzing_spore_scroll: 3, wild_growth_scroll: 4,
-    beast_friend_scroll: 3, path_of_vines_scroll: 5 } },
+    beast_friend_scroll: 3, path_of_vines_scroll: 5,
+    // Ре-пин 000333: свитки навигации (000512-000513) — КОНЕЦ
+    // каталога, rng-хвост пула allItems → += way_up_scroll: 5
+    // (way_down_scroll на этой клетке не выпал), остальные ключи
+    // стока не сдвинулись (node-симуляция: seed/старый сток
+    // byte-identical, 426 → 427 ключа).
+    way_up_scroll: 5 } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,

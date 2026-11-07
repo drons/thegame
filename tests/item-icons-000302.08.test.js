@@ -85,11 +85,12 @@ for (const [file, id] of LEGACY_GEAR_00030208) {
     });
 }
 
-test('000302.08 SWEEP: live-каталог — 0 без icon (финальная дочерняя 000302); у всех 511 icon по паттерну схемы + svg-файл существует', () => {
+test('000302.08 SWEEP: live-каталог — 0 без icon (финальная дочерняя 000302); у всех 513 icon по паттерну схемы + svg-файл существует (ре-пин 000333: +2 свитка навигации)', () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 511,
-    'каталог — ровно 511 JSON (live-скан); факт: ' + files.length);
+  assert.equal(files.length, 513,
+    'каталог — ровно 513 JSON (live-скан; ре-пин 000333: 511 → 513); '
+    + 'факт: ' + files.length);
   let noIcon = 0;
   for (const f of files) {
     const j = JSON.parse(fs.readFileSync(

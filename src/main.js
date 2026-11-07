@@ -1708,6 +1708,9 @@
         ? G.Spells.expireOutOfCombatEffects(
             hero.outOfCombatEffects, day)
         : hero.outOfCombatEffects;
+      if (dungeonState && dungeonState.kind === 'dungeon') {
+        dungeonState.navPaths = null;
+      }
       // 000235.08 (ревью): истечение frost_walk на воде без суши в
       // 8-соседстве — шаг невозможен (addStep — только на успешном
       // шаге), день не тикает, rest — только в постройке — софтлок
@@ -2156,6 +2159,24 @@
     applyTeleportPlacement(r);
     return { ok: true };
   }
+  function performNavPath(spellId) {
+    if (!dungeonState || dungeonState.kind !== 'dungeon') {
+      return { ok: false, reason: 'не здесь' };
+    }
+    if (typeof G.navPath !== 'function') {
+      return { ok: false, reason: 'не здесь' };
+    }
+    const ds = dungeonState;
+    const target = spellId === 'way_up' ? ds.dg.exit : ds.dg.stairsDown;
+    if (!target) return { ok: false, reason: 'пути нет' };
+    const cells = G.navPath(ds.dg, ds.x, ds.y, target.x, target.y);
+    if (!cells || cells.length === 0) {
+      return { ok: false, reason: 'пути нет' };
+    }
+    if (!ds.navPaths) ds.navPaths = {};
+    ds.navPaths[spellId] = cells;
+    return { ok: true };
+  }
   function performFlameStep() {
     const r = resolveTeleportStep(flameStepPassable);
     if (!r.ok) return { ok: false, reason: r.reason };
@@ -2206,6 +2227,7 @@
         cities: cityStates,
         passable: (tx, ty) => tileLandingPassable(tx, ty, false),
         teleport: (tx, ty) => { moveHero(tx, ty); saveNow(); },
+        navPath: performNavPath,
       }),
     });
     if (typeof document.createElement === 'function'
