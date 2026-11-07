@@ -1296,6 +1296,7 @@
   <script src="src/skills-data.js"></script>
   <script src="src/items-data.js"></script>
   <script src="src/npc-data.js"></script>
+  <script src="src/runes-data.js"></script>
   <!-- Каталог стационарных групп мобов (assets/mob_groups, задача
        000057): ДО map.js — ленивые mobGroupCount()/mobGroupName()
        видят Game.MobGroupsData при вызове; combat.js/sprites.js
@@ -1470,6 +1471,7 @@
        тег после main.js ушёл бы в НОВЫЙ объект, регистрация молча
        мертва). Пин порядка — tests/index-order.test.js. -->
   <script src="src/building-effect-runes.js"></script>
+  <script src="src/building-effect-runecraft.js"></script>
   <!-- «Воскрешение» (задача 000162, храмы 36/37/38): спец-модуль — ПОСЛЕ building-actions.js (registerSpecial), ДО main.js (UMD-ловушка 000038: G.resurrectUI обязан быть в снапшоте). -->
   <script src="src/building-effect-resurrect.js"></script>
   <!-- «Обучение (наставник)» (задача 000147: 5 школ 17/18/19/21/38,

@@ -1046,7 +1046,7 @@
           hero.craftTypes = G.sanitizeCraftTypes
             ? G.sanitizeCraftTypes(d.hero.craftTypes) : {};
           hero.equipmentBonus = G.sanitizeEquipmentBonus
-            ? G.sanitizeEquipmentBonus(d.hero.equipmentBonus)
+            ? G.sanitizeEquipmentBonus(d.hero.equipmentBonus, d.hero.equipment)
             : { weapon: null, armor: null };
           const dd = G.derived(hero);
           hero.hp = Math.min(Math.max(1, Math.round(hero.hp)), dd.maxHP);

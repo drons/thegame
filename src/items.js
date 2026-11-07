@@ -116,6 +116,94 @@
     ...RING_SLOTS,
   ];
 
+  const RUNE_LIMITS = {
+    common: 1, rare: 2, epic: 3, legendary: 4, impossible: 5,
+  };
+
+  let runeCatalogRef = null;
+  function runeCatalog() {
+    if (runeCatalogRef) return runeCatalogRef;
+    let src = null;
+    if (rootRef && rootRef.Game && rootRef.Game.RunesData
+        && Array.isArray(rootRef.Game.RunesData.RUNES)) {
+      src = rootRef.Game.RunesData.RUNES;
+    }
+    if (!src && typeof require === 'function') {
+      try { src = require('./runes-data.js').RUNES; } catch (e) { src = null; }
+    }
+    if (!src || !src.length) return null;
+    runeCatalogRef = src;
+    return src;
+  }
+
+  let runeIdSetRef = null;
+  function runeIdSet() {
+    if (runeIdSetRef) return runeIdSetRef;
+    const cat = runeCatalog();
+    if (!cat) return null;
+    const s = new Set();
+    for (const r of cat) if (r && typeof r.id === 'string') s.add(r.id);
+    runeIdSetRef = s;
+    return s;
+  }
+
+  function canonicalRunes(raw, cap) {
+    if (!Array.isArray(raw) || cap === null) return [];
+    const known = runeIdSet();
+    if (!known) return [];
+    const out = [];
+    for (const rid of raw) {
+      if (typeof rid !== 'string' || !known.has(rid)) continue;
+      if (out.includes(rid)) continue;
+      out.push(rid);
+      if (Number.isInteger(cap) && cap >= 1 && out.length >= cap) break;
+    }
+    return out;
+  }
+
+  function runeLimitFor(it) {
+    if (!it || !it.rarity ||
+        !Object.prototype.hasOwnProperty.call(RUNE_LIMITS, it.rarity)) {
+      return null;
+    }
+    return RUNE_LIMITS[it.rarity];
+  }
+
+  function runesKey(runes) {
+    return Array.isArray(runes) && runes.length ? runes.join(',') : null;
+  }
+
+  function stackState(bonus, runes) {
+    const b = bonusState(bonus);
+    const r = runesKey(runes);
+    if (b === null && r === null) return null;
+    return (b === null ? '' : b) + '' + (r === null ? '' : r);
+  }
+
+  function ebParts(b) {
+    if (!b || typeof b !== 'object' || Array.isArray(b)) {
+      return { bonus: null, rawRunes: null };
+    }
+    const bonus = {};
+    let hasBonus = false;
+    let rawRunes = null;
+    for (const k of Object.keys(b)) {
+      if (k === 'runes') { rawRunes = b[k]; continue; }
+      bonus[k] = b[k];
+      hasBonus = true;
+    }
+    return { bonus: hasBonus ? bonus : null, rawRunes };
+  }
+
+  function ebJoin(bonus, runes) {
+    const rs = Array.isArray(runes) ? runes.slice() : [];
+    if (!bonus && !rs.length) return null;
+    const entry = {};
+    if (bonus) Object.assign(entry, bonus);
+    if (rs.length) entry.runes = rs;
+    return entry;
+  }
+
   // Параметры инвентаря и веса.
   const INVENTORY_SLOTS = 20;   // слоты инвентаря
   const QUICK_SLOTS = 3;        // закреплённые «быстрые» слоты для боя
@@ -484,6 +572,53 @@
     return eb;
   }
 
+  function setItemRunes(c, slot, runes) {
+    const cat = runeCatalog();
+    if (!cat) return { ok: false, reason: 'каталог рун недоступен' };
+    if (!EQUIP_PHYS_SLOTS.includes(slot)) {
+      return { ok: false, reason: 'неверный слот' };
+    }
+    const eb = ensureEquipmentBonus(c);
+    const eq = (c.equipment && typeof c.equipment === 'object'
+      && !Array.isArray(c.equipment)) ? c.equipment : {};
+    const cap = runeLimitFor(getItem(eq[slot]));
+    const canon = canonicalRunes(runes, cap);
+    const parts = ebParts(eb[slot]);
+    eb[slot] = ebJoin(parts.bonus, canon);
+    return { ok: true };
+  }
+
+  function equipmentRunes(c) {
+    const cat = runeCatalog();
+    if (!cat) return null;
+    if (!c || typeof c !== 'object') return null;
+    const eb = (c.equipmentBonus && typeof c.equipmentBonus === 'object'
+      && !Array.isArray(c.equipmentBonus)) ? c.equipmentBonus : null;
+    if (!eb) return null;
+    const derived = {};
+    const skills = {};
+    let found = false;
+    for (const s of EQUIP_PHYS_SLOTS) {
+      const e = eb[s];
+      if (!e || typeof e !== 'object' || !Array.isArray(e.runes)) continue;
+      for (const rid of e.runes) {
+        const r = cat.find((x) => x && x.id === rid);
+        if (!r || !r.эффект || typeof r.эффект !== 'object') continue;
+        const ef = r.эффект;
+        const amt = Number(ef.amount);
+        if (!Number.isFinite(amt)) continue;
+        if (ef.type === 'derived' && typeof ef.stat === 'string') {
+          derived[ef.stat] = (derived[ef.stat] || 0) + amt;
+          found = true;
+        } else if (ef.type === 'skill' && typeof ef.skill === 'string') {
+          skills[ef.skill] = (skills[ef.skill] || 0) + amt;
+          found = true;
+        }
+      }
+    }
+    return found ? { derived, skills } : null;
+  }
+
   /**
    * Чистка сохранённого инвентаря (восстановление сейва, задачи
    * 000029/000031): «битый сейв не роняет игру». Сейв живёт в
@@ -518,17 +653,19 @@
         // сохраняется; невалидный (чужой ключ, нецелое/отрицательное) —
         // отбрасывается, сам слот остаётся.
         const bonus = validBonus(it, e.bonus) ? (e.bonus || null) : null;
+        const runes = canonicalRunes(e.runes, runeLimitFor(it));
         // Слияние — только в стопку с тем же id И тем же состоянием
-        // бонуса: bonus-слот не сливается с обычной стопкой.
-        const st = bonusState(bonus);
+        // бонуса/рун: bonus/rune-слот не сливается с обычной стопкой.
+        const st = stackState(bonus, runes);
         const ex = out.slots.find(
-          (x) => x.id === it.id && bonusState(x.bonus) === st);
+          (x) => x.id === it.id && stackState(x.bonus, x.runes) === st);
         if (ex) {
           ex.qty = Math.min(MAX_STACK, ex.qty + qty);
         } else if (out.slots.length < cap) {
-          out.slots.push(bonus
-            ? { id: it.id, qty: Math.min(qty, MAX_STACK), bonus }
-            : { id: it.id, qty: Math.min(qty, MAX_STACK) });
+          const entry = { id: it.id, qty: Math.min(qty, MAX_STACK) };
+          if (bonus) entry.bonus = bonus;
+          if (runes.length) entry.runes = runes;
+          out.slots.push(entry);
         }
       }
     }
@@ -585,10 +722,12 @@
    * физический ПРЁТ). Мусор в одном слоте не трогает другой.
    * @returns {object} 18 ключей EQUIP_PHYS_SLOTS
    */
-  function sanitizeEquipmentBonus(eq) {
+  function sanitizeEquipmentBonus(eq, equipCtx) {
     const out = {};
     for (const s of EQUIP_PHYS_SLOTS) out[s] = null;
     if (!eq || typeof eq !== 'object' || Array.isArray(eq)) return out;
+    const ctx = (equipCtx && typeof equipCtx === 'object'
+      && !Array.isArray(equipCtx)) ? equipCtx : null;
     for (const s of EQUIP_PHYS_SLOTS) {
       let b = eq[s];
       if (b === undefined && s === 'right_hand' &&
@@ -599,15 +738,33 @@
         b = eq.armor;
       }
       if (b == null) continue;
-      if (s === 'torso') {
-        if (validBonus({ kind: 'armor' }, b)) out[s] = { armor: b.armor };
-      } else if (s === 'right_hand') {
-        if (validBonus({ kind: 'weapon' }, b)) out[s] = { damage: b.damage };
-      } else if (validBonus({ kind: 'weapon' }, b)) {
-        out[s] = { damage: b.damage };
-      } else if (validBonus({ kind: 'armor' }, b)) {
-        out[s] = { armor: b.armor };
+      const parts = ebParts(b);
+      let bonusOut = null;
+      if (parts.bonus) {
+        if (s === 'torso') {
+          if (validBonus({ kind: 'armor' }, parts.bonus)) bonusOut = { armor: parts.bonus.armor };
+        } else if (s === 'right_hand') {
+          if (validBonus({ kind: 'weapon' }, parts.bonus)) bonusOut = { damage: parts.bonus.damage };
+        } else if (validBonus({ kind: 'weapon' }, parts.bonus)) {
+          bonusOut = { damage: parts.bonus.damage };
+        } else if (validBonus({ kind: 'armor' }, parts.bonus)) {
+          bonusOut = { armor: parts.bonus.armor };
+        } else {
+          continue;
+        }
       }
+      let runeOut = null;
+      if (parts.rawRunes !== null && parts.rawRunes !== undefined) {
+        let cap;
+        if (ctx) {
+          cap = runeLimitFor(getItem(ctx[s]));
+        } else {
+          cap = undefined;
+        }
+        runeOut = canonicalRunes(parts.rawRunes, cap);
+      }
+      const entry = ebJoin(bonusOut, runeOut);
+      out[s] = entry;
     }
     return out;
   }
@@ -656,7 +813,7 @@
   // состояние бонуса (обычный предмет не заполняет bonus-слот и
   // наоборот — бонусные экземпляры изолированы, задача 000046).
   function matchesSlot(e, itemId, st) {
-    return e.id === itemId && bonusState(e.bonus) === st;
+    return e.id === itemId && stackState(e.bonus, e.runes) === st;
   }
 
   // Проверки добавления (слоты + вес) — общий для addItem/canAddItem.
@@ -694,7 +851,7 @@
    * бонусом). Неверный bonus — отказ, инвентарь не трогается.
    * @returns {{ok:boolean, reason?:string}}
    */
-  function addItem(c, itemId, qty = 1, bonus) {
+  function addItem(c, itemId, qty = 1, bonus, runes) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'неверное количество' };
@@ -702,7 +859,8 @@
     if (!validBonus(it, b)) {
       return { ok: false, reason: 'неверный бонус качества' };
     }
-    const st = bonusState(b);
+    const rs = canonicalRunes(runes, runeLimitFor(it));
+    const st = stackState(b, rs);
     const chk = checkAdd(c, it, qty, st);
     if (!chk.ok) return chk;
 
@@ -719,9 +877,10 @@
     }
     while (rest > 0) {
       const n = stackable ? Math.min(rest, MAX_STACK) : 1;
-      invSlots(c).push(b
-        ? { id: itemId, qty: n, bonus: b }
-        : { id: itemId, qty: n });
+      const entry = { id: itemId, qty: n };
+      if (b) entry.bonus = b;
+      if (rs.length) entry.runes = rs.slice();
+      invSlots(c).push(entry);
       rest -= n;
     }
     return { ok: true };
@@ -735,7 +894,7 @@
    * крафтом для атомарности (отказ — до расхода исходников).
    * @returns {{ok:boolean, reason?:string}}
    */
-  function canAddItem(c, itemId, qty = 1, bonus) {
+  function canAddItem(c, itemId, qty = 1, bonus, runes) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     if (!Number.isInteger(qty) || qty < 1) return { ok: false, reason: 'неверное количество' };
@@ -743,7 +902,7 @@
     if (!validBonus(it, b)) {
       return { ok: false, reason: 'неверный бонус качества' };
     }
-    return checkAdd(c, it, qty, bonusState(b));
+    return checkAdd(c, it, qty, stackState(b, canonicalRunes(runes, runeLimitFor(it))));
   }
 
   /**
@@ -1275,12 +1434,14 @@
     const prev = eq[slot];
     const prevBonus = prev ? (eb[slot] || null) : null;
     eq[slot] = itemId;
-    eb[slot] = taken.bonus || null;
+    eb[slot] = ebJoin(taken.bonus || null, taken.runes);
     // Снимаем именно эту копию (одна единица на физ. слот).
     const pos = inv.slots.indexOf(taken);
     if (pos >= 0) inv.slots.splice(pos, 1);
     if (prev) {
-      const back = addItem(c, prev, 1, prevBonus || undefined);
+      const prevParts = ebParts(prevBonus);
+      const back = addItem(c, prev, 1, prevParts.bonus || undefined,
+        prevParts.rawRunes || undefined);
       if (!back.ok) {
         eq[slot] = prev;
         eb[slot] = prevBonus;
@@ -1309,7 +1470,9 @@
     const bonus = eb[slot] || null;
     eq[slot] = null;
     eb[slot] = null;
-    const r = addItem(c, id, 1, bonus || undefined);
+    const parts = ebParts(bonus);
+    const r = addItem(c, id, 1, parts.bonus || undefined,
+      parts.rawRunes || undefined);
     if (!r.ok) {
       // Некуда положить — остаётся надетым (бонус тоже на месте).
       eq[slot] = id;
@@ -1765,6 +1928,7 @@
     setQuick, clearQuick, quickItem, firstQuickSlot, freeQuickSlot,
     addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
     equip, unequip, equipmentStats, equipmentAffixes, activeSets, slotOf,
+    RUNE_LIMITS, equipmentRunes, setItemRunes,
     shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
     // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),
     // свежестность, сериализация/восстановление раздела campStocks.

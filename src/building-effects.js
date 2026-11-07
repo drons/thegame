@@ -266,6 +266,7 @@
   // (tile, day)-детерминизм, learn() — в спец-модуле (000128 §2.3).
   // Экспорт — для golden-пинов (R2/R4/R5/R6).
   const RUNE_SPELL_SEED = 0x52554e45;  // 'RUNE' — выбор заклинания рун
+  const RUNE_CRAFT_SEED = 0x52434654;  // 'RCFT' — выбор руны (000328.02)
 
   // Раздел сейва teleports (имя зафиксировано 000072): чтение
   // записи СНИМКА по ключу 'x,y' — прототип-безопасно, с лёгкой
@@ -445,6 +446,14 @@
   EFFECTS['42_spell'] = {
     имя: 'Расшифровка (заклинание)',
     apply: (st) => applyRuneSpell(st),
+  };
+  EFFECTS['40_inscribe'] = {
+    имя: 'Нанести руну',
+    apply: (st) => applyRuneInscribe(st),
+  };
+  EFFECTS['40_erase'] = {
+    имя: 'Стереть руну',
+    apply: (st) => applyRuneErase(st),
   };
   // --- Задача 000147: «Обучение (наставник)» — 5 школ (17
   // Лаборатория алхимика, 18 Башня мага, 19 Монастырь, 21 Храм
@@ -1072,6 +1081,193 @@
       success: true,
       spellId,
       message: 'Расшифровано: «' + (sp ? sp.название : spellId) + '»',
+    };
+  }
+
+  function inscriptionCost(params, rarity, n, R) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      return null;
+    }
+    const table = params.стоимость;
+    if (!table || typeof table !== 'object' || Array.isArray(table)) {
+      return null;
+    }
+    const base = table[rarity];
+    if (!Number.isFinite(base) || base < 1) return null;
+    if (!Number.isInteger(n) || n < 0) return null;
+    const step = Number.isFinite(params.шаг_слота) ? params.шаг_слота : 0;
+    const rank = Number.isFinite(params.скид_ранг) ? params.скид_ранг : 0;
+    const cap = Number.isFinite(params.скид_макс) ? params.скид_макс : 0;
+    const r = (Number.isFinite(R) && R > 0) ? R : 0;
+    const disc = Math.max(1 - cap, 1 - rank * r);
+    return Math.max(1, Math.ceil(base * (1 + step * n) * disc));
+  }
+
+  function eraseCost(params, rarity, n, R) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      return null;
+    }
+    const share = params.стирание_доля;
+    if (!Number.isFinite(share) || share <= 0 || share >= 1) return null;
+    const ins = inscriptionCost(params, rarity, n, R);
+    if (ins === null) return null;
+    return Math.max(1, Math.ceil(ins * share));
+  }
+
+  function inscriptionParams(st) {
+    const eff = catalogEffect(st);
+    if (!eff) return null;
+    const p = eff.нанесение;
+    return (p && typeof p === 'object' && !Array.isArray(p)) ? p : null;
+  }
+
+  function heroRuneLevel(hero) {
+    const s = hero && hero.secondary;
+    if (!s || typeof s !== 'object') return 0;
+    return (Number.isFinite(s.runes) && s.runes > 0) ? s.runes : 0;
+  }
+
+  function heroEquipMaps(hero) {
+    const eq = (hero.equipment && typeof hero.equipment === 'object'
+      && !Array.isArray(hero.equipment)) ? hero.equipment : {};
+    const eb = (hero.equipmentBonus && typeof hero.equipmentBonus === 'object'
+      && !Array.isArray(hero.equipmentBonus)) ? hero.equipmentBonus : {};
+    return { eq, eb };
+  }
+
+  function ownedRunes(e) {
+    return (e && typeof e === 'object' && Array.isArray(e.runes))
+      ? e.runes : [];
+  }
+
+  function applyRuneInscribe(st) {
+    const G = lazyGame();
+    if (!G || typeof G.hash2 !== 'function' || typeof G.getItem !== 'function'
+        || !G.RunesData || !Array.isArray(G.RunesData.RUNES)
+        || !G.RUNE_LIMITS || !Array.isArray(G.EQUIP_PHYS_SLOTS)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const params = inscriptionParams(st);
+    if (!params) return { ok: false, message: 'недоступно' };
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const R = heroRuneLevel(hero);
+    if (R < 1) return { ok: false, message: 'нужен навык «Рунопись»' };
+    const eqm = heroEquipMaps(hero);
+    let sawRarity = false;
+    let target = null;
+    for (const slot of G.EQUIP_PHYS_SLOTS) {
+      const id = eqm.eq[slot];
+      if (!id) continue;
+      const it = G.getItem(id);
+      if (!it || !it.rarity ||
+          !Object.prototype.hasOwnProperty.call(G.RUNE_LIMITS, it.rarity)) {
+        continue;
+      }
+      sawRarity = true;
+      const owned = ownedRunes(eqm.eb[slot]);
+      if (owned.length >= G.RUNE_LIMITS[it.rarity]) continue;
+      target = { slot, it, owned };
+      break;
+    }
+    if (!target) {
+      return {
+        ok: false,
+        message: sawRarity
+          ? 'Все экипированные предметы заполнены — лимит рун по редкости'
+          : 'Нет экипированного предмета с редкостью для руны',
+      };
+    }
+    const runes = G.RunesData.RUNES;
+    const cands = [];
+    for (const r of runes) {
+      if (r && typeof r.id === 'string' && !target.owned.includes(r.id)) {
+        cands.push(r.id);
+      }
+    }
+    if (!cands.length) {
+      return { ok: false, message: 'нет свободных рун для нанесения' };
+    }
+    const tile = st.tile || { x: 0, y: 0 };
+    const idx = G.hash2(tile.x, tile.y, RUNE_CRAFT_SEED ^ st.day)
+      % cands.length;
+    const runeId = cands[idx];
+    const cost = inscriptionCost(params, target.it.rarity,
+      target.owned.length, R);
+    if (cost === null) return { ok: false, message: 'недоступно' };
+    if (!(hero.gold >= cost)) {
+      return {
+        ok: false,
+        message: 'Мало золота: нанесение руны стоит ' + cost + ' з.',
+      };
+    }
+    const rune = runes.find((r) => r && r.id === runeId);
+    return {
+      ok: true,
+      success: true,
+      inscribe: true,
+      slot: target.slot,
+      itemId: target.it.id,
+      runeId,
+      cost,
+      message: 'Нанесено: «' + ((rune && rune.название) || runeId)
+        + '» на «' + target.it.name + '» (-' + cost + ' з.)',
+    };
+  }
+
+  function applyRuneErase(st) {
+    const G = lazyGame();
+    if (!G || typeof G.getItem !== 'function'
+        || !Array.isArray(G.EQUIP_PHYS_SLOTS)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const params = inscriptionParams(st);
+    if (!params) return { ok: false, message: 'недоступно' };
+    const hero = st && st.hero;
+    if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
+      return { ok: false, message: 'недоступно' };
+    }
+    const eqm = heroEquipMaps(hero);
+    let target = null;
+    for (const slot of G.EQUIP_PHYS_SLOTS) {
+      if (!eqm.eq[slot]) continue;
+      const owned = ownedRunes(eqm.eb[slot]);
+      if (!owned.length) continue;
+      target = { slot, it: G.getItem(eqm.eq[slot]), owned };
+      break;
+    }
+    if (!target) {
+      return { ok: false, message: 'Нет предметов с рунами' };
+    }
+    const it = target.it;
+    if (!it || !it.rarity) return { ok: false, message: 'недоступно' };
+    const R = heroRuneLevel(hero);
+    const cost = eraseCost(params, it.rarity, target.owned.length - 1, R);
+    if (cost === null) return { ok: false, message: 'недоступно' };
+    if (!(hero.gold >= cost)) {
+      return {
+        ok: false,
+        message: 'Мало золота: стирание руны стоит ' + cost + ' з.',
+      };
+    }
+    const runeId = target.owned[target.owned.length - 1];
+    let runeName = runeId;
+    if (G.RunesData && Array.isArray(G.RunesData.RUNES)) {
+      const rune = G.RunesData.RUNES.find((r) => r && r.id === runeId);
+      if (rune && rune.название) runeName = rune.название;
+    }
+    return {
+      ok: true,
+      success: true,
+      erase: true,
+      slot: target.slot,
+      itemId: it.id,
+      runeId,
+      cost,
+      message: 'Стёрта: «' + runeName + '» с «' + it.name + '» (-'
+        + cost + ' з.)',
     };
   }
 
@@ -2975,6 +3171,8 @@
     // чистый apply + пул каталога, свой (tile, day)-сид; learn() —
     // спец-модуль src/building-effect-runes.js.
     applyRuneSpell, runeSpellPool, RUNE_SPELL_SEED,
+    applyRuneInscribe, applyRuneErase,
+    inscriptionCost, eraseCost, RUNE_CRAFT_SEED,
     // Задача 000147: «Обучение (наставник)» (NN_mentor, 5 школ) —
     // чистый apply + пул/цена каталога (без RNG — первый learnable,
     // D6); learn() + списание золота — спец-модуль

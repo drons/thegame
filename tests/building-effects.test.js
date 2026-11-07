@@ -202,13 +202,13 @@ test('A1. building-effects (UMD node): реестр и чистые функци
     '44_rest', '44_rumors', '44_perform', 'fire', 'market', 'coin',
     'heal', '40_spell', '42_spell',
     '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor',
-    'fullrest'];
+    'fullrest', '40_inscribe', '40_erase'];
   const UNION = ['36', '37', '38', '39', '40', '41', '42', '43', '45',
     '46', '48', '44_rest', '44_rumors', '44_perform',
     'fire', 'market', 'coin', 'heal', '40_spell', '42_spell',
     'resurrect',
     '17_mentor', '18_mentor', '19_mentor', '21_mentor', '38_mentor',
-    'fullrest',
+    'fullrest', '40_inscribe', '40_erase',
     'storage'];
   const regKeys = Object.keys(BE.EFFECTS);
   for (const id of MERGED) {
@@ -219,7 +219,7 @@ test('A1. building-effects (UMD node): реестр и чистые функци
     assert.ok(UNION.includes(id),
       'реестр: чужой id «' + id + '» (union 000074/000075/000076/' +
       '000077/000091/000092/000093/000094/000095/000137/000133/' +
-      '000147/000162/000200/000221)');
+      '000147/000162/000200/000221/000328.02)');
   }
   for (const id of ['36', '37', '38']) {
     assert.equal(typeof BE.EFFECTS[id].имя, 'string', id + ': имя');
@@ -1330,7 +1330,9 @@ test('A43. каталог 40/42: эффект — ОБЪЕКТ (параметр
   assert.ok(p40.эффект.тексты
     .every((s) => typeof s === 'string' && s.length > 0),
     '40: тексты — непустые строки');
-  assert.equal(p40.раз_в_день, true, '40: раз_в_день — true');
+  assert.deepEqual(p40.раз_в_день, { '40': true, '40_spell': true },
+    '40: раз_в_день — флаг «40» + «40_spell»; 40_inscribe/40_erase — ' +
+    'БЕЗ дневного лимита (гейт — золото, 000328.02)');
   // Тексты зафиксированы (memory/000074-rune-stone-obelisk.md:
   // «стадия кода только транслитерирует в JSON»).
   assert.deepEqual(p40.эффект.тексты, [
@@ -4555,9 +4557,11 @@ test('R1. 000133: реестр 40_spell/42_spell + каталог (эффект�
   const B = require('../src/buildings.js');
   const c40 = B.getBuilding(40);
   const c42 = B.getBuilding(42);
-  assert.deepEqual(c40.особые_параметры.эффекты, ['40', '40_spell'],
-    '40: эффекты — СУЩЕСТВУЮЩЕЕ действие ПЕРВЫМ (red: массива нет); '
-    + 'факт: ' + JSON.stringify(c40.особые_параметры.эффекты));
+  assert.deepEqual(c40.особые_параметры.эффекты,
+    ['40', '40_spell', '40_inscribe', '40_erase'],
+    '40: эффекты — СУЩЕСТВУЮЩЕЕ действие ПЕРВЫМ (ре-пин 000328.02: '
+    + '+нанесение/стирание); факт: '
+    + JSON.stringify(c40.особые_параметры.эффекты));
   assert.deepEqual(c42.особые_параметры.эффекты, ['42', '42_spell'],
     '42: эффекты — существующее первым; факт: '
     + JSON.stringify(c42.особые_параметры.эффекты));
@@ -4572,8 +4576,10 @@ test('R1. 000133: реестр 40_spell/42_spell + каталог (эффект�
     '42: пул — поздние (ур.2-3; 3 с базовыми); факт: '
     + JSON.stringify(c42.особые_параметры.эффект && c42.особые_параметры.эффект.заклинания));
   // Регрессионные пины: существующее действие и флаг НЕ изменились.
-  assert.equal(c40.особые_параметры.раз_в_день, true,
-    '40: раз_в_день (регрессия)');
+  assert.deepEqual(c40.особые_параметры.раз_в_день,
+    { '40': true, '40_spell': true },
+    '40: раз_в_день — per-effect (ре-пин 000328.02: без марок для '
+    + '40_inscribe/40_erase)');
   assert.equal(c42.особые_параметры.раз_в_день, true,
     '42: раз_в_день (регрессия)');
   assert.equal(c40.особые_параметры.эффект.шанс_база, 0.25,
@@ -4581,13 +4587,17 @@ test('R1. 000133: реестр 40_spell/42_spell + каталог (эффект�
   assert.equal(BE.hasDailyLimit(c40, '40'), true,
     '40: hasDailyLimit «40» (регрессия)');
   assert.equal(BE.hasDailyLimit(c40, '40_spell'), true,
-    '40: «40_spell» — тоже раз в день (верхнеуровневый флаг каталога '
-    + '→ все effectIds)');
+    '40: «40_spell» — тоже раз в день (per-effect ключ в '
+    + 'раз_в_день, ре-пин 000328.02)');
+  assert.equal(BE.hasDailyLimit(c40, '40_inscribe'), false,
+    '000328.02: «40_inscribe» — БЕЗ дневного лимита (ключа нет)');
+  assert.equal(BE.hasDailyLimit(c40, '40_erase'), false,
+    '000328.02: «40_erase» — БЕЗ дневного лимита (ключа нет)');
   assert.equal(BE.hasDailyLimit(c42, '42_spell'), true,
     '42: «42_spell» — тоже раз в день');
-  assert.deepEqual(BE.effectIds(c40), ['40', '40_spell'],
-    '40: effectIds — оба действия (red: реестра «40_spell» нет → ['
-    + '«40»])');
+  assert.deepEqual(BE.effectIds(c40),
+    ['40', '40_spell', '40_inscribe', '40_erase'],
+    '40: effectIds — все четыре действия (ре-пин 000328.02)');
   assert.deepEqual(BE.effectIds(c42), ['42', '42_spell'],
     '42: effectIds — оба действия');
   // Чистые экспорты (контракт §3.2).
@@ -6750,9 +6760,11 @@ test('R5. 000133: камень e2e: [E] — вторая строка «Расш
   // «craft» — строка крафта (000126): рецепты stone_chisel/moonstone/
   // moonstone_runes ссылаются на здание 40 → строка ВСЕГДА в конце
   // (000126: существующие строки не перенумеровываются).
-  assert.deepEqual(rows, ['40', '40_spell', 'craft'],
-    'строки: «40» ПЕРВОЙ, новая «40_spell» ВТОРОЙ, «craft» в конце '
-    + '(red: реестра «40_spell» нет → её нет); факт: ' + JSON.stringify(rows));
+  assert.deepEqual(rows,
+    ['40', '40_spell', '40_inscribe', '40_erase', 'craft'],
+    'строки: «40» ПЕРВОЙ, «40_spell» ВТОРОЙ, нанесение/стирание '
+    + '(ре-пин 000328.02), «craft» в конце; факт: '
+    + JSON.stringify(rows));
   const row = findRow(ov, '40_spell');
   assert.ok(row, 'строка 40_spell в оверлее (red: строки нет)');
   assert.ok(textOf(row).includes('Расшифровка (заклинание)'),

@@ -42,13 +42,31 @@
         "fireball",
         "shadow_bolt",
         "light_heal"
-      ]
+      ],
+      "нанесение": {
+        "стоимость": {
+          "common": 20,
+          "rare": 50,
+          "epic": 120,
+          "legendary": 250,
+          "impossible": 500
+        },
+        "шаг_слота": 0.5,
+        "скид_ранг": 0.02,
+        "скид_макс": 0.5,
+        "стирание_доля": 0.5
+      }
     },
     "эффекты": [
       "40",
-      "40_spell"
+      "40_spell",
+      "40_inscribe",
+      "40_erase"
     ],
-    "раз_в_день": true,
+    "раз_в_день": {
+      "40": true,
+      "40_spell": true
+    },
     "map_index": 10,
     "название_карты": "Рунический камень",
     "стройка": {
@@ -61,7 +79,6 @@
       ]
     }
   },
-  "спрайт": "assets/sprites/buildings/rune_stone.svg"
-,
+  "спрайт": "assets/sprites/buildings/rune_stone.svg",
   "icon": "assets/sprites/buildings/rune_stone.svg"
 }

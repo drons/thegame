@@ -101,6 +101,38 @@
       ? a.skills : null;
   }
 
+  const INT_RUNE_STATS = new Set([
+    'maxHP', 'maxMP', 'armor', 'moveCells', 'attackActions',
+    'spellActionsInt', 'spellActionsWis', 'inventorySlots',
+    'dialogueBonus',
+  ]);
+
+  function runeApi() {
+    let api;
+    if (itemsThunk) {
+      if (!itemsApi) {
+        try { itemsApi = itemsThunk(); } catch (e) { itemsApi = {}; }
+      }
+      api = itemsApi;
+    } else {
+      api = (rootRef && rootRef.Game) ? rootRef.Game : null;
+    }
+    return api;
+  }
+
+  function runeBonusesFor(sheet) {
+    if (!sheet || typeof sheet.equipment !== 'object'
+        || Array.isArray(sheet.equipment)) return null;
+    const api = runeApi();
+    if (!api || typeof api.equipmentRunes !== 'function') return null;
+    try {
+      const r = api.equipmentRunes(sheet);
+      return (r && typeof r === 'object') ? r : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function baseInventorySlots() {
     let api;
     if (itemsThunk) {
@@ -477,7 +509,19 @@
     if (!sk) { logDegrade(); return null; }
     const P = sheet.primary;
     const S = (id) => sheet.secondary[id] || 0;
-    const affixSkills = affixSkillsFor(sheet);
+    let affixSkills = affixSkillsFor(sheet);
+    const runeBonuses = runeBonusesFor(sheet);
+    if (runeBonuses && runeBonuses.skills) {
+      let merged = null;
+      for (const id of Object.keys(runeBonuses.skills)) {
+        if (!sk.SECONDARY_SKILLS[id]) continue;
+        const amt = Number(runeBonuses.skills[id]);
+        if (!Number.isFinite(amt)) continue;
+        if (!merged) merged = Object.assign({}, affixSkills || {});
+        merged[id] = (merged[id] || 0) + amt;
+      }
+      if (merged) affixSkills = merged;
+    }
     const pct = (id) => {
       const base = sk.SECONDARY_SKILLS[id].effect.perLevel * S(id);
       const a = affixSkills ? affixSkills[id] : undefined;
@@ -536,6 +580,18 @@
       hpRegenMult: 0.10 + pct('breath') + pct('meditation'),
       mpRegenMult: 0.10 + pct('meditation'),
     };
+    if (runeBonuses) {
+      const rpm = base.runePowerMult;
+      for (const stat of Object.keys(runeBonuses.derived)) {
+        if (!Object.prototype.hasOwnProperty.call(base, stat)) continue;
+        const amt = Number(runeBonuses.derived[stat]);
+        if (!Number.isFinite(amt)) continue;
+        const add = amt * rpm;
+        base[stat] = INT_RUNE_STATS.has(stat)
+          ? base[stat] + Math.round(add)
+          : base[stat] + add;
+      }
+    }
     if (ctx && typeof ctx.modifier === 'function') {
       const mod = ctx.modifier(base, sheet, ctx);
       if (mod && typeof mod === 'object') return mod;
