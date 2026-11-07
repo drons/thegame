@@ -17,6 +17,7 @@
     "sync:dungeons": "node scripts/sync-dungeons-data.js",
     "sync:items": "node scripts/sync-items-data.js",
     "sync:mobgroups": "node scripts/sync-mob-groups-data.js",
-    "sync:visuals": "node scripts/sync-visuals-data.js"
+    "sync:visuals": "node scripts/sync-visuals-data.js",
+    "sync:runes": "node scripts/sync-runes-data.js"
   }
 }

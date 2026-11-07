@@ -28,4 +28,5 @@
 * [Архитектура хранения подземелий](spec/dungeons-storage.md)
 * [Архитектура хранения NPC](spec/npc-storage.md)
 * [Предметы](spec/items.md)
+* [Руны](spec/runes.md)
 * [MOBS.md — правила создания SVG-ассетов мобов](spec/MOBS.md)

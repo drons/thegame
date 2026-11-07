@@ -505,6 +505,9 @@ const EXPECTED_SVG_BY_DIR = {
   'sprites/loot': 33,                 // природный лут (задача 000158.05):
                                       // 1 спрайт на item-id (каталог
                                       // items-data, поле loot)
+  'sprites/runes': 55,                // иконки рун (задача 000328.01:
+                                      // по одной на id каталога
+                                      // assets/runes, имя = <id>.svg)
   'sprites/mobs': 192,
   'sprites/phlogiston': 8,
   'sprites/efir': 8,                  // дух Эфир (задача 000034: прежние

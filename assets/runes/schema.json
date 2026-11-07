@@ -1,0 +1,111 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "название",
+    "описание",
+    "эффект"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "название": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
+    },
+    "описание": {
+      "type": "string",
+      "pattern": "^\\S(.*\\S)?$"
+    },
+    "эффект": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "stat",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "derived"
+            },
+            "stat": {
+              "enum": [
+                "maxHP",
+                "maxMP",
+                "armor",
+                "moveCells",
+                "attackActions",
+                "spellActionsInt",
+                "spellActionsWis",
+                "swordHitBonus",
+                "archerHitBonus",
+                "heavyDamageBonus",
+                "fistDamageBonus",
+                "rangedDamageBonus",
+                "fireDamageBonus",
+                "iceDamageBonus",
+                "damageTakenMult",
+                "dodgeBonus",
+                "survivalChance",
+                "magicResistMult",
+                "carryWeightMult",
+                "inventorySlots",
+                "moveSpeedMult",
+                "caveVisionMult",
+                "acroBonus",
+                "thiefBonus",
+                "dialogueBonus",
+                "companionMoraleBonus",
+                "performanceIncomeMult",
+                "fearChance",
+                "potionPowerMult",
+                "foodPowerMult",
+                "runePowerMult",
+                "xpMult",
+                "buyPriceMult",
+                "sellPriceMult",
+                "equipmentDurabilityMult",
+                "hpRegenMult",
+                "mpRegenMult"
+              ]
+            },
+            "amount": {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 100
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "skill",
+            "amount"
+          ],
+          "properties": {
+            "type": {
+              "const": "skill"
+            },
+            "skill": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "amount": {
+              "type": "number",
+              "minimum": -100,
+              "maximum": 100
+            }
+          }
+        }
+      ]
+    }
+  }
+}
