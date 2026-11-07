@@ -3984,11 +3984,12 @@ test('A59. serialize/restoreCampStocks: roundtrip, независимость «
     'saved массив — {}');
 });
 
-test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 20 записей, npcForBuilding(47) (задача 000095)', () => {
+test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 21 запись, npcForBuilding(47) (задача 000095)', () => {
   const NDIR = path.join(ROOT, 'assets', 'npc');
   // Файл — по нумерации (npc-data.test.js: ровно N файлов
   // 000001..N.json подряд, N = NPCS.length): 17 + Кочевник = 18;
-  // 000320.01: +Корд (000019) = 19; 000320.02: +Родар (000020) = 20.
+  // 000320.01: +Корд (000019) = 19; 000320.02: +Родар (000020) = 20;
+  // 000320.03: +Скарн (000021) = 21.
   const npc = JSON.parse(
     fs.readFileSync(path.join(NDIR, '000018.json'), 'utf8'));
   assert.equal(npc.id, 'camp_wanderer', 'id «camp_wanderer»');
@@ -4017,10 +4018,11 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
       p.предмет + ': количество 1..99');
   }
   // Зеркало (src/npc-data.js, регенерация скриптом): 17 → 18;
-  // 000320.01: 18 → 19 (Корд); 000320.02: 19 → 20 (Родар).
+  // 000320.01: 18 → 19 (Корд); 000320.02: 19 → 20 (Родар);
+  // 000320.03: 20 → 21 (Скарн).
   const ND = require('../src/npc-data.js');
-  assert.equal(ND.NPCS.length, 20,
-    'зеркало: 20 NPC (17 + Кочевник + Корд + Родар)');
+  assert.equal(ND.NPCS.length, 21,
+    'зеркало: 21 NPC (17 + Кочевник + Корд + Родар + Скарн)');
   const inMirror = ND.NPCS.find((n) => n.id === 'camp_wanderer');
   assert.ok(inMirror, 'зеркало: camp_wanderer на месте');
   assert.deepEqual(inMirror.постройки, [47],
