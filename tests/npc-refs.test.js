@@ -30,9 +30,9 @@ function targetId(ref) {
     fs.readFileSync(path.join(ROOT, ref), 'utf8')).id;
 }
 
-test('npc: постройки — строки-ссылки assets/buildings, резолюция, id цели = id зеркала (20/14)', () => {
+test('npc: постройки — строки-ссылки assets/buildings, резолюция, id цели = id зеркала (21/14)', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 18, 'в каталоге NPC 18 файлов');
+  assert.equal(files.length, 19, 'в каталоге NPC 19 файлов (000320.01: +Корд)');
   let total = 0;
   const unique = new Set();
   for (let i = 0; i < files.length; i++) {
@@ -55,11 +55,13 @@ test('npc: постройки — строки-ссылки assets/buildings, р
         `${files[i]}: ссылка ${v} резолвится в ${id}, а в зеркале ${JSON.stringify(mirror.постройки[j])}`);
     }
   }
-  assert.equal(total, 20, 'ссылок на постройки: 20');
+  // Ре-пин 000320.01: +1 ссылка Корда на 000001 (Оружейная — 2-й NPC;
+  // уникальных зданий — без изменений: 000001 уже занят Бренном).
+  assert.equal(total, 21, 'ссылок на постройки: 21');
   assert.equal(unique.size, 14, 'уникальных зданий: 14');
 });
 
-test('npc: предметы — строки-ссылки assets/items (торговля/цель bring_item/награда), резолюция (50/41, ре-пин 000232)', () => {
+test('npc: предметы — строки-ссылки assets/items (торговля/цель bring_item/награда), резолюция (55/41, ре-пины 000232/000320.01)', () => {
   const files = listNpcFiles();
   let trade = 0;
   let goal = 0;
@@ -109,11 +111,13 @@ test('npc: предметы — строки-ссылки assets/items (торг
     }
   }
   // Ре-пин 000232: +6 чертежей в торговле 6 NPC (40→46, 44→50,
-  // 35→41 — 6 новых уникальных id).
-  assert.equal(trade, 46, 'ссылок в торговле: 46');
+  // 35→41 — 6 новых уникальных id). Ре-пин 000320.01: +5 меч/лук-
+  // входов торговли Корда (46→51, 50→55; уникальных — без изменений:
+  // 000001–000005 уже в множестве 41).
+  assert.equal(trade, 51, 'ссылок в торговле: 51');
   assert.equal(goal, 1, 'ссылок в целях bring_item: 1');
   assert.equal(reward, 3, 'ссылок в наградах: 3');
-  assert.equal(trade + goal + reward, 50, 'ссылок на предметы: 50');
+  assert.equal(trade + goal + reward, 55, 'ссылок на предметы: 55');
   assert.equal(unique.size, 41, 'уникальных предметов: 41');
 });
 

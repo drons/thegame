@@ -542,7 +542,7 @@ function loadNpcFiles() {
     }));
 }
 
-test('A8a. каталог: Берта — `для:"efir"` + `для:{роль:"support"}`; Элдира — `для:"merc"` + `для:"все"`; остальные — 0 опций с `для`', () => {
+test('A8a. каталог: Берта — `для:"efir"` + `для:{роль:"support"}`; Элдира — `для:"merc"` + `для:"все"`; Корд — `для:"merc"` (000320.01); остальные — 0 опций с `для`', () => {
   const files = loadNpcFiles();
   const berta = files.find((x) => x.data.id === 'tavern_keeper');
   assert.ok(berta, 'Берта (tavern_keeper) в каталоге');
@@ -557,8 +557,13 @@ test('A8a. каталог: Берта — `для:"efir"` + `для:{роль:"s
     'Элдира: опция `для:"merc"`');
   assert.ok(elder.data.диалог.some((o) => o.для === 'все'),
     'Элдира: опция `для:"все"` (пин дефолт-семантики)');
+  const blade = files.find((x) => x.data.id === 'blade_merchant');
+  assert.ok(blade, 'Корд (blade_merchant) в каталоге');
+  assert.ok(blade.data.диалог.some((o) => o.для === 'merc'),
+    'Корд: опция `для:"merc"` (000320.01)');
   for (const { f, data } of files) {
-    if (data.id === 'tavern_keeper' || data.id === 'elder') continue;
+    if (data.id === 'tavern_keeper' || data.id === 'elder'
+      || data.id === 'blade_merchant') continue;
     assert.equal(
       data.диалог.filter((o) => o.для !== undefined).length, 0,
       `${f}: опций с «для» нет (остальные NPC — 0-diff)`);

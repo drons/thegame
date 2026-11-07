@@ -12,6 +12,11 @@
 //   * цены НЕ в сейве (derived) — миграции нет; фолбэк base = value.
 // Бит-в-бит доведено: base × mult === старая цена (точные двойки,
 // 46×2), 0 флипов round(base×mult×M) vs round(price×M) (sweep R3).
+// РЕ-ПИН 000320.01 (Корд/blade_merchant — 5 входов торговли): R1/R6
+// входов 46→51 (уникальных предметов — те же 41), R7 торгующих NPC
+// 7→8; R3 — Корд вне миграции 000322: OLD_PRICES его НЕ содержит
+// (neg-пин) и свип его скипает (сравнение «бит-в-бит» к новой
+// торговле неприменим; формула Корда покрыта R2).
 // КРАСНЫЕ (до): R1 (нет base_price / есть цены в NPC), R2/R3 (нет
 // mult_*, base undefined), R5 (старый формат валиден, base_price нет),
 // R6 (зеркала без base_price / со старыми полями), R8 (фолбэк не читается).
@@ -91,7 +96,7 @@ const charWithMerchant = (lvl) => {
   return c;
 };
 
-test('R1: SWEEP миграции — base_price в JSON у КАЖДОГО предмета торговли (46 входов, 41 предмет); цены УБРАНЫ из NPC-входов', () => {
+test('R1: SWEEP миграции — base_price в JSON у КАЖДОГО предмета торговли (51 вход: 46 миграции 000322 + 5 Корда 000320.01, 41 предмет); цены УБРАНЫ из NPC-входов', () => {
   let entries = 0;
   const traded = new Set();
   for (const f of npcFiles) {
@@ -116,9 +121,11 @@ test('R1: SWEEP миграции — base_price в JSON у КАЖДОГО пре
       }
     }
   }
-  assert.equal(entries, 46, 'входов торговли — 46, а есть: ' + entries);
+  assert.equal(entries, 51, 'входов торговли — 51 (46 миграции 000322 '
+    + '+ 5 Корда 000320.01), а есть: ' + entries);
   assert.equal(traded.size, 41,
-    'уникальных предметов — 41, а есть: ' + traded.size);
+    'уникальных предметов — 41 (Корд торгует тем же ассортиментом '
+    + 'Оружейной), а есть: ' + traded.size);
 });
 
 test('R2: точная формула — npcBuyPrice/npcSellPrice = max(1, round(base × mult × derived)); base — из JSON предмета', () => {
@@ -170,7 +177,7 @@ test('R2: точная формула — npcBuyPrice/npcSellPrice = max(1, roun
     'war_hammer sell lvl5 = round(150 × 1.25) = 188');
 });
 
-test('R3: БИТ-В-БИТ — base × mult === старая цена (точные двойки, 46×2) + 0 флипов: уровни Торговца 0..100 (реальные derived) + сетка множителей 0.3..6.0', () => {
+test('R3: БИТ-В-БИТ — base × mult === старая цена (точные двойки, 46×2 legacy; Корд 000320.01 — вне миграции, скип) + 0 флипов: уровни Торговца 0..100 (реальные derived) + сетка множителей 0.3..6.0', () => {
   let checked = 0;
   for (const f of npcFiles) {
     const npc = ND.NPCS.find((n) => n.id === NPC_JSON[f].id);
@@ -178,6 +185,13 @@ test('R3: БИТ-В-БИТ — base × mult === старая цена (точн�
     if (!npc.торговля) continue;
     const shop = N.createNpcShop(npc);
     const oldMap = OLD_PRICES[npc.id];
+    if (npc.id === 'blade_merchant') {
+      assert.ok(!oldMap,
+        f + ': Корд (000320.01) — НОВЫЙ NPC вне миграции 000322: '
+        + 'OLD_PRICES НЕ содержит blade_merchant (сравнение «бит-в-бит» '
+        + 'к новой торговле неприменимо); формула — регресс R2');
+      continue;
+    }
     assert.ok(oldMap, f + ': OLD_PRICES для ' + npc.id);
     for (const e of npc.торговля.предметы) {
       const it = itemById(e.предмет);
@@ -348,7 +362,8 @@ test('R6: зеркала — items-data: base_price ровно у 41 id ПОСЛ
         npc.id + ': mult_продажи в зеркале; факт: ' + JSON.stringify(e));
     }
   }
-  assert.equal(entries, 46, 'входов в зеркале — 46, а есть: ' + entries);
+  assert.equal(entries, 51, 'входов в зеркале — 51 (46 + 5 Корда '
+    + '000320.01), а есть: ' + entries);
   const weapons = ND.NPCS.find((n) => n.id === 'weapons_merchant');
   const wood = weapons.торговля.предметы
     .find((e) => e.предмет === 'wood_sword');
@@ -362,7 +377,8 @@ test('R7: сейв — serializeNpcStocks: только {npcId:{itemId:qty}}, н
     const shop = N.createNpcShop(npc);
     if (shop) stocks[npc.id] = shop.stock;
   }
-  assert.equal(Object.keys(stocks).length, 7, 'торгующих NPC — 7');
+  assert.equal(Object.keys(stocks).length, 8, 'торгующих NPC — 8 '
+    + '(7 миграции 000322 + Корд 000320.01)');
   const ser = N.serializeNpcStocks(stocks);
   assert.deepEqual(ser, stocks, 'сток — {npcId:{itemId:qty}} 1:1');
   for (const npcId of Object.keys(ser)) {

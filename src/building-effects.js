@@ -2403,22 +2403,32 @@
 
   /**
    * Список действий на тайле постройки (чистая, без DOM):
-   * [{ id, имя, доступен, reason? }]. Порядок: сначала «Диалог»
-   * (id 'dialog', если npc != null), затем эффекты (порядок каталога).
-   * Доступность эффекта: СНАЧАЛА available?(state) (недневная), затем
-   * лимит раз-в-день; reason — причина недоступности (виден в
-   * оверлее; строка disabled — нажатие не доходит до apply).
+   * [{ id, имя, доступен, npcId?, reason? }]. Порядок: сначала строки
+   * «Диалог: <имя>» на каждого NPC (000320.01: id первой 'dialog',
+   * остальных 'dialog:<id NPC>'; пусто/null — строк нет), затем эффекты
+   * (порядок каталога). Доступность эффекта: СНАЧАЛА available?(state)
+   * (недневная), затем лимит раз-в-день; reason — причина недоступности
+   * (виден в оверлее; строка disabled — нажатие не доходит до apply).
    * building/npc/state (снимок сейва) не мутируются.
    * @param {object} building запись каталога (id, особые_параметры)
-   * @param {object|null} npc запись каталога NPC (или null)
+   * @param {object|Array|null} npc запись каталога NPC, массив NPC
+   *         (порядок = каталог) или null
    * @param {{day: number, tile: {x: number, y: number}, hero: object,
    *         save: object}} state — save: снимок collectSaveData()
    */
   function buildingActions(building, npc, state) {
     const out = [];
-    if (npc != null) {
-      out.push({ id: 'dialog', имя: 'Диалог', доступен: true });
-    }
+    const npcs = Array.isArray(npc)
+      ? npc.filter((n) => n != null)
+      : (npc != null ? [npc] : []);
+    npcs.forEach((n, i) => {
+      out.push({
+        id: i === 0 ? 'dialog' : 'dialog:' + n.id,
+        имя: 'Диалог: ' + n.имя,
+        доступен: true,
+        npcId: n.id,
+      });
+    });
     const st = state || {};
     const tile = st.tile || { x: 0, y: 0 };
     const effIds = effectIds(building);

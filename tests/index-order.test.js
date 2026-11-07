@@ -852,9 +852,9 @@ test('порядок core → building-effects.js: Game.buildingEffects в бр�
     { id: 96, особые_параметры: {} },
     { id: 'npc_x', имя: 'Тест' },
     { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
-  assert.equal(res.length, 1, 'без эффектов — только «Диалог»');
+  assert.equal(res.length, 1, 'без эффектов — только «Диалог: <имя>»');
   assert.equal(res[0].id, 'dialog');
-  assert.equal(res[0].имя, 'Диалог');
+  assert.equal(res[0].имя, 'Диалог: Тест');
   assert.equal(res[0].доступен, true);
 });
 

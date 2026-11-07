@@ -218,7 +218,7 @@
     return lv;
   }
 
-  function onBuildingAction(action, t, b, npc) {
+  function onBuildingAction(action, t, b, npc, npcs) {
     if (!needDeps()) return;
     // Реестр эффектов — ПЕРВЫМИ (ревью раунда 3): запись
     // EFFECTS['dialog'] (если появится в каталоге) не должна
@@ -399,10 +399,20 @@
     }
     if (!r && !sres) {
       // «НЕТ ДЕЙСТВИЯ»: entry без apply и без спец-а (и без записи).
-      // 'dialog' — Фолбэк NPC-диалога (1:1: без save/flash/
+      // 'dialog'/'dialog:<id>' — Фолбэк NPC-диалога (1:1: без save/flash/
       // маркировки). ВНУТРИ ветки (иначе ветка выше return'ила бы
       // до него — поправка к псевдокоду a2-анализа, §6.4 memory).
-      if (action.id === 'dialog' && npc) openNpcDialog(npc, t);
+      const isDlg = action.id === 'dialog'
+        || (typeof action.id === 'string'
+          && action.id.indexOf('dialog:') === 0);
+      if (isDlg) {
+        let target = npc;
+        if (action.npcId != null) {
+          const pool = npcs || (npc ? [npc] : []);
+          target = pool.find((n) => n && n.id === action.npcId) || null;
+        }
+        if (target) openNpcDialog(target, t);
+      }
       return;
     }
     // Маркировка + saveNow + flash + render — единственная точка для
@@ -516,7 +526,11 @@
     if (t.buildingId === 41 && !deps.teleports.has(t.x + ',' + t.y)) {
       scanTeleportPair(t.x, t.y, b);
     }
-    const actions = deps.game.buildingEffects.buildingActions(b, npc, {
+    const list = Array.isArray(npc)
+      ? npc.filter((n) => n != null)
+      : (npc != null ? [npc] : []);
+    const actions = deps.game.buildingEffects.buildingActions(
+      b, list.length ? list : null, {
       day: deps.clock.day,
       // Задача 000107 (D4): клетка тайла t, а не deps.player — в городе
       // это клетка города (мир-якорь входа был бы неверен); в мире
@@ -561,7 +575,7 @@
     deps.game.buildingUI.open({
       title,
       actions: all,
-      onAction: (a) => onBuildingAction(a, t, b, npc),
+      onAction: (a) => onBuildingAction(a, t, b, list[0] || null, list),
     });
     return true;
   }
@@ -1685,10 +1699,19 @@
     return deps.game.buildingForMapIndex(t.building);
   }
 
+  function npcsForBuildingOrFallback(buildingId) {
+    if (deps.game.npcsForBuilding) {
+      return deps.game.npcsForBuilding(deps.npcs, buildingId);
+    }
+    return [deps.game.npcForBuilding(deps.npcs, buildingId)]
+      .filter((n) => n != null);
+  }
+
   // Действие [E] (задача 000010, задача 000071 — ЕДИНЫЙ путь): роутинг
   // [E] на тайле постройки → оверлей Game.buildingUI (список действий:
-  // «Диалог», если у постройки NPC, + эффекты каталога). Повторный
-  // [E] — закрыть оверлей. Постройка с NPC и БЕЗ эффектов — тоже
+  // «Диалог: <имя>» на каждого NPC постройки в порядке каталога —
+  // 000320.01, + эффекты каталога). Повторный [E] — закрыть оверлей.
+  // Постройка с NPC и БЕЗ эффектов — тоже
   // оверлей из одного пункта «Диалог» (НЕ прямой npcUI — 000076/000107;
   // Digit1 открывает диалог). Вызывается с клавиатуры (KeyE) и с
   // on-screen-кнопки «E» тач-варианта (задача 000018) — семантика
@@ -1755,8 +1778,8 @@
         if (t.hasBuilding) {
           const b = buildingRecForTile(t); // 000076: подтип слота 8..12
           if (b) {
-            const npc = deps.game.npcForBuilding(deps.npcs, b.id);
-            openBuildingUI(t, b, npc);
+            const npcs = npcsForBuildingOrFallback(b.id);
+            openBuildingUI(t, b, npcs);
           }
         }
       }
@@ -1928,8 +1951,8 @@
         '[E] ничего не делает');
       return;
     }
-    const npc = deps.game.npcForBuilding
-      ? deps.game.npcForBuilding(deps.npcs, b.id) : null;
+    const npcs = (deps.game.npcsForBuilding || deps.game.npcForBuilding)
+      ? npcsForBuildingOrFallback(b.id) : [];
     // Синтетический tile (контракт 000107 §3): координаты КЛЕТКИ
     // ГОРОДА; building — map_index записи (как мировой t.building);
     // buildingWealth — богатство якоря (ds.cityWealth).
@@ -1957,9 +1980,10 @@
         .concat([demolishActionRow(cell)])
       : [];
     // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские
-    // записи БЕЗ эффектов → ровно «Диалог», если npc != null;
+    // записи БЕЗ эффектов → по строке «Диалог: <имя>» на каждого NPC
+    // постройки (000320.01);
     // пустой список — openBuildingUI false → [E] ничего).
-    openBuildingUI(t, b, npc, extraActions);
+    openBuildingUI(t, b, npcs, extraActions);
   }
 
   return {

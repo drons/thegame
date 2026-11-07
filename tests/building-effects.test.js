@@ -247,7 +247,7 @@ test('A2. buildingActions: постройки без записи в реест�
   assert.deepEqual(res, [], 'ни «Диалога», ни эффектов');
 });
 
-test('A3. buildingActions: NPC есть, эффектов нет — ровно «Диалог»', () => {
+test('A3. buildingActions: NPC есть, эффектов нет — ровно «Диалог: <имя>»', () => {
   const BE = loadBE();
   // id 96 — СИНТЕТИЧЕСКИЙ (000075): тест обязан проходить при ЛЮБОМ
   // составе реестра; 36 с 000076 — «Благословение» (не «без эффектов»).
@@ -255,7 +255,8 @@ test('A3. buildingActions: NPC есть, эффектов нет — ровно 
     { id: 96, особые_параметры: {} }, NPC(), makeState());
   assert.equal(res.length, 1, 'один пункт');
   assert.equal(res[0].id, 'dialog', 'id зафиксирован');
-  assert.equal(res[0].имя, 'Диалог', 'имя зафиксировано');
+  assert.equal(res[0].имя, 'Диалог: Тест',
+    'имя зафиксировано (000320.01: подпись «Диалог: <имя>»)');
   assert.equal(res[0].доступен, true, 'диалог всегда доступен');
 });
 
@@ -486,7 +487,7 @@ test('A14. building-effects (UMD vm): грузится БЕЗ других мо�
     { day: 1, tile: { x: 0, y: 0 }, hero: {}, save: {} });
   assert.equal(res1.length, 1);
   assert.equal(res1[0].id, 'dialog');
-  assert.equal(res1[0].имя, 'Диалог');
+  assert.equal(res1[0].имя, 'Диалог: Тест');
   assert.equal(res1[0].доступен, true);
   // Лимит без Game.canUseToday: fallback-сравнение дней.
   BE.EFFECTS['90'] = { имя: 'Тест' };
@@ -3981,10 +3982,11 @@ test('A59. serialize/restoreCampStocks: roundtrip, независимость «
     'saved массив — {}');
 });
 
-test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 18 записей, npcForBuilding(47) (задача 000095)', () => {
+test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 19 записей, npcForBuilding(47) (задача 000095)', () => {
   const NDIR = path.join(ROOT, 'assets', 'npc');
   // Файл — по нумерации (npc-data.test.js: ровно N файлов
-  // 000001..N.json подряд, N = NPCS.length): 17 + Кочевник = 18.
+  // 000001..N.json подряд, N = NPCS.length): 17 + Кочевник = 18;
+  // 000320.01: +Корд (000019) = 19.
   const npc = JSON.parse(
     fs.readFileSync(path.join(NDIR, '000018.json'), 'utf8'));
   assert.equal(npc.id, 'camp_wanderer', 'id «camp_wanderer»');
@@ -4012,10 +4014,11 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
     assert.ok(p.количество >= 1 && p.количество <= 99,
       p.предмет + ': количество 1..99');
   }
-  // Зеркало (src/npc-data.js, регенерация скриптом): 17 → 18.
+  // Зеркало (src/npc-data.js, регенерация скриптом): 17 → 18;
+  // 000320.01: 18 → 19 (Корд).
   const ND = require('../src/npc-data.js');
-  assert.equal(ND.NPCS.length, 18,
-    'зеркало: 18 NPC (17 + Кочевник)');
+  assert.equal(ND.NPCS.length, 19,
+    'зеркало: 19 NPC (17 + Кочевник + Корд)');
   const inMirror = ND.NPCS.find((n) => n.id === 'camp_wanderer');
   assert.ok(inMirror, 'зеркало: camp_wanderer на месте');
   assert.deepEqual(inMirror.постройки, [47],
@@ -7460,7 +7463,7 @@ test('B25. развалины e2e: ловушка (день 2 = голден) �
 //     (maxHP 25 / maxMP 16 у level-1): hp 5→10, mp 4→6 (таблица §5).
 //   * e2e-чтение mp: readSave(h).data.hero.mp — g.state.hero.mp НЕТ.
 
-test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, действия)», оверлей [dialog,44_rest,44_rumors], Digit2 — день 1→2, hero 10/6, flash, БЕЗ отметки; повтор в тот же день (ТЗ) (задача 000091)', async () => {
+test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, действия)», оверлей [dialog×7 (000320.01),44_rest,44_rumors,44_perform,fullrest], Digit8 — день 1→2, hero 10/6, flash, БЕЗ отметки; повтор в тот же день (ТЗ) (задача 000091)', async () => {
   // Позиция PRE-SEED'ом на таверне (паттерн B14/B21): ХОД к таверне
   // (43 шага) при steps_per_day=40 СМЕНИЛ БЫ ДЕНЬ (1→2); pre-seed держит
   // день 1. B26-герой: Медитация 2 + Вдох 1 (0.19/0.14, таблица §5).
@@ -7495,16 +7498,21 @@ test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, 
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
-    'строки: «Диалог» (Берта) ПЕРВЫМ + «Отдых» + «Слухи» '
+    ['dialog', 'dialog:merc_volk', 'dialog:merc_ashka',
+      'dialog:merc_baldor', 'dialog:merc_mira', 'dialog:merc_torga',
+      'dialog:merc_rena', '44_rest', '44_rumors', '44_perform',
+      'fullrest'],
+    'строки: «Диалог» (Берта) ПЕРВЫМ + 6 наёмников (000320.01 — '
+    + 'мульти-NPC таверны, порядок каталога) + «Отдых» + «Слухи» '
     + '+ «Выступление» (44_perform — 000137) + «Полный отдых» '
     + '(fullrest — аппенд 000200; red: нет записей в реестре/каталоге)');
   for (const r of rows) {
     assert.equal(r.disabled, false,
       'строка «' + r.dataset.buid + '» — доступна');
   }
-  // Digit2 — «Отдых» (1=dialog, 2=44_rest).
-  key(h, 'Digit2');
+  // Digit8 — «Отдых» (хоткеи 1..9 — только первые 9 строк; 7 dialog +
+  // dialog:merc_rena = 7, 44_rest = 8, 44_rumors = 9 — 000320.01).
+  key(h, 'Digit8');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   assert.equal(g.state.day, 2, 'день 1→2 (clock.rest)');
   assert.equal(g.state.stepsToday, 0, 'шаги сброшены (rest)');
@@ -7521,14 +7529,14 @@ test('B26. «Отдых» e2e: таверна (41,2) — HUD «([E] Берта, 
   // Лимитов НЕТ → отметки нет (ключ «41,2:44_rest» никогда).
   assert.ok(save.data.buildingOncePerDay['41,2:44_rest'] == null,
     'НЕТ отметки «41,2:44_rest» (лимитов нет)');
-  // Повтор в тот же день (ТЗ): строка доступна, Digit2 → день 3.
+  // Повтор в тот же день (ТЗ): строка доступна, Digit8 → день 3.
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
   const rowRest = findRow(findOverlay(h), '44_rest');
   assert.ok(rowRest, 'строка 44_rest в оверлее');
   assert.equal(rowRest.disabled, false,
     'в тот же день — ДОСТУПНО (без лимита)');
-  key(h, 'Digit2');
+  key(h, 'Digit8');
   assert.equal(g.state.day, 3, 'повторный «Отдых» — день 3');
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false);
@@ -7554,14 +7562,19 @@ test('B27. «Слухи» e2e: таверна (41,2), день 1 — flash «С�
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
-    'строки: dialog + 44_rest + 44_rumors + 44_perform (000137) '
+    ['dialog', 'dialog:merc_volk', 'dialog:merc_ashka',
+      'dialog:merc_baldor', 'dialog:merc_mira', 'dialog:merc_torga',
+      'dialog:merc_rena', '44_rest', '44_rumors', '44_perform',
+      'fullrest'],
+    'строки: 7 dialog (Берта + 6 наёмников — 000320.01) + 44_rest '
+    + '+ 44_rumors + 44_perform (000137) '
     + '+ fullrest (аппенд 000200; red: нет записей)');
   const rowR = findRow(ov, '44_rumors');
   assert.ok(rowR, 'строка 44_rumors в оверлее (red: строки нет)');
   assert.equal(rowR.disabled, false, 'день 1 — доступно');
-  // Digit3 — «Слухи» (1=dialog, 2=44_rest, 3=44_rumors).
-  key(h, 'Digit3');
+  // Digit9 — «Слухи» (хоткеи 1..9 — только первые 9 строк: 7 dialog
+  // (вкл. dialog:merc_rena = 7) + 44_rest = 8 + 44_rumors = 9).
+  key(h, 'Digit9');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   const hud1 = String(h.hud.textContent);
@@ -7592,7 +7605,7 @@ test('B27. «Слухи» e2e: таверна (41,2), день 1 — flash «С�
   key(h, 'KeyE');
   const rowR2 = findRow(findOverlay(h), '44_rumors');
   assert.equal(rowR2.disabled, false, 'повтор в тот же день — доступно');
-  key(h, 'Digit3');
+  key(h, 'Digit9');
   frameAt(h, NOW + 600);
   const hud2 = String(h.hud.textContent);
   assert.equal(hud2, hud1,
@@ -8789,7 +8802,7 @@ test('PF3. 000137: «Выступление» — детерминизм: дох
   });
 });
 
-test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E] → Digit4: +gold (формула), день НЕ проходит, марка "41,2:44_perform"; повтор — «выступал сегодня»; после 44_rest (день 2) — снова доступно', async () => {
+test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E] → клик по строке 44_perform (10-я строка — без цифрового хоткея, 000320.01): +gold (формула), день НЕ проходит, марка "41,2:44_perform"; повтор — «выступал сегодня»; после 44_rest (Digit8, день 2) — снова доступно', async () => {
   const L = 5; // Артист 5 → mult 1.5 → +30 (реальный каталог 10/2)
   // LIVE derived — по ОБЪЕКТУ героя (ядро createCharacter + artist L):
   // g.state.hero — снапшот __game (main.js) БЕЗ primary/secondary —
@@ -8810,18 +8823,21 @@ test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E]
   assert.equal(g.state.day, 1, 'день 1 (предзаполнен)');
   const t = myMap.tileAt(41, 2);
   assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
-  // [E] → оверлей: 5 строк (44_perform — аппенд 000137, Digit4;
-  // fullrest — аппенд 000200, Digit5; позиции цифр не смещаются).
+  // [E] → оверлей: 11 строк (7 dialog — 000320.01; 44_perform —
+  // аппенд 000137 — 10-я строка, хоткея нет; fullrest — аппенд 000200).
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
   const ov = findOverlay(h);
   assert.ok(ov, 'оверлей в body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
-    'строки: «Диалог» (Берта) первыми + «Отдых» + «Слухи» + '
-    + '«Выступление» (000137) + «Полный отдых» (fullrest — 000200; '
-    + 'красный: нет записи/каталога)');
+    ['dialog', 'dialog:merc_volk', 'dialog:merc_ashka',
+      'dialog:merc_baldor', 'dialog:merc_mira', 'dialog:merc_torga',
+      'dialog:merc_rena', '44_rest', '44_rumors', '44_perform',
+      'fullrest'],
+    'строки: 7 dialog (Берта + 6 наёмников — 000320.01) + «Отдых» + '
+    + '«Слухи» + «Выступление» (000137) + «Полный отдых» '
+    + '(fullrest — 000200; красный: нет записи/каталога)');
   const rowP = findRow(ov, '44_perform');
   assert.ok(rowP, 'строка 44_perform в оверлее');
   assert.ok(textOf(rowP).includes('Выступление'),
@@ -8836,11 +8852,12 @@ test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E]
   assert.equal(mult, 1 + 0.1 * L,
     'performanceIncomeMult = 1 + 0.1×Артист (SPEC)');
   const expected = Math.round(Math.round(eff.база + eff.шаг * L) * mult);
-  // Digit4 — «Выступление»: +gold, день НЕ проходит (мир-действие
-  // БЕЗ «стороны» — в отличие от 44_rest).
+  // Клик по строке «Выступление» (10-я строка — вне цифровых 1..9,
+  // 000320.01): +gold, день НЕ проходит (мир-действие БЕЗ «стороны» —
+  // в отличие от 44_rest).
   const gold0 = g.state.hero.gold;
   const steps0 = g.state.stepsToday;
-  key(h, 'Digit4');
+  clickRow(h, ov, '44_perform');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   assert.equal(g.state.day, 1, 'день НЕ проходит (в отличие от 44_rest)');
   assert.equal(g.state.stepsToday, steps0, 'stepsToday не изменился');
@@ -8869,13 +8886,13 @@ test('PF4. 000137: e2e «Выступление»: таверна (41,2) — [E]
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрыт');
   // Смена дня через «Отдых» (44_rest) → день 2 → снова доступно.
   key(h, 'KeyE');
-  key(h, 'Digit2'); // «Отдых»
+  key(h, 'Digit8'); // «Отдых» (8-я строка — после 7 dialog, 000320.01)
   assert.equal(g.state.day, 2, 'день 1→2 (44_rest)');
   key(h, 'KeyE');
   const row2 = findRow(findOverlay(h), '44_perform');
   assert.equal(row2.disabled, false, 'день 2 — снова доступно');
   const gold1 = g.state.hero.gold;
-  key(h, 'Digit4');
+  clickRow(h, findOverlay(h), '44_perform');
   assert.equal(g.state.hero.gold, gold1 + expected,
     'день 2: +gold снова (та же формула)');
   const save2 = readSave(h);
@@ -9497,7 +9514,7 @@ test('RG5. 000200: полный путь onBuildingAction (таверна 44) �
   });
 });
 
-test('RG-E1. 000200: e2e таверна (41,2) — [E] → 5 строк (…fullrest «Полный отдых», все доступны); Digit5 → день ОСТАЁТСЯ 1 (D3), stepsToday без изменений, hero hp полное (live) / mp полное (через сейв) / gold 500→490, flash — точная строка, save day 1 gold 490, БЕЗ "41,2:fullrest"; повтор [E]+Digit5 в тот же день → gold 480, день ЕЩЁ 1 (лимит НЕТ)', async () => {
+test('RG-E1. 000200: e2e таверна (41,2) — [E] → 11 строк (7 dialog — 000320.01; …fullrest «Полный отдых», все доступны); клик по строке fullrest (11-я — без цифрового хоткея) → день ОСТАЁТСЯ 1 (D3), stepsToday без изменений, hero hp полное (live) / mp полное (через сейв) / gold 500→490, flash — точная строка, save day 1 gold 490, БЕЗ "41,2:fullrest"; повтор [E]+клик fullrest в тот же день → gold 480, день ЕЩЁ 1 (лимит НЕТ)', async () => {
   // Позиция PRE-SEED'ом на таверне (паттерн B26/B27): 43 шага >
   // steps_per_day 40 — ХОД сменил бы день; pre-seed держит день 1.
   const hero0 = mkHero({ hp: 1, mp: 1, gold: 500 });
@@ -9516,17 +9533,20 @@ test('RG-E1. 000200: e2e таверна (41,2) — [E] → 5 строк (…full
   assert.equal(g.state.day, 1, 'день 1 (pre-seed)');
   const t = myMap.tileAt(41, 2);
   assert.equal(t.buildingId, 44, 'тайл (41,2) — таверна');
-  // [E] → оверлей: 5 строк (fullrest — append 000200, Digit5;
-  // позиции цифр 1..4 не сдвигаются).
+  // [E] → оверлей: 11 строк (7 dialog — 000320.01; fullrest — append
+  // 000200 — 11-я строка, вне цифровых хоткеев 1..9).
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, '[E] открывает оверлей');
   const ov = findOverlay(h);
   assert.ok(ov, 'оверлей подвешен к body');
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
-    ['dialog', '44_rest', '44_rumors', '44_perform', 'fullrest'],
-    'строки: … + «Полный отдых» (fullrest — append 000200; '
-    + 'красный: 4 строки — deepEqual падает первым)');
+    ['dialog', 'dialog:merc_volk', 'dialog:merc_ashka',
+      'dialog:merc_baldor', 'dialog:merc_mira', 'dialog:merc_torga',
+      'dialog:merc_rena', '44_rest', '44_rumors', '44_perform',
+      'fullrest'],
+    'строки: 7 dialog + эффекты + «Полный отдых» (fullrest — append '
+    + '000200; красный: 4 строки — deepEqual падает первым)');
   const rowF = findRow(ov, 'fullrest');
   assert.ok(rowF, 'строка fullrest в оверлее');
   assert.ok(textOf(rowF).includes('Полный отдых'),
@@ -9536,9 +9556,9 @@ test('RG-E1. 000200: e2e таверна (41,2) — [E] → 5 строк (…full
       'строка «' + r.dataset.buid + '» — доступна (D7: gold не гасит)');
   }
   const stepsBefore = g.state.stepsToday;
-  // Digit5 — «Полный отдых» (1=dialog, 2=44_rest, 3=44_rumors,
-  // 4=44_perform, 5=fullrest).
-  key(h, 'Digit5');
+  // Клик по строке «Полный отдых» (11-я строка — вне цифровых 1..9,
+  // 000320.01).
+  clickRow(h, ov, 'fullrest');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   assert.equal(g.state.day, 1,
     'день ОСТАЁТСЯ 1 (D3 — ключевое отличие от 44_rest)');
@@ -9564,14 +9584,14 @@ test('RG-E1. 000200: e2e таверна (41,2) — [E] → 5 строк (…full
   // Повтор в тот же день (лимит НЕТ): gold 480, день ЕЩЁ 1.
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
-  key(h, 'Digit5');
+  clickRow(h, findOverlay(h), 'fullrest');
   assert.equal(g.state.day, 1, 'повтор: день всё ещё 1 (лимит НЕТ)');
   assert.equal(g.state.hero.gold, 480, 'повтор: gold 490→480');
   key(h, 'Escape');
   assert.equal(G.buildingUI.isActive(), false);
 });
 
-test('RG-E3. 000200: e2e таверна (41,2) — МАЛО ЗОЛОТА: hero gold 0 → [E] → строка fullrest ДОСТУПНА (D7) → Digit5 → flash «мало золота (нужно 10)», день 1, hero hp 1/mp 1/gold 0 не мутированы, save day 1, НИКАКОЙ новой записи buildingOncePerDay (отказ — flash БЕЗ saveNow, 000128 §2.6)', async () => {
+test('RG-E3. 000200: e2e таверна (41,2) — МАЛО ЗОЛОТА: hero gold 0 → [E] → строка fullrest ДОСТУПНА (D7) → клик по строке fullrest (11-я — без цифрового хоткея, 000320.01) → flash «мало золота (нужно 10)», день 1, hero hp 1/mp 1/gold 0 не мутированы, save day 1, НИКАКОЙ новой записи buildingOncePerDay (отказ — flash БЕЗ saveNow, 000128 §2.6)', async () => {
   const h = await boot(seedSave({
     day: 1,
     position: { x: 41, y: 2 },
@@ -9592,7 +9612,7 @@ test('RG-E3. 000200: e2e таверна (41,2) — МАЛО ЗОЛОТА: hero g
   assert.equal(rowF.disabled, false,
     'строка доступна ДАЖЕ при gold 0 (D7: золото строку не гасит)');
   const stepsBefore = g.state.stepsToday;
-  key(h, 'Digit5');
+  clickRow(h, ov, 'fullrest');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   const hud1 = String(h.hud.textContent);
