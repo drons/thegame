@@ -167,7 +167,8 @@ const SKILL_META = (() => {
 // --- Задача 000115: полные КАТАЛОГИ-ЗАПИСИ (id-валидация в
 // deserializeEfir по каталогам-параметрам, D2): массивы записей каталога
 // (объекты со строковым .id — не только id-набор). Зеркала assets:
-// skills — 43 записи (ре-пин 000324: 37→43, +6 школ), spells — 169 (ре-пин 000235.12: 142→167; ре-пин 000333: 167→169).
+// skills — 44 записи (ре-пин 000324: 37→43, +6 школ; ре-пин 000337:
+// 43→44, +1 secondary «staff»), spells — 169 (ре-пин 000235.12: 142→167; ре-пин 000333: 167→169).
 const SKILL_CATALOG = SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
@@ -829,8 +830,9 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   const E = loadEfir();
   // Каталоги — полные зеркала assets (записи, не только id-набор).
   // Ре-пин 000324: +6 школ (type school) — 37 → 43.
-  assert.equal(SKILL_CATALOG.length, 43,
-    'каталог skills: 43 записей (6 primary + 31 secondary + 6 school)');
+  // Ре-пин 000337: +1 secondary «staff» (Владение посохом) — 43 → 44.
+  assert.equal(SKILL_CATALOG.length, 44,
+    'каталог skills: 44 записей (6 primary + 32 secondary + 6 school)');
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
   // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
   // Ре-пин 000235.09: +25 заклинаний волны Тень — 67 → 92.
@@ -2043,15 +2045,16 @@ test('000163 E1: EFIR_SPELL_UNLOCKS — [22, «resurrect»] между 20 и 25:
   });
 });
 
-test('000336 GUARD: SKILL_META — коллизия id «nature» (вторичный «Сердце природы» + школа «Природа»): ЕДИНСТВЕННАЯ коллизия id каталога; school-запись выигрывает в Map; остальные 36 id EFIR_SKILL_CATALOG не перекрыты школой (уникальность id — ВНУТРИ type)', () => {
-  // Зеркало assets: 43 файла (6 primary + 31 secondary + 6 school,
-  // ре-пин 000324) → 42 уникальных id — ровно ОДНА коллизия
+test('000336 GUARD: SKILL_META — коллизия id «nature» (вторичный «Сердце природы» + школа «Природа»): ЕДИНСТВЕННАЯ коллизия id каталога; school-запись выигрывает в Map; остальные 37 id EFIR_SKILL_CATALOG не перекрыты школой (уникальность id — ВНУТРИ type)', () => {
+  // Зеркало assets: 44 файла (6 primary + 32 secondary + 6 school,
+  // ре-пин 000324; ре-пин 000337: +1 secondary «staff» — 43→44 файла,
+  // 42→43 уникальных id) → ровно ОДНА коллизия
   // (задокументировано: memory/000324-magic-schools.md +
   // memory/000336-retrofix-b3.md; решение 000336 — НЕ переименовывать).
-  assert.equal(SKILL_FILES().length, 43,
-    'assets/skills: 43 файла (6 primary + 31 secondary + 6 school)');
-  assert.equal(SKILL_META.size, 42,
-    '42 уникальных id — ровно одна id-коллизия каталога');
+  assert.equal(SKILL_FILES().length, 44,
+    'assets/skills: 44 файла (6 primary + 32 secondary + 6 school)');
+  assert.equal(SKILL_META.size, 43,
+    '43 уникальных id — ровно одна id-коллизия каталога');
   const dupCount = new Map();
   for (const f of SKILL_FILES()) {
     const id = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id;
@@ -2081,14 +2084,14 @@ test('000336 GUARD: SKILL_META — коллизия id «nature» (вторич�
     'SKILL_META.get("nature") — school-запись (позднее в readdir выигрывает)');
   assert.equal(n.name, 'Природа',
     'победитель — школа «Природа» (000042), не навык (000031)');
-  // ВСЕ 37 id EFIR_SKILL_CATALOG (6 primary + 31 secondary — школы НЕ
+  // ВСЕ 38 id EFIR_SKILL_CATALOG (6 primary + 32 secondary — школы НЕ
   // включены; ≡ src/main.js: PRIMARY_SKILLS.concat(Object.values(
   // SECONDARY_SKILLS))) — за исключением задокументированной «nature» —
   // записи НЕ-school. Ловит drift, при котором school-запись перекроет
   // ЕЩЁ ОДИН навык по id.
   const catalog = SKILL_CATALOG.filter((r) => r.type !== 'school').map((r) => r.id);
-  assert.equal(catalog.length, 37,
-    'EFIR_SKILL_CATALOG: 37 id (6 primary + 31 secondary, без школ)');
+  assert.equal(catalog.length, 38,
+    'EFIR_SKILL_CATALOG: 38 id (6 primary + 32 secondary, без школ)');
   for (const id of catalog) {
     if (id === 'nature') continue;
     const rec = SKILL_META.get(id);

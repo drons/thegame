@@ -9864,9 +9864,10 @@ test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиро�
 // RED (TDD): у 7 legacy-оружий поля slot НЕТ (R9 — краснота именно
 // «нет поля slot», бой бит-в-бит), в каталоге 0 предметов
 // subtype 'staff' / kind 'tool' (R10/R11 — «волна не добавлена»).
-// Д-02: staff → attackSkillId 'staff' (subtype-маркер, навыка в
-// каталоге НЕТ — practice applied 0, НИМУТАЦИИ); tool → damage 0 →
-// формула кулаков + skillId 'fists'.
+// Д-02 (ре-пин 000337): staff → attackSkillId 'staff' — каталожный
+// вторичный навык «Владение посохом» (assets/skills/000044.json),
+// practice applied = PRACTICE_XP.hit (XP в копилку skillXp.staff);
+// tool → damage 0 → формула кулаков + skillId 'fists'.
 // =====================================================================
 
 test('000230.12 R9: remap бит-в-бит — 7 legacy-оружий: JSON-поле "slot" === "right_hand" (краснота: у 7 оружия поля slot нет — фолбэк slotOf) + бой НЕ изменился: урон = stats.damage (strongHero), даль (ближний 1 / лук 3), practice-скилл swordsman/swordsman/swordsman/archer/archer/heavy/heavy, опыт в копилку; slot-поле не изменило equipmentStats (hitBonus/dmgBonus/armor)', () => {
@@ -9933,7 +9934,7 @@ test('000230.12 R9: remap бит-в-бит — 7 legacy-оружий: JSON-по�
   }
 });
 
-test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (maxDist = isBow?4:1, combat.js:1409 — посох не лук), урон = stats.damage (eq.dmgBonus = 0: staff не в sword/bow/heavy-ветках equipmentStats), skillId "staff" (D-02): practice("staff") → {applied: 0} — НИМУТАЦИИ (skillXp.staff отсутствует — навыка нет в каталоге); equipmentStats {damage: stats.damage, subtype: "staff", hitBonus 0, dmgBonus 0, armor 0} (краснота: предметов subtype staff нет в каталоге)', () => {
+test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (maxDist = isBow?4:1, combat.js:1409 — посох не лук), урон = stats.damage (eq.dmgBonus = 0: staff не в sword/bow/heavy-ветках equipmentStats), skillId "staff" (D-02, ре-пин 000337): practice("staff") → {applied: 3} — опыт в skillXp.staff (навык «Владение посохом» ∈ каталог, 000044); equipmentStats {damage: stats.damage, subtype: "staff", hitBonus 0, dmgBonus 0, armor 0} (краснота: предметов subtype staff нет в каталоге)', () => {
   // [id, stats.damage] — ростер §2.1 (7 staff).
   const staffs = [
     ['ember_staff', 5], ['rime_staff', 5], ['rune_staff', 6],
@@ -9973,14 +9974,17 @@ test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (ma
     assert.equal(r.dmg, dmg,
       id + ': урон = stats.damage (1 + dmgBonus 0)');
     assert.equal(r.practice.skill, 'staff',
-      id + ': skillId "staff" (D-02: subtype-маркер, каталожного '
-      + 'навыка нет)');
+      id + ': skillId "staff" (D-02: subtype-маркер; с 000337 — '
+      + 'каталожный навык staff 000044 «Владение посохом»)');
     assert.equal(r.practice.xp, PRACTICE_XP.hit, id + ': xp = hit');
-    assert.equal(r.practice.applied, 0,
-      id + ': practice("staff") → applied 0 (навык неизвестен)');
-    assert.equal(r.practice.level, 0, id + ': practice level 0');
-    assert.equal(p.skillXp.staff, undefined,
-      id + ': НИМУТАЦИИ — skillXp.staff отсутствует');
+    assert.equal(r.practice.applied, PRACTICE_XP.hit,
+      id + ': practice("staff") → applied ' + PRACTICE_XP.hit
+      + ' (навык staff ∈ каталог — ре-пин 000337, было 0)');
+    assert.equal(r.practice.level, 0,
+      id + ': practice level 0 (копилка: 3 < порог skillXpForNext(0) = 15)');
+    assert.equal(p.skillXp.staff, PRACTICE_XP.hit,
+      id + ': опыт в копилку — skillXp.staff = ' + PRACTICE_XP.hit
+      + ' (ре-пин 000337, было undefined)');
   }
 });
 

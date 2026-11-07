@@ -31,7 +31,8 @@
 //   tests/spec-000230.16-wording.test.js — константы-иглы (regex по
 //       тексту, НЕ require; файл не модифицируется);
 //   assets/items (511 JSON + schema.json), assets/craft (343 JSON +
-//       schema.json), assets/skills (43 нумерованных; ре-пин 000324: +6 школ),
+//       schema.json), assets/skills (44 нумерованных; ре-пин 000324: +6 школ;
+//       ре-пин 000337: +1 «staff»),
 //       assets/sprites/items (existsSync по it.icon каждого
 //       rarity-предмета) — диск;
 //   src/loot-equip-data.js — require (UMD node-ветка, чистая): RARITY /
@@ -254,9 +255,12 @@ test('T7: sets + affixes: c5+c10 (диск == канон §2)', () => {
   assert.ok(D(m[1]) === FC.count && D(m[2]) === FC.epic && D(m[3]) === FC.legendary, 'c10c: freeCast disk=' + JSON.stringify(FC));
   m = anchor(/(\d+) разных спеллов\./, 'c10d');
   assert.equal(D(m[1]), it.affixes.spells.length, 'c10d: spells canon=' + m[1] + ' disk=' + it.affixes.spells.length);
-  m = anchor(/assets\/skills (\d+) — .staff. нет/, 'c10e');
+  // ре-пин 000337: D-02 «навыка staff в каталоге нет» ОТМЕНЁН решением
+  // дизайнера (000044 «Владение посохом») — якорь и ассерт инвертированы
+  // ЧЕСТНО: навык теперь обязан быть в каталоге (усиление, не ослабление).
+  m = anchor(/assets\/skills (\d+) — .staff. есть/, 'c10e');
   assert.equal(D(m[1]), C.skills.count, 'c10e: skills canon=' + m[1] + ' disk=' + C.skills.count);
-  assert.ok(C.skills.names.indexOf('staff') === -1, 'c10e: в каталоге skills есть «staff»');
+  assert.ok(C.skills.names.indexOf('staff') !== -1, 'c10e: в каталоге skills нет «staff»');
   m = anchor(/common ([\d.]+)–([\d.]+), rare ([\d.]+)–([\d.]+), epic ([\d.]+)–([\d.]+), legendary ([\d.]+)–([\d.]+), impossible ([\d.]+)–([\d.]+)/, 'c10f');
   const A = it.affixes.amountByTier;
   ['common', 'rare', 'epic', 'legendary', 'impossible'].forEach((t, i) => {

@@ -1,6 +1,7 @@
 // skills: primary/requires.skill — ссылки на json-файлы навыков (000211.02).
 //
-// Зелёная фаза: каталог assets/skills — ref-форма (45 ссылок), схема —
+// Зелёная фаза: каталог assets/skills — ref-форма (46 ссылок; ре-пин
+// 000337: 45→46, +1 primary у нового навыка «staff»), схема —
 // REF_RE-паттерны, sync резолвит ссылки → id — SR1–SR6 зелёные,
 // SR7 — пин, зелёный до и после, SR8 — негативный hard-fail sync
 // (полумигрированный каталог → exit 1). Все тесты — node, без vm.
@@ -56,9 +57,9 @@ function git(dir, args) {
   return r.stdout;
 }
 
-test('SR1: secondary: primary — якорная ссылка на файл навыков (31 файл)', () => {
+test('SR1: secondary: primary — якорная ссылка на файл навыков (32 файл)', () => {
   const sec = loadSecondary();
-  assert.equal(sec.length, 31, 'вторичных навыков 31');
+  assert.equal(sec.length, 32, 'вторичных навыков 32 (ре-пин 000337: +1 «staff»)');
   for (const { file, data } of sec) {
     assert.equal(typeof data.primary, 'string', `${file}: primary — строка`);
     assert.ok(isRef(data.primary),
@@ -67,7 +68,7 @@ test('SR1: secondary: primary — якорная ссылка на файл на
   }
 });
 
-test('SR2: 31 primary-ссылка резолвится, id таргета = прежнее значение (зеркало)', () => {
+test('SR2: 32 primary-ссылка резолвится, id таргета = прежнее значение (зеркало)', () => {
   const sec = loadSecondary();
   for (const { file, data } of sec) {
     const r = resolveRef(ROOT, data.primary);
@@ -101,7 +102,7 @@ test('SR3: 14 requires.skill — ссылки резолвятся, id = зер�
   }
 });
 
-test('SR4: ровно 45 ссылок в каталоге (31 primary + 14 requires.skill)', () => {
+test('SR4: ровно 46 ссылок в каталоге (32 primary + 14 requires.skill)', () => {
   const byPath = new Map();
   for (const f of listSkillFiles()) {
     const data = JSON.parse(
@@ -112,10 +113,12 @@ test('SR4: ровно 45 ссылок в каталоге (31 primary + 14 requi
       byPath.set(p, (byPath.get(p) || 0) + 1);
     }
   }
-  assert.equal(byPath.get('primary'), 31, 'ссылок primary — 31');
+  assert.equal(byPath.get('primary'), 32,
+    'ссылок primary — 32 (ре-пин 000337: +1 «staff»; requires.skill — 14, '
+    + 'у «staff» requires нет)');
   assert.equal(byPath.get('requires.skill'), 14, 'ссылок requires.skill — 14');
   assert.equal((byPath.get('primary') || 0) + (byPath.get('requires.skill') || 0),
-    45, 'всего ссылок — 45');
+    46, 'всего ссылок — 46 (32+14)');
 });
 
 test('SR5: схема — поля-ссылки закреплены REF_RE-паттерном, additionalProperties интактен', () => {

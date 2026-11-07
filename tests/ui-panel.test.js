@@ -65,7 +65,7 @@
 // КРАСНЫЕ (падают до реализации, зелёные после):
 //   * у КАЖДОЙ строки ОСНОВНОГО навыка (все 6) .cp-tip: desc,
 //     «В бою: <combat>», «В мире: <world>», «Требование: —»;
-//   * у КАЖДОЙ строки ВТОРИЧНОГО навыка (все 31) .cp-tip: desc,
+//   * у КАЖДОЙ строки ВТОРИЧНОГО навыка (все 32; ре-пин 000337: +1 «staff») .cp-tip: desc,
 //     effectType, stat, String(perLevel), титул (lvl = 0 — базовое
 //     имя), требование (как в .cp-req, иначе «—»); render() обновляет
 //     титул по names[] (G.secondaryName) в том же узле;
@@ -794,7 +794,7 @@ test('панель: у КАЖДОЙ строки ОСНОВНОГО навыка
   const env = loadPanelUi();
   const c = env.G.createCharacter();
   const panel = openPanel(env, c);
-  // Все строки навыков в панели: 6 основных + 31 вторичный.
+  // Все строки навыков в панели: 6 основных + 32 вторичный (ре-пин 000337).
   const skillBtns = findAll(panel, '.cp-btn')
     .filter((b) => b.dataset.skill);
   assert.equal(skillBtns.length,
@@ -815,12 +815,12 @@ test('панель: у КАЖДОЙ строки ОСНОВНОГО навыка
   }
 });
 
-test('панель: у КАЖДОЙ строки ВТОРИЧНОГО навыка (все 31) .cp-tip — desc + эффект + титул + требование; render() обновляет титул по names[]', () => {
+test('панель: у КАЖДОЙ строки ВТОРИЧНОГО навыка (все 32; ре-пин 000337) .cp-tip — desc + эффект + титул + требование; render() обновляет титул по names[]', () => {
   const env = loadPanelUi();
   const c = env.G.createCharacter(); // все вторичные — уровень 0
   const panel = openPanel(env, c);
   const skills = Object.entries(env.G.SECONDARY_SKILLS);
-  assert.equal(skills.length, 31, 'в каталоге 31 вторичный навык');
+  assert.equal(skills.length, 32, 'в каталоге 32 вторичный навык (ре-пин 000337: +1 «staff»)');
   for (const [id, s] of skills) {
     const { tr, tip } = skillTipRow(panel, id);
     assert.ok(tip, 'у строки «' + s.name + '» есть .cp-tip');

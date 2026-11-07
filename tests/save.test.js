@@ -1560,16 +1560,18 @@ test('000148.05 R29: битые persistent-поля при boot → console.warn
 const SD = require('../src/skills-data.js');
 const SP = require('../src/spells-data.js');
 // Полные зеркала assets (D2): skills = PRIMARY_SKILLS (массив, 6) +
-// Object.values(SECONDARY_SKILLS) (ОБЪЕКТ-КАРТА, 31 — не массив!) =
-// 37 id; spells = SPELLS (массив, 42 id — 000235.07: +25 волны Огонь).
+// Object.values(SECONDARY_SKILLS) (ОБЪЕКТ-КАРТА, 32 — не массив!;
+// ре-пин 000337: 31→32, +1 «staff») =
+// 38 id; spells = SPELLS (массив, 42 id — 000235.07: +25 волны Огонь).
 const EFIR_SKILL_CATALOG = SD.PRIMARY_SKILLS.concat(
   Object.values(SD.SECONDARY_SKILLS));
 const EFIR_SPELL_CATALOG = SP.SPELLS;
 
 test('000115 N1: deserializeEfir — id-валидация по каталогам-параметрам: чужой id (skillXp/skills/spells) → null (сброс ЗАПИСИ); тихая; каталог null/мусор → off (совместимость 000085)', () => {
-  // Каталоги — полные зеркала assets (37 + 42 id, 000235.07).
-  assert.equal(EFIR_SKILL_CATALOG.length, 37,
-    'каталог skills: 6 primary + 31 secondary = 37 записей');
+  // Каталоги — полные зеркала assets (38 + 42 id; ре-пин 000337:
+  // 37→38, +1 secondary «staff»; 000235.07).
+  assert.equal(EFIR_SKILL_CATALOG.length, 38,
+    'каталог skills: 6 primary + 32 secondary = 38 записей');
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
   // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
   // Ре-пин 000235.09: +25 заклинаний волны Тень — 67 → 92.
