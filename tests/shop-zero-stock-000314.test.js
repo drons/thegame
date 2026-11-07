@@ -440,9 +440,13 @@ test('A1. «торговля»: покупка последней штуки →
   buyWoodSword(h, overlay, 10);
   assert.equal(st.hero.gold, 80, 'золото −10 (2-я покупка — сток 1→0)');
   assert.equal(stock.wood_sword, 0, 'сток = 0');
-  assert.deepEqual(nameLinesOf(overlay), OTHER_6,
+  // ре-пин 000315: двухколоночная торговля — купленные предметы
+  // появляются в Инвентарь-колонке («имя ×N», левая колонка — раньше в
+  // DOM-порядке); контракт «сток 0 — магазин-строки нет» не тронут.
+  assert.deepEqual(nameLinesOf(overlay), ['Деревянный меч ×2'].concat(OTHER_6),
     'позиция со стоком 0 — ОТСУТСТВУЕТ (0 строк для предмета); '
-    + 'прочие — бит-в-бит: ' + JSON.stringify(nameLinesOf(overlay)));
+    + 'прочие — бит-в-бит + инв-строка «×2»: '
+    + JSON.stringify(nameLinesOf(overlay)));
   assert.equal(overlay.querySelectorAll('button[data-npcact="buy"]')
     .filter((b) => b.dataset.item === 'wood_sword').length, 0,
     'кнопки «купить» (wood_sword) нет');
@@ -467,7 +471,8 @@ test('A2. refresh (новый сток) — позиция вернулась (�
   G.npcUI.close();
   const stockB = BRENN_STOCK();
   const o2 = openBrennTrade(h, st, stockB);
-  assert.deepEqual(nameLinesOf(o2.overlay), ALL_7,
+  // ре-пин 000315: инв-колонка (купленное осталось у hero) — первой.
+  assert.deepEqual(nameLinesOf(o2.overlay), ['Деревянный меч ×2'].concat(ALL_7),
     'refresh: позиция вернулась с полным (ост. 2): '
     + JSON.stringify(nameLinesOf(o2.overlay)));
   G.npcUI.close();
@@ -483,7 +488,8 @@ test('A2b. мирской NPC — live-сток без респавна: поз�
   assert.equal(stockA.wood_sword, 0, 'сток 0 после 2 покупок');
   G.npcUI.close();
   const o2 = openBrennTrade(h, st, stockA);
-  assert.deepEqual(nameLinesOf(o2.overlay), OTHER_6,
+  // ре-пин 000315: инв-колонка («Деревянный меч ×2» у hero) — первой.
+  assert.deepEqual(nameLinesOf(o2.overlay), ['Деревянный меч ×2'].concat(OTHER_6),
     'повторное открытие с ТЕМ ЖЕ стоком: строка wood_sword '
     + 'ОТСУТСТВУЕТ (респавна нет, сток жив): '
     + JSON.stringify(nameLinesOf(o2.overlay)));

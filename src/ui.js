@@ -1093,6 +1093,8 @@
     let overlay = null, body = null, titleText = null, logEl = null;
     let escHandler = null;   // window keydown (Esc): вешается на open, снимается на close
     let portraitsRow = null; // 000299.01: ряд портретов партии (in place)
+    let tradeDrag = null;
+    let pendingSell = null;
 
     const npcs = () => (G.NpcData && G.NpcData.NPCS) || [];
 
@@ -1155,16 +1157,22 @@
       // 000299.02); «Золото»/мутабельная часть — за c (hero, 000194).
       const priceChar = activeSheetNow();
       body.appendChild(el('div', 'cp-itemmeta', 'Золото: ' + c.gold));
+      const cols = el('div', 'storage-cols');
+      const invCol = el('div', 'storage-col storage-col--inv');
+      const shopCol = el('div', 'storage-col storage-col--shop');
+      invCol.appendChild(el('div', 'cp-section', 'Инвентарь'));
+      shopCol.appendChild(el('div', 'cp-section', 'Магазин'));
       for (const p of npc.торговля.предметы) {
         const it = G.getItem(p.предмет);
         if (!it) continue;
         if ((npcShop.stock[p.предмет] || 0) < 1) continue;
         const row = el('div', 'cp-itemrow');
+        row.draggable = true;
         row.appendChild(el('span', 'cp-itemname',
           it.name + ' (ост. ' + (npcShop.stock[p.предмет] || 0) + ')'));
+        const buy = G.npcBuyPrice(npcShop, p.предмет, priceChar);
         row.appendChild(el('span', 'cp-itemmeta',
-          'покупка ' + G.npcBuyPrice(npcShop, p.предмет, priceChar) +
-          ' з / ' +
+          'покупка ' + buy + ' з / ' +
           'продажа ' + G.npcSellPrice(npcShop, p.предмет, priceChar) +
           ' з'));
         const bBuy = el('button', 'cp-btn', 'купить');
@@ -1179,8 +1187,137 @@
           bSell.title = 'предмета нет в инвентаре';
         }
         row.appendChild(bSell);
-        body.appendChild(row);
+        const bBig = el('button', 'cp-btn', 'Купить');
+        bBig.dataset.npcact = 'trade-buy';
+        bBig.dataset.item = p.предмет;
+        if (c.gold < buy) {
+          bBig.disabled = true;
+          bBig.title = 'мало золота (нужно ' + buy + ')';
+        }
+        row.appendChild(bBig);
+        const shopItem = p.предмет;
+        row.addEventListener('dragstart',
+          (ev) => onTradeDragStart(ev, shopItem, 'shop'));
+        row.addEventListener('dragend', onTradeDragEnd);
+        shopCol.appendChild(row);
       }
+      const slots = Array.isArray(c.inventory) ? c.inventory
+        : (c.inventory && c.inventory.slots) || [];
+      const order = [];
+      const qtys = {};
+      for (const e of slots) {
+        if (!e || !e.id || !G.getItem(e.id)) continue;
+        if (!(e.id in qtys)) { qtys[e.id] = 0; order.push(e.id); }
+        qtys[e.id] += e.qty || 0;
+      }
+      for (const id of order) {
+        if (qtys[id] < 1) continue;
+        const it = G.getItem(id);
+        const sell = G.npcSellPrice(npcShop, id, priceChar);
+        const row = el('div', 'cp-itemrow');
+        row.appendChild(el('span', 'cp-itemname',
+          it.name + ' ×' + qtys[id]));
+        if (sell != null) {
+          row.appendChild(el('span', 'cp-itemmeta',
+            'продажа ' + sell + ' з'));
+        }
+        const bSell = el('button', 'cp-btn', 'Продать');
+        bSell.dataset.npcact = 'trade-sell';
+        bSell.dataset.item = id;
+        row.appendChild(bSell);
+        if (sell == null) {
+          bSell.disabled = true;
+          bSell.title = 'NPC не скупает такие предметы';
+          row.draggable = false;
+        } else {
+          row.draggable = true;
+          row.addEventListener('dragstart',
+            (ev) => onTradeDragStart(ev, id, 'inv'));
+          row.addEventListener('dragend', onTradeDragEnd);
+        }
+        invCol.appendChild(row);
+      }
+      invCol.addEventListener('dragover',
+        (ev) => onTradeDragOver(ev, 'inv'));
+      invCol.addEventListener('drop', (ev) => onTradeDrop(ev, 'inv'));
+      shopCol.addEventListener('dragover',
+        (ev) => onTradeDragOver(ev, 'shop'));
+      shopCol.addEventListener('drop', (ev) => onTradeDrop(ev, 'shop'));
+      cols.appendChild(invCol);
+      cols.appendChild(shopCol);
+      body.appendChild(cols);
+    }
+
+    function onTradeDragStart(e, item, from) {
+      tradeDrag = { item: String(item), from };
+      const dt = e && e.dataTransfer;
+      if (dt) {
+        dt.effectAllowed = 'move';
+        dt.setData('text/plain', String(item));
+      }
+    }
+
+    function onTradeDragEnd() {
+      tradeDrag = null;
+    }
+
+    function onTradeDragOver(e, side) {
+      if (tradeDrag && tradeDrag.from !== side) e.preventDefault();
+    }
+
+    function onTradeDrop(e, side) {
+      if (!tradeDrag || tradeDrag.from === side) return;
+      e.preventDefault();
+      const item = tradeDrag.item;
+      tradeDrag = null;
+      if (side === 'shop') {
+        if (!npcShop) return;
+        if (G.npcSellPrice(npcShop, item, activeSheetNow()) == null) return;
+        if (!G.hasItem(c, item, 1)) return;
+        pendingSell = { item };
+        renderTab();
+      } else {
+        doNpcTrade('buy', item);
+      }
+    }
+
+    function doNpcTrade(kind, itemId) {
+      // 000299.03: цена — по активному (priceChar), мутации — за c.
+      const priceChar = activeSheetNow();
+      const r = kind === 'buy'
+        ? G.npcBuy(npcShop, c, itemId, 1, priceChar)
+        : G.npcSell(npcShop, c, itemId, 1, priceChar);
+      if (r.ok) {
+        npcLog((kind === 'buy' ? 'Куплено: ' : 'Продано: ') +
+          G.getItem(r.item).name + ' за ' + r.price + ' з');
+        if (onChange) onChange();
+      } else {
+        npcLog(r.reason);
+      }
+      renderTab();
+      G.playerUI && G.playerUI.render();
+    }
+
+    function renderSellConfirm() {
+      const it = G.getItem(pendingSell.item);
+      const price = npcShop
+        ? G.npcSellPrice(npcShop, pendingSell.item, activeSheetNow())
+        : null;
+      if (!it || price == null) {
+        pendingSell = null;
+        return false;
+      }
+      const box = el('div', 'cp-itemrow trade-confirm');
+      box.appendChild(el('div', 'cp-itemmeta',
+        'Вы хотите продать \'' + it.name + '\' за ' + price + ' золота?'));
+      const yes = el('button', 'cp-btn', 'Да');
+      yes.dataset.npcact = 'sell-yes';
+      box.appendChild(yes);
+      const no = el('button', 'cp-btn', 'Нет');
+      no.dataset.npcact = 'sell-no';
+      box.appendChild(no);
+      body.appendChild(box);
+      return true;
     }
 
     function renderTrainTab() {
@@ -1417,7 +1554,12 @@
       if (!btn || btn.disabled || !npc) return;
       const act = btn.dataset.npcact;
       if (act === 'close') { npcClose(); return; }
-      if (act === 'tab') { tab = btn.dataset.tab; renderTab(); return; }
+      if (act === 'tab') {
+        tab = btn.dataset.tab;
+        pendingSell = null;
+        renderTab();
+        return;
+      }
       if (act === 'opt') {
         const entry = G.dialogOptions(npc, activeSheetNow())
           .find((x) => x.option.id === btn.dataset.optid);
@@ -1513,21 +1655,29 @@
         }
         return;
       }
-      if (act === 'buy' || act === 'sell') {
-        // 000299.03: цена — по активному (priceChar), мутации — за c.
-        const priceChar = activeSheetNow();
-        const r = act === 'buy'
-          ? G.npcBuy(npcShop, c, btn.dataset.item, 1, priceChar)
-          : G.npcSell(npcShop, c, btn.dataset.item, 1, priceChar);
-        if (r.ok) {
-          npcLog((act === 'buy' ? 'Куплено: ' : 'Продано: ') +
-            G.getItem(r.item).name + ' за ' + r.price + ' з');
-          if (onChange) onChange();
-        } else {
-          npcLog(r.reason);
-        }
+      if (act === 'buy' || act === 'trade-buy') {
+        doNpcTrade('buy', btn.dataset.item);
+        return;
+      }
+      if (act === 'sell') {
+        doNpcTrade('sell', btn.dataset.item);
+        return;
+      }
+      if (act === 'trade-sell') {
+        pendingSell = { item: btn.dataset.item };
         renderTab();
-        G.playerUI && G.playerUI.render();
+        return;
+      }
+      if (act === 'sell-yes') {
+        const item = pendingSell && pendingSell.item;
+        pendingSell = null;
+        if (item) doNpcTrade('sell', item);
+        else renderTab();
+        return;
+      }
+      if (act === 'sell-no') {
+        pendingSell = null;
+        renderTab();
         return;
       }
       if (act === 'train') {
@@ -1594,6 +1744,8 @@
       onChange = null;
       roster = null;
       deadMercs = null;
+      tradeDrag = null;
+      pendingSell = null;
     }
 
     function npcBuild() {
@@ -1663,6 +1815,7 @@
       logEl.textContent = log.join('\n');
       logEl.scrollTop = logEl.scrollHeight;
       body.textContent = '';
+      if (tab === 'trade' && pendingSell && renderSellConfirm()) return;
       if (tab === 'dialog') renderDialogTab();
       else if (tab === 'trade') renderTradeTab();
       else if (tab === 'train') renderTrainTab();
