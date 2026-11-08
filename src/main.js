@@ -328,19 +328,33 @@
   // (source of truth — assets/npc), журнал квестов — один на сессию.
   const NPCS = (G.NpcData && G.NpcData.NPCS) || [];
   const questBook = G.createQuestBook ? G.createQuestBook() : null;
-  // Стоки торговцев NPC (задача 000029): npcId → { itemId: qty }.
+  // Стоки торговцев NPC (задача 000029): ключ (000319) — точка
+  // встречи + npcId → { itemId: qty }; БЕЗ тайла — прежний plain
+  // npcId (legacy: harness-проводка building-actions без tile).
   // Создаются лениво при первом диалоге, переживают перезагрузку
   // страницы через общий сейв (раньше сток сбрасывался сессией).
   const npcStocks = {};
-  function npcShopFor(npcId) {
+  function npcShopKey(npcId, t) {
+    if (!t || !Number.isInteger(t.x) || !Number.isInteger(t.y)) {
+      return npcId;
+    }
+    if (t.cityAnchor) return npcId + '@C:' + t.cityAnchor + ':' + t.x + ',' + t.y;
+    const ds = dungeonState;
+    if (ds && ds.kind !== 'city' && ds.worldKey != null) {
+      return npcId + '@D:' + ds.worldKey + ':' + t.x + ',' + t.y;
+    }
+    return npcId + '@W:' + t.x + ',' + t.y;
+  }
+  function npcShopFor(npcId, t) {
     const npc = G.npcById(NPCS, npcId);
     if (!npc) return null;
-    if (!npcStocks[npcId]) {
+    const key = npcShopKey(npcId, t);
+    if (!npcStocks[key]) {
       const shop = G.createNpcShop(npc);
       if (!shop) return null; // NPC не торгует
-      npcStocks[npcId] = shop.stock;
+      npcStocks[key] = shop.stock;
     }
-    return { npc, stock: npcStocks[npcId] };
+    return { npc, stock: npcStocks[key] };
   }
   // Стоки барахолки лагеря (задача 000095): 'x,y' ТАЙЛА лагеря →
   // { day, stock, seed } (несколько лагерей — независимые стойки;
@@ -386,6 +400,34 @@
         return { key: 'C:' + pkey, stock: nshop.stock };
       } catch (err) { return null; }
     });
+  }
+  // «Картовые» магазины МИРА (задача 000319): 'x,y' ТАЙЛА →
+  // { day, stock, seed, buildingType, wealth }. До 000319 hud.js
+  // пересоздавал сток makeShop-ом каждый кадр — покупка терялась
+  // следующим кадром, в сейв сток не писался вовсе. Паттерн
+  // campStocks (000095): live-ссылка на entry.stock (buyItem мутирует
+  // in place), респавн — окно city_respawn_days ОТ ДНЯ ГЕНЕРАЦИИ
+  // записи (campStockDueRefresh), ЛЕНИВО при резолве точки. Сид —
+  // прежний makeShop hash2(x, y, 0x154075) — 0 новых RNG.
+  const worldShops = {};
+  function worldShopFor(x, y, tile) {
+    if (!tile || !G.shopKindsFor(tile.building)) return null;
+    const key = x + ',' + y;
+    const respawnDays = cityRespawnDays();
+    const entry = worldShops[key];
+    if (!entry || G.campStockDueRefresh(entry, clock.day, respawnDays)) {
+      const shop = G.makeShop(x, y, tile.building, tile.buildingWealth);
+      if (!shop) return null;
+      worldShops[key] = {
+        day: clock.day, stock: shop.stock, seed: shop.seed,
+        buildingType: shop.buildingType, wealth: shop.wealth,
+      };
+    }
+    const e = worldShops[key];
+    return {
+      x, y, buildingType: e.buildingType, wealth: e.wealth,
+      stock: e.stock, seed: e.seed,
+    };
   }
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
@@ -897,6 +939,14 @@
         ? G.serializeCampStocks(campStocks) : {},
       shopPreOrders: G.serializeShopPreOrders
         ? G.serializeShopPreOrders() : {},
+      // Задача 000319: «картовые» магазины мира — стоки точек 'x,y'
+      // → { day, stock } (seed/buildingType/wealth НЕ сериализуются
+      // — воспроизводятся makeShop по тайлу). Протухшие записи не
+      // пишутся. Неломкое расширение v1 (000031): версию НЕ поднимаем,
+      // миграций нет.
+      worldShops: G.serializeWorldShops
+        ? G.serializeWorldShops(worldShops, clock.day, cityRespawnDays())
+          : {},
       // Задача 000118: первая встреча Эфира (вариант (a)) — флаг
       // «встретился в бою». ТОП-УРОВЕНЬ (вне раздела efir — он
       // заморожен 5 полями, пины 000085/000115). Пишется ВСЕГДА
@@ -1575,6 +1625,25 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить campStocks:', err);
+    }
+
+    // --- «Картовые» магазины мира (задача 000319) ---
+    // Битый раздел — warn + ПУСТО (fail-open 000029/000072); старые
+    // сейвы БЕЗ раздела — raw null → тихо дефолт (полный сток при
+    // первом резолве точки). Мусорные записи (ключ/день/не-запись/
+    // не-магазин) — skip в restoreWorldShops.
+    try {
+      const rawWorld = d.worldShops;
+      if (rawWorld != null && G.restoreWorldShops) {
+        const restored = G.restoreWorldShops(
+          rawWorld, clock.day, (x, y) => map.tileAt(x, y));
+        for (const k of Object.keys(worldShops)) delete worldShops[k];
+        Object.assign(worldShops, restored);
+      } else if (rawWorld != null) {
+        console.warn('Сейв: раздел worldShops — restore недоступен — сбрасываю.');
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить worldShops:', err);
     }
 
     try {
@@ -3311,17 +3380,19 @@
   // 000134: клетка города БЕЗ cityShops-записи — Лавка (id 5): нет
   // map_index (spec/buildings.md «Магазины») → стока постройки нет → NPC-канал
   // (npcStocks по npcId) как в мире — ЖИВОЙ глобальный сток Хольда.
+  // 000319: NPC-канал ключуется ТОЧКОЙ встречи (npcShopKey) — tile
+  // прокидывается в обе ветви; cityShops-построение не тронуто.
   function shopFor(npc, t) {
     const ds = dungeonState;
     if (ds && ds.kind === 'city' && ds.cityShops && t) {
       const s = ds.cityShops[t.x + ',' + t.y];
-      if (!s) return npc ? npcShopFor(npc.id) : null; // 000134
+      if (!s) return npc ? npcShopFor(npc.id, t) : null; // 000134
       if (!npc || !npc.торговля || !Array.isArray(npc.торговля.предметы)) {
         return null;
       }
       return { npc, stock: s.stock };
     }
-    return npcShopFor(npc.id);
+    return npc ? npcShopFor(npc.id, t) : null;
   }
 
   // Бой с блуждающей группой подземелья.
@@ -4076,6 +4147,9 @@
       flash: hudFlash, flashUntil: hudFlashUntil,
       exploredCount,
       campShopFor, // ОПЦИОНАЛЬНОЕ поле ctx (000095): лагерь
+      worldShopFor, // ОПЦИОНАЛЬНОЕ поле ctx (000319): карточный
+      // магазин МИРА — per-точечный сток; без поля hud.js остаётся
+      // на прежнем makeShop-каждый-кадр (харнес-пины 0-diff).
       // 000135: ОПЦИОНАЛЬНОЕ поле ctx (ЗНАЧЕНИЕ — тип группы или
       // null): зона триггерящей группы ВНЕ тайла → раннее
       // предупреждение. В подземелье/городе скан не гоняем
@@ -4406,6 +4480,12 @@
     get campStocks() {
       return JSON.parse(JSON.stringify(campStocks));
     },
+    // Магазины мира (задача 000319): 'x,y' → { day, stock, ... }.
+    // ГЛУБОКАЯ копия (паттерн campStocks).
+    get worldShops() {
+      return JSON.parse(JSON.stringify(worldShops));
+    },
+    worldShopFor,
     // Природный лут (задача 000158.04): 'x,y' → день сбора.
     // Поверхностная копия объекта (паттерн getter cities);
     // мутации копии не попадают в состояние.

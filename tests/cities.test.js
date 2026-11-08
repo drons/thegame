@@ -1942,14 +1942,20 @@ test('vm ПОЛНАЯ цепочка (global-settings → perlin → map → ski
 
 // --- РЕГРЕССИЯ: мировой сток NPC (ловушка-прецедент задачи) ---
 
-test('регрессия: мировой npcStocks (main.js) ключируется по npcId — БЕЗ ИЗМЕНЕНИЙ (src/main.js браузерный, в node не require-ается — структурный ассерт по паттерну проекта)', () => {
+test('регрессия: мировой npcStocks (main.js) ключируется ТОЧКОЙ+npcId (000319) — БЕЗ тайла прежний npcId (src/main.js браузерный, в node не require-ается — структурный ассерт по паттерну проекта)', () => {
   const mainSrc = fs.readFileSync(path.join(ROOT, 'src', 'main.js'), 'utf8');
   assert.match(mainSrc, /const npcStocks = \{\}/,
     'npcStocks — глобальный объект');
-  assert.match(mainSrc, /if \(!npcStocks\[npcId\]\)/,
-    'ленивое создание по npcId');
-  assert.match(mainSrc, /npcStocks\[npcId\] = shop\.stock/,
-    'ключ — npcId (НЕ (город, клетка)); городской сток — другой ключ (000109)');
+  assert.match(mainSrc,
+    /function npcShopKey\(npcId, t\) \{[\s\S]*?return npcId;\n\s*\}[\s\S]*?return npcId \+ '@W:' \+ t\.x \+ ',' \+ t\.y;/,
+    'ключевая функция: БЕЗ тайла — plain npcId, мирской тайл — '
+    + '«npcId@W:x,y» (000319)');
+  assert.match(mainSrc, /if \(!npcStocks\[key\]\)/,
+    'ленивое создание по ключу точки');
+  assert.match(mainSrc, /npcStocks\[key\] = shop\.stock/,
+    'сток пишется ПОД КЛЮЧОМ ТОЧКИ (000319: один торговец в двух '
+    + 'точках — раздельные остатки); городской сток постройки — '
+    + 'другой ключ (000109, без изменений)');
 });
 
 // --- Состояние города для сейва (задача 000109) ---

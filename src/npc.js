@@ -783,8 +783,16 @@
   function restoreNpcStocks(npcs, saved) {
     const out = {};
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return out;
-    for (const [npcId, stock] of Object.entries(saved)) {
+    for (const [key, stock] of Object.entries(saved)) {
       if (!stock || typeof stock !== 'object' || Array.isArray(stock)) continue;
+      let npcId = key;
+      const at = key.indexOf('@');
+      if (at >= 0) {
+        const m = /^([^@]+)@([WCD]):(-?\d+,-?\d+)(?::(-?\d+,-?\d+))?$/.exec(key);
+        if (!m) continue;
+        if ((m[2] === 'W') !== (m[4] === undefined)) continue;
+        npcId = m[1];
+      }
       const npc = npcById(npcs, npcId);
       const initial = npc && defaultStock(npc);
       if (!initial) continue;
@@ -795,7 +803,7 @@
           ? Math.min(q, init)
           : init;
       }
-      out[npcId] = restored;
+      out[key] = restored;
     }
     return out;
   }

@@ -2091,6 +2091,76 @@
     return out;
   }
 
+  function serializeWorldShops(stocks, day, respawnDays) {
+    if (!stocks || typeof stocks !== 'object' || Array.isArray(stocks)) {
+      return null;
+    }
+    const out = {};
+    for (const [key, entry] of Object.entries(stocks)) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+      if (!Number.isInteger(entry.day) || entry.day < 1) continue;
+      if (campStockDueRefresh(entry, day, respawnDays)) continue;
+      const stock = entry.stock;
+      if (!stock || typeof stock !== 'object' || Array.isArray(stock)) {
+        continue;
+      }
+      const outStock = {};
+      for (const [itemId, qty] of Object.entries(stock)) {
+        if (Number.isInteger(qty) && qty >= 0) outStock[itemId] = qty;
+      }
+      out[key] = { day: entry.day, stock: outStock };
+    }
+    return out;
+  }
+
+  function restoreWorldShops(saved, day, tileAt) {
+    const out = {};
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+      return out;
+    }
+    if (!Number.isInteger(day) || day < 1) return out;
+    for (const [key, entry] of Object.entries(saved)) {
+      if (typeof key !== 'string') continue;
+      const parts = key.split(',');
+      if (parts.length !== 2) continue;
+      if (!/^-?\d+$/.test(parts[0]) || !/^-?\d+$/.test(parts[1])) {
+        continue;
+      }
+      const x = Number(parts[0]);
+      const y = Number(parts[1]);
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+      if (!Number.isInteger(entry.day) || entry.day < 1) continue;
+      if (entry.day > day) continue;
+      let tile = null;
+      try {
+        tile = (typeof tileAt === 'function') ? tileAt(x, y) : null;
+      } catch (err) { tile = null; }
+      if (!tile || typeof tile !== 'object') continue;
+      let initial = null;
+      try {
+        initial = makeShop(x, y, tile.building, tile.buildingWealth);
+      } catch (err) { initial = null; }
+      if (!initial) continue;
+      const savedStock = (entry.stock && typeof entry.stock === 'object'
+        && !Array.isArray(entry.stock)) ? entry.stock : {};
+      const stock = {};
+      for (const [itemId, init] of Object.entries(initial.stock)) {
+        const q = savedStock[itemId];
+        stock[itemId] = (Number.isInteger(q) && q >= 0)
+          ? Math.min(q, init) : init;
+      }
+      out[key] = {
+        day: entry.day, stock, seed: initial.seed,
+        buildingType: initial.buildingType, wealth: initial.wealth,
+      };
+    }
+    return out;
+  }
+
   return {
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
     // 000230.01: поля экипировки — единый источник для .02/.03/.05.
@@ -2122,5 +2192,6 @@
     // свежестность, сериализация/восстановление раздела campStocks.
     CAMP_STOCK_SEED, makeCampShop, campStockDueRefresh,
     serializeCampStocks, restoreCampStocks,
+    serializeWorldShops, restoreWorldShops,
   };
 });

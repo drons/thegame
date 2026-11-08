@@ -8196,7 +8196,7 @@ test('B28. сейв campStocks: roundtrip (стойка пережила пер�
     'мусор — {} (fail-open: игра не роняется)');
 });
 
-test('B29. «Диалог» кочевника и «Барахолка» — ДВЕ НЕЗАВИСИМЫЕ системы торговли: npcStocks (ключ npcId) и campStocks (ключ «x,y») (задача 000095)', async () => {
+test('B29. «Диалог» кочевника и «Барахолка» — ДВЕ НЕЗАВИСИМЫЕ системы торговли: npcStocks (ключ точка+npcId, 000319) и campStocks (ключ «x,y») (задача 000095)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -8225,10 +8225,13 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   ov.listeners.click[0]({ target: optTrade });
   assert.equal(findAll(ov, 'button[data-npcact="buy"]').length, 6,
     'витрина — 6 предметов (каталог 000018; ре-пин 000232: +blueprint_woodwork)');
-  // Сток NPC создан лениво: ключ = npcId (ОБЩАЯ на все лагеря).
-  const npcStock0 = g.npcStocks['camp_wanderer'];
+  // Сток NPC создан лениво: ключ = точка+npcId (000319: мирской
+  // тайл — «npcId@W:x,y»; независимость от campStocks прежняя).
+  const NPC_KEY = 'camp_wanderer@W:40,40';
+  const npcStock0 = g.npcStocks[NPC_KEY];
   assert.ok(npcStock0,
-    'npcStocks: «camp_wanderer» создан (red: NPC нет в каталоге)');
+    'npcStocks: «' + NPC_KEY + '» создан (red: ключа точки нет / '
+    + 'NPC нет в каталоге): ' + Object.keys(g.npcStocks).join(' | '));
   // (3) Барахолка: стойка тайла (ключ «x,y») — отдельная система.
   G.npcUI.close();
   G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
@@ -8245,9 +8248,9 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   ov2.listeners.click[0]({ target: opt2 });
   const buyBtn = findAll(ov2, 'button[data-npcact="buy"]')[0];
   const npcItemId = buyBtn.dataset.item;
-  const npcQty0 = g.npcStocks['camp_wanderer'][npcItemId];
+  const npcQty0 = g.npcStocks[NPC_KEY][npcItemId];
   ov2.listeners.click[0]({ target: buyBtn });
-  assert.equal(g.npcStocks['camp_wanderer'][npcItemId], npcQty0 - 1,
+  assert.equal(g.npcStocks[NPC_KEY][npcItemId], npcQty0 - 1,
     'покупка у Кочевника — npcStocks мутирован');
   assert.deepEqual(JSON.parse(JSON.stringify(g.campStocks['40,40'].stock)),
     campBeforeNpcBuy,
@@ -8261,11 +8264,11 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   const campItemId = campBuyBtn.dataset.item;
   const campQty0 = g.campStocks['40,40'].stock[campItemId];
   const npcStockBeforeCampBuy = JSON.parse(
-    JSON.stringify(g.npcStocks['camp_wanderer']));
+    JSON.stringify(g.npcStocks[NPC_KEY]));
   panel.listeners.click[0]({ target: campBuyBtn });
   assert.equal(g.campStocks['40,40'].stock[campItemId], campQty0 - 1,
     'покупка в барахолке — campStocks мутирован');
-  assert.deepEqual(JSON.parse(JSON.stringify(g.npcStocks['camp_wanderer'])),
+  assert.deepEqual(JSON.parse(JSON.stringify(g.npcStocks[NPC_KEY])),
     npcStockBeforeCampBuy,
     '…а сток Кочевника НЕ изменился (системы независимы)');
 });

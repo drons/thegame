@@ -2506,7 +2506,7 @@ async function walkToShopAndDialog(existingStorage) {
   return { h, G, g, found, npc, ov, b5 };
 }
 
-test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (9 позиций 000011.json; ре-пин 000232: +blueprint_carving); покупка wood_log — ГЛОБАЛЬНЫЙ сток npcStocks (ключ npcId); городская запись стока у Лавки НЕТ (spec/buildings.md «Магазины»); повторный диалог — сток живой', async () => {
+test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог» → торговля Хольда (9 позиций 000011.json; ре-пин 000232: +blueprint_carving); покупка wood_log — сток ТОЧКИ встречи npcStocks (ключ точка+npcId, 000319); городская запись стока у Лавки НЕТ (spec/buildings.md «Магазины»); повторный диалог — сток живой', async () => {
   const { h, G, g, found, npc, ov, b5 } = await walkToShopAndDialog();
   const trade = textOf(ov);
   // 9 позиций Хольда (6 старых + silver_ore/quartz — 000157.04 +
@@ -2532,9 +2532,12 @@ test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог
         G.npcSellPrice({ npc, stock: {} }, p.предмет, c0) + ' з'),
       'цены «покупка P з / продажа S з» для ' + p.предмет);
   }
-  // Покупка wood_log: сток — ГЛОБАЛЬНЫЙ npcStocks (ключ — npcId,
-  // НЕ (город, клетка)): «что привёз — тем и торгует» — все Лавки
-  // всех городов — ОДИН сток Хольда (ТЗ :37-39).
+  // Покупка wood_log: сток — npcStocks ПО ТОЧКЕ ВСТРЕЧИ (000319):
+  // ключ 'npcId@C:якорь:клетка' — Лавки разных городов/клеток больше
+  // НЕ делят один сток Хольда (прежний глобальный npcId-ключ 000134
+  // отменён; канал cityShops у Лавки по-прежнему НЕТ — ниже).
+  const NPC_KEY = 'wanderer_merchant@C:' + found.ax + ',' + found.ay +
+    ':' + b5.x + ',' + b5.y;
   const buyBtn = findAll(ov, 'button[data-npcact="buy"]')
     .find((b) => b.dataset.item === 'wood_log');
   assert.ok(buyBtn, 'кнопка «купить» у wood_log');
@@ -2542,10 +2545,11 @@ test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог
   const buyPrice = G.npcBuyPrice({ npc, stock: {} }, 'wood_log', c0);
   ov.listeners.click[0]({ target: buyBtn });
   const st = g.npcStocks;
-  assert.ok(st.wanderer_merchant,
-    'RED: npcStocks.wanderer_merchant создан (ключ — npcId)');
-  assert.equal(st.wanderer_merchant.wood_log, 4,
-    'RED: npcStocks wood_log 5 → 4 (покупка мутирует ГЛОБАЛЬНЫЙ сток)');
+  assert.ok(st[NPC_KEY],
+    'npcStocks[' + NPC_KEY + '] создан (ключ точка+npcId, 000319); ключи: ' +
+      Object.keys(st).join(' | '));
+  assert.equal(st[NPC_KEY].wood_log, 4,
+    'npcStocks wood_log 5 → 4 (покупка мутирует сток ТОЧКИ)');
   assert.equal(g.state.hero.gold, goldBefore - buyPrice,
     'золото − цена (dyn)');
   const invW = g.state.hero.inventory
@@ -2578,17 +2582,20 @@ test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог
       textOf(ov2).slice(0, 300));
 });
 
-test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npcStocks, ключ npcId); закупленный у Хольда сток НЕ «воскресает» после лоада (restoreNpcStocks) — ДВА boot на ОДНОМ хранилище', async () => {
+test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npcStocks, ключ точка+npcId, 000319); закупленный у Хольда сток НЕ «воскресает» после лоада (restoreNpcStocks) — ДВА boot на ОДНОМ хранилище', async () => {
   const storage = makeStorage();
-  const { h, G, g, npc } = await walkToShopAndDialog(storage);
+  const { h, G, g, found, npc, b5 } = await walkToShopAndDialog(storage);
+  const NPC_KEY = 'wanderer_merchant@C:' + found.ax + ',' + found.ay +
+    ':' + b5.x + ',' + b5.y;
   const ov = npcOverlayOf(h);
   clickTab(h, ov, 'trade');
   const buyBtn = findAll(ov, 'button[data-npcact="buy"]')
     .find((b) => b.dataset.item === 'wood_log');
   assert.ok(buyBtn, 'кнопка «купить» у wood_log');
   ov.listeners.click[0]({ target: buyBtn });
-  assert.equal(g.npcStocks.wanderer_merchant.wood_log, 4,
-    'RED: покупка — npcStocks мутирован (5 → 4)');
+  assert.equal(g.npcStocks[NPC_KEY].wood_log, 4,
+    'покупка — npcStocks ТОЧКИ мутирован (5 → 4); ключи: ' +
+      Object.keys(g.npcStocks).join(' | '));
   // beforeunload → saveNow (main.js:627): раздел data.npcStocks.
   fireBeforeUnload(h);
   const saved = JSON.parse(storage.getItem(SAVE_KEY));
@@ -2596,12 +2603,12 @@ test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npc
   assert.equal(saved.version, 1, 'оболочка v1 (неломкое расширение)');
   assert.ok(saved.data && saved.data.npcStocks,
     'RED: раздел data.npcStocks в сейве (serializeNpcStocks)');
-  assert.equal(saved.data.npcStocks.wanderer_merchant.wood_log, 4,
-    'RED: сейв: wood_log = 4 (закупленный сток сохранён)');
+  assert.equal(saved.data.npcStocks[NPC_KEY].wood_log, 4,
+    'сейв: wood_log = 4 (закупленный сток точки сохранён)');
   for (const p of npc.торговля.предметы) {
     if (p.предмет === 'wood_log') continue;
     assert.equal(
-      saved.data.npcStocks.wanderer_merchant[p.предмет],
+      saved.data.npcStocks[NPC_KEY][p.предмет],
       p.количество, 'сейв: ' + p.предмет + ' — начальное');
   }
   // Второй boot на том же хранилище: restoreFromSave при boot —
@@ -2611,13 +2618,14 @@ test('CI-134B. сейв/лоад: npcStocks сериализуется (data.npc
   assert.ok(g2.state.save && g2.state.save.version === 1,
     'boot 2: сейв прочитан (не «вакуумный»)');
   const st2 = g2.npcStocks;
-  assert.ok(st2.wanderer_merchant,
-    'RED: после лоада сток Хольда восстановлен (npcId-ключ)');
-  assert.equal(st2.wanderer_merchant.wood_log, 4,
-    'RED: лоад: wood_log = 4, НЕ 5 — закупленный сток НЕ «воскресает»');
+  assert.ok(st2[NPC_KEY],
+    'после лоада сток Хольда восстановлен под point-ключом (restoreNpcStocks читает @C-ключ, 000319); ключи: ' +
+      Object.keys(st2).join(' | '));
+  assert.equal(st2[NPC_KEY].wood_log, 4,
+    'лоад: wood_log = 4, НЕ 5 — закупленный сток НЕ «воскресает»');
   for (const p of npc.торговля.предметы) {
     if (p.предмет === 'wood_log') continue;
-    assert.equal(st2.wanderer_merchant[p.предмет], p.количество,
+    assert.equal(st2[NPC_KEY][p.предмет], p.количество,
       'лоад: ' + p.предмет + ' — как в сейве');
   }
 });

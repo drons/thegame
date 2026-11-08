@@ -330,9 +330,13 @@
         && !ctx.dungeonState && typeof ctx.campShopFor === 'function'
         ? ctx.campShopFor(ctx.player.x, ctx.player.y, ctx.tile)
         : null;
+      // 000319: per-точечный сток мира (ctx.worldShopFor из main.js);
+      // БЕЗ поля — прежний makeShop каждый кадр (харнес-пины 0-diff).
       const shop = isShop
-        ? ctx.game.makeShop(ctx.player.x, ctx.player.y,
-          ctx.tile.building, ctx.tile.buildingWealth)
+        ? (typeof ctx.worldShopFor === 'function'
+          ? ctx.worldShopFor(ctx.player.x, ctx.player.y, ctx.tile)
+          : ctx.game.makeShop(ctx.player.x, ctx.player.y,
+            ctx.tile.building, ctx.tile.buildingWealth))
         : campShop;
       ctx.game.playerUI.setShop(shop);
       // 000095 (ревью): сток лагеря подменён на дневной — key setShop
