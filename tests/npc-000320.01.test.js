@@ -53,17 +53,17 @@ function readJson(file) {
 
 // --- N1: размер каталога -------------------------------------------------
 
-test('N1: каталог — ровно 21 файл 000001..000021 подряд; зеркало NPCS 21 запись', () => {
+test('N1: каталог — ровно 22 файл 000001..000022 подряд; зеркало NPCS 22 запись', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 21,
-    'в каталоге NPC 21 файл (000320.01: +Корд; 000320.02: +Родар; 000320.03: +Скарн), факт: ' + files.length);
+  assert.equal(files.length, 22,
+    'в каталоге NPC 22 файл (000320.01: +Корд; 000320.02: +Родар; 000320.03: +Скарн; 000320.04: +Ветеран), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 21,
-    'зеркало src/npc-data.js — 21 запись (sync не прогнан?)');
+  assert.equal(NPCS.length, 22,
+    'зеркало src/npc-data.js — 22 запись (sync не прогнан?)');
   assert.equal(NPCS[18].id, 'blade_merchant',
     '19-я запись зеркала — blade_merchant (порядок = нумерация файлов)');
 });
@@ -185,11 +185,12 @@ test('N6: торговля — 5 входов меч/лук; пути на ди�
 
 // --- N7: npcsForBuilding — ВСЕ NPC постройки (реальный каталог) -----------
 
-test('N7: npcsForBuilding(NPCS, 1) — ЧЕТЫРЕ NPC Оружейной в порядке каталога', () => {
+test('N7: npcsForBuilding(NPCS, 1) — ПЯТЬ NPC Оружейной в порядке каталога', () => {
   const list = N.npcsForBuilding(NPCS, 1);
   assert.deepEqual(list.map((n) => n.id),
-    ['weapons_merchant', 'blade_merchant', 'fencing_instructor', 'duelist'],
-    'Оружейная (1): Бренн + Корд + Родар + Скарн, порядок = нумерация файлов; факт: '
+    ['weapons_merchant', 'blade_merchant', 'fencing_instructor', 'duelist',
+      'veteran_blade'],
+    'Оружейная (1): Бренн + Корд + Родар + Скарн + Боримир, порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 1).id, 'weapons_merchant',
     'npcForBuilding — ПЕРВЫЙ (бит-в-бит, HUD/«Здесь:» не тронуты)');
