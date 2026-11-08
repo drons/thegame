@@ -133,6 +133,7 @@
       el,
       itemRow,
       itemTipText,
+      runeIconsOf,
       get character() { return character; },
       // 000145: live-getter активного персонажа (паттерн ctx-
       // состояний 000130 §4.3) — вкладка «Персонаж» разрешает
@@ -676,7 +677,8 @@
   // строке (рамка, ТЗ п.8); без rarity (расходники) — 'cp-itemrow'
   // побайтово (0 diff). 000130: ОСТАЁТСЯ в ядре и идёт вкладкам
   // через ctx (общий механизм строк — ЛЮБОЙ вкладке, как el).
-  function itemRow(name, meta, buttons, tip, icon, rarity, tipIcon) {
+  function itemRow(name, meta, buttons, tip, icon, rarity, tipIcon,
+    tipIcons) {
     const div = el('div', (typeof rarity === 'string' && rarity !== '')
       ? 'cp-itemrow cp-rarity-' + rarity : 'cp-itemrow');
     if (typeof icon === 'string' && icon !== '') {
@@ -703,6 +705,15 @@
           tipEl.insertBefore(tipImg, tipEl.firstChild);
         } else {
           tipEl.appendChild(tipImg);
+        }
+      }
+      if (Array.isArray(tipIcons)) {
+        for (const p of tipIcons) {
+          if (typeof p !== 'string' || p === '') continue;
+          const rimg = el('img', 'cp-tipicon');
+          rimg.src = p;
+          rimg.alt = '';
+          tipEl.appendChild(rimg);
         }
       }
       div.appendChild(tipEl);
@@ -733,6 +744,33 @@
       ? S.getSpell(id) : null;
     return (sp && typeof sp.название === 'string' && sp.название)
       ? sp.название : String(id);
+  }
+
+  function runeOf(id) {
+    if (typeof id !== 'string') return null;
+    const R = G.RunesData;
+    const list = (R && Array.isArray(R.RUNES)) ? R.RUNES : null;
+    if (!list) return null;
+    return list.find((r) => r && r.id === id) || null;
+  }
+
+  function runeLine(id) {
+    const r = runeOf(id);
+    if (!r || typeof r.название !== 'string' || !r.название) return null;
+    let line = 'Руна: «' + r.название + '»';
+    if (typeof r.описание === 'string' && r.описание) {
+      line += ' — ' + r.описание;
+    }
+    return line;
+  }
+
+  function runeIconsOf(runes) {
+    if (!Array.isArray(runes)) return [];
+    const out = [];
+    for (const rid of runes) {
+      if (runeOf(rid)) out.push('assets/sprites/runes/' + rid + '.svg');
+    }
+    return out;
   }
 
   function affixAmountText(amount) {
@@ -805,7 +843,7 @@
   // (тихий skip — легальный 1-арг. вызов). Существующие строки —
   // бит-в-бит (пины 000097). (000097; 000130: остаётся в ядре,
   // вкладки — через ctx.itemTipText.)
-  function itemTipText(it, c) {
+  function itemTipText(it, c, runes) {
     const lines = [it.desc];
     if (it.kind === 'weapon') {
       lines.push('Урон: ' + it.stats.damage);
@@ -845,6 +883,12 @@
     if (Array.isArray(it.affixes)) {
       for (const a of it.affixes) {
         const line = affixLine(a);
+        if (line) lines.push(line);
+      }
+    }
+    if (Array.isArray(runes)) {
+      for (const rid of runes) {
+        const line = runeLine(rid);
         if (line) lines.push(line);
       }
     }

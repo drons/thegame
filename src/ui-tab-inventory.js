@@ -148,10 +148,11 @@ function (G0, rootRef) {
           it.name + (e.qty > 1 ? ' ×' + e.qty : ''),
           (it.weight * e.qty).toFixed(1) + ' кг, ' + it.value + ' з',
           btns,
-          ctx.itemTipText(it, c),
+          ctx.itemTipText(it, c, e.runes),
           iconOf(it),
           it.rarity,
-          iconOf(it)));
+          iconOf(it),
+          ctx.runeIconsOf(e.runes)));
       }
     },
   };
@@ -226,9 +227,10 @@ function (G0, rootRef) {
         for (const rs of rings) {
           if (typeof eq[rs] === 'string') ringFilled++;
         }
-        const addRow = (name, meta, buttons, tip, icon, rarity, tipIcon) => {
+        const addRow = (name, meta, buttons, tip, icon, rarity, tipIcon,
+          tipIcons) => {
           panel._equipBody.appendChild(ctx.itemRow(
-            name, meta, buttons, tip, icon, rarity, tipIcon));
+            name, meta, buttons, tip, icon, rarity, tipIcon, tipIcons));
         };
         // Заполненный физ. слот: «<Часть>: <предмет>» + «снять»
         // (data-equipslot = ФИЗ. СЛОТ, не алиас — пин EQ-2) +
@@ -242,10 +244,16 @@ function (G0, rootRef) {
           const id = (typeof eq[slot] === 'string') ? eq[slot] : null;
           const it = id ? G.getItem(id) : null;
           if (it) {
+            const eb = (sheet.equipmentBonus
+              && typeof sheet.equipmentBonus === 'object'
+              && !Array.isArray(sheet.equipmentBonus))
+              ? sheet.equipmentBonus : null;
+            const rr = (eb && eb[slot] && Array.isArray(eb[slot].runes))
+              ? eb[slot].runes : null;
             addRow(label + ': ' + it.name, equipMeta(it),
               [['снять', 'unequip', { equipslot: slot }]],
-              ctx.itemTipText(it, sheet), iconOf(it), it.rarity,
-              iconOf(it));
+              ctx.itemTipText(it, sheet, rr), iconOf(it), it.rarity,
+              iconOf(it), ctx.runeIconsOf(rr));
           } else {
             addRow(label + ': — пусто —', '', [], null, null);
           }
