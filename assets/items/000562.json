@@ -1,0 +1,22 @@
+{
+  "id": "fate_cleaver",
+  "name": "Клинок, рассекающий судьбу",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 2.6,
+  "value": 1480,
+  "desc": "Клинок, рассекающий судьбу: им не убивают — им отменяют; дальше держите крепко.",
+  "stats": {
+    "damage": 14
+  },
+  "icon": "assets/sprites/items/fate_cleaver.svg",
+  "slot": "right_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.42
+    }
+  ]
+}

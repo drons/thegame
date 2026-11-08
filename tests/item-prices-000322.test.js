@@ -338,7 +338,7 @@ test('R5: схемы — base_price в items schema (опциональное, i
     'старый формат (цена_покупки/цена_продажи) — невалиден');
 });
 
-test('R6: зеркала — items-data: base_price ровно у 41 id ПОСЛЕ value, у 472 — нет (ре-пин 000333: каталог 511 → 513, свитки навигации без base_price); npc-data: новый формат входов (цены отсутствуют)', () => {
+test('R6: зеркала — items-data: base_price ровно у 41 id ПОСЛЕ value, у 522 — нет (ре-пин 000333: каталог 511 → 513, свитки навигации без base_price; ре-пин 000321.01: 513 → 563, оружие без base_price); npc-data: новый формат входов (цены отсутствуют)', () => {
   let withBase = 0;
   for (const it of ITEMS) {
     if (it.base_price === undefined) continue;
@@ -350,7 +350,7 @@ test('R6: зеркала — items-data: base_price ровно у 41 id ПОСЛ
   }
   assert.equal(withBase, 41,
     'base_price ровно у 41 id, а есть: ' + withBase);
-  assert.equal(ITEMS.length, 513, 'каталог — 513 предмета (ре-пин 000333: +2 свитка навигации); факт: ' + ITEMS.length);
+  assert.equal(ITEMS.length, 563, 'каталог — 563 предмета (ре-пин 000333: +2 свитка навигации; ре-пин 000321.01: +50 оружия); факт: ' + ITEMS.length);
   let entries = 0;
   for (const npc of ND.NPCS) {
     if (!npc.торговля) continue;

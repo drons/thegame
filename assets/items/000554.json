@@ -1,0 +1,26 @@
+{
+  "id": "tempest_staff",
+  "name": "Посох бури",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.5,
+  "value": 260,
+  "desc": "Посох бури: в навершии крутится облако — в ясную ночь по нему сверяют погоду.",
+  "stats": {
+    "damage": 8
+  },
+  "icon": "assets/sprites/items/tempest_staff.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "nature",
+      "amount": 0.15
+    },
+    {
+      "type": "free_cast",
+      "spell": "hurricane"
+    }
+  ]
+}

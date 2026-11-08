@@ -1,0 +1,22 @@
+{
+  "id": "lumber_machete",
+  "name": "Мачете лесоруба",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.9,
+  "value": 30,
+  "desc": "Мачете лесоруба: широкая полоса стали — просека сама себя не прорубит.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/lumber_machete.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.04
+    }
+  ]
+}

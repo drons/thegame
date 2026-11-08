@@ -1,0 +1,22 @@
+{
+  "id": "dawnedge_blade",
+  "name": "Рассветный клинок",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 2.5,
+  "value": 620,
+  "desc": "Рассветный клинок: к утру кромка светлеет — говорят, это рассвет по стали стекает.",
+  "stats": {
+    "damage": 11
+  },
+  "icon": "assets/sprites/items/dawnedge_blade.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.28
+    }
+  ]
+}

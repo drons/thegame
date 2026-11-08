@@ -1,0 +1,26 @@
+{
+  "id": "pyre_staff",
+  "name": "Посох кострища",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.4,
+  "value": 255,
+  "desc": "Посох кострища: по древку бегут угольки — лагерный огонь разводится без трута.",
+  "stats": {
+    "damage": 8
+  },
+  "icon": "assets/sprites/items/pyre_staff.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.15
+    },
+    {
+      "type": "free_cast",
+      "spell": "wall_of_fire"
+    }
+  ]
+}

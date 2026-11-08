@@ -1,0 +1,22 @@
+{
+  "id": "poacher_dirk",
+  "name": "Кинжал браконьера",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.2,
+  "value": 19,
+  "desc": "Кинжал браконьера: короткий, тихий — для сетей и сторожей.",
+  "stats": {
+    "damage": 3
+  },
+  "icon": "assets/sprites/items/poacher_dirk.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "long_warbow",
+  "name": "Длинный военный лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 2,
+  "value": 108,
+  "desc": "Длинный военный лук: тисаный, тугой, для строя, а не для охоты.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/long_warbow.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.08
+    }
+  ]
+}

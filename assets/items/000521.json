@@ -1,0 +1,22 @@
+{
+  "id": "patrol_sword",
+  "name": "Дозорный меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.8,
+  "value": 32,
+  "desc": "Дозорный меч: безымянная кузнечная работа, клятая и хваленая одинаково.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/patrol_sword.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.04
+    }
+  ]
+}

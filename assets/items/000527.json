@@ -1,0 +1,22 @@
+{
+  "id": "yew_longbow",
+  "name": "Тисовый длинный лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.7,
+  "value": 34,
+  "desc": "Тисовый длинный лук: тис колотый, белое наружу, красное в сердце.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/yew_longbow.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.04
+    }
+  ]
+}

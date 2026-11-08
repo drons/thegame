@@ -1,0 +1,22 @@
+{
+  "id": "drill_sword",
+  "name": "Учебный меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.5,
+  "value": 18,
+  "desc": "Учебный меч: кромка тупая, спина толстая — на тренировочном дворе им и меряются.",
+  "stats": {
+    "damage": 3
+  },
+  "icon": "assets/sprites/items/drill_sword.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.02
+    }
+  ]
+}

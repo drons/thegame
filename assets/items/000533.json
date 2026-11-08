@@ -1,0 +1,22 @@
+{
+  "id": "campaign_maul",
+  "name": "Походная кувалда",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3.2,
+  "value": 40,
+  "desc": "Походная кувалда: набалдашник с рёбрами — и осадные ворота, и шлемы.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/campaign_maul.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.05
+    }
+  ]
+}

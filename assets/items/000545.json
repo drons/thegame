@@ -1,0 +1,22 @@
+{
+  "id": "silver_bound_staff",
+  "name": "Посох, окованный серебром",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.2,
+  "value": 95,
+  "desc": "Посох, окованный серебром: окован от низа до навершия — держит удар и держит слово.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/silver_bound_staff.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.07
+    }
+  ]
+}

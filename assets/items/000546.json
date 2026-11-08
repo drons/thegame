@@ -1,0 +1,22 @@
+{
+  "id": "warden_quarterstaff",
+  "name": "Стражевой посох",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.1,
+  "value": 88,
+  "desc": "Стражевой посох: ясеневый, окованный, с утяжелёнными концами — страж бить умеет, но не всегда хочет.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/warden_quarterstaff.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "nature",
+      "amount": 0.06
+    }
+  ]
+}

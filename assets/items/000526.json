@@ -1,0 +1,22 @@
+{
+  "id": "poacher_bow",
+  "name": "Лук браконьера",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.6,
+  "value": 28,
+  "desc": "Лук браконьера: короткий, чтобы пролезал между ветел.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/poacher_bow.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.03
+    }
+  ]
+}

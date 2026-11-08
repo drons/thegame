@@ -1,0 +1,22 @@
+{
+  "id": "merchant_sword",
+  "name": "Купеческий меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.4,
+  "value": 22,
+  "desc": "Купеческий меч: ровная сталь, дорогая гарда — для охраны каравана.",
+  "stats": {
+    "damage": 3
+  },
+  "icon": "assets/sprites/items/merchant_sword.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.02
+    }
+  ]
+}

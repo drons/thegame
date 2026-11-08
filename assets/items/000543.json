@@ -1,0 +1,22 @@
+{
+  "id": "storm_maul",
+  "name": "Штурмовая кувалда",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3.5,
+  "value": 112,
+  "desc": "Штурмовая кувалда: две руки, четыре шипа — для запертых дверей.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/storm_maul.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.08
+    }
+  ]
+}

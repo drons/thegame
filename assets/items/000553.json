@@ -1,0 +1,22 @@
+{
+  "id": "windfletch_bow",
+  "name": "Ветряной лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 2.2,
+  "value": 290,
+  "desc": "Ветряной лук: плечи тонкие, быстрые — стрела уходит до того, как ветер спохватится.",
+  "stats": {
+    "damage": 9
+  },
+  "icon": "assets/sprites/items/windfletch_bow.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.16
+    }
+  ]
+}

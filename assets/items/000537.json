@@ -1,0 +1,22 @@
+{
+  "id": "rebel_brand",
+  "name": "Меч повстанца",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.7,
+  "value": 80,
+  "desc": "Меч повстанца: снят с дозорного — именная гравировка сошлифована до металла.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/rebel_brand.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.06
+    }
+  ]
+}

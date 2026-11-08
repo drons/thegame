@@ -1,0 +1,22 @@
+{
+  "id": "hoarfrost_staff",
+  "name": "Посох изморози",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.6,
+  "value": 300,
+  "desc": "Посох изморози: где стоял — там иней; зимой к нему не липнут пальцы, а жаль.",
+  "stats": {
+    "damage": 9
+  },
+  "icon": "assets/sprites/items/hoarfrost_staff.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.18
+    }
+  ]
+}

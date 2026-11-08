@@ -1,0 +1,22 @@
+{
+  "id": "vine_staff",
+  "name": "Лозовый посох",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2,
+  "value": 72,
+  "desc": "Лозовый посох: живая лоза, обвившая древко, — знахари утверждают, что она чувствует яд.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/vine_staff.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.05
+    }
+  ]
+}

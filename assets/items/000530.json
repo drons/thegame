@@ -1,0 +1,22 @@
+{
+  "id": "flanged_mace",
+  "name": "Железный чекан",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3.1,
+  "value": 32,
+  "desc": "Железный чекан: четыре грани — латы не любят.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/flanged_mace.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.04
+    }
+  ]
+}

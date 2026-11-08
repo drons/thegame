@@ -1,0 +1,22 @@
+{
+  "id": "aurora_bow",
+  "name": "Лук северного сияния",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 2.3,
+  "value": 640,
+  "desc": "Лук северного сияния: тетива светится в темноте — и стрела летит туда же, куда небо.",
+  "stats": {
+    "damage": 11
+  },
+  "icon": "assets/sprites/items/aurora_bow.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.3
+    }
+  ]
+}

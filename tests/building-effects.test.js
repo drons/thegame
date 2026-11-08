@@ -3669,12 +3669,14 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
   assert.deepEqual(s1.stock, s2.stock, 'детерминированность');
   assert.equal(s1.seed, seedD1,
     'seed = (hash2(x,y,CAMP_STOCK_SEED) ^ ((day+1)·0x9E3779B9)) >>> 0');
-  // Golden-сток (10,20,день 1,wealth 2) — пул 237 предметов
-  // (3 food + 5 potion + 22 weapon + 207 armor — виды каталога;
+  // Golden-сток (10,20,день 1,wealth 2) — пул 287 предметов
+  // (3 food + 5 potion + 72 weapon + 207 armor — виды каталога;
   // ре-пин 000230.09: 43 → 93; ре-пин 000230.10: 93 → 118;
   // ре-пин 000230.11: 118 → 168; ре-пин 000230.12: 168 → 183;
   // ре-пин 000230.15: 183 → 233; ре-пин 000230.19: 233 → 235;
-  // ре-пин 000277: 235 → 237).
+  // ре-пин 000277: 235 → 237; ре-пин 000321.01: 237 → 287
+  // (+50 оружия 000514–000563 — КОНЕЦ каталога, += новые
+  // rng-хвостом)).
   // Ре-пин 000230.08: +25 head-предметов концом пула — существующие
   // ключи не сдвигаются (append-only), += новые rng-хвостом
   // (пересимулировано node; зеркало GOLDEN_CAMP в items.test.js).
@@ -3802,7 +3804,20 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
     amethyst_boots: 2, mystic_sandals: 2, sapphire_boots: 3,
     frost_sandals: 1, emerald_boots: 3, storm_sandals: 2, rune_boots: 4,
     swift_boots: 3, traveler_cloak: 4, mystic_sutan: 3,
-    traveler_bracer: 1
+    traveler_bracer: 1,
+    copper_short_sword: 4, drill_sword: 1, poacher_dirk: 4, kopis_curved: 2,
+    legion_sword: 4, battered_falx: 4, merchant_sword: 3, patrol_sword: 2,
+    lumber_machete: 4, sapling_bow: 1, trade_bow: 2, poacher_bow: 2,
+    stone_mace: 3, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2,
+    legion_gladius: 4, arming_sword: 4, warder_sword: 3, silver_inlaid_bow: 3,
+    scout_bow: 2, silvered_mace: 3, storm_maul: 4, silver_bound_staff: 3,
+    warden_quarterstaff: 2, gilded_broadsword: 4, damascus_blade: 2,
+    thunder_maul: 2, goldstring_bow: 3, windfletch_bow: 1, tempest_staff: 2,
+    hoarfrost_staff: 3, archivist_staff: 4, gate_hammer: 1, aurora_bow: 3,
+    fate_cleaver: 1, genesis_staff: 4
+    // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
+    // rng-хвост; остальные ключи стока не сдвинулись
+    // (seed/старые ключи byte-identical).
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7918,7 +7933,16 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
     hemp_sandals: 1, bone_sandals: 1, copper_boots: 2, silver_boots: 2,
     stone_sandals: 2, mystic_sandals: 1, sapphire_boots: 1, frost_sandals: 2,
     emerald_boots: 1, mithril_boots: 1, storm_sandals: 1, rune_boots: 1,
-    swift_boots: 1, traveler_cloak: 2
+    swift_boots: 1, traveler_cloak: 2,
+    patrol_sword: 1, poacher_bow: 1, yew_longbow: 2, copper_maul: 2,
+    flanged_mace: 2, lumber_axe: 2, miner_pickaxe: 2, campaign_maul: 1,
+    silvered_sword: 1, legion_gladius: 1, rebel_brand: 2, silver_inlaid_bow: 2,
+    long_warbow: 1, siege_axe: 1, silver_bound_staff: 1, gilded_broadsword: 1,
+    damascus_blade: 2, thunder_maul: 1, goldstring_bow: 2, hoarfrost_staff: 1,
+    aurora_bow: 1, starvault_staff: 1, fate_cleaver: 1, genesis_staff: 1
+    // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
+    // rng-хвост; остальные ключи стока не сдвинулись
+    // (seed/старые ключи byte-identical).
   }, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
@@ -8104,7 +8128,17 @@ test('B27. детерминизм барахолки: два мира, один 
     travel_boots: 1, hide_boots: 1, bone_sandals: 1, copper_boots: 2,
     silver_boots: 1, obsidian_sandals: 2, mystic_sandals: 2,
     sapphire_boots: 2, frost_sandals: 1, emerald_boots: 1, gold_sandals: 2,
-    mithril_boots: 2, storm_sandals: 1, mystic_sutan: 1
+    mithril_boots: 2, storm_sandals: 1, mystic_sutan: 1,
+    drill_sword: 1, poacher_dirk: 2, legion_sword: 1, merchant_sword: 2,
+    sapling_bow: 2, poacher_bow: 1, copper_maul: 2, stone_mace: 2,
+    flanged_mace: 1, miner_pickaxe: 2, campaign_maul: 2, silvered_sword: 2,
+    legion_gladius: 2, arming_sword: 1, rebel_brand: 2, warder_sword: 1,
+    long_warbow: 2, warden_quarterstaff: 2, vine_staff: 1, gilt_war_hammer: 2,
+    thunder_maul: 2, goldstring_bow: 2, windfletch_bow: 2, tempest_staff: 2,
+    pyre_staff: 1, hoarfrost_staff: 2, fate_cleaver: 1
+    // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
+    // rng-хвост; остальные ключи стока не сдвинулись
+    // (seed/старые ключи byte-identical).
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),

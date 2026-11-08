@@ -1,0 +1,22 @@
+{
+  "id": "damascus_blade",
+  "name": "Дамасский клинок",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 2.3,
+  "value": 285,
+  "desc": "Дамасский клинок: сталь сварена узорами — узор и держит кромку, и ловит глаз.",
+  "stats": {
+    "damage": 9
+  },
+  "icon": "assets/sprites/items/damascus_blade.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.16
+    }
+  ]
+}

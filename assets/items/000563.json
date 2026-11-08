@@ -1,0 +1,22 @@
+{
+  "id": "genesis_staff",
+  "name": "Посох сотворения",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 3,
+  "value": 1380,
+  "desc": "Посох сотворения: из ничего делает начало — чем именно начинается, посох не уточняет.",
+  "stats": {
+    "damage": 13
+  },
+  "icon": "assets/sprites/items/genesis_staff.svg",
+  "slot": "right_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "nature",
+      "amount": 0.4
+    }
+  ]
+}

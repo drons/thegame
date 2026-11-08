@@ -1,0 +1,22 @@
+{
+  "id": "silver_inlaid_bow",
+  "name": "Лук с серебряной насечкой",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.7,
+  "value": 88,
+  "desc": "Лук с серебряной насечкой: по плечам врезаны тонкие нити — для точности и для понта.",
+  "stats": {
+    "damage": 6
+  },
+  "icon": "assets/sprites/items/silver_inlaid_bow.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.06
+    }
+  ]
+}

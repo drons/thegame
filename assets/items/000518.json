@@ -1,0 +1,22 @@
+{
+  "id": "legion_sword",
+  "name": "Легионный меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.6,
+  "value": 26,
+  "desc": "Легионный меч: короткий, колющий, под круглый щит.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/legion_sword.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.03
+    }
+  ]
+}

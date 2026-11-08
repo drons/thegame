@@ -1,0 +1,22 @@
+{
+  "id": "stone_mace",
+  "name": "Каменная булава",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3,
+  "value": 26,
+  "desc": "Каменная булава: обломок на палке — самое древнее «аргументированное» слово.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/stone_mace.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.03
+    }
+  ]
+}

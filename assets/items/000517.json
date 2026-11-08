@@ -1,0 +1,22 @@
+{
+  "id": "kopis_curved",
+  "name": "Кривой копис",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.5,
+  "value": 28,
+  "desc": "Кривой копис: клинок выгнут внутрь — режет на вытяге, а не на ударе.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/kopis_curved.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "miner_pickaxe",
+  "name": "Кирка рудокопа",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 3,
+  "value": 28,
+  "desc": "Кирка рудокопа: в горах оружие постольку, поскольку рудокопу есть чем ответить.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/miner_pickaxe.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.03
+    }
+  ]
+}

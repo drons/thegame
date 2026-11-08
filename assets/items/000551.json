@@ -1,0 +1,22 @@
+{
+  "id": "thunder_maul",
+  "name": "Грозовой молот",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 4,
+  "value": 295,
+  "desc": "Грозовой молот: удар слышно в обозе, а бить — в первых рядах.",
+  "stats": {
+    "damage": 9
+  },
+  "icon": "assets/sprites/items/thunder_maul.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.17
+    }
+  ]
+}

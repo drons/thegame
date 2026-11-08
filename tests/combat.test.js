@@ -5138,7 +5138,7 @@ test('000132-N1: детерминизм — сиды 5..10, два прогон�
   }
 });
 
-test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·18)] = void_ring; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso; ре-пин 000230.11: legendary-пул 8 → 12, конец = palms; ре-пин 000230.12: legendary-пул 12 → 14 («правая рука»: sage_staff + mithril_hammer); ре-пин 000230.13: legendary-пул 14 → 16, конец = left_hand; ре-пин 000230.14: legendary-пул 16 → 18, конец = кольца; ре-пин 000230.15: legendary-пул 18 → 22 (+4 ноги/ступни концом, каталожный порядок: rune_greaves/storm_leggings/storm_sandals/rune_boots), (б–д) → pool[floor(0.99·22)] = pool[21] = rune_boots)', () => {
+test('000132-N2: точные составы — rng→0 (таблица+база+редкий+экипировка), rng→0.99 (мимо лута + экипировка), 100%-таблица, слияние qty, порядок таблицы (ре-пин 000230.08: пулы экипировки не пусты — +1 экипировочный ПОСЛЕДНИМ: (а) r=0 → common pool[0] = straw_hat; (б–д) r=0.99 → legendary (0.99 < 0.999…) pool[floor(0.99·18)] = void_ring; ре-пин 000230.09: legendary-пул 2 → 6, конец пула; ре-пин 000230.10: legendary-пул 6 → 8, конец = torso; ре-пин 000230.11: legendary-пул 8 → 12, конец = palms; ре-пин 000230.12: legendary-пул 12 → 14 («правая рука»: sage_staff + mithril_hammer); ре-пин 000230.13: legendary-пул 14 → 16, конец = left_hand; ре-пин 000230.14: legendary-пул 16 → 18, конец = кольца; ре-пин 000230.15: legendary-пул 18 → 22 (+4 ноги/ступни концом, каталожный порядок: rune_greaves/storm_leggings/storm_sandals/rune_boots), (б–д) → pool[floor(0.99·22)] = pool[21] = rune_boots; ре-пин 000321.01: legendary-пул 22 → 26 (+4 легендарных оружия КОНЦОМ, каталожный порядок: dawnedge_blade/gate_hammer/aurora_bow/starvault_staff), (б–д) → pool[floor(0.99·26)] = pool[25] = starvault_staff)', () => {
   // (а) rng→0, 2×волк L2: ВСЕ роллы попадают. Таблица волка
   // leather_armor (каждый) → qty 2; база — BASE_POOL[0] = minor_healing
   // (каждый) → qty 2; редкий — RARE_POOL[0] = iron_sword (ОДИН на бой).
@@ -5170,7 +5170,8 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
   // ре-пин 000230.14: 16 → 18, конец = кольца; ре-пин 000230.15:
   // 18 → 22 (+4 легендарки ног/ступней, каталожный порядок:
   // rune_greaves/storm_leggings/storm_sandals/rune_boots) →
-  // pool[floor(0.99·22)] = pool[21] = rune_boots
+  // pool[floor(0.99·22)] = pool[21] = rune_boots; ре-пин 000321.01:
+  // legendary-пул 22 → 26 (+4 оружия концом) → pool[25] = starvault_staff
   // (node-перепрогон, merge .11–.14; (а) straw_hat — pool[0] —
   // неизменен).
   // (Убийство — dealDamage: при константе 0.99 удары игрока
@@ -5178,7 +5179,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
   {
     const { c } = winLoot({ mobs: ['wolf', 'wolf'], mobLevel: 2, seed: 5,
       rng: () => 0.99, killBy: 'dealDamage' });
-    assert.deepEqual(c.result.items, [{ id: 'rune_boots', qty: 1 }],
+    assert.deepEqual(c.result.items, [{ id: 'starvault_staff', qty: 1 }],
       'rng→0.99 — лут-роллы мимо, экипировочный (legendary) ЕСТЬ');
   }
   // (в) 100%-таблица — гарантированный дроп даже при промахах пулов
@@ -5190,7 +5191,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
       mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
     });
     assert.deepEqual(c.result.items, [
-      { id: 'meat', qty: 1 }, { id: 'rune_boots', qty: 1 },
+      { id: 'meat', qty: 1 }, { id: 'starvault_staff', qty: 1 },
     ], '100%-шанс в таблице — гарантированный дроп + экипировочный');
   }
   // (г) слияние qty: 2 волка × 100% meat — ОДНА запись qty 2
@@ -5201,7 +5202,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
       mutateUnit: (u) => { u.loot = [{ item: 'meat', chance: 1 }]; },
     });
     assert.deepEqual(c.result.items, [
-      { id: 'meat', qty: 2 }, { id: 'rune_boots', qty: 1 },
+      { id: 'meat', qty: 2 }, { id: 'starvault_staff', qty: 1 },
     ], 'повторяющиеся id слиты в одну запись (qty)');
   }
   // (д) таблица из 2 записей — порядок дропа = порядок таблицы
@@ -5214,7 +5215,7 @@ test('000132-N2: точные составы — rng→0 (таблица+баз�
     });
     assert.deepEqual(c.result.items, [
       { id: 'sulfur', qty: 1 }, { id: 'meat', qty: 1 },
-      { id: 'rune_boots', qty: 1 },
+      { id: 'starvault_staff', qty: 1 },
     ], 'порядок = порядок записей таблицы + экипировочный');
   }
 });
@@ -9321,7 +9322,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring); ре-пин 000245: P(D) — базовый 0.1992 ≥ P(−3) = 0.13 → мимо (сдвиг: редкий 0.9879 мимо, tier 0.9451 → epic (пул 45), select 0.2691 → epic[floor(0.2691·45)] = epic[12]) (a → ruby_pendant; b — без изменений (void_ring); ре-пин 000230.15: common-пул 90 → 110, legendary-пул 18 → 22, epic-пул 45 → 55 (a → epic[floor(0.2691·55)] = epic[14] = mithril_choker; b → pool[21] = rune_boots); ре-пин 000230.19: common-пул 110 → 111, epic-пул 55 → 56 (+1 torso-набор концом тира) (a → epic[floor(0.2691·56)] = epic[15] = ember_robe; b → без изменений (rune_boots)); ре-пин 000277: common-пул 111 → 112, epic-пул 56 → 57 (+1 set-предмет концом тира; a — без изменений: epic[floor(0.2691·57)] = epic[15] = ember_robe; b → без изменений (rune_boots)))', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring); ре-пин 000245: P(D) — базовый 0.1992 ≥ P(−3) = 0.13 → мимо (сдвиг: редкий 0.9879 мимо, tier 0.9451 → epic (пул 45), select 0.2691 → epic[floor(0.2691·45)] = epic[12]) (a → ruby_pendant; b — без изменений (void_ring); ре-пин 000230.15: common-пул 90 → 110, legendary-пул 18 → 22, epic-пул 45 → 55 (a → epic[floor(0.2691·55)] = epic[14] = mithril_choker; b → pool[21] = rune_boots); ре-пин 000230.19: common-пул 110 → 111, epic-пул 55 → 56 (+1 torso-набор концом тира) (a → epic[floor(0.2691·56)] = epic[15] = ember_robe; b → без изменений (rune_boots)); ре-пин 000277: common-пул 111 → 112, epic-пул 56 → 57 (+1 set-предмет концом тира; a — без изменений: epic[floor(0.2691·57)] = epic[15] = ember_robe; b → без изменений (rune_boots); ре-пин 000321.01: epic-пул 57 → 67 → a = epic[floor(0.2691·67)] = epic[18] = deep_breath_robe, legendary-пул 22 → 26 → b = pool[25] = starvault_staff))', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9374,16 +9375,20 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     тот же поток: epic[floor(0.2691·57)] = epic[15] = ember_robe
   //     (a — без изменений, node-пересимуляция, ORE-7); common-пул
   //     111 → 112 (traveler_bracer концом) — в (a)/(b) не задевает.
+  //     Ре-пин 000321.01: epic-пул 57 → 67 (+10 эпиков оружия
+  //     концом, префикс 57 бит-в-бит) → тот же поток: select
+  //     0.2691 → epic[18] = deep_breath_robe; common 112 → 132 —
+  //     в (a)/(b) не задевает (tier 0.9451 → epic).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
   assert.equal(c.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(c.result.gold, 13, 'gold = 13 (бит-в-бит)');
   assert.deepEqual(c.result.items, [
-    { id: 'ember_robe', qty: 1 },
+    { id: 'deep_breath_robe', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'items: (ре-пин 000245: базовый 0.1992 ≥ P(−3) = 0.13 — мимо; '
-    + 'сдвиг: tier 0.9451 → epic (пул 57, ре-пин 000277), '
-    + 'select 0.2691 → epic[15] = ember_robe; ре-пин 000235.08: '
+    + 'сдвиг: tier 0.9451 → epic (пул 67, ре-пин 000321.01), '
+    + 'select 0.2691 → epic[18] = deep_breath_robe; ре-пин 000235.08: '
     + 'золотой '
     + 'frost_wisp_scroll — солёный поток, порядок первого '
     + 'появления; факт: ' + JSON.stringify(c.result.items) + ')');
@@ -9403,18 +9408,20 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   //     frost_wisp_scroll (node-перепрогон).
   //     Ре-пин 000230.15: legendary-пул 18 → 22 (+4 ног/ступней, конец
   //     = feet) → pool[floor(0.99·22)] = pool[21] = rune_boots
-  //     (node-перепрогон, merge .11–.14).
+  //     (node-перепрогон, merge .11–.14). Ре-пин 000321.01:
+  //     legendary-пул 22 → 26 (+4 оружия концом) → pool[25] =
+  //     starvault_staff (node-перепрогон).
   const { c: b } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     rng: () => 0.99, killBy: 'dealDamage' });
   assert.equal(b.result.xp, 24, 'xp = 24 (бит-в-бит)');
   assert.equal(b.result.gold, 15, 'gold = round(3+2·4+0.99·4) = 15 (бит-в-бит)');
   assert.deepEqual(b.result.items, [
-    { id: 'rune_boots', qty: 1 },
+    { id: 'starvault_staff', qty: 1 },
     { id: 'frost_wisp_scroll', qty: 1 },
   ], 'rng→0.99: старые роллы промахнулись, экипировка (legendary) + '
     + 'солёный поток дал свиток всё равно (ре-пин 000235.08: '
-    + 'frost_wisp_scroll; ре-пин 000230.15: legendary pool[21] = '
-    + 'rune_boots; факт: '
+    + 'frost_wisp_scroll; ре-пин 000321.01: legendary pool[25] = '
+    + 'starvault_staff; факт: '
     + JSON.stringify(b.result.items) + ')');
 });
 
@@ -9795,9 +9802,10 @@ const RING_POOL_TAILS_00023014 = {
 // 10/7/5/2/1) + 25 left_hand (000230.13: 10/7/5/2/1) + 25 колец
 // (000230.14: 10/7/5/2/1) + 50 ног/ступней (000230.15: 20/14/10/4/2)
 // + 2 torso-набора (000230.19: 1 common/1 epic)
-// + 2 set-предмета (000277: 1 common/1 epic) = 112/77/57/22/11.
+// + 2 set-предмета (000277: 1 common/1 epic)
+// + 50 оружия (000321.01: 20/14/10/4/2) = 132/91/67/26/13.
 const RING_POOL_SIZES_00023014 = {
-  common: 112, rare: 77, epic: 57, legendary: 22, impossible: 11,
+  common: 132, rare: 91, epic: 67, legendary: 26, impossible: 13,
 };
 // Ре-пин 000230.15: 50 ног/ступней append КОНЦОМ тиров
 // (20/14/10/4/2) — блок колец не в самом конце тира, а непосредственно
@@ -9817,8 +9825,13 @@ const SETS_TAIL_COUNTS_00023019 = {
 const SETS_TAIL_COUNTS_000277 = {
   common: 1, rare: 0, epic: 1, legendary: 0, impossible: 0,
 };
+// Ре-пин 000321.01: 50 оружия append КОНЦОМ тиров (20/14/10/4/2) —
+// окно кольца сдвигается ещё на n32101 (оружие — самый конец тира).
+const WEAPONS_TAIL_COUNTS_00032101 = {
+  common: 20, rare: 14, epic: 10, legendary: 4, impossible: 2,
+};
 
-test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиров (append; §2.5): размеры 40/28/20/8/4 → 60/42/30/12/6 (ре-пин 000230.11: +50 рук) → 70/49/35/14/7 (ре-пин 000230.12: +25 «правая рука») → 80/56/40/16/8 (ре-пин 000230.14: +25 колец) → РОВНО 112/77/57/22/11 (Σ 279, ре-пин 000230.13: +25 left_hand, 000230.12: +25 «правая рука», ре-пин 000230.15: +50 ног/ступней КОНЦОМ 20/14/10/4/2, ре-пин 000230.19: +2 torso-набора КОНЦОМ common/epic, ре-пин 000277: +2 set-предмета КОНЦОМ common/epic); блок колец (ре-пин 000230.15: перед хвостом ног/ступней) = 25 id колец в каталожном порядке (10/7/5/2/1, compatible с динамическими EQ2/CH4 «пул ≡ каталог по редкости, каталожный порядок»); RARITY — 0 diff (EQ1: 50/30/15/4.9/0.1, Σ 1) (краснота: колец в EQUIP_POOLS нет — тиры 40/28/20/8/4)', () => {
+test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиров (append; §2.5): размеры 40/28/20/8/4 → 60/42/30/12/6 (ре-пин 000230.11: +50 рук) → 70/49/35/14/7 (ре-пин 000230.12: +25 «правая рука») → 80/56/40/16/8 (ре-пин 000230.14: +25 колец) → РОВНО 132/91/67/26/13 (Σ 329, ре-пин 000321.01: +50 оружия КОНЦОМ 20/14/10/4/2, ре-пин 000230.13: +25 left_hand, 000230.12: +25 «правая рука», ре-пин 000230.15: +50 ног/ступней КОНЦОМ 20/14/10/4/2, ре-пин 000230.19: +2 torso-набора КОНЦОМ common/epic, ре-пин 000277: +2 set-предмета КОНЦОМ common/epic); блок колец (ре-пин 000230.15: перед хвостом ног/ступней) = 25 id колец в каталожном порядке (10/7/5/2/1, compatible с динамическими EQ2/CH4 «пул ≡ каталог по редкости, каталожный порядок»); RARITY — 0 diff (EQ1: 50/30/15/4.9/0.1, Σ 1) (краснота: колец в EQUIP_POOLS нет — тиры 40/28/20/8/4)', () => {
   const L = require('../src/loot-equip-data.js');
   for (const t of EQ_TIERS) {
     const pool = L.EQUIP_POOLS[t];
@@ -9831,17 +9844,20 @@ test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиро�
     const n15 = LEGSFEET_TAIL_COUNTS_00023015[t];
     const n19 = SETS_TAIL_COUNTS_00023019[t];
     const n77 = SETS_TAIL_COUNTS_000277[t];
+    const n32101 = WEAPONS_TAIL_COUNTS_00032101[t];
     assert.deepEqual(
       L.EQUIP_POOLS[t].slice(
-        -(tail.length + n15 + n19 + n77), -(n15 + n19 + n77)),
+        -(tail.length + n15 + n19 + n77 + n32101), -(n15 + n19 + n77 + n32101)),
       tail,
       'тир «' + t + '» — ' + tail.length
       + ' колец в каталожном порядке (§2.5; ре-пин 000230.15: '
       + n15 + ' ног/ступней концом тира; ре-пин 000230.19: '
       + n19 + ' torso-набор(а) концом тира; ре-пин 000277: '
-      + n77 + ' set-предмет(а) концом тира); факт: '
+      + n77 + ' set-предмет(а) концом тира; ре-пин 000321.01: '
+      + n32101 + ' оружия концом тира); факт: '
       + JSON.stringify(L.EQUIP_POOLS[t].slice(
-        -(tail.length + n15 + n19 + n77), -(n15 + n19 + n77))));
+        -(tail.length + n15 + n19 + n77 + n32101),
+        -(n15 + n19 + n77 + n32101))));
   }
   for (const t of EQ_TIERS) {
     assert.deepEqual(L.EQUIP_POOLS[t],

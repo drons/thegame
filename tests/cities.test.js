@@ -1727,7 +1727,24 @@ const SHOP_GOLDEN = {
     // (way_down_scroll на этой клетке не выпал), остальные ключи
     // стока не сдвинулись (node-симуляция: seed/старый сток
     // byte-identical, 426 → 427 ключа).
-    way_up_scroll: 5 } },
+    way_up_scroll: 5,
+    // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
+    // rng-хвост allItems-пула (universam w3) → += 45 оружия;
+    // остальные ключи стока не сдвинулись (seed byte-identical).
+    copper_short_sword: 1,     drill_sword: 3,     poacher_dirk: 1,
+    kopis_curved: 4,     legion_sword: 2,     battered_falx: 1,
+    merchant_sword: 3,     patrol_sword: 5,     lumber_machete: 2,
+    sapling_bow: 5,     trade_bow: 5,     patrol_bow: 3,     poacher_bow: 2,
+    yew_longbow: 4,     copper_maul: 1,     flanged_mace: 2,     lumber_axe: 3,
+    miner_pickaxe: 4,     campaign_maul: 4,     silvered_sword: 4,
+    legion_gladius: 3,     arming_sword: 2,     silver_inlaid_bow: 4,
+    scout_bow: 4,     storm_maul: 2,     siege_axe: 2,     silver_bound_staff: 5,
+    warden_quarterstaff: 4,     vine_staff: 2,     gilded_broadsword: 2,
+    damascus_blade: 4,     gilt_war_hammer: 4,     thunder_maul: 1,
+    goldstring_bow: 3,     windfletch_bow: 5,     tempest_staff: 1,
+    pyre_staff: 1,     hoarfrost_staff: 1,     archivist_staff: 5,
+    dawnedge_blade: 5,     gate_hammer: 2,     aurora_bow: 3,
+    starvault_staff: 1,     fate_cleaver: 4,     genesis_staff: 1} },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,
@@ -1738,7 +1755,20 @@ const SHOP_GOLDEN = {
     copper_scyte: 1, steel_scyte: 2, steel_pitchfork: 3,
     ember_staff: 1, rime_staff: 3, rune_staff: 3,
     harvest_scyte: 2, flame_staff: 3, sage_staff: 2,
-    philosopher_staff: 3 } },
+    philosopher_staff: 3 ,
+    // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
+    // rng-хвост → += 32 оружия (симуляция: seed/старый сток
+    // byte-identical).
+    copper_short_sword: 2,     kopis_curved: 3,     legion_sword: 1,
+    merchant_sword: 3,     patrol_sword: 3,     lumber_machete: 1,
+    sapling_bow: 2,     trade_bow: 1,     patrol_bow: 1,     copper_maul: 3,
+    stone_mace: 1,     lumber_axe: 1,     miner_pickaxe: 2,     campaign_maul: 2,
+    silvered_sword: 3,     legion_gladius: 2,     arming_sword: 2,
+    long_warbow: 2,     scout_bow: 2,     silvered_mace: 2,     storm_maul: 2,
+    silver_bound_staff: 3,     warden_quarterstaff: 3,     vine_staff: 2,
+    gilded_broadsword: 2,     tempest_staff: 2,     hoarfrost_staff: 3,
+    archivist_staff: 2,     dawnedge_blade: 2,     gate_hammer: 3,
+    aurora_bow: 3,     starvault_staff: 1} },
   '-37,21,1,7,44,1': { seed: 1556417893, stock: {
     minor_healing: 3, greater_healing: 3, mana_potion: 2,
     mana_elixir: 3, bread: 3, meat: 1, honey_cake: 1 } },

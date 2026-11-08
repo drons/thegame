@@ -172,7 +172,17 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
   assert.ok(eq(V.torso, torso) && D(m[11]) === V.torso.reduce((a, b) => a + b, 0), 'c4: torso disk=' + JSON.stringify(V.torso));
   assert.ok(eq(V.forearms, fore) && D(m[17]) === V.forearms.reduce((a, b) => a + b, 0), 'c4: forearms disk=' + JSON.stringify(V.forearms));
   assert.ok(eq(V.palms, palm) && D(m[23]) === V.palms.reduce((a, b) => a + b, 0), 'c4: palms disk=' + JSON.stringify(V.palms));
-  for (const s of ['head', 'ears', 'neck', 'legs', 'feet', 'right_hand', 'left_hand', 'ring']) assert.ok(eq(V[s], def), 'c4: def slot ' + s + ' disk=' + JSON.stringify(V[s]));
+  for (const s of ['head', 'ears', 'neck', 'legs', 'feet', 'left_hand', 'ring']) assert.ok(eq(V[s], def), 'c4: def slot ' + s + ' disk=' + JSON.stringify(V[s]));
+  // Ре-пин 000321.01: right_hand больше НЕ def-вектор — 50 оружия
+  // 000514–000563 прилипли к слоту; отдельная игла суммы волн.
+  m = anchor(/right_hand — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \(волна 000230\.12 (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \+ оружие 000321\.01 (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\)\./, 'c4rh');
+  {
+    const rhv = [D(m[1]), D(m[2]), D(m[3]), D(m[4]), D(m[5])];
+    const wave = [D(m[6]), D(m[7]), D(m[8]), D(m[9]), D(m[10])];
+    const wpn = [D(m[11]), D(m[12]), D(m[13]), D(m[14]), D(m[15])];
+    assert.ok(eq(V.right_hand, rhv), 'c4rh: right_hand disk=' + JSON.stringify(V.right_hand));
+    assert.ok(rhv.every((x, i) => x === wave[i] + wpn[i]), 'c4rh: волна+оружие != вектор right_hand');
+  }
 
   m = anchor(/свитки 000235: ([\d,– ]+?); чертежи (\d+)–(\d+)\):/, 'c11-holes');
   const holeRanges = m[1].split(', ').map((s) => s.split('–').map(D));
@@ -183,7 +193,7 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
   const bs = D(m[2]), be = D(m[3]);
   for (let n = bs; n <= be; n++) assert.equal(kindByNum[n], 'craft_scroll', 'c11: чертёж ' + n + ' kind=' + kindByNum[n] + ' (ожид. craft_scroll)');
 
-  m = anchor(/: head (\d+)–(\d+), ears (\d+)–(\d+), neck (\d+)–(\d+), torso (\d+)–(\d+) \(\+(\d+)–(\d+)\), forearms (\d+)–(\d+) \(\+(\d+)\), palms (\d+)–(\d+) \(\+(\d+)\), right_hand (\d+)–(\d+), left_hand (\d+)–(\d+), ring (\d+)–(\d+), legs (\d+)–(\d+), feet (\d+)–(\d+)\./, 'c11-slots');
+  m = anchor(/: head (\d+)–(\d+), ears (\d+)–(\d+), neck (\d+)–(\d+), torso (\d+)–(\d+) \(\+(\d+)–(\d+)\), forearms (\d+)–(\d+) \(\+(\d+)\), palms (\d+)–(\d+) \(\+(\d+)\), right_hand (\d+)–(\d+)(?: \(\+(\d+)–(\d+)\))?, left_hand (\d+)–(\d+), ring (\d+)–(\d+), legs (\d+)–(\d+), feet (\d+)–(\d+)\./, 'c11-slots');
   const slotRanges = {
     head: { s: D(m[1]), e: D(m[2]), ex: [] },
     ears: { s: D(m[3]), e: D(m[4]), ex: [] },
@@ -191,11 +201,11 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
     torso: { s: D(m[7]), e: D(m[8]), ex: [D(m[9]), D(m[10])] },
     forearms: { s: D(m[11]), e: D(m[12]), ex: [D(m[13])] },
     palms: { s: D(m[14]), e: D(m[15]), ex: [D(m[16])] },
-    right_hand: { s: D(m[17]), e: D(m[18]), ex: [] },
-    left_hand: { s: D(m[19]), e: D(m[20]), ex: [] },
-    ring: { s: D(m[21]), e: D(m[22]), ex: [] },
-    legs: { s: D(m[23]), e: D(m[24]), ex: [] },
-    feet: { s: D(m[25]), e: D(m[26]), ex: [] },
+    right_hand: { s: D(m[17]), e: D(m[18]), ex: m[19] ? Array.from({ length: D(m[20]) - D(m[19]) + 1 }, (_, i) => D(m[19]) + i) : [] },
+    left_hand: { s: D(m[21]), e: D(m[22]), ex: [] },
+    ring: { s: D(m[23]), e: D(m[24]), ex: [] },
+    legs: { s: D(m[25]), e: D(m[26]), ex: [] },
+    feet: { s: D(m[27]), e: D(m[28]), ex: [] },
   };
   const slotByNum = {}, numBySlot = {};
   for (const x of it.all) {
@@ -217,7 +227,7 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
   assert.ok(D(m[1]) === L.weapons && D(m[2]) === L.armors, 'c11l: legacy canon=' + m[1] + '/' + m[2] + ' disk=' + JSON.stringify(L));
   assert.ok(L.total === 10 && L.noRarity === 10 && L.noIcon === 0 && L.explicitSlot === 10, 'c11l: legacy props disk=' + JSON.stringify(L) + ' (noIcon 0 — ре-пин 000302.08: legacy-снаряжение с icon)');
 
-  m = anchor(/right_hand (\d+) = weapon heavy (\d+) \([^)]*\) \+ weapon staff (\d+) \+ tool (\d+); left_hand (\d+) = shield (\d+) \+ artifact (\d+) \(у (\d+) из (\d+) — stats\.armor/, 'c11c');
+  m = anchor(/right_hand (\d+) = weapon heavy (\d+) \([^)]*\) \+ weapon staff (\d+) \+ weapon sword \d+ \+ weapon bow \d+ \+ tool (\d+); left_hand (\d+) = shield (\d+) \+ artifact (\d+) \(у (\d+) из (\d+) — stats\.armor/, 'c11c');
   const RH = it.rightHand, LH = it.leftHand;
   assert.ok(D(m[1]) === RH.total && D(m[2]) === RH.heavy && D(m[3]) === RH.staff && D(m[4]) === RH.tool, 'c11c: rightHand disk=' + JSON.stringify(RH));
   assert.ok(D(m[5]) === LH.total && D(m[6]) === LH.shield && D(m[7]) === LH.artifact && D(m[8]) === LH.amulets && D(m[9]) === LH.artifact, 'c11c: leftHand disk=' + JSON.stringify(LH));

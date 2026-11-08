@@ -1,0 +1,22 @@
+{
+  "id": "copper_maul",
+  "name": "Медная кувалда",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 2.8,
+  "value": 24,
+  "desc": "Медная кувалда: тяжелёхонькая и кривоватая — забивает всё, кроме гвоздей ровно.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/copper_maul.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.02
+    }
+  ]
+}

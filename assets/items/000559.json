@@ -1,0 +1,22 @@
+{
+  "id": "gate_hammer",
+  "name": "Молот горных врат",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 4.2,
+  "value": 690,
+  "desc": "Молот горных врат: молот, которым держат врата, а не только ломают.",
+  "stats": {
+    "damage": 12
+  },
+  "icon": "assets/sprites/items/gate_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.32
+    }
+  ]
+}

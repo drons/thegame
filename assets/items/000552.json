@@ -1,0 +1,22 @@
+{
+  "id": "goldstring_bow",
+  "name": "Лук с золотопрядной тетивой",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 2,
+  "value": 235,
+  "desc": "Лук с золотопрядной тетивой: тетива, прядёная с золотом, — не гниёт и поёт на ветру.",
+  "stats": {
+    "damage": 8
+  },
+  "icon": "assets/sprites/items/goldstring_bow.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.13
+    }
+  ]
+}

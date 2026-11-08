@@ -1,0 +1,22 @@
+{
+  "id": "arming_sword",
+  "name": "Рыцарский меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 2,
+  "value": 105,
+  "desc": "Рыцарский меч: одна рука, щит на другой — честная работа.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/arming_sword.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.08
+    }
+  ]
+}

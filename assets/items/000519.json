@@ -1,0 +1,22 @@
+{
+  "id": "battered_falx",
+  "name": "Потёрнутый фалкс",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.7,
+  "value": 24,
+  "desc": "Потёрнутый фалкс: серп, которому довелось побывать и оружием.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/battered_falx.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.04
+    }
+  ]
+}

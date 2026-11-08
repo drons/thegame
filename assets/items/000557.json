@@ -1,0 +1,22 @@
+{
+  "id": "archivist_staff",
+  "name": "Посох архивариуса",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.3,
+  "value": 220,
+  "desc": "Посох архивариуса: с полочкой и подставкой — в хранилище важнее свечи, чем в бою.",
+  "stats": {
+    "damage": 7
+  },
+  "icon": "assets/sprites/items/archivist_staff.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.12
+    }
+  ]
+}

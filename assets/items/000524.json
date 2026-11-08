@@ -1,0 +1,22 @@
+{
+  "id": "trade_bow",
+  "name": "Торговый лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.4,
+  "value": 20,
+  "desc": "Торговый лук: стандартная колода с прилавка — ничего лишнего, ничего своего.",
+  "stats": {
+    "damage": 3
+  },
+  "icon": "assets/sprites/items/trade_bow.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.02
+    }
+  ]
+}

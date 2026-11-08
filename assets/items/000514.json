@@ -1,0 +1,22 @@
+{
+  "id": "copper_short_sword",
+  "name": "Медный короткий меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 1.3,
+  "value": 20,
+  "desc": "Медный короткий меч: мягковат для войны, но в умелой руке короток и быстр.",
+  "stats": {
+    "damage": 3
+  },
+  "icon": "assets/sprites/items/copper_short_sword.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.02
+    }
+  ]
+}

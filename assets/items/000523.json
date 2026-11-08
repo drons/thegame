@@ -1,0 +1,22 @@
+{
+  "id": "sapling_bow",
+  "name": "Лук из поросли",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.3,
+  "value": 18,
+  "desc": "Лук из поросли: молодой вяз, ещё пахнущий соком, — первый выстрел почти каждого.",
+  "stats": {
+    "damage": 3
+  },
+  "icon": "assets/sprites/items/sapling_bow.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.02
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "patrol_bow",
+  "name": "Дозорный лук",
+  "kind": "weapon",
+  "subtype": "bow",
+  "weight": 1.5,
+  "value": 26,
+  "desc": "Дозорный лук: роговые накладки на плечах — не трескается в дождь.",
+  "stats": {
+    "damage": 4
+  },
+  "icon": "assets/sprites/items/patrol_bow.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.03
+    }
+  ]
+}

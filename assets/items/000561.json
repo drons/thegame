@@ -1,0 +1,22 @@
+{
+  "id": "starvault_staff",
+  "name": "Посох звёздного свода",
+  "kind": "weapon",
+  "subtype": "staff",
+  "weight": 2.9,
+  "value": 680,
+  "desc": "Посох звёздного свода: в навершии — ночное небо; звёзды на месте, даже когда небо закрыто.",
+  "stats": {
+    "damage": 12
+  },
+  "icon": "assets/sprites/items/starvault_staff.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.31
+    }
+  ]
+}

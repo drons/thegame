@@ -1,0 +1,22 @@
+{
+  "id": "gilded_broadsword",
+  "name": "Позолоченный меч",
+  "kind": "weapon",
+  "subtype": "sword",
+  "weight": 2.2,
+  "value": 240,
+  "desc": "Позолоченный меч: золото по долу — не для ратного поля, для тронного зала.",
+  "stats": {
+    "damage": 8
+  },
+  "icon": "assets/sprites/items/gilded_broadsword.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.14
+    }
+  ]
+}

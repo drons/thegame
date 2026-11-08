@@ -1,0 +1,22 @@
+{
+  "id": "lumber_axe",
+  "name": "Топор лесоруба",
+  "kind": "weapon",
+  "subtype": "heavy",
+  "weight": 2.9,
+  "value": 30,
+  "desc": "Топор лесоруба: длинное топорище, длинная бородка — валит в три взмаха.",
+  "stats": {
+    "damage": 5
+  },
+  "icon": "assets/sprites/items/lumber_axe.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.04
+    }
+  ]
+}
