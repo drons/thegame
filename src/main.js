@@ -362,10 +362,30 @@
     if (!entry || G.campStockDueRefresh(entry, clock.day, respawnDays)) {
       const shop = G.makeCampShop(x, y, clock.day, wealth, rec);
       if (!shop) return null;
+      if (G.consumeShopAhead) G.consumeShopAhead('C:' + key, shop.stock);
       campStocks[key] = { day: clock.day, stock: shop.stock, seed: shop.seed };
     }
     const e = campStocks[key];
     return { x, y, buildingType: CAMP_ID, wealth, stock: e.stock, seed: e.seed };
+  }
+  if (G.setShopAheadProvider) {
+    G.setShopAheadProvider((shop) => {
+      if (!shop || shop.buildingType !== CAMP_ID) return null;
+      try {
+        const rec = G.getBuilding(CAMP_ID);
+        const pkey = shop.x + ',' + shop.y;
+        const centry = campStocks[pkey];
+        if (!rec || !centry) return null;
+        const op = rec.особые_параметры;
+        const eff = op && op.эффект;
+        const respawnDays = (eff && Number.isInteger(eff.respawn_days)
+          && eff.respawn_days >= 1) ? eff.respawn_days : 1;
+        const nshop = G.makeCampShop(shop.x, shop.y,
+          centry.day + respawnDays, shop.wealth, rec);
+        if (!nshop) return null;
+        return { key: 'C:' + pkey, stock: nshop.stock };
+      } catch (err) { return null; }
+    });
   }
   const player = { x: 0, y: 0 };
   const prevPos = { x: 0, y: 0 }; // позиция до последнего шага (побег/смерть)
@@ -875,6 +895,8 @@
       // (000031): версию НЕ поднимаем, миграций нет.
       campStocks: G.serializeCampStocks
         ? G.serializeCampStocks(campStocks) : {},
+      shopPreOrders: G.serializeShopPreOrders
+        ? G.serializeShopPreOrders() : {},
       // Задача 000118: первая встреча Эфира (вариант (a)) — флаг
       // «встретился в бою». ТОП-УРОВЕНЬ (вне раздела efir — он
       // заморожен 5 полями, пины 000085/000115). Пишется ВСЕГДА
@@ -1553,6 +1575,14 @@
       }
     } catch (err) {
       console.warn('Сейв: не удалось восстановить campStocks:', err);
+    }
+
+    try {
+      if (G.restoreShopPreOrders) {
+        G.restoreShopPreOrders(d.shopPreOrders);
+      }
+    } catch (err) {
+      console.warn('Сейв: не удалось восстановить shopPreOrders:', err);
     }
 
     // --- Первая встреча Эфира (задача 000118, вариант (a)) ---

@@ -1681,6 +1681,33 @@
     return SHOP_KINDS_FALLBACK[buildingType] || null;
   }
 
+  const SELLABLE_BY_KIND = {
+    weapon: [0], shield: [0], tool: [0],
+    armor: [1], ring: [1],
+    potion: [2, 11], food: [2, 11],
+    reagent: [3], skill_book: [3], spell_scroll: [3],
+    resurrection_scroll: [3], craft_scroll: [3], artifact: [3],
+  };
+
+  const SELL_BASE_VALUE = {
+    weapon: 30, shield: 15, tool: 20, armor: 25, ring: 40,
+    potion: 10, food: 5, reagent: 5, skill_book: 50,
+    spell_scroll: 30, resurrection_scroll: 150,
+    craft_scroll: 80, artifact: 100,
+  };
+
+  function sellAccepts(shop, itemId) {
+    if (!shop || typeof shop !== 'object') return false;
+    const it = getItem(itemId);
+    if (!it) return false;
+    const kinds = shopKindsFor(shop.buildingType);
+    if (!kinds) return false;
+    if (shop.wealth === 3) return true;
+    if (kinds.includes(it.kind)) return true;
+    const extra = SELLABLE_BY_KIND[it.kind];
+    return Array.isArray(extra) && extra.includes(shop.buildingType);
+  }
+
   const SHOP_EXPAND_SEED = 0x45585031;
   const SHOP_EXPAND_QTY_SALT = 0x51747931;
 
@@ -1752,7 +1779,113 @@
     const it = getItem(itemId);
     if (!it) return null;
     const d = P.derived(c);
-    return Math.max(1, Math.round(it.value * (1 + SELL_WEALTH_MULT * shop.wealth) * d.sellPriceMult));
+    const base = Number.isFinite(it.value) ? it.value
+      : (SELL_BASE_VALUE[it.kind] === undefined ? 1
+        : SELL_BASE_VALUE[it.kind]);
+    return Math.max(1, Math.round(base * (1 + SELL_WEALTH_MULT * shop.wealth) * d.sellPriceMult));
+  }
+
+  const shopPreOrders = {};
+  let shopAheadProvider = null;
+  const PREORDER_KEY_RE = /^C:-?\d+,-?\d+$/;
+
+  function setShopAheadProvider(fn) {
+    shopAheadProvider = (typeof fn === 'function') ? fn : null;
+  }
+
+  function nextCycleStock(shop) {
+    if (!shopAheadProvider || !shop || typeof shop !== 'object') {
+      return null;
+    }
+    let raw = null;
+    try {
+      raw = shopAheadProvider(shop);
+    } catch (err) { raw = null; }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return null;
+    }
+    const key = raw.key;
+    const stock = raw.stock;
+    if (typeof key !== 'string' || !PREORDER_KEY_RE.test(key)) {
+      return null;
+    }
+    if (!stock || typeof stock !== 'object' || Array.isArray(stock)) {
+      return null;
+    }
+    const pre = (shopPreOrders[key] &&
+      typeof shopPreOrders[key] === 'object')
+      ? shopPreOrders[key] : {};
+    const out = {};
+    for (const [id, qty] of Object.entries(stock)) {
+      if (!Number.isInteger(qty) || qty < 1) continue;
+      const p = (Number.isInteger(pre[id]) && pre[id] >= 1)
+        ? pre[id] : 0;
+      const avail = qty - p;
+      if (avail >= 1) out[id] = avail;
+    }
+    return { key, stock: out };
+  }
+
+  function consumeShopAhead(key, stock) {
+    if (typeof key !== 'string' || !PREORDER_KEY_RE.test(key)) return;
+    if (!shopPreOrders[key]) return;
+    if (!stock || typeof stock !== 'object' || Array.isArray(stock)) {
+      delete shopPreOrders[key];
+      return;
+    }
+    for (const [id, qty] of Object.entries(shopPreOrders[key])) {
+      if (Number.isInteger(qty) && qty >= 1 &&
+          Number.isInteger(stock[id]) && stock[id] >= 0) {
+        stock[id] = Math.max(0, stock[id] - qty);
+      }
+    }
+    delete shopPreOrders[key];
+  }
+
+  function serializeShopPreOrders() {
+    const out = {};
+    for (const [key, entry] of Object.entries(shopPreOrders)) {
+      if (!PREORDER_KEY_RE.test(key)) continue;
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+      const clean = {};
+      let any = false;
+      for (const [id, qty] of Object.entries(entry)) {
+        if (Number.isInteger(qty) && qty >= 1) {
+          clean[id] = qty;
+          any = true;
+        }
+      }
+      if (any) out[key] = clean;
+    }
+    return out;
+  }
+
+  function restoreShopPreOrders(saved) {
+    for (const k of Object.keys(shopPreOrders)) {
+      delete shopPreOrders[k];
+    }
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) {
+      return;
+    }
+    for (const [key, entry] of Object.entries(saved)) {
+      if (typeof key !== 'string' || !PREORDER_KEY_RE.test(key)) {
+        continue;
+      }
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+        continue;
+      }
+      const clean = {};
+      let any = false;
+      for (const [id, qty] of Object.entries(entry)) {
+        if (Number.isInteger(qty) && qty >= 1) {
+          clean[id] = qty;
+          any = true;
+        }
+      }
+      if (any) shopPreOrders[key] = clean;
+    }
   }
 
   /** Покупка предмета в магазине. */
@@ -1760,7 +1893,25 @@
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
     const have = (shop.stock && shop.stock[itemId]) || 0;
-    if (have < qty) return { ok: false, reason: 'нет в наличии' };
+    if (have < qty) {
+      const next = nextCycleStock(shop);
+      const avail = next ? (next.stock[itemId] || 0) : 0;
+      if (avail < qty) return { ok: false, reason: 'нет в наличии' };
+      const aheadPrice = buyPrice(shop, itemId, priceChar) * qty;
+      if (c.gold < aheadPrice) {
+        return { ok: false, reason: 'мало золота (нужно ' + aheadPrice + ')' };
+      }
+      const aadd = addItem(c, itemId, qty);
+      if (!aadd.ok) return { ok: false, reason: aadd.reason };
+      c.gold -= aheadPrice;
+      if (!shopPreOrders[next.key]) shopPreOrders[next.key] = {};
+      shopPreOrders[next.key][itemId] =
+        (shopPreOrders[next.key][itemId] || 0) + qty;
+      return { ok: true, ahead: true, item: itemId, qty,
+        price: aheadPrice,
+        message: 'Забронировано к следующему обновлению: ' +
+          it.name + ' ×' + qty };
+    }
     const price = buyPrice(shop, itemId, priceChar) * qty;
     if (c.gold < price) return { ok: false, reason: 'мало золота (нужно ' + price + ')' };
     const add = addItem(c, itemId, qty);
@@ -1774,8 +1925,7 @@
   function sellItem(shop, c, itemId, qty = 1, priceChar = c) {
     const it = getItem(itemId);
     if (!it) return { ok: false, reason: 'неизвестный предмет: ' + itemId };
-    const kinds = shopKindsFor(shop.buildingType);
-    if (!kinds || !kinds.includes(it.kind)) {
+    if (!sellAccepts(shop, itemId)) {
       return { ok: false, reason: 'магазин не скупает такие предметы' };
     }
     if (!hasItem(c, itemId, qty)) return { ok: false, reason: 'предмета нет в инвентаре' };
@@ -1964,7 +2114,10 @@
     addSkillXp, useItem, useQuickUnit, useQuickItem, takeQuickSlot,
     equip, unequip, equipmentStats, equipmentAffixes, activeSets, slotOf,
     RUNE_LIMITS, equipmentRunes, setItemRunes,
-    shopKindsFor, makeShop, buyPrice, sellPrice, buyItem, sellItem,
+    shopKindsFor, sellAccepts, SELLABLE_BY_KIND, SELL_BASE_VALUE,
+    makeShop, buyPrice, sellPrice, buyItem, sellItem,
+    setShopAheadProvider, nextCycleStock, consumeShopAhead,
+    serializeShopPreOrders, restoreShopPreOrders,
     // Задача 000095: барахолка лагеря (id 47) — сток (tile, day),
     // свежестность, сериализация/восстановление раздела campStocks.
     CAMP_STOCK_SEED, makeCampShop, campStockDueRefresh,

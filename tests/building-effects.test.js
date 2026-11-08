@@ -7928,8 +7928,25 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
   assert.ok(panel, 'панель .char-panel подвешена к body');
   const buyBtns = findAll(panel, '.cp-btn')
     .filter((btn) => btn.dataset.act === 'buy');
-  assert.equal(buyBtns.length, Object.keys(entry0.stock).length,
-    'кнопка «купить» у каждого предмета стока');
+  const buyIds = buyBtns.map((btn) => btn.dataset.item);
+  const curIds = Object.keys(entry0.stock);
+  for (const id of curIds) {
+    assert.equal(buyIds.filter((x) => x === id).length, 1,
+      'кнопка «купить» РОВНО одна у каждого предмета текущего стока: ' + id);
+  }
+  // 000316: панель лагеря дополняется блоком «Следующее обновление» —
+  // строки позиций следующего цикла, отсутствующих в текущем стоке.
+  const nextCamp = G.nextCycleStock({ x: t.x, y: t.y, buildingType: 47,
+    wealth: t.buildingWealth });
+  assert.ok(nextCamp, 'провайдер следующего цикла зарегистрирован (main.js)');
+  const aheadIds = Object.keys(nextCamp.stock).filter((id) =>
+    nextCamp.stock[id] >= 1 && !(id in entry0.stock) && G.getItem(id));
+  const uniqBuy = [...new Set(buyIds)];
+  assert.equal(uniqBuy.length, buyIds.length, 'дублей кнопок «купить» нет');
+  assert.deepEqual(uniqBuy.slice().sort(),
+    curIds.concat(aheadIds).sort(),
+    'кнопки «купить» = весь текущий сток + позиции следующего цикла, '
+    + 'отсутствующие в текущем (000316)');
   const sellBtns = findAll(panel, '.cp-btn')
     .filter((btn) => btn.dataset.act === 'sell');
   assert.equal(sellBtns.length, 0,

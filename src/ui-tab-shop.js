@@ -97,12 +97,39 @@ function (G0, rootRef) {
           [['купить', 'buy', { item: id }]],
           null, null, it.rarity));
       }
+      const aheadRows = [];
+      if (typeof G.nextCycleStock === 'function') {
+        const next = G.nextCycleStock(shop);
+        if (next && next.stock) {
+          for (const [id, qty] of Object.entries(next.stock)) {
+            const it = G.getItem(id);
+            if (!it || qty < 1) continue;
+            if ((shop.stock && shop.stock[id]) || 0) continue;
+            aheadRows.push([id, qty, it]);
+          }
+        }
+      }
+      if (aheadRows.length) {
+        panel._shopBody.appendChild(ctx.el('div', 'cp-itemmeta',
+          'Следующее обновление (можно купить сейчас)'));
+        for (const [id, qty, it] of aheadRows) {
+          panel._shopBody.appendChild(ctx.itemRow(
+            it.name + ' ×' + qty,
+            'покупка ' + G.buyPrice(shop, id, priceChar)
+              + ' з (след. обновление)',
+            [['купить', 'buy', { item: id }]],
+            null, null, it.rarity));
+        }
+      }
       const inv = c.inventory || { slots: [], quick: [] };
       const kinds = G.shopKindsFor(shop.buildingType) || [];
       const sellable = {};
       for (const e of inv.slots) {
         const it = G.getItem(e.id);
-        if (it && kinds.includes(it.kind)) sellable[e.id] = (sellable[e.id] || 0) + e.qty;
+        if (!it) continue;
+        const accepts = typeof G.sellAccepts === 'function'
+          ? G.sellAccepts(shop, e.id) : kinds.includes(it.kind);
+        if (accepts) sellable[e.id] = (sellable[e.id] || 0) + e.qty;
       }
       for (const [id, qty] of Object.entries(sellable)) {
         const it = G.getItem(id);
