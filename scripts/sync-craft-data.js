@@ -32,6 +32,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { isRefPath } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
@@ -50,14 +51,12 @@ if (files.length === 0) {
 // Ссылка — строка-путь от корня репозитория; id целевого файла ===
 // прежнему ссылочному значению (items/skills — строка, buildings —
 // число). Кэш — файл цели читается 1 раз на уникальную ссылку.
-const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
-const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
-const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
-const REF_CRAFT = /^assets\/craft\/\d{6}\.json$/;
 const REF_CACHE = new Map();
 
-function refId(ref, re, where) {
-  if (typeof ref !== 'string' || !re.test(ref)) {
+function refId(ref, catalog, where) {
+  const prefix = 'assets/' + catalog + '/';
+  if (typeof ref !== 'string' || !ref.startsWith(prefix)
+    || !isRefPath(catalog, ref.slice(prefix.length))) {
     console.error(`${where}: ссылка "${ref}" не по формату`);
     process.exit(1);
   }
@@ -90,18 +89,18 @@ function resolveRecipeData(data, file) {
   return {
     ...data,
     ...(data.база === undefined ? {} : {
-      база: refId(data.база, REF_CRAFT, `${file}: база`) }),
+      база: refId(data.база, 'craft', `${file}: база`) }),
     результат: { ...data.результат,
-      предмет: refId(data.результат.предмет, REF_ITEMS,
+      предмет: refId(data.результат.предмет, 'items',
         `${file}: результат.предмет`) },
     исходники: data.исходники.map(
       (i, n) => ({ ...i,
-        предмет: refId(i.предмет, REF_ITEMS,
+        предмет: refId(i.предмет, 'items',
           `${file}: исходники[${n}].предмет`) })),
     навыки: data.навыки.map(
-      (s, n) => refId(s, REF_SKILLS, `${file}: навыки[${n}]`)),
+      (s, n) => refId(s, 'skills', `${file}: навыки[${n}]`)),
     здания: data.здания.map(
-      (b, n) => refId(b, REF_BUILDINGS, `${file}: здания[${n}]`)),
+      (b, n) => refId(b, 'buildings', `${file}: здания[${n}]`)),
   };
 }
 

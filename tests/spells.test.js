@@ -1821,7 +1821,8 @@ const FIXTURE_TARGETS = {
 };
 
 // tmp-«репозиторий»: копия реального sync-spells-data.js +
-// write-atomic.js + фикстуры assets (заклинания в ссылочной форме).
+// write-atomic.js + json-ref.js (общий резолвер форм, 000318.01) +
+// фикстуры assets (заклинания в ссылочной форме).
 function makeTmpSpellsRepo(spellFiles, targets) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'spells-000211.04-'));
   for (const sub of ['scripts/lib', 'src', 'assets/spells',
@@ -1832,6 +1833,8 @@ function makeTmpSpellsRepo(spellFiles, targets) {
     path.join(dir, 'scripts', 'sync-spells-data.js'));
   fs.copyFileSync(path.join(SCRIPTS, 'lib', 'write-atomic.js'),
     path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+  fs.copyFileSync(path.join(SCRIPTS, 'lib', 'json-ref.js'),
+    path.join(dir, 'scripts', 'lib', 'json-ref.js'));
   for (const [f, content] of Object.entries(spellFiles)) {
     fs.writeFileSync(path.join(dir, 'assets', 'spells', f), content, 'utf8');
   }

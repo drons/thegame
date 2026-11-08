@@ -15,8 +15,22 @@
 const fs = require('fs');
 const path = require('path');
 
-// Якорные паттерны — ЕДИНЫЙ источник для подзадач (memory §1).
-const REF_RE = /^assets\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons|npc)\/\d{6}\.json$/;
+// Формы basename каталогов (задача 000318.01, реестр —
+// memory/000318-asset-rename.md): 'number' — 0000NN.json, 'slug' —
+// <slug>.json с буквы. Живой объект: тесты могут временно менять шейп
+// каталога в try/finally (фикстуры обеих форм), REF_RE при этом статичен.
+const ASSET_NAME_SHAPES = {
+  items: 'number', skills: 'number', spells: 'number', mobs: 'number',
+  mob_groups: 'number', buildings: 'number', craft: 'number',
+  dungeons: 'number', npc: 'number', runes: 'number', visuals: 'number',
+  portraits: 'named',
+};
+
+const SHAPE_BASENAME_RES = {
+  number: /^\d{6}\.json$/,
+  slug: /^[a-z][a-z0-9_]*\.json$/,
+};
+
 const PORTRAITS_RE = /^assets\/portraits\/(efir|flogiston|npc-\d{6})\.json$/;
 
 // 11 каталогов общего sweep (данные файлы; visuals — каталог прямых
@@ -24,9 +38,53 @@ const PORTRAITS_RE = /^assets\/portraits\/(efir|flogiston|npc-\d{6})\.json$/;
 const REF_CATALOGS = ['items', 'skills', 'spells', 'mobs', 'mob_groups',
   'buildings', 'craft', 'dungeons', 'npc', 'visuals', 'portraits'];
 
+// Мишени ссылок: ref-eligibility ≠ name-shape — visuals (прямые svg-пути,
+// AR2/AR5) и portraits (PORTRAITS_RE) никогда не ref; runes (в sweep
+// входит, в REF_CATALOGS нет) — тоже не мишень.
+const REF_LINKED_CATALOGS = REF_CATALOGS
+  .filter((c) => c !== 'visuals' && c !== 'portraits');
+
+function refPath(catalog, basename) {
+  return 'assets/' + catalog + '/' + basename;
+}
+
+function isRefPath(catalog, basename) {
+  if (!REF_LINKED_CATALOGS.includes(catalog)) return false;
+  const re = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES[catalog]];
+  return re !== undefined && re.test(basename);
+}
+
+const ASSET_PATH_RE = /^assets\/([^/]+)\/([^/]+)$/;
+
+function isRefPathFull(p) {
+  const m = ASSET_PATH_RE.exec(p);
+  return m !== null && isRefPath(m[1], m[2]);
+}
+
+// REF_RE выводится из шейпов группами по форме (порядок REF_CATALOGS);
+// при всех 'number' source побайтово равен прежнему якорному литералу
+// (пин AR11; рантайм-носитель — pattern в assets/skills/schema.json).
+function refReSource() {
+  const groups = [];
+  for (const cat of REF_LINKED_CATALOGS) {
+    const shape = ASSET_NAME_SHAPES[cat];
+    if (SHAPE_BASENAME_RES[shape] === undefined) continue;
+    let g = groups.find((x) => x.shape === shape);
+    if (g === undefined) {
+      g = { shape, cats: [] };
+      groups.push(g);
+    }
+    g.cats.push(cat);
+  }
+  return groups.map((g) => '^assets\\/(' + g.cats.join('|') + ')\\/'
+    + SHAPE_BASENAME_RES[g.shape].source.slice(1, -1) + '$').join('|');
+}
+
+const REF_RE = new RegExp(refReSource());
+
 function isRef(v) {
   return typeof v === 'string'
-    && (REF_RE.test(v) || PORTRAITS_RE.test(v));
+    && (isRefPathFull(v) || PORTRAITS_RE.test(v));
 }
 
 // root — позиционный, ОБЯЗАТЕЛЕН, дефолта НЕТ (негативные фикстуры
@@ -94,6 +152,8 @@ function collectSvgs(value) {
 }
 
 module.exports = {
-  REF_RE, PORTRAITS_RE, REF_CATALOGS,
+  REF_RE, PORTRAITS_RE, REF_CATALOGS, REF_LINKED_CATALOGS,
+  ASSET_NAME_SHAPES, SHAPE_BASENAME_RES,
+  refPath, isRefPath, isRefPathFull,
   isRef, resolveRef, collectRefs, collectSvgs,
 };

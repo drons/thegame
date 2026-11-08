@@ -27,6 +27,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { isRefPath } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'mob_groups');
@@ -51,10 +52,11 @@ if (files.length === 0) {
 // вне паттерна (включая голый id — дрейф), файл-цель отсутствует /
 // не JSON / без непустого строкового id → exit 1 (000207); кэш
 // цели — 1 чтение на уникальную ссылку (000208).
-const MOBS_REF_RE = /^assets\/mobs\/\d{6}\.json$/;
 const MOBS_REF_CACHE = new Map();
 function resolveMobRef(file, ref, where) {
-  if (typeof ref !== 'string' || !MOBS_REF_RE.test(ref)) {
+  const prefix = 'assets/mobs/';
+  if (typeof ref !== 'string' || !ref.startsWith(prefix)
+    || !isRefPath('mobs', ref.slice(prefix.length))) {
     console.error(
       `${file}: ${where} «${ref}» — не ссылка `
       + 'на файл mobs (формат "assets/mobs/NNNNNN.json")');

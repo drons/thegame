@@ -1,0 +1,96 @@
+# 000318 — переименование JSON-каталогов assets/ по id: реестр и правила
+
+Родительская задача: tasks/pending/000318.md; разбивка —
+tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
+Этот файл — инфраструктурная память .01: формы имён становятся per-catalog,
+переименований в .01 НЕТ (все каталоги — number).
+
+## 1. Реестр каталогов и шейпов (scripts/lib/json-ref.js: ASSET_NAME_SHAPES)
+
+| каталог | шейп | файлов | мишень ссылок |
+|---|---|---|---|
+| items | number | 513 | да |
+| skills | number | 44 | да |
+| spells | number | 169 | да |
+| mobs | number | 36 | да |
+| mob_groups | number | 7 | да |
+| buildings | number | 55 | да |
+| craft | number | 343 (max 000419 — СЕГМЕНТАМИ, дыры) | да |
+| dungeons | number | 5 | да |
+| npc | number | 22 | да |
+| runes | number | 55 | НЕТ (никогда не был в REF_RE) |
+| visuals | number | 13 | НЕТ (каталог прямых svg-путей, AR2/AR5) |
+| portraits | named | efir/flogiston/npc-NNNNNN | только PORTRAITS_RE |
+
+REF_LINKED_CATALOGS = РОВНО 9 мишеней (REF_CATALOGS минус visuals/portraits).
+Ключевое разделение осей: ref-eligibility (в REF_LINKED_CATALOGS или нет) ≠
+name-shape ('number'/'slug') ≠ 'named' (portraits). Переименование visuals
+(.03) или runes (.02) меняет ТОЛЬКО ASSET_NAME_SHAPES — мишени не трогаются;
+негативы AR2/AR5/AR14 («assets/visuals/… — не ref») — навсегда.
+
+## 2. Формы и резолвер (json-ref.js)
+
+* SHAPE_BASENAME_RES: number `^\d{6}\.json$`, slug `^[a-z][a-z0-9_]*\.json$`
+  (slug с буквы — отсекает и «голое число», и заглавную, и слеши/расширения).
+* `refPath(catalog, basename)` — сборка корневого пути;
+  `isRefPath(catalog, basename)` — членство в мишенях + regex шейпа;
+  `isRefPathFull(p)` — парсинг `^assets/([^/]+)/([^/]+)$` (слэш в basename
+  отсекается автоматически). `isRef` = isRefPathFull ∪ PORTRAITS_RE —
+  читает ASSET_NAME_SHAPES ЖИВО (тесты могут временно флипать шейп в
+  try/finally; фикстуры обеих форм — AR13/AR14, RN4).
+* REF_RE ВЫВОДИТСЯ из шейпов группами по форме, порядок каталогов =
+  REF_CATALOGS. При всех 'number' source ПОБайтово равен прежнему литералу
+  (пин AR11) — рантайм-носитель строки: pattern в assets/skills/schema.json
+  (SR5, skills.test.js сверяют с REF_RE.source; дрейп вывода красит сьюту;
+  schema.json в .01 не тронут).
+* Lib обязан остаться ОДНИМ файлом без внутренних require-соседей:
+  tests/items.test.js копирует в tmp ровно файл json-ref.js.
+* Производительность: ни одного new RegExp на вызов (isRef гоняется по
+  ~900 JSON в AR8/AR9/RN3 и sync) — все regex — константы модуля, REF_RE
+  собирается один раз при загрузке.
+
+## 3. Sync-скрипты: перевод чужих REF_* на общий lib
+
+В sync-{craft,spells}-data.js refId(ref, catalog, where) проверяет
+`startsWith('assets/<catalog>/') + isRefPath(catalog, basename)`; в
+sync-buildings-data.js хелпер isCatalogRef; в sync-mob-groups-data.js —
+инлайн для 'mobs'. СООБЩЕНИЯ ОБ ОШИБКАХ и exit-коды сохранены дословно
+(пины R4/R5/SR8: «не по формату», «(формат "assets/items/NNNNNN.json")»,
+«нет цели ссылки», «без id» — формат-строки НЕ «улучшать» до shape-aware:
+они пин-поверхность и читабельность отказов).
+
+СЛЕДСТВИЕ перевода: tmp-«репозитории» makeTmpSpellsRepo (tests/spells.test.js)
+и makeTmpCraftRepo (tests/craft.test.js) копируют из scripts/lib теперь и
+json-ref.js (иначе MODULE_NOT_FOUND в запускаемом sync). tmp-билдеры
+buildings/skills-refs копируют ВЕСЬ scripts/lib — их трогать не нужно.
+
+НЕ переведены и НЕ должны: `.filter(/^\d{6}\.json$/).sort()` в 10+
+sync-скриптах — ЭТО КОНТРАКТ ПОРЯДКА зеркала (позиционные MOB_GROUP_TYPES
+src/map.js и формулы визуалов/сидов); перевод сортировки на по-id — задача
+соответствующих дочерних .YY при переименовании каталога.
+
+## 4. Правила переименований для дочерних 000318.02+
+
+* Правило имени: slug-шейп каталога ⇒ basename === id + '.json' (свип
+  renameViolations в tests/assets-renames-000318.test.js — эталон семантики;
+  number-шейп НЕ требует basename == id: dungeons — id 0..4 при файлах
+  000001..000005, buildings — id 1..55 совпадает).
+* Rename — отдельным `git mv` (R100, контент 0-diff) от M-правок строк
+  referrer-ов (проверять `git show -M`); правки ссылок в JSON — тот же
+  коммит или следующий, но диффы не смешивать по типу.
+* Зеркала содержат пути файлов в комментариях/шапках (craft/spells — шапки
+  `// <file>`, dungeons/items и др.) ⇒ ПЕРЕГЕНЕРАЦИЯ ЗЕРКАЛ обязательна
+  В ТОМ ЖЕ коммите; проверка — `node scripts/sync-all.js --check` = 0 на
+  чистом дереве ПОСЛЕ коммита (до коммита транзиентно красен — конвенция).
+* Сейвы путей не содержат — миграция сейвов только в .11.
+* Счётчики ссылок/файлов в чужих тестах — анти-вакуум пины (craft 343,
+  spells 169, ссылки 1259/477/473 и т.п.) — при переименовании НЕ должны
+  меняться (rename не меняет число ссылок); сменятся только path-строки.
+* craft-дыры: непрерывность 1..N пиннится для 10 каталогов, craft —
+  явное пин-исключение «с дырами» (RN2).
+
+## 5. Памятка оркестратору волн
+
+Тексты закоммиченных pending-задач 000320.x/000321.x цитируют старые пути
+«assets/…/NNNNNN.json» — при переименованиях дочерними 000318.YY эти
+ЗАКОММИЧЕННЫЕ тексты не правятся (задачи в master не меняются).

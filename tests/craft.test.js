@@ -789,7 +789,8 @@ const FIXTURE_BASE_RECIPE = {
 };
 
 // tmp-«репозиторий»: копия реального sync-craft-data.js +
-// write-atomic.js + фикстура assets (рецепт в ссылочной форме).
+// write-atomic.js + json-ref.js (общий резолвер форм, 000318.01) +
+// фикстура assets (рецепт в ссылочной форме).
 function makeTmpCraftRepo(craftFiles, targets) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'craft-000208-'));
   for (const sub of ['scripts/lib', 'src', 'assets/craft',
@@ -800,6 +801,8 @@ function makeTmpCraftRepo(craftFiles, targets) {
     path.join(dir, 'scripts', 'sync-craft-data.js'));
   fs.copyFileSync(path.join(SCRIPTS, 'lib', 'write-atomic.js'),
     path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+  fs.copyFileSync(path.join(SCRIPTS, 'lib', 'json-ref.js'),
+    path.join(dir, 'scripts', 'lib', 'json-ref.js'));
   for (const [f, content] of Object.entries(craftFiles)) {
     fs.writeFileSync(path.join(dir, 'assets', 'craft', f), content, 'utf8');
   }

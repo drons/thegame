@@ -23,6 +23,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { isRefPath } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'buildings');
@@ -54,10 +55,15 @@ const REQUIRED = [
 // в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed: значение
 // вне паттерна (включая голый id — дрейф), файл-цель отсутствует /
 // не JSON / без непустого строкового id → exit 1.
-const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+function isCatalogRef(catalog, ref) {
+  const prefix = 'assets/' + catalog + '/';
+  return typeof ref === 'string' && ref.startsWith(prefix)
+    && isRefPath(catalog, ref.slice(prefix.length));
+}
+
 function resolveItemRef(file, entry) {
   const ref = entry.предмет;
-  if (typeof ref !== 'string' || !ITEM_REF_RE.test(ref)) {
+  if (!isCatalogRef('items', ref)) {
     console.error(
       `${file}: .стройка.исходники.предмет «${ref}» — не ссылка `
       + 'на файл items (формат "assets/items/NNNNNN.json")');
@@ -85,9 +91,8 @@ function resolveItemRef(file, entry) {
 // resolveItemRef: значение вне паттерна (включая голое ИМЯ —
 // дрейф), файл-цель отсутствует / не JSON / без непустого
 // строкового id → exit 1.
-const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
 function resolveSkillRef(file, ref) {
-  if (typeof ref !== 'string' || !SKILL_REF_RE.test(ref)) {
+  if (!isCatalogRef('skills', ref)) {
     console.error(
       `${file}: .особые_параметры.тренирует «${ref}» — не ссылка `
       + 'на файл skills (формат "assets/skills/NNNNNN.json")');

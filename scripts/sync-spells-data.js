@@ -26,6 +26,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { isRefPath } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
@@ -44,13 +45,12 @@ if (files.length === 0) {
 // Ссылка — строка-путь от корня репозитория; id целевого файла ===
 // прежнему ссылочному значению (spells/items — строка, buildings —
 // число). Кэш — файл цели читается 1 раз на уникальную ссылку.
-const REF_SPELLS = /^assets\/spells\/\d{6}\.json$/;
-const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
-const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
 const REF_CACHE = new Map();
 
-function refId(ref, re, where) {
-  if (typeof ref !== 'string' || !re.test(ref)) {
+function refId(ref, catalog, where) {
+  const prefix = 'assets/' + catalog + '/';
+  if (typeof ref !== 'string' || !ref.startsWith(prefix)
+    || !isRefPath(catalog, ref.slice(prefix.length))) {
     console.error(`${where}: ссылка "${ref}" не по формату`);
     process.exit(1);
   }
@@ -83,14 +83,14 @@ function refId(ref, re, where) {
 function resolveSpellData(data, file) {
   return {
     ...data,
-    база: data.база === null ? null : refId(data.база, REF_SPELLS,
+    база: data.база === null ? null : refId(data.база, 'spells',
       `${file}: база`),
     ...(Array.isArray(data.предметы)
       ? { предметы: data.предметы.map((it, n) =>
-          refId(it, REF_ITEMS, `${file}: предметы[${n}]`)) }
+          refId(it, 'items', `${file}: предметы[${n}]`)) }
       : {}),
     здания: data.здания.map(
-      (b, n) => refId(b, REF_BUILDINGS, `${file}: здания[${n}]`)),
+      (b, n) => refId(b, 'buildings', `${file}: здания[${n}]`)),
   };
 }
 
