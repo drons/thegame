@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const RUNES_DIR = path.join(ROOT, 'assets', 'runes');
@@ -11,11 +12,12 @@ const OUT_FILE = path.join(ROOT, 'src', 'runes-data.js');
 const ID_RE = /^[a-z][a-z0-9_]*$/;
 const TEXT_RE = /^\S(.*\S)?$/;
 
+const shapeRe = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.runes];
 const files = fs.readdirSync(RUNES_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json' && shapeRe.test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/runes: не найдено ни одного файла 0000NN.json');
+  console.error('assets/runes: не найдено ни одного файла <id>.json');
   process.exit(1);
 }
 
@@ -57,6 +59,8 @@ for (const f of files) {
   runes.push(data);
 }
 
+runes.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
 function jsValue(v) {
   if (v === null) return 'null';
   if (Array.isArray(v)) return '[' + v.map(jsValue).join(', ') + ']';
@@ -75,7 +79,7 @@ function jsObjectAt(data, col) {
   return pad + '{\n' + lines.join('\n') + '\n' + pad + '}';
 }
 
-const range = `${files[0]} … ${files[files.length - 1]}`;
+const range = `${runes[0].id}.json … ${runes[runes.length - 1].id}.json`;
 const L = [];
 L.push('(function (root, factory) {');
 L.push('  if (typeof module === "object" && module.exports) {');

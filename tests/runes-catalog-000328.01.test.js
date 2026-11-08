@@ -8,8 +8,11 @@
 // навыки assets/skills type:'secondary' (pct() читает SECONDARY_SKILLS),
 // 'nature' НЕ используется (анти-коллизия 000336). Формат файла —
 // roundtrip-канон JSON.stringify(obj,null,2)+'\n' (заморозка T8 без
-// исключений). kind=node; require — только node:*/tests/json-schema.js
-// (без src-require на загрузке). RED: каталога assets/runes ещё нет —
+// исключений). 000318.02: файлы переименованы 0000NN.json → <id>.json
+// (basename == id), порядок — по id; фильтр формы — из реестра
+// scripts/lib/json-ref.js. kind=node; require — только node:*/
+// tests/json-schema.js/scripts/lib/json-ref.js (без src-require на
+// загрузке). RED: каталога assets/runes ещё нет —
 // все тесты краснеют ОСМЫСЛЕННО (existsSync-guard + assert.fail с
 // маркером), не крахом загрузки.
 const { test } = require('node:test');
@@ -26,6 +29,8 @@ const ICON_DIR = path.join(ROOT, 'assets', 'sprites', 'runes');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 const MIRROR = path.join(ROOT, 'src', 'runes-data.js');
 const SYNC = path.join(ROOT, 'scripts', 'sync-runes-data.js');
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
 
 const RUNES_TOTAL_00032801 = 55;
 
@@ -118,7 +123,10 @@ const RUNES_PALETTE_00032801 = new Set([
 const VIEWBOX_00032801 = 'viewBox="0 0 64 64"';
 
 function dataFiles(dir) {
-  return fs.readdirSync(dir).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const re = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.runes];
+  return fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json' && re.test(f))
+    .sort();
 }
 
 function canon(v) {
@@ -189,7 +197,7 @@ function checkFlatRuneSvg(text) {
 
 // --- T1: схема + свип каталога ---
 
-test('000328.01 T1: assets/runes — 55 файлов подряд 000001–000055; schema.json существует, ключи ⊆ ALLOWED_SCHEMA_KEYS, каждый файл валиден (0 ошибок)', () => {
+test('000328.01 T1: assets/runes — 55 файлов <id>.json (000318.02: basename == id, имена = id контракт-списка); schema.json существует, ключи ⊆ ALLOWED_SCHEMA_KEYS, каждый файл валиден (0 ошибок)', () => {
   assert.ok(fs.existsSync(RUNES_DIR),
     'RED: каталог assets/runes не существует (создаётся задачей 000328.01)');
   const schemaPath = path.join(RUNES_DIR, 'schema.json');
@@ -200,13 +208,17 @@ test('000328.01 T1: assets/runes — 55 файлов подряд 000001–00005
     assert.ok(ALLOWED_SCHEMA_KEYS.has(key),
       'schema.json ' + where + ': ключ «' + key + '» вне ALLOWED_SCHEMA_KEYS');
   }
-  const expected = [...Array(RUNES_TOTAL_00032801)]
-    .map((_, i) => String(i + 1).padStart(6, '0') + '.json');
+  const expected = RUNES_CONTRACT_00032801.map((r) => r.id + '.json').sort();
   const files = dataFiles(RUNES_DIR);
+  assert.equal(files.length, RUNES_TOTAL_00032801,
+    'файлов данных ровно ' + RUNES_TOTAL_00032801 + '; факт: ' + files.length);
   assert.deepEqual(files, expected,
-    'нумерация сквозная подряд 000001–000055 (ровно ' +
-    RUNES_TOTAL_00032801 + '); факт: [' + files.join(', ') + ']');
+    'имена = id контракт-списка §3 с расширением .json (000318.02: ' +
+    'basename == id, носителя нумерации 000001–000055 больше нет); факт: [' +
+    files.join(', ') + ']');
   for (const { file, data } of catalog()) {
+    assert.equal(file, data.id + '.json',
+      file + ': basename != id «' + data.id + '»');
     assert.deepEqual(validateData(schema, data, file), [],
       file + ': валиден по schema.json');
   }
@@ -317,7 +329,7 @@ test('000328.01 T5: derived → stat ∈ enum-37 (sheet.js derived); skill → s
 
 // --- T6: зеркало ---
 
-test('000328.01 T6: зеркало src/runes-data.js — RUNES.length 55, поэлементно deepEqual JSON в порядке нумерации, порядок id совпадает', () => {
+test('000328.01 T6: зеркало src/runes-data.js — RUNES.length 55, поэлементно deepEqual JSON в id-порядке (000318.02), порядок id совпадает', () => {
   assert.ok(fs.existsSync(RUNES_DIR), 'RED: каталог assets/runes не существует');
   assert.ok(fs.existsSync(MIRROR),
     'RED: зеркало src/runes-data.js не сгенерировано (scripts/sync-runes-data.js)');
@@ -331,7 +343,7 @@ test('000328.01 T6: зеркало src/runes-data.js — RUNES.length 55, поэ
       file + ': зеркало ≡ JSON (позиция ' + i + ')');
   });
   assert.deepEqual(mod.RUNES.map((r) => r.id), json.map(({ data }) => data.id),
-    'порядок id зеркала = порядок нумерации файлов');
+    'порядок id зеркала = порядок имён файлов (basename == id ⇒ по id)');
 });
 
 // --- T7: sync-интеграция ---
@@ -355,6 +367,8 @@ test('000328.01 T7: scripts/sync-runes-data.js существует, подхв�
     fs.mkdirSync(path.join(tmp, 'assets', 'runes'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', 'write-atomic.js'),
       path.join(tmp, 'scripts', 'lib', 'write-atomic.js'));
+    fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'),
+      path.join(tmp, 'scripts', 'lib', 'json-ref.js'));
     fs.copyFileSync(SYNC, path.join(tmp, 'scripts', 'sync-runes-data.js'));
     for (const f of dataFiles(RUNES_DIR)) {
       fs.copyFileSync(path.join(RUNES_DIR, f),
@@ -380,7 +394,7 @@ test('000328.01 T7: scripts/sync-runes-data.js существует, подхв�
 
 // --- T8: roundtrip-заморозка ---
 
-test('000328.01 T8: каждый assets/runes/NNNNNN.json — roundtrip-канон JSON.stringify(obj,null,2)+перевод строки; исключений нет', () => {
+test('000328.01 T8: каждый assets/runes/<id>.json — roundtrip-канон JSON.stringify(obj,null,2)+перевод строки; исключений нет', () => {
   assert.ok(fs.existsSync(RUNES_DIR), 'RED: каталог assets/runes не существует');
   for (const f of dataFiles(RUNES_DIR)) {
     const text = fs.readFileSync(path.join(RUNES_DIR, f), 'utf8');

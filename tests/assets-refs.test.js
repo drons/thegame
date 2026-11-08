@@ -306,10 +306,12 @@ function loadShapes() {
 test('AR10: поверхность 000318.01 — реестр шейпов и резолверы формы', () => {
   const mod = loadShapes();
   for (const cat of ['items', 'skills', 'spells', 'mobs', 'mob_groups',
-    'buildings', 'craft', 'dungeons', 'npc', 'runes', 'visuals']) {
+    'buildings', 'craft', 'dungeons', 'npc', 'visuals']) {
     assert.equal(mod.ASSET_NAME_SHAPES[cat], 'number',
       cat + ': в .01 ничего не переименовано — шейп number');
   }
+  assert.equal(mod.ASSET_NAME_SHAPES.runes, 'slug',
+    'runes — slug (переименован 000318.02; мишенью ссылок не был никогда)');
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE)');
   assert.deepEqual([...mod.REF_LINKED_CATALOGS], [
@@ -414,8 +416,9 @@ test('AR14: ref-eligibility ≠ name-shape — visuals/runes/portraits не ref 
       } finally {
         mod.ASSET_NAME_SHAPES[cat] = saved;
       }
-      assert.equal(mod.ASSET_NAME_SHAPES[cat], 'number',
-        cat + ': шейп восстановлен после finally');
+      assert.equal(mod.ASSET_NAME_SHAPES[cat], saved,
+        cat + ': шейп восстановлен после finally (с сохранённого — '
+        + 'после 000318.02 у runes сохранённый «slug»)');
     }
   }
   assert.equal(mod.isRefPath('portraits', 'efir.json'), false,
