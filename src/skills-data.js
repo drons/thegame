@@ -502,11 +502,11 @@
     },
     // 000042.json
     {
-      id: "nature",
+      id: "nature_school",
       type: "school",
       name: "Природа",
       desc: "Урон и бафы природы, контроль, создание и призыв.",
-      icon: "assets/school-icons/nature.svg",
+      icon: "assets/school-icons/nature_school.svg",
     },
     // 000043.json
     {

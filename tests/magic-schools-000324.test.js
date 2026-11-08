@@ -52,7 +52,7 @@ const SCHOOLS_EXPECTED = [
   ['000039.json', 'healing', 'Исцеление'],
   ['000040.json', 'ice', 'Лёд'],
   ['000041.json', 'fire', 'Огонь'],
-  ['000042.json', 'nature', 'Природа'],
+  ['000042.json', 'nature_school', 'Природа'],
   ['000043.json', 'shadow', 'Тень'],
 ];
 
@@ -77,7 +77,7 @@ test('A1: 6 школьных файлов 000038–000043.json в каталог
   }
 });
 
-test('A2: id ровно {protection,healing,ice,fire,nature,shadow} в порядке 000301; icon = assets/school-icons/<id>.svg на диске; name байт-в-байт SCHOOLS', () => {
+test('A2: id ровно {protection,healing,ice,fire,nature_school,shadow} в порядке 000301 (ре-пин 000318.11: «nature» → «nature_school»); icon = assets/school-icons/<id>.svg на диске; name байт-в-байт SCHOOLS', () => {
   const ids = [];
   for (const [file, id, name] of SCHOOLS_EXPECTED) {
     const d = readSchoolFile(file);
@@ -91,7 +91,7 @@ test('A2: id ровно {protection,healing,ice,fire,nature,shadow} в поря�
       file + ': name байт-в-байт «' + name + '» (SCHOOLS 000301)');
   }
   assert.deepEqual(ids,
-    ['protection', 'healing', 'ice', 'fire', 'nature', 'shadow']);
+    ['protection', 'healing', 'ice', 'fire', 'nature_school', 'shadow']);
 });
 
 test('A3: каждое различное «школа» 169 spells совпадает ровно одной школой каталога (name.toLowerCase())', () => {

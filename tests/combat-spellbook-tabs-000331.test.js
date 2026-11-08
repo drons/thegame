@@ -56,7 +56,7 @@ const SCHOOLS = [
   { id: 'исцеление', name: 'Исцеление', icon: 'assets/school-icons/healing.svg' },
   { id: 'лёд', name: 'Лёд', icon: 'assets/school-icons/ice.svg' },
   { id: 'огонь', name: 'Огонь', icon: 'assets/school-icons/fire.svg' },
-  { id: 'природа', name: 'Природа', icon: 'assets/school-icons/nature.svg' },
+  { id: 'природа', name: 'Природа', icon: 'assets/school-icons/nature_school.svg' },
   { id: 'тень', name: 'Тень', icon: 'assets/school-icons/shadow.svg' },
 ];
 

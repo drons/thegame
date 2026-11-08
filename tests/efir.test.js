@@ -2045,55 +2045,48 @@ test('000163 E1: EFIR_SPELL_UNLOCKS — [22, «resurrect»] между 20 и 25:
   });
 });
 
-test('000336 GUARD: SKILL_META — коллизия id «nature» (вторичный «Сердце природы» + школа «Природа»): ЕДИНСТВЕННАЯ коллизия id каталога; school-запись выигрывает в Map; остальные 37 id EFIR_SKILL_CATALOG не перекрыты школой (уникальность id — ВНУТРИ type)', () => {
+test('000336 GUARD (перепин 000318.11): SKILL_META — ноль коллизий id каталога (деаноним школы «Природа»: «nature» → «nature_school»); явный резолв по id вместо winner-порядка readdir; все 38 id EFIR_SKILL_CATALOG — НЕ school (уникальность id — ПО ВСЕМУ каталогу)', () => {
   // Зеркало assets: 44 файла (6 primary + 32 secondary + 6 school,
-  // ре-пин 000324; ре-пин 000337: +1 secondary «staff» — 43→44 файла,
-  // 42→43 уникальных id) → ровно ОДНА коллизия
-  // (задокументировано: memory/000324-magic-schools.md +
-  // memory/000336-retrofix-b3.md; решение 000336 — НЕ переименовывать).
+  // ре-пин 000324; ре-пин 000337: +1 secondary «staff» — 43→44 файла).
+  // С 000318.11 — 44 УНИКАЛЬНЫХ id: id школы 000042 переименован
+  // «nature» → «nature_school» (контракт memory/000318-skills-nature.md;
+  // решение 000336 «НЕ переименовывать» ОТМЕНЕНО — предусловие
+  // basename==id для 000318.09; прежний winner — school-запись 000042
+  // как позднее в readdirSync — больше не механизм).
   assert.equal(SKILL_FILES().length, 44,
     'assets/skills: 44 файла (6 primary + 32 secondary + 6 school)');
-  assert.equal(SKILL_META.size, 43,
-    '43 уникальных id — ровно одна id-коллизия каталога');
+  assert.equal(SKILL_META.size, 44,
+    '44 уникальных id — ноль id-коллизий каталога (000318.11)');
   const dupCount = new Map();
   for (const f of SKILL_FILES()) {
     const id = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id;
     dupCount.set(id, (dupCount.get(id) || 0) + 1);
   }
   const dups = [...dupCount.entries()].filter(([, n]) => n > 1);
-  assert.deepEqual(dups, [['nature', 2]],
-    'единственный дублирующийся id — «nature» (ровно 2 файла)');
-  const natureRecs = [];
-  for (const f of SKILL_FILES()) {
-    const j = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
-    if (j.id === 'nature') natureRecs.push(j);
-  }
-  assert.equal(natureRecs.length, 2, 'id «nature» — ровно 2 файла');
-  const types = natureRecs.map((j) => j.type).sort();
-  assert.deepEqual(types, ['school', 'secondary'],
-    'форма коллизии — ОДИН вторичный навык + ОДНА школа (shape-пин 000336); lex-порядок «school» < «secondary»');
-  assert.equal(natureRecs.find((j) => j.type === 'secondary').name, 'Сердце природы',
-    'навык с id «nature» — «Сердце природы» (000031)');
-  assert.equal(natureRecs.find((j) => j.type === 'school').name, 'Природа',
-    'школа с id «nature» — «Природа» (000042)');
-  // Запись школы 000042 (позднее в порядке readdirSync) ЗАПИСЫВАЕТ
-  // СЕБОЙ навык в Map — задокументированное поведение (уникальность
-  // ВНУТРИ type, не по всему каталогу).
-  const n = SKILL_META.get('nature');
-  assert.equal(n.type, 'school',
-    'SKILL_META.get("nature") — school-запись (позднее в readdir выигрывает)');
-  assert.equal(n.name, 'Природа',
-    'победитель — школа «Природа» (000042), не навык (000031)');
+  assert.deepEqual(dups, [],
+    'дублирующихся id нет (до 000318.11 — «nature»×2; пин закрепляет '
+    + 'решение коллизии); факт: ' + JSON.stringify(dups));
+  // Явные id (не winner-порядок и не shape-эвристика): каждый id резолвится
+  // ровно в одну запись каталога.
+  const nature = SKILL_META.get('nature');
+  assert.equal(nature.type, 'secondary',
+    '«nature» — вторичный навык (000031), не школа');
+  assert.equal(nature.name, 'Сердце природы',
+    '«nature» — «Сердце природы» (000031 неизменен — рантайм-id и ключ сейва)');
+  const natureSchool = SKILL_META.get('nature_school');
+  assert.ok(natureSchool, '«nature_school» — в каталоге (школа 000042)');
+  assert.equal(natureSchool.type, 'school',
+    '«nature_school» — school-запись');
+  assert.equal(natureSchool.name, 'Природа',
+    '«nature_school» — «Природа» (000042; name не менялся)');
   // ВСЕ 38 id EFIR_SKILL_CATALOG (6 primary + 32 secondary — школы НЕ
   // включены; ≡ src/main.js: PRIMARY_SKILLS.concat(Object.values(
-  // SECONDARY_SKILLS))) — за исключением задокументированной «nature» —
-  // записи НЕ-school. Ловит drift, при котором school-запись перекроет
-  // ЕЩЁ ОДИН навык по id.
+  // SECONDARY_SKILLS))) — записи НЕ-school без исключений. Ловит drift,
+  // при котором school-запись перекроет навык по id.
   const catalog = SKILL_CATALOG.filter((r) => r.type !== 'school').map((r) => r.id);
   assert.equal(catalog.length, 38,
     'EFIR_SKILL_CATALOG: 38 id (6 primary + 32 secondary, без школ)');
   for (const id of catalog) {
-    if (id === 'nature') continue;
     const rec = SKILL_META.get(id);
     assert.ok(rec, 'каталожный id ' + id + ' — в SKILL_META');
     assert.notEqual(rec.type, 'school',

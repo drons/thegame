@@ -63,7 +63,7 @@ const SCHOOLS = [
   { id: 'исцеление', name: 'Исцеление', icon: 'assets/school-icons/healing.svg', spell: 'prayer' },
   { id: 'лёд', name: 'Лёд', icon: 'assets/school-icons/ice.svg', spell: 'frost_walk' },
   { id: 'огонь', name: 'Огонь', icon: 'assets/school-icons/fire.svg', spell: 'firelight' },
-  { id: 'природа', name: 'Природа', icon: 'assets/school-icons/nature.svg', spell: 'wild_growth' },
+  { id: 'природа', name: 'Природа', icon: 'assets/school-icons/nature_school.svg', spell: 'wild_growth' },
   { id: 'тень', name: 'Тень', icon: 'assets/school-icons/shadow.svg', spell: 'shadow_step' },
 ];
 const ALL_SIX = SCHOOLS.map((s) => s.spell);
