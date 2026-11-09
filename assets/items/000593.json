@@ -1,0 +1,21 @@
+{
+  "id": "gilded_vambraces",
+  "name": "Латные наручи гвардии",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 640,
+  "desc": "Латные наручи гвардии: золото по стали, сталь по чину.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/gilded_vambraces.svg",
+  "slot": "forearms",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.25
+    }
+  ]
+}

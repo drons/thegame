@@ -1,0 +1,21 @@
+{
+  "id": "tin_morion",
+  "name": "Оловянный ерихон",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 20,
+  "desc": "Оловянный ерихон: блестит на параде, спасает в дозоре.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/tin_morion.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.03
+    }
+  ]
+}

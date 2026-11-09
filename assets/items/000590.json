@@ -1,0 +1,21 @@
+{
+  "id": "silver_bracers",
+  "name": "Серебряные наручи",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 85,
+  "desc": "Серебряные наручи: звонкие, как обещание стражи.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/silver_bracers.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.06
+    }
+  ]
+}

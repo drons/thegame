@@ -1,0 +1,33 @@
+{
+  "id": "vigil_plate",
+  "name": "Панцирь дозорной заставы",
+  "kind": "armor",
+  "weight": 6.5,
+  "value": 330,
+  "desc": "Панцирь дозорной заставы: застава стоит в нём и после заката.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/vigil_plate.svg",
+  "slot": "torso",
+  "rarity": "epic",
+  "set": "vigil",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.14
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 2
+    },
+    "3": {
+      "armor": 3
+    },
+    "4": {
+      "armor": 4
+    }
+  }
+}

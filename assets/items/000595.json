@@ -1,0 +1,21 @@
+{
+  "id": "driver_mitts",
+  "name": "Варежки возницы",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 17,
+  "desc": "Варежки возницы: вожжи не жгут, руки не мёрзнут.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/driver_mitts.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.02
+    }
+  ]
+}

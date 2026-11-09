@@ -1,0 +1,45 @@
+{
+  "id": "mystic_earring",
+  "name": "Мистическая серьга",
+  "kind": "armor",
+  "weight": 0.15,
+  "value": 280,
+  "desc": "Мистическая серьга: слышит то, что не сказано.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/mystic_earring.svg",
+  "slot": "ears",
+  "rarity": "epic",
+  "set": "mystic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.05
+      }
+    ],
+    "3": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.1
+      }
+    ],
+    "4": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.15
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "steel_shishak",
+  "name": "Стальной шишак",
+  "kind": "armor",
+  "weight": 1.1,
+  "value": 90,
+  "desc": "Стальной шишак: шапка с характером, сталь с уставом.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/steel_shishak.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.07
+    }
+  ]
+}

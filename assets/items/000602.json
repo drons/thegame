@@ -1,0 +1,21 @@
+{
+  "id": "wool_breeches",
+  "name": "Суконные штаны",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 24,
+  "desc": "Суконные штаны: тепло против ветра — счёт открытый.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_breeches.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.02
+    }
+  ]
+}

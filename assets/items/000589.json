@@ -1,0 +1,21 @@
+{
+  "id": "wool_bracers",
+  "name": "Суконные наручи",
+  "kind": "armor",
+  "weight": 0.3,
+  "value": 20,
+  "desc": "Суконные наручи: тепло руки — ровный шаг.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_bracers.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.04
+    }
+  ]
+}

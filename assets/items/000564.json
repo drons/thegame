@@ -1,0 +1,21 @@
+{
+  "id": "patched_helm",
+  "name": "Драный шлемок",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 16,
+  "desc": "Драный шлемок: заплата к заплате — и голова цела.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/patched_helm.svg",
+  "slot": "head",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.04
+    }
+  ]
+}

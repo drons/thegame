@@ -1,0 +1,21 @@
+{
+  "id": "pathfinder_boots",
+  "name": "Сапоги следопыта",
+  "kind": "armor",
+  "weight": 1.1,
+  "value": 340,
+  "desc": "Сапоги следопыта: идут там, где дороги нет.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/pathfinder_boots.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.15
+    }
+  ]
+}

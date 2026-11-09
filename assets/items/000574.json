@@ -1,0 +1,21 @@
+{
+  "id": "silver_drop_earring",
+  "name": "Серебряная капля",
+  "kind": "armor",
+  "weight": 0.1,
+  "value": 60,
+  "desc": "Серебряная капля: капля, которая не падает.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/silver_drop_earring.svg",
+  "slot": "ears",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.06
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "riveted_helm",
+  "name": "Клёпаный шлем",
+  "kind": "armor",
+  "weight": 1,
+  "value": 80,
+  "desc": "Клёпаный шлем: каждая заклёпка держит чью-то жизнь.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/riveted_helm.svg",
+  "slot": "head",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.06
+    }
+  ]
+}

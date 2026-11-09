@@ -1,0 +1,21 @@
+{
+  "id": "boar_tusk_earring",
+  "name": "Серьга с кабаньим клыком",
+  "kind": "armor",
+  "weight": 0.05,
+  "value": 12,
+  "desc": "Серьга с кабаньим клыком: трофей, который носят ухом.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/boar_tusk_earring.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.03
+    }
+  ]
+}

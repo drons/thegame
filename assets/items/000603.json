@@ -1,0 +1,33 @@
+{
+  "id": "vigil_greaves",
+  "name": "Поножи дозорной заставы",
+  "kind": "armor",
+  "weight": 2.2,
+  "value": 92,
+  "desc": "Поножи дозорной заставы: тропу знают наощупь.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/vigil_greaves.svg",
+  "slot": "legs",
+  "rarity": "rare",
+  "set": "vigil",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.06
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 2
+    },
+    "3": {
+      "armor": 3
+    },
+    "4": {
+      "armor": 4
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "hide_bracers",
+  "name": "Кожаные наручи",
+  "kind": "armor",
+  "weight": 0.4,
+  "value": 18,
+  "desc": "Кожаные наручи: рука цела — работа сделана.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_bracers.svg",
+  "slot": "forearms",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "studded_mitts",
+  "name": "Рукавицы с костяшками",
+  "kind": "armor",
+  "weight": 0.9,
+  "value": 82,
+  "desc": "Рукавицы с костяшками: рукопожатие с последствиями.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/studded_mitts.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.07
+    }
+  ]
+}

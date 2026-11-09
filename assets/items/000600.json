@@ -1,0 +1,21 @@
+{
+  "id": "coarse_trousers",
+  "name": "Грубые порты",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 21,
+  "desc": "Грубые порты: ткань, которая не просит пощады.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/coarse_trousers.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.03
+    }
+  ]
+}

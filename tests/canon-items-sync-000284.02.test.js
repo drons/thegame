@@ -162,17 +162,26 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
   assert.ok(D(m[1]) === T.common && D(m[2]) === T.rare && D(m[3]) === T.epic && D(m[4]) === T.legendary && D(m[5]) === T.impossible, 'c3b: byTier disk=' + JSON.stringify(T));
   assert.equal(D(m[1]) + D(m[2]) + D(m[3]) + D(m[4]) + D(m[5]), rarN, 'c3b: сумма тиров != c3a');
 
-  m = anchor(/ровно (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) на часть, torso — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), forearms — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), palms — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\)\./, 'c4');
-  const def = [D(m[1]), D(m[2]), D(m[3]), D(m[4]), D(m[5])];
-  const torso = [D(m[6]), D(m[7]), D(m[8]), D(m[9]), D(m[10])];
-  const fore = [D(m[12]), D(m[13]), D(m[14]), D(m[15]), D(m[16])];
-  const palm = [D(m[18]), D(m[19]), D(m[20]), D(m[21]), D(m[22])];
+  // Ре-пин 000321.02: после волны брони (50 предметов
+  // 000564–000613) ВСЕ 8 броневых слотов имеют СВОИ векторы
+  // редкости — прежний def-вектор 10/7/5/2/1 остаётся только у
+  // left_hand/ring. Игла — по фактической строке канона §2.
+  m = anchor(/после 000321\.02 \(50 брони, 8 слотов\) факт каталога: head (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), ears (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), neck (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), torso (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), forearms (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), palms (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), legs (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), feet (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\); left_hand\/ring — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\./, 'c4');
   const V = it.vectors;
   const eq = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
-  assert.ok(eq(V.torso, torso) && D(m[11]) === V.torso.reduce((a, b) => a + b, 0), 'c4: torso disk=' + JSON.stringify(V.torso));
-  assert.ok(eq(V.forearms, fore) && D(m[17]) === V.forearms.reduce((a, b) => a + b, 0), 'c4: forearms disk=' + JSON.stringify(V.forearms));
-  assert.ok(eq(V.palms, palm) && D(m[23]) === V.palms.reduce((a, b) => a + b, 0), 'c4: palms disk=' + JSON.stringify(V.palms));
-  for (const s of ['head', 'ears', 'neck', 'legs', 'feet', 'left_hand', 'ring']) assert.ok(eq(V[s], def), 'c4: def slot ' + s + ' disk=' + JSON.stringify(V[s]));
+  {
+    const SLOTS4 = ['head', 'ears', 'neck', 'torso', 'forearms', 'palms', 'legs', 'feet'];
+    let gi = 1;
+    for (const slot of SLOTS4) {
+      const v = [D(m[gi]), D(m[gi + 1]), D(m[gi + 2]), D(m[gi + 3]), D(m[gi + 4])];
+      assert.ok(eq(V[slot], v) && D(m[gi + 5]) === V[slot].reduce((a, b) => a + b, 0),
+        'c4: ' + slot + ' disk=' + JSON.stringify(V[slot]));
+      gi += 6;
+    }
+    const def = [D(m[gi]), D(m[gi + 1]), D(m[gi + 2]), D(m[gi + 3]), D(m[gi + 4])];
+    assert.ok(eq(V.left_hand, def) && eq(V.ring, def),
+      'c4: left_hand/ring disk=' + JSON.stringify(V.left_hand) + '/' + JSON.stringify(V.ring));
+  }
   // Ре-пин 000321.01: right_hand больше НЕ def-вектор — 50 оружия
   // 000514–000563 прилипли к слоту; отдельная игла суммы волн.
   m = anchor(/right_hand — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \(волна 000230\.12 (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \+ оружие 000321\.01 (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\)\./, 'c4rh');
@@ -193,20 +202,29 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
   const bs = D(m[2]), be = D(m[3]);
   for (let n = bs; n <= be; n++) assert.equal(kindByNum[n], 'craft_scroll', 'c11: чертёж ' + n + ' kind=' + kindByNum[n] + ' (ожид. craft_scroll)');
 
-  m = anchor(/: head (\d+)–(\d+), ears (\d+)–(\d+), neck (\d+)–(\d+), torso (\d+)–(\d+) \(\+(\d+)–(\d+)\), forearms (\d+)–(\d+) \(\+(\d+)\), palms (\d+)–(\d+) \(\+(\d+)\), right_hand (\d+)–(\d+)(?: \(\+(\d+)–(\d+)\))?, left_hand (\d+)–(\d+), ring (\d+)–(\d+), legs (\d+)–(\d+), feet (\d+)–(\d+)\./, 'c11-slots');
-  const slotRanges = {
-    head: { s: D(m[1]), e: D(m[2]), ex: [] },
-    ears: { s: D(m[3]), e: D(m[4]), ex: [] },
-    neck: { s: D(m[5]), e: D(m[6]), ex: [] },
-    torso: { s: D(m[7]), e: D(m[8]), ex: [D(m[9]), D(m[10])] },
-    forearms: { s: D(m[11]), e: D(m[12]), ex: [D(m[13])] },
-    palms: { s: D(m[14]), e: D(m[15]), ex: [D(m[16])] },
-    right_hand: { s: D(m[17]), e: D(m[18]), ex: m[19] ? Array.from({ length: D(m[20]) - D(m[19]) + 1 }, (_, i) => D(m[19]) + i) : [] },
-    left_hand: { s: D(m[21]), e: D(m[22]), ex: [] },
-    ring: { s: D(m[23]), e: D(m[24]), ex: [] },
-    legs: { s: D(m[25]), e: D(m[26]), ex: [] },
-    feet: { s: D(m[27]), e: D(m[28]), ex: [] },
+  // Ре-пин 000321.02: у каждого слота теперь НОЛЬ ИЛИ БОЛЕЕ
+  // дополнительных диапазонов «(+N, +a–b)» (броня 000321.02
+  // дописала 8 слотам) — парсер обобщён.
+  m = anchor(/: head (\d+)–(\d+)(?: \(([^)]*)\))?, ears (\d+)–(\d+)(?: \(([^)]*)\))?, neck (\d+)–(\d+)(?: \(([^)]*)\))?, torso (\d+)–(\d+)(?: \(([^)]*)\))?, forearms (\d+)–(\d+)(?: \(([^)]*)\))?, palms (\d+)–(\d+)(?: \(([^)]*)\))?, right_hand (\d+)–(\d+)(?: \(([^)]*)\))?, left_hand (\d+)–(\d+)(?: \(([^)]*)\))?, ring (\d+)–(\d+)(?: \(([^)]*)\))?, legs (\d+)–(\d+)(?: \(([^)]*)\))?, feet (\d+)–(\d+)(?: \(([^)]*)\))?\./, 'c11-slots');
+  const parseEx = (g) => {
+    const out = [];
+    if (!g) return out;
+    for (const mm of g.matchAll(/\+(\d+)(?:–(\d+))?/g)) {
+      const a = D(mm[1]);
+      const b = mm[2] === undefined ? a : D(mm[2]);
+      for (let n = a; n <= b; n++) out.push(n);
+    }
+    return out;
   };
+  const slotRanges = {};
+  {
+    const SLOT_ORDER = ['head', 'ears', 'neck', 'torso', 'forearms', 'palms', 'right_hand', 'left_hand', 'ring', 'legs', 'feet'];
+    let gi = 1;
+    for (const slot of SLOT_ORDER) {
+      slotRanges[slot] = { s: D(m[gi]), e: D(m[gi + 1]), ex: parseEx(m[gi + 2]) };
+      gi += 3;
+    }
+  }
   const slotByNum = {}, numBySlot = {};
   for (const x of it.all) {
     if (x.num < 83) continue;

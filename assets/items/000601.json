@@ -1,0 +1,21 @@
+{
+  "id": "hide_hose",
+  "name": "Кожаные шоссы",
+  "kind": "armor",
+  "weight": 0.6,
+  "value": 23,
+  "desc": "Кожаные шоссы: шаг в них громче, чем совесть.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_hose.svg",
+  "slot": "legs",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.04
+    }
+  ]
+}

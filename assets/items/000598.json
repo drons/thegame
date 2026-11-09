@@ -1,0 +1,21 @@
+{
+  "id": "frostgrip_gauntlets",
+  "name": "Рукавицы зимней росы",
+  "kind": "armor",
+  "weight": 1.3,
+  "value": 290,
+  "desc": "Рукавицы зимней росы: роса, что не тает в кулаке.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/frostgrip_gauntlets.svg",
+  "slot": "palms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "archer",
+      "amount": 0.13
+    }
+  ]
+}

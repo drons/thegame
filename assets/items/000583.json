@@ -1,0 +1,25 @@
+{
+  "id": "warder_pendant",
+  "name": "Оберег щита",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 240,
+  "desc": "Оберег щита: щит, который всегда при горле.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/warder_pendant.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.12
+    },
+    {
+      "type": "free_cast",
+      "spell": "magic_shield"
+    }
+  ]
+}

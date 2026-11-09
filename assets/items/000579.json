@@ -1,0 +1,21 @@
+{
+  "id": "vial_charm",
+  "name": "Пузырёк на шнурке",
+  "kind": "armor",
+  "weight": 0.12,
+  "value": 15,
+  "desc": "Пузырёк на шнурке: на всякий случай — и он наступает.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/vial_charm.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.02
+    }
+  ]
+}

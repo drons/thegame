@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="55" rx="16" ry="3" fill="rgba(0,0,0,0.22)"/>
+  <polygon points="14,20 30,20 30,44 26,50 18,50 14,44" fill="#8a94a4"/>
+  <polygon points="34,20 50,20 50,44 46,50 38,50 34,44" fill="#a8b0bc"/>
+  <polygon points="14,30 10,34 12,40 14,38" fill="#8a94a4"/>
+  <polygon points="50,30 54,34 52,40 50,38" fill="#a8b0bc"/>
+  <rect x="14" y="44" width="16" height="4" fill="#6a7480"/>
+  <rect x="34" y="44" width="16" height="4" fill="#6a7480"/>
+  <circle cx="19" cy="28" r="1.8" fill="#7c9cc8"/>
+  <circle cx="25" cy="28" r="1.8" fill="#7c9cc8"/>
+  <circle cx="39" cy="28" r="1.8" fill="#7c9cc8"/>
+  <circle cx="45" cy="28" r="1.8" fill="#7c9cc8"/>
+</svg>

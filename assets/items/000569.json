@@ -1,0 +1,21 @@
+{
+  "id": "rune_circlet",
+  "name": "Рунный венец",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 260,
+  "desc": "Рунный венец: семь рун — семь раз подумай.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/rune_circlet.svg",
+  "slot": "head",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "elder",
+      "amount": 0.13
+    }
+  ]
+}

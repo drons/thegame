@@ -1,0 +1,21 @@
+{
+  "id": "sigil_greaves",
+  "name": "Поножи со знаками",
+  "kind": "armor",
+  "weight": 3,
+  "value": 320,
+  "desc": "Поножи со знаками: знак — это обещанная тропа.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/sigil_greaves.svg",
+  "slot": "legs",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.14
+    }
+  ]
+}

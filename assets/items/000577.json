@@ -1,0 +1,21 @@
+{
+  "id": "dawn_ear_cuff",
+  "name": "Серьга утренней зари",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 520,
+  "desc": "Серьга утренней зари: пойманный первый луч.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/dawn_ear_cuff.svg",
+  "slot": "ears",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.22
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "quilted_jack",
+  "name": "Короткая стёганка",
+  "kind": "armor",
+  "weight": 1.8,
+  "value": 22,
+  "desc": "Короткая стёганка: вата держит не хуже стали — пока держит.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/quilted_jack.svg",
+  "slot": "torso",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "silver_pendant_chain",
+  "name": "Серебряная цепь с кулоном",
+  "kind": "armor",
+  "weight": 0.16,
+  "value": 65,
+  "desc": "Серебряная цепь с кулоном: кулон пустой — место для клятвы.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/silver_pendant_chain.svg",
+  "slot": "neck",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.06
+    }
+  ]
+}

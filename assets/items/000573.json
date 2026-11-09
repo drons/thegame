@@ -1,0 +1,21 @@
+{
+  "id": "shell_wire_earring",
+  "name": "Ракушка на проволокке",
+  "kind": "armor",
+  "weight": 0.06,
+  "value": 13,
+  "desc": "Ракушка на проволокке: слышно море, даже в шаге от него.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/shell_wire_earring.svg",
+  "slot": "ears",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "orator",
+      "amount": 0.04
+    }
+  ]
+}

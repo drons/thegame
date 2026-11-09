@@ -1,0 +1,33 @@
+{
+  "id": "vigil_vambrace",
+  "name": "Рукавицы дозорной заставы",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 19,
+  "desc": "Рукавицы дозорной заставы: держат врата, пока тепло.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/vigil_vambrace.svg",
+  "slot": "palms",
+  "rarity": "common",
+  "set": "vigil",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.03
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 2
+    },
+    "3": {
+      "armor": 3
+    },
+    "4": {
+      "armor": 4
+    }
+  }
+}

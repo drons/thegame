@@ -1,0 +1,21 @@
+{
+  "id": "woven_sandals",
+  "name": "Плетёные постолы",
+  "kind": "armor",
+  "weight": 0.5,
+  "value": 15,
+  "desc": "Плетёные постолы: дорога сама их не выбьет.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/woven_sandals.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.02
+    }
+  ]
+}

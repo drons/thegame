@@ -1,0 +1,33 @@
+{
+  "id": "vigil_helm",
+  "name": "Шлем дозорной заставы",
+  "kind": "armor",
+  "weight": 1.4,
+  "value": 700,
+  "desc": "Шлем дозорной заставы: забрало всегда приоткрыто на звук.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/vigil_helm.svg",
+  "slot": "head",
+  "rarity": "legendary",
+  "set": "vigil",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.24
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 2
+    },
+    "3": {
+      "armor": 3
+    },
+    "4": {
+      "armor": 4
+    }
+  }
+}

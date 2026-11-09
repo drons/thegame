@@ -1,0 +1,21 @@
+{
+  "id": "dusk_greaves",
+  "name": "Латные поножи заката",
+  "kind": "armor",
+  "weight": 4,
+  "value": 660,
+  "desc": "Латные поножи заката: до темноты дойдут — и от темноты отобьют.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/dusk_greaves.svg",
+  "slot": "legs",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.26
+    }
+  ]
+}

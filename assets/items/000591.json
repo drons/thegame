@@ -1,0 +1,21 @@
+{
+  "id": "thorn_bracers",
+  "name": "Колючие наручи",
+  "kind": "armor",
+  "weight": 0.7,
+  "value": 88,
+  "desc": "Колючие наручи: обними — и поймёшь.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/thorn_bracers.svg",
+  "slot": "forearms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.08
+    }
+  ]
+}

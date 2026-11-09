@@ -1,0 +1,21 @@
+{
+  "id": "warder_cuirass",
+  "name": "Кираса дозорного",
+  "kind": "armor",
+  "weight": 4.5,
+  "value": 95,
+  "desc": "Кираса дозорного: дозор носит её, а не она дозор.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/warder_cuirass.svg",
+  "slot": "torso",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.07
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "grip_gloves",
+  "name": "Хваткие рукавицы",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 86,
+  "desc": "Хваткие рукавицы: взяв — не отдадут.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/grip_gloves.svg",
+  "slot": "palms",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.06
+    }
+  ]
+}

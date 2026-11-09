@@ -3814,10 +3814,16 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
     warden_quarterstaff: 2, gilded_broadsword: 4, damascus_blade: 2,
     thunder_maul: 2, goldstring_bow: 3, windfletch_bow: 1, tempest_staff: 2,
     hoarfrost_staff: 3, archivist_staff: 4, gate_hammer: 1, aurora_bow: 3,
-    fate_cleaver: 1, genesis_staff: 4
+    fate_cleaver: 1, genesis_staff: 4,
     // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
     // rng-хвост; остальные ключи стока не сдвинулись
     // (seed/старые ключи byte-identical).
+
+    // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога,
+    // rng-хвост пула видов 000047 → += 40 брони; старые
+    // ключи бит-в-бит (node-пересимуляция; зеркало GOLDEN_CAMP
+    // в items.test.js).
+    patched_helm: 1, felt_coif: 2, tin_morion: 2, riveted_helm: 3, rune_circlet: 1, spiral_earring: 4, shell_wire_earring: 2, silver_drop_earring: 2, moonstone_stud: 3, mystic_earring: 2, dawn_ear_cuff: 1, fang_lanyard: 1, vial_charm: 2, copper_beads: 4, amethyst_collar: 4, warder_pendant: 3, twilight_necklace: 1, quilted_jack: 2, warder_cuirass: 4, vigil_plate: 2, wool_bracers: 4, silver_bracers: 3, thorn_bracers: 4, engraved_bracers: 4, gilded_vambraces: 3, vigil_vambrace: 1, grip_gloves: 2, frostgrip_gauntlets: 2, coarse_trousers: 4, hide_hose: 3, vigil_greaves: 1, scale_hose: 4, sigil_greaves: 4, dusk_greaves: 4, tar_boots: 2, traveler_boots: 3, nailed_boots: 2, thorn_boots: 1, pathfinder_boots: 1, lostroad_boots: 3,
   }, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
@@ -7944,10 +7950,16 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
     silvered_sword: 1, legion_gladius: 1, rebel_brand: 2, silver_inlaid_bow: 2,
     long_warbow: 1, siege_axe: 1, silver_bound_staff: 1, gilded_broadsword: 1,
     damascus_blade: 2, thunder_maul: 1, goldstring_bow: 2, hoarfrost_staff: 1,
-    aurora_bow: 1, starvault_staff: 1, fate_cleaver: 1, genesis_staff: 1
+    aurora_bow: 1, starvault_staff: 1, fate_cleaver: 1, genesis_staff: 1,
     // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
     // rng-хвост; остальные ключи стока не сдвинулись
     // (seed/старые ключи byte-identical).
+
+    // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога,
+    // rng-хвост пула видов 000047 → += 29 брони; старые
+    // ключи бит-в-бит (node-пересимуляция; зеркало GOLDEN_CAMP
+    // в items.test.js).
+    patched_helm: 2, riveted_helm: 2, boar_tusk_earring: 2, spiral_earring: 2, shell_wire_earring: 1, silver_drop_earring: 2, moonstone_stud: 2, mystic_earring: 2, fang_lanyard: 1, vial_charm: 1, copper_beads: 2, silver_pendant_chain: 1, amethyst_collar: 1, twilight_necklace: 2, quilted_jack: 1, hide_bracers: 1, silver_bracers: 1, thorn_bracers: 1, driver_mitts: 1, grip_gloves: 2, frostgrip_gauntlets: 1, hide_hose: 1, wool_breeches: 2, vigil_greaves: 2, sigil_greaves: 2, dusk_greaves: 2, woven_sandals: 2, traveler_boots: 1, pathfinder_boots: 1,
   }, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
@@ -8140,10 +8152,16 @@ test('B27. детерминизм барахолки: два мира, один 
     legion_gladius: 2, arming_sword: 1, rebel_brand: 2, warder_sword: 1,
     long_warbow: 2, warden_quarterstaff: 2, vine_staff: 1, gilt_war_hammer: 2,
     thunder_maul: 2, goldstring_bow: 2, windfletch_bow: 2, tempest_staff: 2,
-    pyre_staff: 1, hoarfrost_staff: 2, fate_cleaver: 1
+    pyre_staff: 1, hoarfrost_staff: 2, fate_cleaver: 1,
     // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога,
     // rng-хвост; остальные ключи стока не сдвинулись
     // (seed/старые ключи byte-identical).
+
+    // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога,
+    // rng-хвост пула видов 000047 → += 29 брони; старые
+    // ключи бит-в-бит (node-пересимуляция; зеркало GOLDEN_CAMP
+    // в items.test.js).
+    felt_coif: 2, tin_morion: 1, vigil_helm: 1, spiral_earring: 2, shell_wire_earring: 1, moonstone_stud: 1, mystic_earring: 1, dawn_ear_cuff: 2, fang_lanyard: 1, vial_charm: 2, copper_beads: 1, silver_pendant_chain: 1, quilted_jack: 2, wool_bracers: 2, thorn_bracers: 1, gilded_vambraces: 1, grip_gloves: 2, frostgrip_gauntlets: 1, golem_gauntlets: 1, coarse_trousers: 1, hide_hose: 1, scale_hose: 1, sigil_greaves: 2, dusk_greaves: 2, woven_sandals: 1, traveler_boots: 1, thorn_boots: 2, pathfinder_boots: 1, lostroad_boots: 1,
   }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),

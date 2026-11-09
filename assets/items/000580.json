@@ -1,0 +1,21 @@
+{
+  "id": "copper_beads",
+  "name": "Медная мониста",
+  "kind": "armor",
+  "weight": 0.15,
+  "value": 16,
+  "desc": "Медная мониста: каждая бусина — счёт дня.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/copper_beads.svg",
+  "slot": "neck",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.04
+    }
+  ]
+}

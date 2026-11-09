@@ -1,0 +1,21 @@
+{
+  "id": "tar_boots",
+  "name": "Смоляные сапоги",
+  "kind": "armor",
+  "weight": 0.8,
+  "value": 18,
+  "desc": "Смоляные сапоги: дождь проходит мимо.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/tar_boots.svg",
+  "slot": "feet",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

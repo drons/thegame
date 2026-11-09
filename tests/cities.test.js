@@ -1607,6 +1607,10 @@ const SHOP_GOLDEN = {
   // не сдвинулись (node-симуляция: seed/старые стоки
   // byte-identical). Прочие 3 голдены — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
+    // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога,
+    // rng-хвост allItems-пула → += 39 брони; остальные
+    // ключи стока не сдвинулись (seed byte-identical).
+    patched_helm: 5, felt_coif: 4, tin_morion: 1, steel_shishak: 1, rune_circlet: 1, vigil_helm: 4, spiral_earring: 4, shell_wire_earring: 1, silver_drop_earring: 4, moonstone_stud: 5, mystic_earring: 2, fang_lanyard: 4, vial_charm: 4, copper_beads: 3, silver_pendant_chain: 4, amethyst_collar: 4, warder_pendant: 4, quilted_jack: 5, warder_cuirass: 5, vigil_plate: 2, hide_bracers: 3, wool_bracers: 5, silver_bracers: 2, engraved_bracers: 3, gilded_vambraces: 2, vigil_vambrace: 2, driver_mitts: 2, studded_mitts: 3, frostgrip_gauntlets: 1, golem_gauntlets: 2, coarse_trousers: 4, hide_hose: 2, wool_breeches: 5, vigil_greaves: 1, sigil_greaves: 3, dusk_greaves: 3, woven_sandals: 4, traveler_boots: 5, pathfinder_boots: 4,
     wood_sword: 1, iron_sword: 1, steel_sword: 5, short_bow: 2,
     hunting_bow: 1, battle_axe: 3, war_hammer: 4, leather_armor: 3,
     chainmail: 1, knight_plate: 2, minor_healing: 2, healing_potion: 5,

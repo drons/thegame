@@ -1,0 +1,21 @@
+{
+  "id": "nailed_boots",
+  "name": "Башмаки, подбитые гвоздями",
+  "kind": "armor",
+  "weight": 1.6,
+  "value": 78,
+  "desc": "Башмаки, подбитые гвоздями: шаг, который слышит камень.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/nailed_boots.svg",
+  "slot": "feet",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.07
+    }
+  ]
+}

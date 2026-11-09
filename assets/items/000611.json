@@ -1,0 +1,25 @@
+{
+  "id": "thorn_boots",
+  "name": "Шипастые сапоги",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 300,
+  "desc": "Шипастые сапоги: тропу колют, ноги целы.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/thorn_boots.svg",
+  "slot": "feet",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.12
+    },
+    {
+      "type": "free_cast",
+      "spell": "thorns"
+    }
+  ]
+}

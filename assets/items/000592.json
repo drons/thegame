@@ -1,0 +1,21 @@
+{
+  "id": "engraved_bracers",
+  "name": "Резные наручи",
+  "kind": "armor",
+  "weight": 1.2,
+  "value": 310,
+  "desc": "Резные наручи: узор не для красоты — для счёта ударов.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/engraved_bracers.svg",
+  "slot": "forearms",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "thief",
+      "amount": 0.15
+    }
+  ]
+}

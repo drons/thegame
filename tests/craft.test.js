@@ -142,11 +142,11 @@ function loadSchema() {
 
 // --- Нумерация ---
 
-test('каталог: нумерация файлов — сегменты подряд: 000001..000199 + 000210..000237 + 000260..000287 + 000310..000337 + 000360..000419 + 000420..000469 (ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000230.11: 000144–000199 руки; ре-пин 000230.12: 000210–000237 «правая рука»; ре-пин 000230.13: 000260–000287 left_hand; ре-пин 000230.14: 000310–000337 кольца; ре-пин 000230.15: 000360–000415 ноги/ступни; ре-пин 000230.19: +2 set 000416–000417; ре-пин 000277: +2 set 000418–000419 — шестисегментный каталог)', () => {
+test('каталог: нумерация файлов — сегменты подряд: 000001..000199 + 000210..000237 + 000260..000287 + 000310..000337 + 000360..000419 + 000420..000469 + 000470..000519 (ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000230.11: 000144–000199 руки; ре-пин 000230.12: 000210–000237 «правая рука»; ре-пин 000230.13: 000260–000287 left_hand; ре-пин 000230.14: 000310–000337 кольца; ре-пин 000230.15: 000360–000415 ноги/ступни; ре-пин 000230.19: +2 set 000416–000417; ре-пин 000277: +2 set 000418–000419 — семисегментный каталог)', () => {
   const files = listCraftFiles();
   assert.ok(files.length >= 8, 'каталог подозрительно маленький');
   let i = 0;
-  for (const [from, to] of [[1, 199], [210, 237], [260, 287], [310, 337], [360, 419], [420, 469]]) {
+  for (const [from, to] of [[1, 199], [210, 237], [260, 287], [310, 337], [360, 419], [420, 469], [470, 519]]) {
     for (let n = from; n <= to; n++, i++) {
       assert.equal(files[i], String(n).padStart(6, '0') + '.json',
         `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
@@ -160,7 +160,8 @@ test('каталог: нумерация файлов — сегменты по�
     + 'ре-пин 000230.15: +56 = 339; '
     + 'ре-пин 000230.19: +2 set = 341; '
     + 'ре-пин 000277: +2 set = 343; '
-    + 'ре-пин 000321.01: +50 оружия 000420–000469 = 393)');
+    + 'ре-пин 000321.01: +50 оружия 000420–000469 = 393; '
+    + 'ре-пин 000321.02: +50 брони 000470–000519 = 443)');
 });
 
 test('каталог: чужих файлов нет (только NNNNNN.json и schema.json)', () => {
@@ -486,15 +487,15 @@ const ORES_015701 = ['silver_ore', 'gold_ore', 'mithril_ore', 'quartz',
   'obsidian', 'phosphorite', 'ruby', 'sapphire', 'emerald', 'amethyst',
   'diamond'];
 
-test('000157.04 R1: каталог — ровно 393 файлов: 000001..000199 подряд + 000210..000237 подряд + 000260..000287 подряд + 000310..000337 подряд + 000360..000419 подряд + 000420..000469 подряд (ре-пин 000321.01: +50 оружия 000420–000469; (ре-пин 000230.08: +28 000032–000059; ре-пин 000230.09: +56 000060–000115; ре-пин 000230.10: +28 torso 000116–000143; ре-пин 000230.11: +56 рук 000144–000199; ре-пин 000230.12: +28 right-hand 000210–000237; ре-пин 000230.13: +28 left_hand 000260–000287; ре-пин 000230.14: +28 колец 000310–000337; ре-пин 000230.15: +56 ног/ступней 000360–000415; ре-пин 000230.19: +2 set 000416–000417; ре-пин 000277: +2 set 000418–000419; дыры 000200–000209, 000238–000259, 000288–000309, 000338–000359 — шестисегментный каталог)', () => {
+test('000157.04 R1: каталог — ровно 443 файлов: 000001..000199 подряд + 000210..000237 подряд + 000260..000287 подряд + 000310..000337 подряд + 000360..000419 подряд + 000420..000469 подряд + 000470..000519 подряд (ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.01: +50 оружия 000420–000469; (ре-пин 000230.08: +28 000032–000059; ре-пин 000230.09: +56 000060–000115; ре-пин 000230.10: +28 torso 000116–000143; ре-пин 000230.11: +56 рук 000144–000199; ре-пин 000230.12: +28 right-hand 000210–000237; ре-пин 000230.13: +28 left_hand 000260–000287; ре-пин 000230.14: +28 колец 000310–000337; ре-пин 000230.15: +56 ног/ступней 000360–000415; ре-пин 000230.19: +2 set 000416–000417; ре-пин 000277: +2 set 000418–000419; дыры 000200–000209, 000238–000259, 000288–000309, 000338–000359 — семисегментный каталог)', () => {
   const files = listCraftFiles();
-  assert.equal(files.length, 393,
-    'ровно 393 рецепт (31 до 000230.08 + 28 head 000032–000059 '
+  assert.equal(files.length, 443,
+    'ровно 443 рецепт (31 до 000230.08 + 28 head 000032–000059 '
     + '+ 56 уши/шея 000060–000115 + 28 torso 000116–000143 '
     + '+ 56 рук 000144–000199 + 28 right-hand 000210–000237 '
     + '+ 28 left_hand 000260–000287 + 28 колец 000310–000337 '
     + '+ 56 ног/ступней 000360–000415 + 2 set 000416–000417 '
-    + '+ 2 set 000418–000419 + 50 оружия 000420–000469 (000321.01)), '
+    + '+ 2 set 000418–000419 + 50 оружия 000420–000469 (000321.01) + 50 брони 000470–000519 (000321.02)), '
     + 'а есть: ' + files.length);
   files.forEach((f, i) => {
     const expected = i < 199
@@ -685,37 +686,41 @@ test('000191.14: КАЖДЫЙ рецепт типа «зачарование» �
   assert.deepEqual(
     enchants.map((x) => x.data.id).sort(),
     [
-      'aegis_mantle', 'aegis_mantle_mithril', 'amethyst_boots', 'amethyst_choker', 'amethyst_dangle',
-      'amethyst_pants', 'amethyst_ring', 'arcane_eye', 'arcane_eye_diamond', 'archivist_staff',
-      'aurora_bow', 'bone_graver', 'cinder_eye', 'dawn_pendant', 'dawn_pendant_diamond',
-      'deep_breath_robe', 'ember_focus', 'ember_pants', 'ember_robe', 'ember_staff',
-      'emerald_amulet', 'emerald_signet', 'emerald_stud', 'faith_amulet', 'faith_necklace',
-      'faith_stud', 'flame_staff', 'frost_charm', 'frost_orb', 'frost_ring',
-      'frost_sandals', 'genesis_staff', 'ghost_cuff', 'gold_chain', 'gold_dangle',
-      'goldstring_bow', 'guard_amulet', 'haste_wraps', 'heart_of_elements', 'heart_of_elements_mithril',
-      'hoarfrost_staff', 'hunting_bow', 'hunting_bow_sapphire', 'ice_staff', 'knight_plate',
-      'knight_plate_ruby', 'long_warbow', 'meditating_robe', 'mind_pendant', 'moonstone_chain',
-      'moonstone_dangle', 'mystic_breeches', 'mystic_cloth', 'mystic_sandals', 'mystic_sutan',
-      'mystic_wraps', 'night_gloves', 'obsidian_cloth', 'obsidian_greaves', 'obsidian_sandals',
-      'phantom_gloves', 'philosopher_staff', 'philosopher_staff_mithril', 'phoenix_ring', 'phoenix_ring_mithril',
-      'pilgrim_sutan', 'pilgrim_sutan_mithril', 'pyre_staff', 'quartz_cloth', 'rime_staff',
-      'ruby_bell', 'ruby_pendant', 'ruby_ring', 'rune_boots', 'rune_boots_mithril',
-      'rune_bracers', 'rune_bracers_mithril', 'rune_charm', 'rune_chisel', 'rune_gauntlets',
+      'aegis_mantle', 'aegis_mantle_mithril', 'amethyst_boots', 'amethyst_choker', 'amethyst_collar',
+      'amethyst_dangle', 'amethyst_pants', 'amethyst_ring', 'arcane_eye', 'arcane_eye_diamond',
+      'archivist_staff', 'aurora_bow', 'bone_graver', 'cinder_eye', 'dawn_ear_cuff',
+      'dawn_pendant', 'dawn_pendant_diamond', 'deep_breath_robe', 'dusk_greaves', 'ember_focus',
+      'ember_pants', 'ember_robe', 'ember_staff', 'emerald_amulet', 'emerald_signet',
+      'emerald_stud', 'engraved_bracers', 'faith_amulet', 'faith_necklace', 'faith_stud',
+      'flame_staff', 'frost_charm', 'frost_orb', 'frost_ring', 'frost_sandals',
+      'frostgrip_gauntlets', 'genesis_staff', 'ghost_cuff', 'gold_chain', 'gold_dangle',
+      'goldstring_bow', 'golem_gauntlets', 'guard_amulet', 'haste_wraps', 'heart_of_elements',
+      'heart_of_elements_mithril', 'hoarfrost_staff', 'hunting_bow', 'hunting_bow_sapphire', 'ice_staff',
+      'knight_plate', 'knight_plate_ruby', 'long_warbow', 'meditating_robe', 'mind_pendant',
+      'moonstone_chain', 'moonstone_dangle', 'moonstone_stud', 'mystic_breeches', 'mystic_cloth',
+      'mystic_earring', 'mystic_sandals', 'mystic_sutan', 'mystic_wraps', 'night_gloves',
+      'obsidian_cloth', 'obsidian_greaves', 'obsidian_sandals', 'pathfinder_boots', 'phantom_gloves',
+      'philosopher_staff', 'philosopher_staff_mithril', 'phoenix_ring', 'phoenix_ring_mithril', 'pilgrim_sutan',
+      'pilgrim_sutan_mithril', 'pyre_staff', 'quartz_cloth', 'rime_staff', 'ruby_bell',
+      'ruby_pendant', 'ruby_ring', 'rune_boots', 'rune_boots_mithril', 'rune_bracers',
+      'rune_bracers_mithril', 'rune_charm', 'rune_chisel', 'rune_circlet', 'rune_gauntlets',
       'rune_gauntlets_mithril', 'rune_greaves', 'rune_greaves_mithril', 'rune_hoop', 'rune_hoop_mithril',
       'rune_necklace', 'rune_necklace_diamond', 'rune_ring', 'rune_sphere', 'rune_staff',
       'rune_stylus', 'runic_cuff', 'sage_staff', 'sage_staff_mithril', 'scholar_pendant',
-      'scholar_ring', 'scout_bow', 'shadow_robe', 'shadow_wrap', 'silver_bound_staff',
-      'silver_inlaid_bow', 'silver_signet', 'snow_focus', 'snow_focus_mithril', 'soul_bell',
-      'soul_bell_mithril', 'star_armguard', 'star_armguard_diamond', 'star_earring', 'star_earring_mithril',
-      'star_gloves', 'star_gloves_diamond', 'star_hoop', 'star_hoop_mithril', 'star_pendant',
-      'star_pendant_mithril', 'star_signet', 'star_signet_mithril', 'starvault_staff', 'stone_robe',
-      'storm_leggings', 'storm_leggings_diamond', 'storm_sandals', 'storm_sandals_diamond', 'swift_boots',
-      'swift_boots_diamond', 'swift_brace', 'tempest_staff', 'vine_staff', 'void_gauntlet',
-      'void_gauntlet_mithril', 'void_ring', 'void_ring_diamond', 'void_robe', 'void_robe_diamond',
-      'ward_crystal', 'warden_quarterstaff', 'whisper_hoop', 'whisper_hoop_diamond', 'wind_gloves',
+      'scholar_ring', 'scout_bow', 'shadow_robe', 'shadow_wrap', 'sigil_greaves',
+      'silver_bound_staff', 'silver_inlaid_bow', 'silver_signet', 'snow_focus', 'snow_focus_mithril',
+      'soul_bell', 'soul_bell_mithril', 'star_armguard', 'star_armguard_diamond', 'star_earring',
+      'star_earring_mithril', 'star_gloves', 'star_gloves_diamond', 'star_hoop', 'star_hoop_mithril',
+      'star_pendant', 'star_pendant_mithril', 'star_signet', 'star_signet_mithril', 'starvault_staff',
+      'stone_robe', 'storm_leggings', 'storm_leggings_diamond', 'storm_sandals', 'storm_sandals_diamond',
+      'swift_boots', 'swift_boots_diamond', 'swift_brace', 'tempest_staff', 'thorn_boots',
+      'twilight_necklace', 'vigil_plate', 'vine_staff', 'void_gauntlet', 'void_gauntlet_mithril',
+      'void_ring', 'void_ring_diamond', 'void_robe', 'void_robe_diamond', 'ward_crystal',
+      'warden_quarterstaff', 'warder_pendant', 'whisper_hoop', 'whisper_hoop_diamond', 'wind_gloves',
       'windfletch_bow'
     ],
-    'анти-вакуумность: ровно 141 зачарование с этим составом id '
+    'анти-вакуумность: ровно 156 зачарование с этим составом id '
+    + '(ре-пин 000321.02: +15 зачарований брони — у каждого ≥1 «заклинание») '
     + '(ре-пин 000321.01: +15 зачарований оружия — у каждого ≥1 «заклинание») '
     + '(ре-пин 000277: +1 mystic_wraps; '
     + 'ре-пин 000230.19: +1 mystic_sutan) '
@@ -836,7 +841,7 @@ test('000208 R1: schema.json — поля-ссылки зафиксирован�
     'здания[] — ссылка на файл assets/buildings (integer → string)');
 });
 
-test('000208 R2: все 393 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов; ре-пин 000230.15: +56 legs/feet-рецептов; ре-пин 000230.19: +2 set-рецептов; ре-пин 000277: +2 set-рецептов; ре-пин 000321.01: +50 оружия 000420–000469)', () => {
+test('000208 R2: все 443 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов; ре-пин 000230.15: +56 legs/feet-рецептов; ре-пин 000230.19: +2 set-рецептов; ре-пин 000277: +2 set-рецептов; ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000321.02: +50 брони 000470–000519)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
@@ -866,9 +871,9 @@ test('000208 R2: все 393 рецепт — результат/исходник
     }
   }
   // Анти-вакуум: точные счётчики ссылок (контракт 000208 §1).
-  assert.equal(itemRefs, 1462, 'анти-вакуум: 1462 item-ссылки (ре-пин 000230.08: 114+99; ре-пин 000230.09: +208; ре-пин 000230.10: +106; ре-пин 000230.11: +203; ре-пин 000230.12: +108; ре-пин 000230.13: +102; ре-пин 000230.14: +106; ре-пин 000230.15: +199; ре-пин 000230.19: +7; ре-пин 000277: +7; ре-пин 000321.01: +203 = 50 результатов + 153 исходника)');
-  assert.equal(skillRefs, 542, 'анти-вакуум: 542 skill-ссылки (ре-пин 000230.08: 44+35; ре-пин 000230.09: +81; ре-пин 000230.10: +39; ре-пин 000230.11: +74; ре-пин 000230.12: +39; ре-пин 000230.13: +44; ре-пин 000230.14: +41; ре-пин 000230.15: +74; ре-пин 000230.19: +3; ре-пин 000277: +3; ре-пин 000321.01: +65 — 15 зачарований ×2 навыка)');
-  assert.equal(buildingRefs, 538, 'анти-вакуум: 538 building-ссылок (ре-пин 000230.08: 54+39; ре-пин 000230.09: +87; ре-пин 000230.10: +28; ре-пин 000230.11: +78; ре-пин 000230.12: +34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; ре-пин 000230.15: +74; ре-пин 000250: +2 (кожаные брони → [8, 25]); ре-пин 000230.19: +2; ре-пин 000277: +2; ре-пин 000321.01: +65 — 15 рецептов Оружейной → [8, 25])');
+  assert.equal(itemRefs, 1648, 'анти-вакуум: 1648 item-ссылок (ре-пин 000230.08: 114+99; ре-пин 000230.09: +208; ре-пин 000230.10: +106; ре-пин 000230.11: +203; ре-пин 000230.12: +108; ре-пин 000230.13: +102; ре-пин 000230.14: +106; ре-пин 000230.15: +199; ре-пин 000230.19: +7; ре-пин 000277: +7; ре-пин 000321.01: +203 = 50 результатов + 153 исходника; ре-пин 000321.02: +186 = 50 результатов + 136 исходника)');
+  assert.equal(skillRefs, 607, 'анти-вакуум: 607 skill-ссылок (ре-пин 000230.08: 44+35; ре-пин 000230.09: +81; ре-пин 000230.10: +39; ре-пин 000230.11: +74; ре-пин 000230.12: +39; ре-пин 000230.13: +44; ре-пин 000230.14: +41; ре-пин 000230.15: +74; ре-пин 000230.19: +3; ре-пин 000277: +3; ре-пин 000321.01: +65 — 15 зачарований ×2 навыка; ре-пин 000321.02: +65 — зачарование 15×2 + кузнечное/столярное/резьба по 1)');
+  assert.equal(buildingRefs, 609, 'анти-вакуум: 609 building-ссылок (ре-пин 000230.08: 54+39; ре-пин 000230.09: +87; ре-пин 000230.10: +28; ре-пин 000230.11: +78; ре-пин 000230.12: +34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; ре-пин 000230.15: +74; ре-пин 000250: +2 (кожаные брони → [8, 25]); ре-пин 000230.19: +2; ре-пин 000277: +2; ре-пин 000321.01: +65 — 15 рецептов Оружейной → [8, 25]; ре-пин 000321.02: +71 — кузнечное 13×[8,25] + столярное 14×[5] + зачарование 15×[18] + резьба 8×[40,48])');
 });
 
 test('000208 R3: sync-craft-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
@@ -2786,13 +2791,13 @@ test('000230.12 R12: 28 рецептов (199 → 227): 25 базовых (ро�
   }
 });
 
-test('000230.12 R13: ре-пин 000208-R2 — каталог 393 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01)), ВСЕ ссылки резолвятся; анти-вакуум счётчики: item-ссылки 730 → 838 (+108 = 28 результат + 80 исходников) → 940 (+102, 000230.13) → 1046 (+106, 000230.14) → 1245 (+199, 000230.15) → 1252 (+7, 000230.19) → 1259 (+7, 000277) → 1462 (+203 = 50 результатов + 153 исходника, 000321.01), skill-ссылки 273 → 312 (+39) → 356 (+44, 000230.13) → 397 (+41, 000230.14) → 471 (+74, 000230.15) → 474 (+3, 000230.19) → 477 (+3, 000277) → 542 (+65, 000321.01), building-ссылки 286 → 320 (+34) → 350 (+30, 000230.13) → 393 (+43, 000230.14) → 467 (+74, 000230.15) → 469 (+2, 000250) → 471 (+2, 000230.19) → 473 (+2, 000277) → 538 (+65, 000321.01) — точные дельты зафиксированы ростером R12 (у improved здания/навыки = базовые) (краснота: рецептов волны нет — счётчики до-волновые)', () => {
+test('000230.12 R13: ре-пин 000208-R2 — каталог 443 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01) + 50 брони (000321.02)), ВСЕ ссылки резолвятся; анти-вакуум счётчики: item-ссылки 730 → 838 (+108 = 28 результат + 80 исходников) → 940 (+102, 000230.13) → 1046 (+106, 000230.14) → 1245 (+199, 000230.15) → 1252 (+7, 000230.19) → 1259 (+7, 000277) → 1462 (+203 = 50 результатов + 153 исходника, 000321.01) → 1648 (+186 = 50 результатов + 136 исходника, 000321.02), skill-ссылки 273 → 312 (+39) → 356 (+44, 000230.13) → 397 (+41, 000230.14) → 471 (+74, 000230.15) → 474 (+3, 000230.19) → 477 (+3, 000277) → 542 (+65, 000321.01) → 607 (+65, 000321.02), building-ссылки 286 → 320 (+34) → 350 (+30, 000230.13) → 393 (+43, 000230.14) → 467 (+74, 000230.15) → 469 (+2, 000250) → 471 (+2, 000230.19) → 473 (+2, 000277) → 538 (+65, 000321.01) → 609 (+71, 000321.02) — точные дельты зафиксированы ростером R12 (у improved здания/навыки = базовые) (краснота: рецептов волны нет — счётчики до-волновые)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
     PRIMARY_SKILLS.some((p) => p.id === id);
-  assert.equal(byId.size, 393,
-    'каталог — 393 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01)); факт: ' + byId.size);
+  assert.equal(byId.size, 443,
+    'каталог — 443 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01) + 50 брони (000321.02)); факт: ' + byId.size);
   let itemRefs = 0;
   let skillRefs = 0;
   let buildingRefs = 0;
@@ -2817,23 +2822,26 @@ test('000230.12 R13: ре-пин 000208-R2 — каталог 393 рецепт (
         `${file}: цель ссылки ${ref} (id ${id}) нет в assets/buildings`);
     }
   }
-  assert.equal(itemRefs, 1462,
-    'анти-вакуум: 1462 item-ссылки (730 + 28 результатов + 80 '
+  assert.equal(itemRefs, 1648,
+    'анти-вакуум: 1648 item-ссылок (730 + 28 результатов + 80 '
     + 'исходников; ре-пин 000230.12: +108; ре-пин 000230.13: +102; '
     + 'ре-пин 000230.14: +106; ре-пин 000230.15: +199; '
     + 'ре-пин 000230.19: +7; ре-пин 000277: +7; '
-    + 'ре-пин 000321.01: +203); факт: ' + itemRefs);
-  assert.equal(skillRefs, 542,
-    'анти-вакуум: 542 skill-ссылки (273 + 39; ре-пин 000230.12: +39; '
+    + 'ре-пин 000321.01: +203; ре-пин 000321.02: +186); факт: '
+    + itemRefs);
+  assert.equal(skillRefs, 607,
+    'анти-вакуум: 607 skill-ссылок (273 + 39; ре-пин 000230.12: +39; '
     + 'ре-пин 000230.13: +44; ре-пин 000230.14: +41; '
     + 'ре-пин 000230.15: +74; ре-пин 000230.19: +3; '
-    + 'ре-пин 000277: +3; ре-пин 000321.01: +65); факт: ' + skillRefs);
-  assert.equal(buildingRefs, 538,
-    'анти-вакуум: 538 building-ссылки (286 + 34; ре-пин 000230.12: '
+    + 'ре-пин 000277: +3; ре-пин 000321.01: +65; '
+    + 'ре-пин 000321.02: +65); факт: ' + skillRefs);
+  assert.equal(buildingRefs, 609,
+    'анти-вакуум: 609 building-ссылок (286 + 34; ре-пин 000230.12: '
     + '+34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; '
     + 'ре-пин 000230.15: +74; ре-пин 000250: +2 (кожаные брони → '
     + '[8, 25]); ре-пин 000230.19: +2; '
-    + 'ре-пин 000277: +2; ре-пин 000321.01: +65); факт: ' + buildingRefs);
+    + 'ре-пин 000277: +2; ре-пин 000321.01: +65; '
+    + 'ре-пин 000321.02: +71); факт: ' + buildingRefs);
 });
 
 // =====================================================================

@@ -1,0 +1,21 @@
+{
+  "id": "twilight_necklace",
+  "name": "Ожерелье сумерек",
+  "kind": "armor",
+  "weight": 0.2,
+  "value": 230,
+  "desc": "Ожерелье сумерек: ни день, ни ночь — самое время.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/twilight_necklace.svg",
+  "slot": "neck",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.16
+    }
+  ]
+}

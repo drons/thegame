@@ -1,0 +1,21 @@
+{
+  "id": "lostroad_boots",
+  "name": "Сапоги заблудившейся дороги",
+  "kind": "armor",
+  "weight": 1.4,
+  "value": 1080,
+  "desc": "Сапоги заблудившейся дороги: выведут — не туда, но выведут.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/lostroad_boots.svg",
+  "slot": "feet",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.4
+    }
+  ]
+}
