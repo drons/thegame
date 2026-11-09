@@ -11,13 +11,16 @@
 //
 // Контракты:
 //   * RN1 — реестр шейпов: 11 нумерованных каталогов → 'number'
-//     (runes — 'slug' с 000318.02), portraits → 'named';
+//     (runes — 'slug' с 000318.02, visuals — 'slug' с 000318.03),
+//     portraits → 'named';
 //     REF_LINKED_CATALOGS — РОВНО 9 мишеней ссылок
 //     (REF_CATALOGS минус visuals и portraits); ref-eligibility ≠ name-shape
 //     (visuals/runes при ЛЮБОМ шейпе НЕ ref); refPath/isRefPathFull.
 //   * RN2 — покаталожный свип: каждый JSON (кроме schema.json) в форме из
 //     таблицы шейпов lib; номера уникальны и идут ПОДРЯД 1..N; craft —
-//     явное пин-исключение (файлы сегментами с дырами, memory).
+//     явное пин-исключение (файлы сегментами с дырами, memory); slug-шейп —
+//     basename == имени из NAME_OF_000318 (runes — id; visuals — basename
+//     «спрайт», id числовой остаётся в JSON).
 //   * RN3 — каждая межкаталожная ссылка в каждом файловом данных 11
 //     каталогов резолвится ok (супер-set AR8, включая runes).
 //   * RN4 — задел под slug-шейп (будущие дочерние 000318.YY): при ВРЕМЕННОМ
@@ -92,8 +95,17 @@ function withTmpRoot(files, fn) {
   }
 }
 
+// Имя-носитель для slug-каталогов (по умолчанию basename === id + '.json'):
+// runes (000318.02) — id; visuals (000318.03) — basename поля «спрайт»
+// (id каталога ЧИСЛОВОЙ 1..13, имя — по спрайту). Честный экстрактор вместо
+// ослабления свипа: форма + уникальность сохранены.
+const NAME_OF_000318 = {
+  runes: (data) => data.id + '.json',
+  visuals: (data) => path.basename(data.спрайт, '.svg') + '.json',
+};
+
 // Семантика свипа для будущих дочерних 000318.YY (НЕ реальный rename):
-// slug-шейп → basename === id + '.json'; number-шейп → только форма
+// slug-шейп → basename === NameOf-имени; number-шейп → только форма
 // (basename ≠ id легален: dungeons). Возвращает массив описаний нарушений.
 function renameViolations(mod, dir, cat) {
   const shape = mod.ASSET_NAME_SHAPES[cat];
@@ -107,8 +119,9 @@ function renameViolations(mod, dir, cat) {
     if (shape === 'slug') {
       const data = JSON.parse(fs.readFileSync(
         path.join(dir, 'assets', cat, f), 'utf8'));
-      if (f !== data.id + '.json') {
-        out.push(cat + '/' + f + ': basename != id «' + data.id + '»');
+      const nameOf = NAME_OF_000318[cat] || ((d) => d.id + '.json');
+      if (f !== nameOf(data)) {
+        out.push(cat + '/' + f + ': basename != «' + nameOf(data) + '»');
       }
     }
   }
@@ -117,7 +130,7 @@ function renameViolations(mod, dir, cat) {
 
 // Переименованные дочерними каталоги (000318.YY) — вне прежнего default
 // 'number'; остальные NUMBERED остаются number до своих дочерних.
-const SHAPES_EXPECTED_000318 = { runes: 'slug' }; // 000318.02
+const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug' }; // .02, .03
 
 test('RN1: реестр шейпов — переименованные каталоги по таблице, прочие number, portraits named, 9 мишеней', () => {
   const mod = loadShapes();
@@ -125,7 +138,7 @@ test('RN1: реестр шейпов — переименованные ката
     assert.equal(mod.ASSET_NAME_SHAPES[cat],
       SHAPES_EXPECTED_000318[cat] || 'number',
       cat + ': шейп по таблице переименований 000318 (.01 — все number; '
-      + '.02 переименовал runes в slug)');
+      + '.02 переименовал runes в slug; .03 — visuals)');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE, вне SHAPE_BASENAME_RES)');
@@ -150,7 +163,7 @@ test('RN1: реестр шейпов — переименованные ката
     '7 цифр — не ref');
 });
 
-test('RN2: свип каталогов — имена по форме lib; number — номера подряд (craft — дыры), slug — basename == id (000318.02)', () => {
+test('RN2: свип каталогов — имена по форме lib; number — номера подряд (craft — дыры), slug — basename == NameOf (runes — id, visuals — спрайт; .02/.03)', () => {
   const mod = loadShapes();
   for (const cat of NUMBERED) {
     const files = dataFiles(ROOT, cat);
@@ -162,15 +175,17 @@ test('RN2: свип каталогов — имена по форме lib; numbe
     const bad = files.filter((f) => !re.test(f));
     assert.deepEqual(bad, [], cat + ': файлы вне формы шейпа «' + shape + '»');
     if (shape !== 'number') {
-      // Смысловая замена числовых пинов для slug-каталога (000318.02):
-      // «подряд 1..N»носителю имени несвойственен — вместо него честный
-      // свип basename == id (renameViolations) + уникальность id.
+      // Смысловая замена числовых пинов для slug-каталога (000318.02/.03):
+      // «подряд 1..N» носителю имени несвойственен — вместо него честный
+      // свип basename == NameOf (renameViolations: runes — id, visuals —
+      // basename «спрайт») + уникальность id.
       assert.deepEqual(renameViolations(mod, ROOT, cat), [],
-        cat + ': slug-шейп — basename == id каждого файла');
+        cat + ': slug-шейп — basename == имени из NAME_OF_000318 каждого файла');
       const ids = files.map((f) => JSON.parse(fs.readFileSync(
         path.join(ROOT, 'assets', cat, f), 'utf8')).id);
       const dupIds = ids.filter((v, i) => ids.indexOf(v) !== i);
-      assert.deepEqual(dupIds, [], cat + ': дубли id (basename==id ⇒ имена уникальны)');
+      assert.deepEqual(dupIds, [],
+        cat + ': дубли id (basename==NameOf + уникальность файлов ⇒ имена уникальны)');
       continue;
     }
     const nums = files.map((f) => parseInt(f, 10));
@@ -259,6 +274,7 @@ test('RN5: изоморфный набор — isRef ≡ REF_RE ∪ PORTRAITS_RE
   }
   samples.push(
     'assets/visuals/000001.json',
+    'assets/visuals/grass_blades_light.json',
     'assets/runes/000001.json',
     'assets/runes/wood_sword.json',
     'assets/portraits/efir.json',

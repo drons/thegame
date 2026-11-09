@@ -22,7 +22,7 @@ const path = require('path');
 const ASSET_NAME_SHAPES = {
   items: 'number', skills: 'number', spells: 'number', mobs: 'number',
   mob_groups: 'number', buildings: 'number', craft: 'number',
-  dungeons: 'number', npc: 'number', runes: 'slug', visuals: 'number',
+  dungeons: 'number', npc: 'number', runes: 'slug', visuals: 'slug',
   portraits: 'named',
 };
 

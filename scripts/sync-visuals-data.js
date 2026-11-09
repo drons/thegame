@@ -15,48 +15,59 @@
 // и закоммитьте оба каталога вместе (тесты tests/sprites.test.js
 // проверяют точное зеркало JSON <-> JS-модуля).
 //
-// Конвенция id: файл 0000NN.json хранит id NN (000001.json → id 1,
-// закреплено тестом «id = номер файла», tests/sprites.test.js).
-// Множество id по файлам — ровно {1..N}: уникальность схемой не
-// выразима, проверяется здесь и в тестах. Перенумерации НЕТ —
-// визуалы в сейв не пишутся, но порядок каталога входит в формулы
-// tileVisuals (seed от id) — golden-тесты его фиксируют.
+// Конвенция id (000318.03): имя файла — slug по basename поля «спрайт»
+// (grass_blades_light.json ← grass_blades_light.svg), числовой id в JSON
+// НЕ меняется (1..13 — прежняя нумерация файлов). Множество id по файлам —
+// ровно {1..N}: уникальность схемой не выразима, проверяется здесь и в
+// тестах. Перенумерации НЕТ — визуалы в сейв не пишутся, но ПОРЯДОК
+// каталога входит в формулы tileVisuals (seed от id, порядок выбора — от
+// порядка массива): сортировка ниже — ПО ЧИСЛОВИЧ id, итоговый порядок
+// записей совпадает с прежним файловым (rename порядок сохранил).
 //
 // СТИЛЬ — как scripts/sync-npc-data.js / sync-dungeons-data.js:
 // идемпотентность (повторный запуск byte-identical, дрейф-гейт 000054),
-// читабельные ошибки на битом входе (id ≠ номер файла, дубли id,
-// ключи вне схемы → exit 1), атомарная запись
-// (scripts/lib/write-atomic.js).
+// читабельные ошибки на битом входе (не-целый id, дубли id, множество
+// id ≠ {1..N}, ключи вне схемы → exit 1), атомарная запись
+// (scripts/lib/write-atomic.js). Форма имени каталога — из реестра
+// scripts/lib/json-ref.js (ASSET_NAME_SHAPES.visuals = 'slug', 000318.01/.03);
+// slug-regex матчит и schema.json — явное исключение.
 
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'visuals');
 const OUT_FILE = path.join(ROOT, 'src', 'visuals-data.js');
 
-// --- Чтение каталога ---
+// --- Чтение каталога (форма имени — из реестра, slug-regex ловит
+// schema.json — исключаем явно, прецедент sync-runes-data.js) ---
 const files = fs.readdirSync(DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.visuals].test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/visuals: не найдено ни одного файла 0000NN.json');
+  console.error('assets/visuals: не найдено ни одного slug-файла каталога');
   process.exit(1);
 }
 
 const visuals = [];
 for (const f of files) {
-  const n = parseInt(f, 10);
   const data = JSON.parse(
     fs.readFileSync(path.join(DIR, f), 'utf8'));
-  // id = номер файла (конвенция каталога, 000021).
-  if (!data || !Number.isInteger(data.id) || data.id !== n) {
-    console.error(`${f}: id ≠ номер файла (ожидалось ${n})`);
+  // Числовой id живёт в JSON (имя файла — slug по спрайту, 000318.03).
+  if (!data || !Number.isInteger(data.id)) {
+    console.error(`${f}: id отсутствует или не целый`);
     process.exit(1);
   }
   visuals.push({ file: f, data });
 }
+// КОНТРАКТ ПОРЯДКА: сортировка ПО ЧИСЛОВИЧ id — прежняя по имени файла была
+// его носителем только пока имена были нулевой ширины нумерацией; после
+// rename lex-порядок slug ≠ id-порядку, а порядок массива входит в формулы
+// tileVisuals (seed от id) — зеркала обязаны остаться бит-в-бит прежними.
+visuals.sort((a, b) => (a.data.id < b.data.id ? -1 : a.data.id > b.data.id ? 1 : 0));
 // Множество id — ровно {1..N} (уникальность схемой не выразима).
 const ids = visuals.map((v) => v.data.id).sort((a, b) => a - b);
 for (let i = 0; i < ids.length; i++) {
@@ -70,7 +81,7 @@ for (let i = 0; i < ids.length; i++) {
 const KEYS = ['id', 'название', 'террейны', 'спрайт', 'частота', 'размер'];
 
 // --- Генерация JS ---
-const range = `${files[0]} … ${files[files.length - 1]}`;
+const range = `${visuals[0].file} … ${visuals[visuals.length - 1].file}`;
 
 // Форматирует значение JS-литералом (JSON-совместимо).
 function jsValue(v) {
@@ -105,7 +116,8 @@ L.push('// file://, задача 000021).');
 L.push('//');
 L.push('// Source of truth — JSON-файлы каталога assets/visuals/*.json');
 L.push('// (один элемент — один файл, схема — assets/visuals/schema.json);');
-L.push('// id = номер файла. Спрайты — assets/sprites/visuals/.');
+L.push('// id — числовой (1..N), имя файла — slug по basename «спрайт».');
+L.push('// Спрайты — assets/sprites/visuals/.');
 L.push('// GENERATED — не править руками, синхронизируется из assets/visuals (scripts/sync-visuals-data.js).');
 L.push('// Не редактируйте вручную: правьте JSON и пересобирайте модуль');
 L.push('// (node scripts/sync-visuals-data.js, npm sync:visuals).');
@@ -126,7 +138,7 @@ L.push('  }');
 L.push('})(typeof globalThis !== "undefined" ? globalThis : self, function () {');
 L.push('');
 L.push(`  // Декорации (assets/visuals/${range});`);
-L.push('  // порядок массива = нумерация файлов (id = номер файла).');
+L.push('  // порядок массива = по числовому id (прежняя нумерация файлов).');
 L.push('  const VISUALS = [');
 for (const { file, data } of visuals) {
   L.push(`    // ${file}`);

@@ -462,8 +462,9 @@
   //
   // Небольшие графические объекты поверх текстуры тайла: травинки,
   // цветы, кусты на траве/лесу, камни и снег на холмах/горах и т.д.
-  // Источник правды — assets/visuals/NNNNNN.json (схема —
-  // assets/visuals/schema.json), спрайты — assets/sprites/visuals/.
+  // Источник правды — assets/visuals/<slug>.json (имя — basename поля
+  // «спрайт», 000318.03; схема — assets/visuals/schema.json), спрайты —
+  // assets/sprites/visuals/.
   // ДАННЫЕ — в сгенерированном модуле src/visuals-data.js
   // (scripts/sync-visuals-data.js, задача 000059): в node — третий
   // аргумент UMD (require), в браузере — Game.VisualsData (index.html

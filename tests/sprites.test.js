@@ -37,8 +37,28 @@ const LOOT_ITEM_IDS = ITEMS.filter((it) => {
     && typeof it.id === 'string';
 }).map((it) => it.id);
 
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('../scripts/lib/json-ref.js');
+
 const VDIR = path.join(__dirname, '..', 'assets', 'visuals');
 const VSPR = path.join(__dirname, '..', 'assets', 'sprites', 'visuals');
+
+// Каталог assets/visuals — slug-формы (000318.03): форма — из ЖИВОГО
+// реестра lib (slug-regex ловит schema.json — исключаем), порядок — по
+// числовому id (контракт порядка записей: tileVisuals/сиды; прежняя
+// файловая нумерация сохранена rename-ом бит-в-бит).
+function visualFiles() {
+  const re = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.visuals];
+  assert.ok(re instanceof RegExp,
+    'шейп visuals «' + ASSET_NAME_SHAPES.visuals + '» без формы в lib (000318.01)');
+  return fs.readdirSync(VDIR)
+    .filter((f) => f !== 'schema.json' && re.test(f))
+    .map((f) => ({
+      f,
+      data: JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8')),
+    }))
+    .sort((a, b) => a.data.id - b.data.id);
+}
 
 const ROOT = path.join(__dirname, '..');
 const TERRAIN_LIST = Object.values(TERRAIN);
@@ -494,7 +514,7 @@ test('критерий: ассеты не влияют на генерацию �
 
 // --- Декорации тайлов (задача 000021) ---
 
-test('visuals: 13 элементов, id = номер файла, нет дублей id и спрайтов', () => {
+test('visuals: 13 элементов, id 1..13 по позиции каталога (000318.03: имя — slug, id — числовой), нет дублей id и спрайтов', () => {
   assert.equal(S.VISUALS.length, 13);
   const ids = new Set(), sprites = new Set();
   for (let i = 0; i < S.VISUALS.length; i++) {
@@ -514,18 +534,19 @@ test('visuals: каждый террейн (кроме глубокой воды
   }
 });
 
-test('visuals: файлы JSON совпадают с JS-каталогом и проходят схему', () => {
-  const files = fs.readdirSync(VDIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+test('visuals: файлы JSON совпадают с JS-каталогом и проходят схему (000318.03: имя — basename «спрайт», порядок — по id)', () => {
+  const files = visualFiles();
   assert.equal(files.length, S.VISUALS.length, 'число файлов = каталог');
   const schema = JSON.parse(fs.readFileSync(path.join(VDIR, 'schema.json'), 'utf8'));
   for (let i = 0; i < files.length; i++) {
-    const num = String(i + 1).padStart(6, '0');
-    assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
-    const fromFile = JSON.parse(fs.readFileSync(path.join(VDIR, files[i]), 'utf8'));
-    assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(fromFile, S.VISUALS[i], `${num}.json совпадает с JS-каталогом`);
+    const { f, data: fromFile } = files[i];
+    assert.equal(f, path.basename(fromFile.спрайт, '.svg') + '.json',
+      `файл ${f} != basename поля «спрайт» (000318.03)`);
+    assert.equal(fromFile.id, i + 1,
+      'id — позиция в каталоге + 1 (числовой; имя — slug, не номер)');
+    assert.deepEqual(fromFile, S.VISUALS[i], `${f} совпадает с JS-каталогом`);
     // Мини-валидация по schema.json (без внешних зависимостей).
-    assertVisualAgainstSchema(fromFile, schema, num);
+    assertVisualAgainstSchema(fromFile, schema, f);
   }
 });
 
@@ -541,9 +562,7 @@ test('visuals (000056): enum «террейны» схемы ≡ ВСЕМ име
   const enumNames = schema.properties['террейны'].items.enum;
   assert.deepEqual(enumNames.slice().sort(), [...allNames].sort(),
     'enum «террейны» ≠ именам единой таблицы');
-  const files = fs.readdirSync(VDIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  for (const f of files) {
-    const v = JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8'));
+  for (const { f, data: v } of visualFiles()) {
     for (const t of v.террейны) {
       assert.ok(allNames.has(t), `${f}: террейн «${t}» отсутствует в единой таблице`);
     }
@@ -967,8 +986,9 @@ test('критерий: декорации не влияют на генерац
 // 000054). sprites.js — потребитель без собственной копии: браузерная
 // ветка снимает Game.VisualsData при загрузке (index.html:
 // visuals-data.js ДО sprites.js), node-ветка — require
-// ('./visuals-data.js'). Конвенция id: id = номер файла (000001.json →
-// id 1, закреплено тестом «id = номер файла» выше).
+// ('./visuals-data.js'). Конвенция id (000318.03): имя файла — slug по
+// basename поля «спрайт», id — числовой 1..13 (прежняя нумерация), порядок
+// записей — по id (закреплён тестом «id 1..13 по позиции» выше).
 // vm-песочницы БЕЗ data-модуля (tests/combat-ui.test.js,
 // tests/map.test.js грузят sprites.js без него): гард — тихая
 // деградация до пустого каталога (рендер не падает и не шумит;
@@ -983,10 +1003,7 @@ test('критерий: декорации не влияют на генерац
 const fromVm = (v) => JSON.parse(JSON.stringify(v));
 
 function visualCatalog() {
-  return fs.readdirSync(VDIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
-    .sort()
-    .map((f) => JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8')));
+  return visualFiles().map((x) => x.data);
 }
 
 test('src/visuals-data.js: существует, шапка GENERATED (sync-visuals-data.js)', () => {
@@ -1001,16 +1018,15 @@ test('src/visuals-data.js: существует, шапка GENERATED (sync-visu
 test('visuals-data (node): { VISUALS } 1:1 с каталогом assets/visuals (source of truth)', () => {
   const VD = require('../src/visuals-data.js');
   assert.ok(VD && Array.isArray(VD.VISUALS), 'module.exports = { VISUALS }');
-  const files = fs.readdirSync(VDIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const files = visualFiles();
   assert.ok(files.length > 0, 'каталог assets/visuals не пуст');
   assert.equal(VD.VISUALS.length, files.length,
     'число записей модуля = числу файлов каталога');
-  for (const f of files) {
-    const n = parseInt(f, 10);
-    const j = JSON.parse(fs.readFileSync(path.join(VDIR, f), 'utf8'));
-    assert.equal(j.id, n, f + ': id = номер файла (конвенция каталога)');
-    assert.deepEqual(VD.VISUALS[n - 1], j,
+  for (let i = 0; i < files.length; i++) {
+    const { f, data: j } = files[i];
+    assert.equal(j.id, i + 1,
+      f + ': id — позиция в каталоге + 1 (числовой, 000318.03)');
+    assert.deepEqual(VD.VISUALS[j.id - 1], j,
       f + ': запись модуля 1:1 с JSON (source of truth)');
   }
 });

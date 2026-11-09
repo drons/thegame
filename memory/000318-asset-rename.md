@@ -19,7 +19,7 @@ tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
 | dungeons | number | 5 | да |
 | npc | number | 22 | да |
 | runes | slug (000318.02; было number) | 55 — <id>.json | НЕТ (никогда не был в REF_RE) |
-| visuals | number | 13 | НЕТ (каталог прямых svg-путей, AR2/AR5) |
+| visuals | slug (000318.03; было number) | 13 — <slug>.json по basename «спрайт» (id 1..13 числовой в JSON — НЕ basename) | НЕТ (каталог прямых svg-путей, AR2/AR5) |
 | portraits | named | efir/flogiston/npc-NNNNNN | только PORTRAITS_RE |
 
 REF_LINKED_CATALOGS = РОВНО 9 мишеней (REF_CATALOGS минус visuals/portraits).
@@ -97,6 +97,16 @@ src/map.js и формулы визуалов/сидов); перевод сор
   M6 и грабли (slug-regex ловит schema.json — исключать руками; tmp-копирка
   json-ref.js; REF_RE не дрейфует) — memory/000318-runes.md.
   НЕ путать с memory/000318-skills-nature.md (000318.11, деанон id в skills).
+* visuals → slug (000318.03, 13 файлов <slug>.json по basename «спрайт»):
+  имя-носитель — slug = basename(data.спрайт, '.svg'), НЕ id (id числовой
+  1..13 остался в JSON) — порядок зеркала ПО ID сохраняет прежний файтовый
+  порядок БИТ-В-БИТ (diff src/visuals-data.js — только comment-строки),
+  CHANGELOG не требовался. Свип имени — NameOf-таблица в
+  tests/assets-renames-000318.test.js (runes: id; visuals: спрайт) —
+  НЕ ослабление. Ростер номер→slug:
+  1 grass_blades_light, 2 grass_blades_dark, 3 flower_red, 4 flower_yellow,
+  5 flower_white, 6 bush, 7 mushroom, 8 rock, 9 pebble, 10 snow_patch,
+  11 dry_tuft, 12 reed, 13 lily_pad. Детали — memory/000318-visuals.md.
 
 ## 5. Памятка оркестратору волн
 

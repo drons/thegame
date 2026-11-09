@@ -164,22 +164,30 @@ test('порядок core → visuals-data.js → sprites.js: Game.VisualsData �
   assert.ok(G.VisualsData && Array.isArray(G.VisualsData.VISUALS),
     'Game.VisualsData существует после data-модуля');
   const vdir = path.join(ROOT, 'assets', 'visuals');
+  // 000318.03: каталог slug-формы (форма — из ЖИВОГО реестра lib,
+  // schema.json исключён), ПОРЯДОК — по числовому id (контракт записей
+  // зеркала; lex-порядок slug ≠ id-порядку).
+  const vshapeRe =
+    refLib.SHAPE_BASENAME_RES[refLib.ASSET_NAME_SHAPES.visuals];
   const vfiles = fs.readdirSync(vdir)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json' && vshapeRe.test(f))
+    .map((f) => ({
+      f, j: JSON.parse(fs.readFileSync(path.join(vdir, f), 'utf8')),
+    }))
+    .sort((a, b) => a.j.id - b.j.id);
   assert.equal(G.VISUALS.length, vfiles.length,
     'S.VISUALS — число файлов каталога assets/visuals');
   for (let i = 0; i < vfiles.length; i++) {
-    const j = JSON.parse(
-      fs.readFileSync(path.join(vdir, vfiles[i]), 'utf8'));
+    const { f: fname, j } = vfiles[i];
     // Разные realm: объекты vm-контекста — чужой прототип, сравниваем
     // по полям (паттерн теста dungeons-data выше).
-    assert.equal(G.VISUALS[i].id, j.id, vfiles[i] + ': id');
-    assert.equal(G.VISUALS[i].название, j.название, vfiles[i] + ': название');
+    assert.equal(G.VISUALS[i].id, j.id, fname + ': id');
+    assert.equal(G.VISUALS[i].название, j.название, fname + ': название');
     assert.deepEqual([...G.VISUALS[i].террейны], j.террейны,
-      vfiles[i] + ': террейны');
-    assert.equal(G.VISUALS[i].спрайт, j.спрайт, vfiles[i] + ': спрайт');
-    assert.equal(G.VISUALS[i].частота, j.частота, vfiles[i] + ': частота');
-    assert.equal(G.VISUALS[i].размер, j.размер, vfiles[i] + ': размер');
+      fname + ': террейны');
+    assert.equal(G.VISUALS[i].спрайт, j.спрайт, fname + ': спрайт');
+    assert.equal(G.VISUALS[i].частота, j.частота, fname + ': частота');
+    assert.equal(G.VISUALS[i].размер, j.размер, fname + ': размер');
   }
   // tileVisuals работает в браузерном realm (каталог подхвачен).
   let nonEmpty = 0;

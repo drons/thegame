@@ -10,9 +10,9 @@
 //    включая отрицательные (страховка от «немых» валидации);
 //  * schema.json каждого каталога существует, разбирается и использует
 //    только ключи минимального валидатора (ALLOWED_SCHEMA_KEYS);
-//  * каждый файл 000001.json … NNNNNN.json каталога валиден по
-//    схеме каталога (финальное состояние каталогов; JSON —
-//    source of truth, см. SPEC.md);
+//  * каждый файл каталога в форме из реестра scripts/lib/json-ref.js
+//    (000318.01; .03 — visuals slug) валиден по схеме каталога
+//    (финальное состояние каталогов; JSON — source of truth, см. SPEC.md);
 //  * отрицательный контроль: валидатор ловит намеренную поломку
 //    файла (нет обязательного поля / лишнее поле) — валидация
 //    по схеме не пустая формальность.
@@ -32,13 +32,35 @@ const {
 const ROOT = path.join(__dirname, '..');
 const CATALOGS = ['items', 'npc', 'skills', 'buildings', 'dungeons', 'mob_groups', 'visuals', 'mobs'];
 
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('../scripts/lib/json-ref.js');
+
+// 000318.03: assets/visuals — slug-каталог (имя = basename поля «спрайт»,
+// id числовой 1..13 в JSON). Числовой пин «подряд 1..N» заменён ФИКСИРОВАННЫМ
+// множеством имён — не ослабление: состав каталога пиннован целиком.
+const VISUALS_SLUGS_000318 = [
+  'bush.json', 'dry_tuft.json', 'flower_red.json', 'flower_white.json',
+  'flower_yellow.json', 'grass_blades_dark.json', 'grass_blades_light.json',
+  'lily_pad.json', 'mushroom.json', 'pebble.json', 'reed.json',
+  'rock.json', 'snow_patch.json',
+].sort();
+
 function catalogDir(name) {
   return path.join(ROOT, 'assets', name);
 }
 
+function shapeRe(name) {
+  const re = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES[name]];
+  assert.ok(re instanceof RegExp,
+    name + ': шейп «' + ASSET_NAME_SHAPES[name] + '» без формы в lib (000318.01)');
+  return re;
+}
+
 function listDataFiles(name) {
+  const re = shapeRe(name);
+  // slug-regex матчит и schema.json (прецедент 000318.02) — исключаем явно.
   return fs.readdirSync(catalogDir(name))
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json' && re.test(f))
     .sort();
 }
 
@@ -212,7 +234,10 @@ for (const name of CATALOGS) {
     }
   });
 
-  test(`${name}: файлы 000001.json … N.json подряд${name === 'items'
+  test(name === 'visuals'
+    ? name + ': файлы каталога — контрактованное множество slug-имён '
+      + '(000318.03: basename «спрайт»), каталог не пуст'
+    : `${name}: файлы 000001.json … N.json подряд${name === 'items'
       ? ' (ре-пин 000235.10: +25 свитков 000258–000282 — резервная '
       + 'дыра закрыта; ре-пин 000230.11: +50 рук 000283–000332; '
       + 'ре-пин post-merge 000230.12: 000333–000357 «правая рука»; '
@@ -254,23 +279,31 @@ for (const name of CATALOGS) {
     // 000001–000563 подряд, дыр нет; резерв с 000564; craft
     // 000360..000419 → 000360..000469 (+50 рецептов 000420–000469,
     // сегмент сливается), резерв с 000470.
-    const segments = name === 'items'
-      ? [[1, 563]]
-      : name === 'craft'
-        ? [[1, 199], [210, 237], [260, 287], [310, 337], [360, 469]]
-        : [[1, files.length]];
-    let i = 0;
-    for (const [from, to] of segments) {
-      for (let n = from; n <= to; n++, i++) {
-        assert.equal(files[i], String(n).padStart(6, '0') + '.json',
-          `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
+    if (name === 'visuals') {
+      // 000318.03: slug-каталог — вместо числовых сегментов пин фиксированным
+      // множеством имён (носитель числа/состава — сам сет из 13).
+      assert.deepEqual(files, VISUALS_SLUGS_000318,
+        'visuals: имена файлов ≡ контрактованному множеству slug');
+    } else {
+      const segments = name === 'items'
+        ? [[1, 563]]
+        : name === 'craft'
+          ? [[1, 199], [210, 237], [260, 287], [310, 337], [360, 469]]
+          : [[1, files.length]];
+      let i = 0;
+      for (const [from, to] of segments) {
+        for (let n = from; n <= to; n++, i++) {
+          assert.equal(files[i], String(n).padStart(6, '0') + '.json',
+            `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
+        }
       }
+      assert.equal(i, files.length,
+        `${name}: число файлов = сумма сегментов`);
     }
-    assert.equal(i, files.length,
-      `${name}: число файлов = сумма сегментов`);
-    // Чужих файлов нет (только NNNNNN.json и schema.json).
+    // Чужих файлов нет (только файлы формы шейпа из реестра и schema.json).
+    const re = shapeRe(name);
     for (const f of fs.readdirSync(catalogDir(name))) {
-      assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+      assert.ok(re.test(f) || f === 'schema.json',
         `чужой файл в каталоге ${name}: ${f}`);
     }
   });
@@ -291,6 +324,9 @@ for (const name of CATALOGS) {
   test(`${name}: отрицательный контроль — валидатор ловит поломку`, () => {
     const schema = loadSchema(name);
     const files = listDataFiles(name);
+    assert.ok(files.length >= 1,
+      'каталог пуст (фильтр формы из реестра не дал файлов) — '
+      + 'отрицательный контроль нечего проводить');
     const data = JSON.parse(
       fs.readFileSync(path.join(catalogDir(name), files[0]), 'utf8'));
     // Обязательные поля: верхний уровень или первый вариант oneOf

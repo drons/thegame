@@ -40,7 +40,7 @@
 //     резолвится ok. Сейчас 0 ссылок — тест ГЕЙТ последующих миграций.
 //   * AR9 — sweep 11 каталогов: каждая строка «assets/…*.svg»
 //     (collectSvgs) существует от корня (existsSync). Анти-вакуум:
-//     прецедент «спрайт» assets/visuals/000001.json
+//     прецедент «спрайт» assets/visuals/grass_blades_light.json (000318.03)
 //     "assets/sprites/visuals/grass_blades_light.svg" обязателен в
 //     результате. Голые имена иконок portraits (efir.svg …) — вне скоупа
 //     (волна 2, memory §3).
@@ -82,9 +82,18 @@ const REF_CATALOGS_EXPECTED = ['items', 'skills', 'spells', 'mobs',
 
 function dataFiles(mod, cat) {
   const dir = path.join(ROOT, 'assets', cat);
+  // Форма имени — из ЖИВОГО реестра lib (000318.01; .02 — runes slug,
+  // .03 — visuals slug); slug-regex матчит и schema.json — исключаем явно.
+  // portraits — вне SHAPE_BASENAME_RES ('named'), прежняя ветка PORTRAITS_RE.
   const files = cat === 'portraits'
     ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')).sort()
-    : fs.readdirSync(dir).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    : (() => {
+      const re = mod.SHAPE_BASENAME_RES[mod.ASSET_NAME_SHAPES[cat]];
+      assert.ok(re instanceof RegExp,
+        cat + ': шейп «' + mod.ASSET_NAME_SHAPES[cat] + '» без формы в lib');
+      return fs.readdirSync(dir)
+        .filter((f) => f !== 'schema.json' && re.test(f)).sort();
+    })();
   assert.ok(files.length >= 1, cat + ': sweep прошёл 0 файлов (анти-вакуум)');
   return { dir, files };
 }
@@ -279,10 +288,11 @@ test('AR9: sweep 11 каталогов — каждая «assets/…*.svg» су
   assert.deepEqual(missing, [],
     'несуществующие svg: ' + missing.join('; '));
   const v1 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'visuals', '000001.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'visuals', 'grass_blades_light.json'), 'utf8'));
   assert.ok(mod.collectSvgs(v1).some((x) =>
     x.svg === 'assets/sprites/visuals/grass_blades_light.svg'),
-    'анти-вакуум: прецедент «спрайт» visuals/000001 в sweep');
+    'анти-вакуум: прецедент «спрайт» visuals/grass_blades_light в sweep '
+    + '(000318.03: имя — slug по спрайту)');
 });
 
 function loadShapes() {
@@ -306,12 +316,15 @@ function loadShapes() {
 test('AR10: поверхность 000318.01 — реестр шейпов и резолверы формы', () => {
   const mod = loadShapes();
   for (const cat of ['items', 'skills', 'spells', 'mobs', 'mob_groups',
-    'buildings', 'craft', 'dungeons', 'npc', 'visuals']) {
+    'buildings', 'craft', 'dungeons', 'npc']) {
     assert.equal(mod.ASSET_NAME_SHAPES[cat], 'number',
       cat + ': в .01 ничего не переименовано — шейп number');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.runes, 'slug',
     'runes — slug (переименован 000318.02; мишенью ссылок не был никогда)');
+  assert.equal(mod.ASSET_NAME_SHAPES.visuals, 'slug',
+    'visuals — slug (переименован 000318.03: имя — basename «спрайт»; '
+    + 'мишенью ссылок не был никогда — AR2/AR5/AR14)');
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE)');
   assert.deepEqual([...mod.REF_LINKED_CATALOGS], [
