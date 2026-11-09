@@ -1,0 +1,276 @@
+// Задача 000320.08: «Опилка» — подмастерье оружейной (Оружейная, 9-й
+// NPC постройки; 8-я из 100 дочерних 000320).
+//
+// Контракт (ТЗ tasks/done/000320.08.md; механизм мульти-NPC —
+// 000320.01, spec/npc.md «Несколько NPC на постройку»,
+// memory/000320-npcs-batch.md):
+//   * assets/npc/000026.json — id armory_apprentice, имя «Опилка»
+//     (выбор агента: прозвище за метлу — стружку и пыль Оружейной;
+//     прецедент не-личного имени 000018 «Кочевник»), роль
+//     «подмастерье» (фикс, в каталоге новая), постройка
+//     assets/buildings/000001.json (Оружейная — девятая связь), хук
+//     истории «Метёт пол и мечтает о своей стене клинков» (последнее
+//     предложение описания, с заглавной — прецеденты .02 «Учит»/.03
+//     «Ищет»/.04 «Помнит»/.05 «Собирает»/.06 «Точит»/.07 «Ушёл»);
+//   * профиль — ЧИСТАЯ подсказка: все опции диалога действуют
+//     «подсказка»; блоков квесты/торговля/обучение/найм НЕТ (счётчики
+//     npc-refs goal 2 / reward 5 / trade 54 / сумма 61 / уникальные
+//     предметы 41 от этого НЕ растут — ЭТО часть контракта);
+//   * опций с «для» — РОВНО 0: подмастерье говорит со всеми
+//     (прецеденты .01/.02/.03/.05/.07); контракт A8a
+//     (tests/npc-dialog-scope) — добавление «для» потребовало бы
+//     ре-пина A8a;
+//   * тема диалога — внутренняя кухня Оружейной: метла, порядок в
+//     инструментах, мечта о своей стене клинков; немного юмора (тон
+//     мира, без абсурда). Темы клинков/ковки-хвостовика (.05/.06:
+//     «хвостовик», «наковальн», «штампов», «коллекци», «позолот»),
+//     старых походов/арены (.04: «старые походы», «арен») и наёма/
+//     жалованья (.07: «жалован», «знамен», «задаток», «табель») НЕ
+//     дублируются дословно;
+//   * [E]-оверлей Оружейной — ДЕВЯТЬ dialog-строк в порядке каталога:
+//     'dialog' (Бренн) → 'dialog:blade_merchant' (Корд) →
+//     'dialog:fencing_instructor' (Родар) → 'dialog:duelist' (Скарн) →
+//     'dialog:veteran_blade' (Боримир) → 'dialog:sword_collector'
+//     (Рарог) → 'dialog:blade_smith' (Дарн) → 'dialog:ex_mercenary'
+//     (Горм) → 'dialog:armory_apprentice' (Опилка); хоткеи Digit1..9 —
+//     общий механизм src/building-ui.js /^Digit([1-9])$/ по индексу
+//     строки: ДЕВЯТЫЙ — последний свободный цифровой слот.
+//
+// КРАСНЫЕ (TDD): T1..T8 красные до зелёной стадии (000026.json нет,
+// каталог 25, ростер 8, оверлей 8 строк), без краха загрузки.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { validateData } = require('./json-schema.js');
+
+const ROOT = path.join(__dirname, '..');
+const NDIR = path.join(ROOT, 'assets', 'npc');
+const NEW = path.join(NDIR, '000026.json');
+const SCHEMA = JSON.parse(
+  fs.readFileSync(path.join(NDIR, 'schema.json'), 'utf8'));
+
+const N = require('../src/npc.js');
+const { NPCS } = require('../src/npc-data.js');
+const BE = require('../src/building-effects.js');
+
+const HOOK = 'Метёт пол и мечтает о своей стене клинков';
+const ID = 'armory_apprentice';
+const NAME = 'Опилка';
+
+function listNpcFiles() {
+  return fs.readdirSync(NDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort();
+}
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+// --- T1: размер каталога ---------------------------------------------------
+
+test('T1: каталог — ровно 26 файл 000001..000026 подряд; зеркало NPCS 26 запись с armory_apprentice', () => {
+  const files = listNpcFiles();
+  assert.equal(files.length, 26,
+    'в каталоге NPC 26 файл (000320.06: +Оружейник; 000320.07: +Отставной наёмник; 000320.08: +Подмастерье), факт: ' + files.length);
+  for (let i = 0; i < files.length; i++) {
+    assert.equal(files[i],
+      String(i + 1).padStart(6, '0') + '.json',
+      'нумерация подряд без пропусков: индекс ' + i);
+  }
+  assert.equal(NPCS.length, 26,
+    'зеркало src/npc-data.js — 26 запись (sync не прогнан?), факт: '
+    + NPCS.length);
+  const last = NPCS[25];
+  assert.ok(last, '26-я запись зеркала существует');
+  assert.equal(last.id, ID,
+    '26-я запись зеркала — armory_apprentice (порядок = нумерация файлов)');
+});
+
+// --- T2: 000026.json валиден по схеме + порядок ключей + roundtrip ---------
+
+test('T2: assets/npc/000026.json валиден по schema; ключи в порядке образца; roundtrip-канон; негативы — мимо схемы', () => {
+  assert.ok(fs.existsSync(NEW),
+    'RED: assets/npc/000026.json отсутствует (NPC задачи ещё не создан)');
+  const data = readJson(NEW);
+  assert.deepEqual(validateData(SCHEMA, data, 'npc/000026'), [],
+    '000026.json обязан проходить assets/npc/schema.json');
+  assert.deepEqual(Object.keys(data),
+    ['id', 'имя', 'роль', 'описание', 'постройки', 'диалог'],
+    'порядок ключей — как 000001/000020/000023/000025 (id, имя, роль, '
+    + 'описание, постройки, диалог) — профиль чистая подсказка, без блоков');
+  const raw = fs.readFileSync(NEW, 'utf8');
+  assert.equal(raw, JSON.stringify(data, null, 2) + '\n',
+    '000026.json — roundtrip JSON.stringify(obj,null,2)+перевод строки');
+  const extraKey = JSON.parse(JSON.stringify(data));
+  extraKey.цена = 10;
+  assert.notDeepEqual(validateData(SCHEMA, extraKey, 'npc/extra'), [],
+    'посторонний ключ «цена» — additionalProperties false, обязан отваливаться');
+  const badCharisma = JSON.parse(JSON.stringify(data));
+  const reqOpt = badCharisma.диалог.find((o) => o.требования);
+  assert.ok(reqOpt, 'есть опция с требованиями (прецедент hint_wood)');
+  reqOpt.требования.харизма = 0;
+  assert.notDeepEqual(validateData(SCHEMA, badCharisma, 'npc/badcharisma'), [],
+    'требование харизма 0 — вне схемы (minimum 1)');
+  const badAction = JSON.parse(JSON.stringify(data));
+  badAction.диалог[0].действие = 'дар';
+  assert.notDeepEqual(validateData(SCHEMA, badAction, 'npc/badaction'), [],
+    'действие «дар» — вне enum схемы');
+  const badPath = JSON.parse(JSON.stringify(data));
+  badPath.постройки = ['000001.json'];
+  assert.notDeepEqual(validateData(SCHEMA, badPath, 'npc/badpath'), [],
+    'постройки без пути assets/buildings/ — вне паттерна схемы');
+});
+
+// --- T3: id и имя уникальны (sweep) ----------------------------------------
+
+test('T3: id armory_apprentice и имя «Опилка» уникальны в sweep каталога', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000026.json отсутствует');
+  const ids = new Set();
+  const names = new Set();
+  for (const f of listNpcFiles()) {
+    const d = readJson(path.join(NDIR, f));
+    assert.ok(!ids.has(d.id), 'дубликат id «' + d.id + '» (файл ' + f + ')');
+    assert.ok(!names.has(d.имя), 'дубликат имени «' + d.имя + '» (файл ' + f + ')');
+    ids.add(d.id);
+    names.add(d.имя);
+  }
+  assert.ok(ids.has(ID), 'id armory_apprentice в каталоге');
+  assert.ok(names.has(NAME), 'имя «Опилка» в каталоге');
+});
+
+// --- T4: описание с хуком и уникально ---------------------------------------
+
+test('T4: описание Подмастерья непустое, роль «подмастерье», хук «Метёт пол» — последнее предложение, и НЕ копия описания другого NPC', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000026.json отсутствует');
+  const data = readJson(NEW);
+  assert.ok(typeof data.описание === 'string' && data.описание.trim() !== '',
+    'описание непустое');
+  assert.equal(data.роль, 'подмастерье', 'роль — фикс-строка «подмастерье» (ТЗ)');
+  assert.ok(data.описание.includes(HOOK),
+    'хук истории «' + HOOK + '» (ТЗ) в описании дословно');
+  assert.ok(data.описание.endsWith(HOOK + '.'),
+    'хук — ПОСЛЕДНЕЕ предложение описания (с заглавной, с точкой на конце — '
+    + 'прецеденты .02–.07); факт: ' + JSON.stringify(data.описание.slice(-60)));
+  for (const f of listNpcFiles()) {
+    if (f === '000026.json') continue;
+    const d = readJson(path.join(NDIR, f));
+    assert.notEqual(d.описание, data.описание,
+      'описание совпадает с ' + f + ' (не копия существующего)');
+  }
+});
+
+// --- T5: диалог — профиль чистая подсказка, без «для» ------------------------
+
+test('T5: диалог валиден по схеме, ВСЕ опции «подсказка», ровно одна с {харизма:3}, id опций уникальны, опций с «для» — ровно 0, темы .04–.07 не дублируются', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000026.json отсутствует');
+  const data = readJson(NEW);
+  assert.ok(Array.isArray(data.диалог) && data.диалог.length >= 1,
+    'диалог непустой (schema minItems 1)');
+  const ACTIONS = SCHEMA.properties.диалог.items.properties.действие.enum;
+  for (const o of data.диалог) {
+    assert.ok(ACTIONS.includes(o.действие),
+      'действие «' + o.действие + '» вне enum схемы');
+    const errs = validateData(SCHEMA.properties.диалог.items, o, 'диалог');
+    assert.deepEqual(errs, [],
+      'опция «' + o.id + '» — вне схемы диалога: ' + JSON.stringify(errs));
+  }
+  assert.ok(data.диалог.some((o) => o.действие === 'подсказка'),
+    'профиль «подсказка» — хотя бы одна опция действия «подсказка»');
+  assert.equal(data.диалог.filter((o) => o.действие !== 'подсказка').length, 0,
+    'профиль ЧИСТАЯ подсказка: опций с действием вне «подсказка» — ровно 0');
+  const ids = data.диалог.map((o) => o.id);
+  assert.equal(new Set(ids).size, ids.length, 'id опций диалога уникальны');
+  assert.equal(data.диалог.filter((o) => o.для !== undefined).length, 0,
+    'опций с «для» — ровно 0: подмастерье говорит со всеми; добавление «для» '
+    + 'требует ре-пина A8a (tests/npc-dialog-scope)');
+  const withReq = data.диалог.filter((o) => o.требования !== undefined);
+  assert.equal(withReq.length, 1,
+    'ровно одна опция с требованиями (прецедент hint_wood у Родара)');
+  assert.deepEqual(withReq[0].требования, { харизма: 3 },
+    'требование опции — {харизма: 3} (прецедент hint_wood/hint_old/hint_blade/hint_collection/hint_march)');
+  const texts = data.диалог.map((o) => o.текст).join(' ');
+  for (const w of ['хвостовик', 'наковальн', 'штампов', 'коллекци', 'позолот',
+    'старые походы', 'арен', 'жалован', 'знамен', 'задаток', 'табель']) {
+    assert.ok(!texts.includes(w),
+      'тема чужого NPC (.04 «старые походы»/арена, .05 коллекция, .06 ковка/'
+      + 'хвостовик, .07 наём/жалованье) не дублируется: подстрока «' + w + '»');
+  }
+});
+
+// --- T6: профиль-гарант — блоков профильных НЕТ, зеркало ≡ JSON --------------
+
+test('T6: блоков квесты/торговля/обучение/найм НЕТ (ни в JSON, ни в зеркале); зеркало ≡ JSON без квестового резолвинга: постройки [1], диалог deepEqual', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000026.json отсутствует');
+  const data = readJson(NEW);
+  for (const block of ['квесты', 'торговля', 'обучение', 'найм']) {
+    assert.ok(!(block in data),
+      'в JSON нет блока «' + block + '»: профиль чистая подсказка — '
+      + 'счётчики npc-refs goal 2 / reward 5 / trade 54 / сумма 61 / '
+      + 'уникальные предметы 41 не растут');
+  }
+  assert.ok(!JSON.stringify(data).includes('assets/items'),
+    'в JSON нет ссылок assets/items (ни торговли, ни квестов) — goal 2 / '
+    + 'reward 5 / trade 54 / сумма 61 / unique 41 БЕЗ изменений');
+  const mirror = NPCS[25];
+  assert.ok(mirror && mirror.id === ID,
+    'зеркало: 26-я запись armory_apprentice');
+  assert.equal(mirror.роль, 'подмастерье',
+    'роль в зеркале — «подмастерье» (фикс ТЗ); раз блоков нет, '
+    + 'инвариант npc-refs goal 2 / reward 5 / trade 54 / сумма 61 / '
+    + 'unique 41 неизменен');
+  for (const block of ['квесты', 'торговля', 'обучение', 'найм']) {
+    assert.ok(!(block in mirror),
+      'в зеркале нет блока «' + block + '» (следует из JSON)');
+  }
+  assert.deepEqual(mirror.постройки, [1],
+    'зеркало: постройки [1] — sync резолвит ссылку Оружейной в id');
+  assert.deepEqual(mirror.диалог, data.диалог,
+    'зеркало NPCS[25].диалог ≡ JSON-диалог бит-в-бит (квестового '
+    + 'резолвинга нет — квестов нет)');
+  assert.deepEqual(mirror.описание, data.описание,
+    'зеркало NPCS[25].описание ≡ JSON');
+});
+
+// --- T7: ростер Оружейной — ДЕВЯТЬ NPC в порядке каталога -------------------
+
+test('T7: npcsForBuilding(NPCS, 1) — ДЕВЯТЬ NPC Оружейной в порядке каталога', () => {
+  const list = N.npcsForBuilding(NPCS, 1);
+  assert.deepEqual(list.map((n) => n.id),
+    ['weapons_merchant', 'blade_merchant', 'fencing_instructor',
+      'duelist', 'veteran_blade', 'sword_collector', 'blade_smith',
+      'ex_mercenary', ID],
+    'Оружейная (1): Бренн + Корд + Родар + Скарн + Боримир + Рарог + '
+    + 'Дарн + Горм + Опилка, порядок = нумерация файлов; факт: '
+    + JSON.stringify(list.map((n) => n.id)));
+  assert.equal(N.npcForBuilding(NPCS, 1).id, 'weapons_merchant',
+    'npcForBuilding — ПЕРВЫЙ (бит-в-бит, HUD/«Здесь:» не тронуты)');
+});
+
+// --- T8: оверлей Оружейной — ровно 9 dialog-строк ----------------------------
+
+test('T8: [E]-оверлей Оружейной — ровно 9 строк: dialog (Бренн), dialog:blade_merchant (Корд), dialog:fencing_instructor (Родар), dialog:duelist (Скарн), dialog:veteran_blade (Боримир), dialog:sword_collector (Рарог), dialog:blade_smith (Дарн), dialog:ex_mercenary (Горм), dialog:armory_apprentice (Опилка)', () => {
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000001.json'));
+  const list = N.npcsForBuilding(NPCS, 1);
+  const rows = BE.buildingActions(b, list, { day: 5 });
+  assert.deepEqual(rows.map((r) => r.id),
+    ['dialog', 'dialog:blade_merchant', 'dialog:fencing_instructor',
+      'dialog:duelist', 'dialog:veteran_blade', 'dialog:sword_collector',
+      'dialog:blade_smith', 'dialog:ex_mercenary', 'dialog:' + ID],
+    'у здания 1 эффектов нет — список = dialog-строки по каждому NPC; '
+    + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
+  assert.deepEqual(rows.map((r) => r.имя),
+    ['Диалог: Бренн', 'Диалог: Корд', 'Диалог: Родар', 'Диалог: Скарн',
+      'Диалог: Боримир', 'Диалог: Рарог', 'Диалог: Дарн', 'Диалог: Горм',
+      'Диалог: ' + NAME],
+    'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
+  assert.deepEqual(rows.map((r) => r.npcId),
+    ['weapons_merchant', 'blade_merchant', 'fencing_instructor',
+      'duelist', 'veteran_blade', 'sword_collector', 'blade_smith',
+      'ex_mercenary', ID],
+    'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
+    + 'Digit1..9 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'по индексу строки: ДЕВЯТЫЙ — последний свободный цифровой слот');
+});

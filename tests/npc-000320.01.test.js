@@ -53,17 +53,17 @@ function readJson(file) {
 
 // --- N1: размер каталога -------------------------------------------------
 
-test('N1: каталог — ровно 25 файл 000001..000025 подряд; зеркало NPCS 25 запись', () => {
+test('N1: каталог — ровно 26 файл 000001..000026 подряд; зеркало NPCS 26 запись', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 25,
-    'в каталоге NPC 25 файл (000320.01: +Корд; 000320.02: +Родар; 000320.03: +Скарн; 000320.04: +Ветеран; 000320.05: +Коллекционер; 000320.06: +Оружейник; 000320.07: +Отставной наёмник), факт: ' + files.length);
+  assert.equal(files.length, 26,
+    'в каталоге NPC 26 файл (000320.01: +Корд; 000320.02: +Родар; 000320.03: +Скарн; 000320.04: +Ветеран; 000320.05: +Коллекционер; 000320.06: +Оружейник; 000320.07: +Отставной наёмник; 000320.08: +Подмастерье), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 25,
-    'зеркало src/npc-data.js — 25 запись (sync не прогнан?)');
+  assert.equal(NPCS.length, 26,
+    'зеркало src/npc-data.js — 26 запись (sync не прогнан?)');
   assert.equal(NPCS[18].id, 'blade_merchant',
     '19-я запись зеркала — blade_merchant (порядок = нумерация файлов)');
 });
@@ -185,12 +185,13 @@ test('N6: торговля — 5 входов меч/лук; пути на ди�
 
 // --- N7: npcsForBuilding — ВСЕ NPC постройки (реальный каталог) -----------
 
-test('N7: npcsForBuilding(NPCS, 1) — ВОСЕМЬ NPC Оружейной в порядке каталога', () => {
+test('N7: npcsForBuilding(NPCS, 1) — ДЕВЯТЬ NPC Оружейной в порядке каталога', () => {
   const list = N.npcsForBuilding(NPCS, 1);
   assert.deepEqual(list.map((n) => n.id),
     ['weapons_merchant', 'blade_merchant', 'fencing_instructor', 'duelist',
-      'veteran_blade', 'sword_collector', 'blade_smith', 'ex_mercenary'],
-    'Оружейная (1): Бренн + Корд + Родар + Скарн + Боримир + Рарог + Дарн + Горм, порядок = нумерация файлов; факт: '
+      'veteran_blade', 'sword_collector', 'blade_smith', 'ex_mercenary',
+      'armory_apprentice'],
+    'Оружейная (1): Бренн + Корд + Родар + Скарн + Боримир + Рарог + Дарн + Горм + Опилка, порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 1).id, 'weapons_merchant',
     'npcForBuilding — ПЕРВЫЙ (бит-в-бит, HUD/«Здесь:» не тронуты)');
