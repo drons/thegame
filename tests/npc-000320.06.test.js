@@ -22,7 +22,8 @@
 //     'dialog' (Бренн) → 'dialog:blade_merchant' (Корд) →
 //     'dialog:fencing_instructor' (Родар) → 'dialog:duelist' (Скарн)
 //     → 'dialog:veteran_blade' (Боримир) → 'dialog:sword_collector'
-//     (Рарог) → 'dialog:blade_smith' (Дарн).
+//     (Рарог) → 'dialog:blade_smith' (Дарн); с 000320.07 — ВОСЕМЬ
+//     (+'dialog:ex_mercenary', Горм).
 //
 // КРАСНЫЕ (TDD): T1..T9 красные до зелёной стадии (000024.json нет,
 // каталог 23, оверлей 6 строк), без краха загрузки.
@@ -59,17 +60,17 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 24 файл 000001..000024 подряд; зеркало NPCS 24 запись с blade_smith', () => {
+test('T1: каталог — ровно 25 файл 000001..000025 подряд; зеркало NPCS 25 запись с blade_smith', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 24,
-    'в каталоге NPC 24 файл (000320.06: +Оружейник), факт: ' + files.length);
+  assert.equal(files.length, 25,
+    'в каталоге NPC 25 файл (000320.06: +Оружейник; 000320.07: +Отставной наёмник), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 24,
-    'зеркало src/npc-data.js — 24 запись (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 25,
+    'зеркало src/npc-data.js — 25 запись (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[23];
   assert.ok(last, '24-я запись зеркала существует');
@@ -261,38 +262,38 @@ test('T7: торговля — РОВНО 3 входа мечей; пути на
   });
 });
 
-// --- T8: ростер Оружейной — СЕМЬ NPC в порядке каталога ---------------------
+// --- T8: ростер Оружейной — ВОСЕМЬ NPC в порядке каталога ---------------------
 
-test('T8: npcsForBuilding(NPCS, 1) — СЕМЬ NPC Оружейной в порядке каталога', () => {
+test('T8: npcsForBuilding(NPCS, 1) — ВОСЕМЬ NPC Оружейной в порядке каталога', () => {
   const list = N.npcsForBuilding(NPCS, 1);
   assert.deepEqual(list.map((n) => n.id),
     ['weapons_merchant', 'blade_merchant', 'fencing_instructor',
-      'duelist', 'veteran_blade', 'sword_collector', ID],
+      'duelist', 'veteran_blade', 'sword_collector', ID, 'ex_mercenary'],
     'Оружейная (1): Бренн + Корд + Родар + Скарн + Боримир + Рарог + '
-    + 'Дарн, порядок = нумерация файлов; факт: '
+    + 'Дарн + Горм, порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 1).id, 'weapons_merchant',
     'npcForBuilding — ПЕРВЫЙ (бит-в-бит, HUD/«Здесь:» не тронуты)');
 });
 
-// --- T9: оверлей Оружейной — ровно 7 dialog-строк ----------------------------
+// --- T9: оверлей Оружейной — ровно 8 dialog-строк ----------------------------
 
-test('T9: [E]-оверлей Оружейной — ровно 7 строк: dialog (Бренн), dialog:blade_merchant (Корд), dialog:fencing_instructor (Родар), dialog:duelist (Скарн), dialog:veteran_blade (Боримир), dialog:sword_collector (Рарог), dialog:blade_smith (Дарн)', () => {
+test('T9: [E]-оверлей Оружейной — ровно 8 строк: dialog (Бренн), dialog:blade_merchant (Корд), dialog:fencing_instructor (Родар), dialog:duelist (Скарн), dialog:veteran_blade (Боримир), dialog:sword_collector (Рарог), dialog:blade_smith (Дарн), dialog:ex_mercenary (Горм)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', '000001.json'));
   const list = N.npcsForBuilding(NPCS, 1);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),
     ['dialog', 'dialog:blade_merchant', 'dialog:fencing_instructor',
       'dialog:duelist', 'dialog:veteran_blade', 'dialog:sword_collector',
-      'dialog:' + ID],
+      'dialog:' + ID, 'dialog:ex_mercenary'],
     'у здания 1 эффектов нет — список = dialog-строки по каждому NPC; '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
     ['Диалог: Бренн', 'Диалог: Корд', 'Диалог: Родар', 'Диалог: Скарн',
-      'Диалог: Боримир', 'Диалог: Рарог', 'Диалог: ' + NAME],
+      'Диалог: Боримир', 'Диалог: Рарог', 'Диалог: ' + NAME, 'Диалог: Горм'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
     ['weapons_merchant', 'blade_merchant', 'fencing_instructor',
-      'duelist', 'veteran_blade', 'sword_collector', ID],
+      'duelist', 'veteran_blade', 'sword_collector', ID, 'ex_mercenary'],
     'каждая строка несёт npcId своего NPC (роутинг клика)');
 });
