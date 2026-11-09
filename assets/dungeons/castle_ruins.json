@@ -2,11 +2,11 @@
   "id": 2,
   "название": "руины замка",
   "мобы": [
-    "assets/mobs/000002.json",
-    "assets/mobs/000003.json",
-    "assets/mobs/000016.json",
-    "assets/mobs/000021.json",
-    "assets/mobs/000009.json"
+    "assets/mobs/orc_warrior.json",
+    "assets/mobs/orc_archer.json",
+    "assets/mobs/wolf.json",
+    "assets/mobs/troll.json",
+    "assets/mobs/skeleton.json"
   ],
   "предметы": [
     "assets/items/000003.json",

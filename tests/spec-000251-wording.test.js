@@ -15,8 +15,8 @@
 //   модель сундуков».
 // * W4 — сейв: «замена IN-PLACE (НОВЫХ КЛЮЧЕЙ В ОБЪЕКТЕ СУНДУКА
 //   НЕТ — сейв v1 не тронут)».
-// * W5 — чистка 000251: «chainmail (CRYPT, dungeons/000002.json) и
-//   knight_plate (RUINS, dungeons/000003.json) — УБРАНЫ из пулов
+// * W5 — чистка 000251: «chainmail (CRYPT, dungeons/crypt.json) и
+//   knight_plate (RUINS, dungeons/castle_ruins.json) — УБРАНЫ из пулов
 //   «предметы»».
 //
 // Красные «отсутствием» (осмысленно — правок SPEC ещё нет, не
@@ -85,8 +85,8 @@ test('SPEC 000251 S1: dungeons-storage «Лут» — chest-equip-блок за�
     'chest-equip ещё не добавлен (000251)');
   assert.ok(
     lut.includes(
-      'chainmail (CRYPT, dungeons/000002.json) и knight_plate ' +
-      '(RUINS, dungeons/000003.json) — УБРАНЫ из пулов «предметы»'),
+      'chainmail (CRYPT, dungeons/crypt.json) и knight_plate ' +
+      '(RUINS, dungeons/castle_ruins.json) — УБРАНЫ из пулов «предметы»'),
     'W5 (чистка фантомов 000251) отсутствует — абзац chest-equip ' +
     'ещё не добавлен (000251)');
 });

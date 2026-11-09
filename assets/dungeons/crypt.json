@@ -2,11 +2,11 @@
   "id": 1,
   "название": "склеп",
   "мобы": [
-    "assets/mobs/000009.json",
-    "assets/mobs/000010.json",
-    "assets/mobs/000014.json",
-    "assets/mobs/000013.json",
-    "assets/mobs/000015.json"
+    "assets/mobs/skeleton.json",
+    "assets/mobs/skeleton_archer.json",
+    "assets/mobs/rot.json",
+    "assets/mobs/vampire.json",
+    "assets/mobs/bone_coloss.json"
   ],
   "предметы": [
     "assets/items/000019.json",

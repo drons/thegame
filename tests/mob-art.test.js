@@ -25,13 +25,16 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { countDetails } = require('../scripts/count-svg-details.js');
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('../scripts/lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const MOBS_DIR = path.join(ROOT, 'assets', 'mobs');
 
 function mobFiles() {
   return fs.readdirSync(MOBS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mobs].test(f))
     .sort();
 }
 

@@ -12,11 +12,11 @@ tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
 | items | number | 513 | да |
 | skills | number | 44 | да |
 | spells | number | 169 | да |
-| mobs | number | 36 | да |
-| mob_groups | number | 7 | да |
+| mobs | slug (000318.04; было number) | 36 — <id>.json (id строка === basename) | да |
+| mob_groups | slug (000318.04; было number) | 7 — рукописный slug (id 1..7 числовой в JSON — НЕ basename) | да |
 | buildings | number | 55 | да |
 | craft | number | 343 (max 000419 — СЕГМЕНТАМИ, дыры) | да |
-| dungeons | number | 5 | да |
+| dungeons | slug (000318.04; было number) | 5 — рукописный slug (id 0..4 числовой в JSON — НЕ basename) | да |
 | npc | number | 22 | да |
 | runes | slug (000318.02; было number) | 55 — <id>.json | НЕТ (никогда не был в REF_RE) |
 | visuals | slug (000318.03; было number) | 13 — <slug>.json по basename «спрайт» (id 1..13 числовой в JSON — НЕ basename) | НЕТ (каталог прямых svg-путей, AR2/AR5) |
@@ -42,7 +42,12 @@ name-shape ('number'/'slug') ≠ 'named' (portraits). Переименовани
   REF_CATALOGS. При всех 'number' source ПОБайтово равен прежнему литералу
   (пин AR11) — рантайм-носитель строки: pattern в assets/skills/schema.json
   (SR5, skills.test.js сверяют с REF_RE.source; дрейп вывода красит сьюту;
-  schema.json в .01 не тронут).
+  schema.json в .01 не тронут). ПОСЛЕ 000318.04 флипы НЕ «не-мишеней»
+  (runes/visuals) — мишеней mobs/mob_groups/dungeons: source ДРЕЙФУЕТ —
+  ДВЕ группы `…(items|skills|spells|buildings|craft|npc)/\d{6}…` +
+  `…(mobs|mob_groups|dungeons)/[a-z][a-z0-9_]*…`; AR11 пере-пинут побайтово,
+  носители pattern (skills/dungeons/mob_groups schema.json) обновлены там же
+  (memory/000318-mobs-mobgroups-dungeons.md §3).
 * Lib обязан остаться ОДНИМ файлом без внутренних require-соседей:
   tests/items.test.js копирует в tmp ровно файл json-ref.js.
 * Производительность: ни одного new RegExp на вызов (isRef гоняется по
@@ -107,6 +112,18 @@ src/map.js и формулы визуалов/сидов); перевод сор
   1 grass_blades_light, 2 grass_blades_dark, 3 flower_red, 4 flower_yellow,
   5 flower_white, 6 bush, 7 mushroom, 8 rock, 9 pebble, 10 snow_patch,
   11 dry_tuft, 12 reed, 13 lily_pad. Детали — memory/000318-visuals.md.
+* mobs + mob_groups + dungeons → slug (000318.04, 36+7+5 файлов, ОДИН
+  коммит вместе с перезаписью ссылок mob_groups→mobs 24 и dungeons→mobs 21):
+  ЕДИНСТВЕННЫЕ дочерние, где флипаются МИШЕНИ ⇒ REF_RE дрейфует (ДВЕ группы;
+  пин AR11 и pattern в skills/dungeons/mob_groups schema.json — ре-пин в том
+  же коммите). Mob — <id>.json (NameOf по умолчанию); mob_groups/dungeons —
+  рукописные таблицы id→slug (числовые id 1..7 / 0..4 = ПОЗИЦИИ зеркал
+  MOB_GROUP_TYPES / DUNGEON_* → сортировка syncs по data.id, зеркала
+  побайтово прежние вне comment-строк, CHANGELOG не требовался):
+  mob_groups 1 orc_camp, 2 orc_raiders, 3 skeleton_den, 4 wolf_pack,
+  5 spider_nest, 6 elemental_circle, 7 abyss_spirit;
+  dungeons 0 simple_cave, 1 crypt, 2 castle_ruins, 3 flooded_cave, 4 abyss.
+  Детали — memory/000318-mobs-mobgroups-dungeons.md.
 
 ## 5. Памятка оркестратору волн
 

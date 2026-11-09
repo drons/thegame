@@ -72,7 +72,8 @@ const { validateData } = require('./json-schema.js');
 // 000211.08: ссылки состав.мобы каталога → id целей (формат 000211.01).
 const JR = require('../scripts/lib/json-ref.js');
 const mobFiles = () => fs.readdirSync(MOBS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  .filter((f) => f !== 'schema.json'
+    && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.mobs].test(f)).sort();
 function refToId(v, where) {
   if (!isRef(v)) return v;
   const r = resolveRef(ROOT, v);
@@ -3548,9 +3549,11 @@ test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регресс�
   // строкового ключа).
   const MOB_GROUPS_DIR = path.join(__dirname, '..', 'assets', 'mob_groups');
   const files = fs.readdirSync(MOB_GROUPS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort()
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.mob_groups].test(f))
     .map((f) => JSON.parse(
-      fs.readFileSync(path.join(MOB_GROUPS_DIR, f), 'utf8')));
+      fs.readFileSync(path.join(MOB_GROUPS_DIR, f), 'utf8')))
+    .sort((a, b) => a.id - b.id);
   assert.equal(files.length, 7, 'каталог: ровно 7 групп');
   for (let i = 0; i < 7; i++) {
     const rec = GROUP_RECIPES[i], f = files[i];
@@ -3559,7 +3562,7 @@ test('C1. BUILDING_BOSS: рецепт босса (1–3 troll) + регресс�
     assert.deepEqual(rec.mobs,
       f.состав.мобы.map((m, n) => {
         assert.ok(JR.isRef(m),
-          `тип ${i}, состав.мобы[${n}]: «${m}» — не ссылка (формат "assets/mobs/NNNNNN.json")`);
+          `тип ${i}, состав.мобы[${n}]: «${m}» — не ссылка (формат "assets/mobs/<id>.json", 000318.04)`);
         const r = JR.resolveRef(path.join(__dirname, '..'), m);
         assert.ok(r.ok, `тип ${i}, состав.мобы[${n}]: «${m}» — ${r.reason}`);
         return r.id;
@@ -6037,21 +6040,21 @@ test('000165 C5: canDoAction «quickItem» — зеркало (000037): живы
     + JSON.stringify(r1));
 });
 
-test('000165 C6: доступность (ТЗ п.4) — лут Уродства (000036.json + зеркало MOB_TYPES), свиток КОНЦОМ таблицы; дет-дроп rng→0.01: таблица + база + редкий + экипировка (ре-пин 000230.08: common pool[0] = straw_hat ПОСЛЕДНИМ; ре-пин 000230.15: common-пул 90 → 110, select floor(0.01·110) = pool[1] = wool_cap; ре-пин 000230.19: common-пул 110 → 111, select floor(0.01·111) = pool[1] = wool_cap — без изменений)', () => {
+test('000165 C6: доступность (ТЗ п.4) — лут Уродства (abomination.json + зеркало MOB_TYPES), свиток КОНЦОМ таблицы; дет-дроп rng→0.01: таблица + база + редкий + экипировка (ре-пин 000230.08: common pool[0] = straw_hat ПОСЛЕДНИМ; ре-пин 000230.15: common-пул 90 → 110, select floor(0.01·110) = pool[1] = wool_cap; ре-пин 000230.19: common-пул 110 → 111, select floor(0.01·111) = pool[1] = wool_cap — без изменений)', () => {
   // (a) Каталог (source of truth): loot Уродства — 3 записи, свиток
   //     КОНЦОМ (Р-1: порядок дропа = порядок таблицы; тематика —
   //     склеенный труп уже дропает phoenix_feather/greater_healing).
   const j36 = JSON.parse(
-    fs.readFileSync(path.join(MOBS_DIR, '000036.json'), 'utf8'));
+    fs.readFileSync(path.join(MOBS_DIR, 'abomination.json'), 'utf8'));
   const LOOT_ABO_165 = [
     { item: 'phoenix_feather', chance: 0.2 },
     { item: 'greater_healing', chance: 0.15 },
     { item: 'resurrect_scroll', chance: 0.05 },
   ];
   const loot36 = j36.loot.map((l, i) =>
-    ({ ...l, item: refToId(l.item, '000036.json: loot[' + i + '].item') }));
+    ({ ...l, item: refToId(l.item, 'abomination.json: loot[' + i + '].item') }));
   assert.deepEqual(loot36, LOOT_ABO_165,
-    '000036.json loot: свиток 0.05 концом таблицы (краснота: записи нет)');
+    'abomination.json loot: свиток 0.05 концом таблицы (краснота: записи нет)');
   // Зеркало combat.js MOB_TYPES (runtime; консистентность JSON↔
   // зеркало — общий тест «assets/mobs: зеркало…» выше, ОДИН коммит).
   assert.deepEqual(MOB_TYPES.abomination.loot, LOOT_ABO_165,
@@ -7901,17 +7904,17 @@ test('mobs schema (000211.03): поля-ссылки закрепили якор
   assert.equal(p.loot.items.properties.item.type, 'string',
     'loot.item: type string');
   const rec = JSON.parse(
-    fs.readFileSync(path.join(MOBS_DIR, '000002.json'), 'utf8'));
+    fs.readFileSync(path.join(MOBS_DIR, 'orc_warrior.json'), 'utf8'));
   const badSkill = JSON.parse(JSON.stringify(rec));
   badSkill.skills[0] = 'heavy';
-  const errSkill = validateData(schema, badSkill, '000002');
+  const errSkill = validateData(schema, badSkill, 'orc_warrior');
   assert.ok(errSkill.length >= 1
       && errSkill.some((e) => e.includes('assets/skills')),
     'отрицательный контроль: голый id в skills не пойман схемой: '
       + JSON.stringify(errSkill));
   const badLoot = JSON.parse(JSON.stringify(rec));
   badLoot.loot[0].item = 'battle_axe';
-  const errLoot = validateData(schema, badLoot, '000002');
+  const errLoot = validateData(schema, badLoot, 'orc_warrior');
   assert.ok(errLoot.length >= 1
       && errLoot.some((e) => e.includes('assets/items')),
     'отрицательный контроль: голый id в loot.item не пойман схемой: '

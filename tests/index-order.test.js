@@ -577,7 +577,9 @@ test('порядок core → dungeons-data.js → dungeon.js: таблицы и
   // Таблицы dungeon.js (браузерная ветка) — 1:1 из каталога JSON.
   const ddir = path.join(ROOT, 'assets', 'dungeons');
   const dfiles = fs.readdirSync(ddir)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && refLib.SHAPE_BASENAME_RES[refLib.ASSET_NAME_SHAPES.dungeons]
+        .test(f)).sort();
   for (const f of dfiles) {
     const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
     const t = data.id;
@@ -1691,7 +1693,7 @@ test('IO-DEP-1: dungeon.js БЕЗ dungeons-data.js — fallback DUNGEON_ORES «�
       fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
   }
   const ddir = path.join(ROOT, 'assets', 'dungeons');
-  for (const f of ['000001.json', '000005.json']) {
+  for (const f of ['simple_cave.json', 'abyss.json']) {
     const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
     assert.ok(Array.isArray(data.руда),
       f + ': в каталоге — поле «руда» (массив)');
@@ -1721,7 +1723,9 @@ test('IO-DEP-2: порядок core → dungeons-data.js → dungeon.js — DUNG
   }
   const ddir = path.join(ROOT, 'assets', 'dungeons');
   const dfiles = fs.readdirSync(ddir)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && refLib.SHAPE_BASENAME_RES[refLib.ASSET_NAME_SHAPES.dungeons]
+        .test(f)).sort();
   for (const f of dfiles) {
     const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
     const t = data.id;

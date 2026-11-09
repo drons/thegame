@@ -21,11 +21,11 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Записи групп (assets/mob_groups/000001.json … 000007.json);
-  // порядок массива = нумерация файлов; позиция = id − 1 =
+  // Записи групп (assets/mob_groups/orc_camp.json … abyss_spirit.json);
+  // порядок массива = возрастание id; позиция = id − 1 =
   // кодовый индекс группы (hash2 % N, MOB_GROUP_TYPES в src/map.js).
   const MOB_GROUPS = [
-    // 000001.json
+    // orc_camp.json
     {
       id: 1,
       название: "орочий лагерь",
@@ -34,7 +34,7 @@
       особые_параметры: {},
       кадры: ["assets/sprites/mobs/orc_1.svg", "assets/sprites/mobs/orc_2.svg"],
     },
-    // 000002.json
+    // orc_raiders.json
     {
       id: 2,
       название: "орочий набеги",
@@ -43,7 +43,7 @@
       особые_параметры: {},
       кадры: ["assets/sprites/mobs/orc_1.svg", "assets/sprites/mobs/orc_2.svg"],
     },
-    // 000003.json
+    // skeleton_den.json
     {
       id: 3,
       название: "логово скелетов",
@@ -52,7 +52,7 @@
       особые_параметры: {},
       кадры: ["assets/sprites/mobs/skeleton_1.svg", "assets/sprites/mobs/skeleton_2.svg"],
     },
-    // 000004.json
+    // wolf_pack.json
     {
       id: 4,
       название: "волчья стая",
@@ -61,7 +61,7 @@
       особые_параметры: {},
       кадры: ["assets/sprites/mobs/wolf_1.svg", "assets/sprites/mobs/wolf_2.svg"],
     },
-    // 000005.json
+    // spider_nest.json
     {
       id: 5,
       название: "паучье гнездо",
@@ -70,7 +70,7 @@
       особые_параметры: {},
       кадры: ["assets/sprites/mobs/spider_1.svg", "assets/sprites/mobs/spider_2.svg"],
     },
-    // 000006.json
+    // elemental_circle.json
     {
       id: 6,
       название: "круг стихийников",
@@ -79,7 +79,7 @@
       особые_параметры: {},
       кадры: ["assets/sprites/mobs/elemental_1.svg", "assets/sprites/mobs/elemental_2.svg"],
     },
-    // 000007.json
+    // abyss_spirit.json
     {
       id: 7,
       название: "дух бездны",

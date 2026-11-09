@@ -2,8 +2,8 @@
 // подзадача 000053 — JSON в assets/ первичный источник).
 //
 // Проверяем:
-//  * каталог assets/mob_groups: ровно 000001..000007.json + schema.json,
-//    id = номер файла (1..7);
+//  * каталог assets/mob_groups: ровно 7 slug-файлов (таблица id→slug
+//    000318.04) + schema.json, id 1..7 (порядок записей — по id);
 //  * миграция 1:1 — названия/составы/спрайт-виды = ТЕКУЩИЕ значения
 //    кода master (literal'ы зашиты в тест: не читаем FALLBACK_* из
 //    src/ — иначе циклично);
@@ -39,20 +39,39 @@ const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'mob_groups');
 const MOBS_DIR = path.join(ROOT, 'assets', 'mobs');
 
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } = require(
+  path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
+
+// 000318.04: имена файлов — рукописная таблица id→slug (память
+// memory/000318-asset-rename.md); позиция записи = id − 1 (MOB_GROUP_TYPES).
+const MOB_GROUPS_SLUG_00031804 = {
+  1: 'orc_camp', 2: 'orc_raiders', 3: 'skeleton_den', 4: 'wolf_pack',
+  5: 'spider_nest', 6: 'elemental_circle', 7: 'abyss_spirit',
+};
+const mobGroupFile = (f) => f !== 'schema.json'
+  && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mob_groups].test(f);
+
 function catalogFiles() {
-  // Ровно 7 файлов 000001..000007.json (без schema.json).
-  const files = fs.readdirSync(DIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  // Ровно 7 slug-файлов по таблице 000318.04; записи — в порядке id
+  // (lex-порядок slug ≠ id-порядку, а позиция = id − 1 — контракт).
+  const files = fs.readdirSync(DIR).filter(mobGroupFile);
   assert.equal(files.length, 7, 'ровно 7 файлов группы: ' + files.join(', '));
-  return files.map((f) => {
-    assert.equal(f, String(files.indexOf(f) + 1).padStart(6, '0') + '.json',
-      'пропуск в нумерации: ' + f);
-    return JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+  const recs = files.map((f) => {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(f, MOB_GROUPS_SLUG_00031804[data.id] + '.json',
+      `${f}: имя ≠ таблице id→slug (000318.04) для id ${data.id}`);
+    return data;
   });
+  recs.sort((a, b) => a.id - b.id);
+  assert.deepEqual(recs.map((d) => d.id), [1, 2, 3, 4, 5, 6, 7],
+    'множество id групп — ровно 1..7');
+  return recs;
 }
 
 // id мобов каталога assets/mobs (source of truth — задача 000022).
 function mobIds() {
-  const files = fs.readdirSync(MOBS_DIR).filter((f) => /^\d{6}\.json$/.test(f));
+  const files = fs.readdirSync(MOBS_DIR).filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mobs].test(f));
   const ids = new Set();
   for (const f of files) {
     ids.add(JSON.parse(fs.readFileSync(path.join(MOBS_DIR, f), 'utf8')).id);
@@ -68,7 +87,7 @@ const { isRef, resolveRef } = require(
 // (RED-стадия), не синтаксическая.
 function refToId(ref, where) {
   assert.ok(isRef(ref),
-    `${where}: «${ref}» — не ссылка на файл mobs (формат "assets/mobs/NNNNNN.json")`);
+    `${where}: «${ref}» — не ссылка на файл mobs (формат "assets/mobs/<id>.json", 000318.04)`);
   const r = resolveRef(ROOT, ref);
   assert.ok(r.ok, `${where}: «${ref}» — ${r.reason}`);
   return r.id;
@@ -160,21 +179,25 @@ const OLD_MOB_FRAMES = {
   abyss: ['assets/sprites/mobs/abyss_1.svg', 'assets/sprites/mobs/abyss_2.svg'],
 };
 
-test('каталог assets/mob_groups: ровно 000001..000007.json + schema.json, id = номер файла', () => {
+test('каталог assets/mob_groups: ровно 7 slug-файлов (таблица id→slug 000318.04) + schema.json, id 1..7', () => {
   assert.ok(fs.existsSync(DIR), 'каталога assets/mob_groups нет (задача 000057)');
+  const re = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mob_groups];
   const files = fs.readdirSync(DIR).sort();
   for (const f of files) {
-    assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+    assert.ok(re.test(f) || f === 'schema.json',
       'чужой файл в assets/mob_groups: ' + f);
   }
-  const dataFiles = files.filter((f) => /^\d{6}\.json$/.test(f));
+  const dataFiles = files.filter(mobGroupFile);
   assert.equal(dataFiles.length, 7, 'ровно 7 групп');
-  for (let i = 0; i < 7; i++) {
-    const num = String(i + 1).padStart(6, '0');
-    assert.equal(dataFiles[i], num + '.json', `файл ${dataFiles[i]} вместо ${num}.json`);
-    const data = JSON.parse(fs.readFileSync(path.join(DIR, dataFiles[i]), 'utf8'));
-    assert.equal(data.id, i + 1, `${num}.json: id = номер файла`);
+  const ids = [];
+  for (const f of dataFiles) {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(f, MOB_GROUPS_SLUG_00031804[data.id] + '.json',
+      `файл ${f} ≠ таблице id→slug 000318.04 (id ${data.id})`);
+    ids.push(data.id);
   }
+  assert.deepEqual(ids.sort((a, b) => a - b), [1, 2, 3, 4, 5, 6, 7],
+    'множество id групп — ровно 1..7');
   assert.ok(fs.existsSync(path.join(DIR, 'schema.json')), 'нет schema.json');
 });
 
@@ -227,7 +250,7 @@ test('ссылочная целостность: ссылки состав.мо�
   }
 });
 
-test('000211.08 R1: ВСЕ 24 записи 7 групп — ссылки на assets/mobs/<NNNNNN>.json: resolveRef ok, id цели = прежнему значению позиционно, id ∈ assets/mobs', () => {
+test('000211.08 R1: ВСЕ 24 записи 7 групп — ссылки на assets/mobs/<slug>.json (000318.04): resolveRef ok, id цели = прежнему значению позиционно, id ∈ assets/mobs', () => {
   const ids = mobIds();
   const files = catalogFiles();
   let nRefs = 0;
@@ -274,7 +297,7 @@ test('000211.08 R3: schema.json (mob_groups) — «кадры»: array, minItems
     items: { type: 'string', pattern: '^assets/sprites/mobs/[\\w]+_[12]\\.svg$' },
   }, 'properties.кадры — точная форма');
   assert.deepEqual(s.properties.состав.properties.мобы.items,
-    { type: 'string', pattern: '^assets/mobs/\\d{6}\\.json$' },
+    { type: 'string', pattern: '^assets/mobs/[a-z][a-z0-9_]*\\.json$' },
     'состав.мобы.items — ссылочный pattern (узкий, по целевому каталогу)');
   assert.deepEqual(s.required,
     ['id', 'название', 'состав', 'спрайт', 'особые_параметры', 'кадры'],
@@ -331,14 +354,14 @@ test('зеркало ≡ JSON: MOB_GROUPS из src/mob-groups-data.js deepEqual 
     const expected = Object.assign({}, files[i], {
       состав: Object.assign({}, files[i].состав, {
         мобы: files[i].состав.мобы.map((m, n) =>
-          refToId(m, `00000${i + 1}.json, состав.мобы[${n}]`)),
+          refToId(m, `${MOB_GROUPS_SLUG_00031804[i + 1]}.json, состав.мобы[${n}]`)),
       }),
     });
     assert.deepEqual(MOB_GROUPS[i], expected,
-      `00000${i + 1}.json совпадает с JS-зеркалом`);
+      `${MOB_GROUPS_SLUG_00031804[i + 1]}.json совпадает с JS-зеркалом`);
     for (const m of MOB_GROUPS[i].состав.мобы) {
       assert.ok(!isRef(m),
-        `00000${i + 1}.json: зеркало в id-форме, не ссылки: «${m}»`);
+        `${MOB_GROUPS_SLUG_00031804[i + 1]}.json: зеркало в id-форме, не ссылки: «${m}»`);
     }
   }
 });

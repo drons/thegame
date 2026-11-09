@@ -2,10 +2,10 @@
   "id": 0,
   "название": "простая пещера",
   "мобы": [
-    "assets/mobs/000009.json",
-    "assets/mobs/000022.json",
-    "assets/mobs/000011.json",
-    "assets/mobs/000012.json"
+    "assets/mobs/skeleton.json",
+    "assets/mobs/ant.json",
+    "assets/mobs/crawling_bones.json",
+    "assets/mobs/giant_larva.json"
   ],
   "предметы": [
     "assets/items/000002.json",

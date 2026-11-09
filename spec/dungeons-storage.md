@@ -1,8 +1,8 @@
 # Архитектура хранения подземелий
 Данные о 5 типах подземелий (раздел «Входы в пещеры») хранятся в
 каталоге `assets/dungeons`:
- * Один тип подземелья — один JSON-файл: `000001.json`, …,
-   `000005.json`. Файл `0000NN.json` хранит `id` = NN−1, то есть значения
+ * Один тип подземелья — один JSON-файл: `<slug>.json` (simple_cave, crypt,
+   castle_ruins, flooded_cave, abyss — 000318.04). JSON хранит `id` = 0…4, значения
    `DUNGEON_TYPES` 0..4 (CAVE, CRYPT, RUINS, DROWNED, ABYSS).
    Перенумерация ЗАПРЕЩЕНА: фон боя `assets/combat/bg` выбирается именно
    по этим числам (задача 000049), а `DUNGEON_TYPES` — часть публичного
@@ -154,8 +154,8 @@
   и залежей); замена IN-PLACE (НОВЫХ КЛЮЧЕЙ В ОБЪЕКТЕ СУНДУКА НЕТ —
   сейв v1 не тронут). Главный rng / seed / mobs / gold / deposits не
   трогается (000251: бит-в-бит, кроме значений chests[].item). 000251:
-  фантомные legacy-брони — chainmail (CRYPT, dungeons/000002.json) и
-  knight_plate (RUINS, dungeons/000003.json) — УБРАНЫ из пулов
+  фантомные legacy-брони — chainmail (CRYPT, dungeons/crypt.json) и
+  knight_plate (RUINS, dungeons/castle_ruins.json) — УБРАНЫ из пулов
   «предметы»: у них явный slot, и выпасть из сундуков они не могут
   (замена всегда действовала).
 

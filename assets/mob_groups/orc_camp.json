@@ -3,7 +3,7 @@
   "название": "орочий лагерь",
   "состав": {
     "название": "orc_camp",
-    "мобы": ["assets/mobs/000002.json", "assets/mobs/000002.json", "assets/mobs/000003.json", "assets/mobs/000004.json"]
+    "мобы": ["assets/mobs/orc_warrior.json", "assets/mobs/orc_warrior.json", "assets/mobs/orc_archer.json", "assets/mobs/orc_shaman.json"]
   },
   "спрайт": "orc",
   "особые_параметры": {},

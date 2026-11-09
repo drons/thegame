@@ -3,7 +3,7 @@
   "название": "паучье гнездо",
   "состав": {
     "название": "spider_nest",
-    "мобы": ["assets/mobs/000020.json", "assets/mobs/000020.json", "assets/mobs/000020.json", "assets/mobs/000025.json"]
+    "мобы": ["assets/mobs/spider.json", "assets/mobs/spider.json", "assets/mobs/spider.json", "assets/mobs/centipede.json"]
   },
   "спрайт": "spider",
   "особые_параметры": {},

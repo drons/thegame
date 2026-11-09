@@ -26,6 +26,7 @@ const { writeFileSync, mkdirSync, readdirSync, readFileSync } = require('node:fs
 const { join } = require('node:path');
 const { MOBS_ART } = require('./mob-art-data.js');
 const { countDetails } = require('./count-svg-details.js');
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } = require('./lib/json-ref.js');
 
 const ROOT = join(__dirname, '..');
 const OUT = join(ROOT, 'assets', 'sprites', 'mobs');
@@ -1229,7 +1230,8 @@ function main() {
   const mobsDir = join(ROOT, 'assets', 'mobs');
   const sizes = {};
   for (const file of readdirSync(mobsDir)) {
-    if (/^\d{6}\.json$/.test(file)) {
+    if (file !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mobs].test(file)) {
       const d = JSON.parse(readFileSync(join(mobsDir, file), 'utf8'));
       sizes[d.id] = { w: d.size.w, h: d.size.h };
     }

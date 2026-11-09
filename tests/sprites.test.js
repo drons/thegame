@@ -1403,31 +1403,37 @@ test('visualDrawRect: центр (sx + e.x*zoom, sy + e.y*zoom), сторона 
 //
 // COMBAT_BG_DUNGEON остаётся литеральным зеркалом (sprites.js НЕ тянет
 // dungeon.js и не грузит data-модули — vm-песочница combat-ui, 000049),
-// но source of truth становится каталог: порядок файлов 000001..000005
-// (id 0..4) обязан совпадать с порядком bg-файлов — перенумерация
-// каталога сдвинет фоны боя.
-test('COMBAT_BG_DUNGEON ≡ каталог assets/dungeons: порядок файлов ↔ id ↔ bg-файлы', () => {
+// но source of truth становится каталог: записи каталога, отсортированные
+// по id (0..4), обязаны совпадать с порядком bg-файлов — перенумерация
+// каталога сдвинет фоны боя (имена файлов — slug с 000318.04).
+test('COMBAT_BG_DUNGEON ≡ каталог assets/dungeons: порядок по id ↔ bg-файлы', () => {
   const DDIR = path.join(ROOT, 'assets', 'dungeons');
   const files = fs.readdirSync(DDIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.dungeons].test(f))
     .sort();
   assert.deepEqual(files, [
-    '000001.json', '000002.json', '000003.json', '000004.json', '000005.json',
-  ], 'в каталоге ровно 5 файлов подряд');
+    'abyss.json', 'castle_ruins.json', 'crypt.json', 'flooded_cave.json',
+    'simple_cave.json',
+  ].sort(), 'в каталоге ровно 5 файлов таблицы 000318.04');
   // Порядок slug-файлов фонов боя — по id (000049).
   const slugs = ['cave', 'crypt', 'ruins', 'drowned', 'abyss'];
   const ids = [];
-  files.forEach((f, i) => {
-    const data = JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8'));
-    assert.equal(data.id, i, `${f}: id ≠ порядковому номеру файла (0..4)`);
+  fs.readdirSync(DDIR)
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.dungeons].test(f))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8')))
+    .sort((a, b) => a.id - b.id)
+    .forEach((data, i) => {
+    assert.equal(data.id, i, `${data.id}: id ≠ позиции (0..4)`);
     ids.push(data.id);
     assert.equal(S.COMBAT_BG_DUNGEON[data.id], slugs[i],
-      `зеркало рассинхронизировано с каталогом: ${f} ↔ ${slugs[i]}.svg`);
+      `зеркало рассинхронизировано с каталогом: id ${data.id} ↔ ${slugs[i]}.svg`);
     assert.equal(S.combatBackground({ dungeon: data.id }),
       BG_DIR + slugs[i] + '.svg', `combatBackground(dungeon: ${data.id})`);
     assert.ok(exists(BG_DIR + slugs[i] + '.svg'),
       `нет файла фона боя: ${slugs[i]}.svg`);
-  });
+    });
   assert.deepEqual(ids, [0, 1, 2, 3, 4], 'множество id каталога ≠ {0..4}');
 });
 
@@ -1443,7 +1449,8 @@ const MOBS_JSON_DIR = path.join(ROOT, 'assets', 'mobs');
 
 function mobJsons() {
   return fs.readdirSync(MOBS_JSON_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mobs].test(f))
     .map((f) => JSON.parse(
       fs.readFileSync(path.join(MOBS_JSON_DIR, f), 'utf8')))
     .sort((a, b) => a.id < b.id ? -1 : 1);
@@ -1765,25 +1772,26 @@ test('DUNGEON_FLOOR_FRAMES: 5 типов × 8 вариантов, ключи ≡
   }
 });
 
-test('DUNGEON_FLOOR_FRAMES ≡ каталог assets/dungeons: порядок файлов ↔ id ↔ slug', () => {
+test('DUNGEON_FLOOR_FRAMES ≡ каталог assets/dungeons: порядок по id ↔ slug', () => {
   // Перенумерация каталога (000058) сдвигает пол так же, как фоны боя:
-  // пол подземелья с id N обязан носить slug N-го файла каталога.
+  // пол подземелья с id N обязан носить slug_bg N-й записи каталога.
   const DDIR = path.join(ROOT, 'assets', 'dungeons');
   const files = fs.readdirSync(DDIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
-    .sort();
-  files.forEach((f, i) => {
-    const data = JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8'));
-    assert.equal(data.id, i, `${f}: id ≠ порядковому номеру файла (0..4)`);
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.dungeons].test(f))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8')))
+    .sort((a, b) => a.id - b.id);
+  files.forEach((data, i) => {
+    assert.equal(data.id, i, `${data.id}: id ≠ позиции записи (0..4)`);
     const frames = S.DUNGEON_FLOOR_FRAMES[data.id];
     assert.ok(Array.isArray(frames) && frames.length === 8,
-      `${f}: нет 8 путей пола для подземелья id=${data.id}`);
+      `id ${data.id}: нет 8 путей пола для подземелья id=${data.id}`);
     const slugs = [...new Set(frames
       .map((p) => path.basename(p).replace(/_\d+\.svg$/, '')))];
     // Явная связь с фоном боя того же подземелья (тихая рассинхронизация
     // «пол склепа под фоном боя пещеры» должна ловиться здесь).
     assert.deepEqual(slugs, [S.COMBAT_BG_DUNGEON[data.id]],
-      `${f}: slug пола ≠ slug фона боя (COMBAT_BG_DUNGEON[${data.id}])`);
+      `id ${data.id}: slug пола ≠ slug фона боя (COMBAT_BG_DUNGEON[${data.id}])`);
   });
 });
 
@@ -1955,7 +1963,8 @@ test('000258 WALL_AUTOTILES: 4 стиля × 20 плиток, имена/пут�
 test('000258 WALL_AUTOTILES ≡ каталог: все виды объектов_стен ⊂ стили, ровно 80 файлов, фасад 000070 удалён', () => {
   const ddir = path.join(ROOT, 'assets', 'dungeons');
   const kinds = new Set();
-  for (const f of fs.readdirSync(ddir).filter((f) => /^\d{6}\.json$/.test(f)).sort()) {
+  for (const f of fs.readdirSync(ddir).filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.dungeons].test(f)).sort()) {
     const data = JSON.parse(fs.readFileSync(path.join(ddir, f), 'utf8'));
     assert.ok(Array.isArray(data.объекты_стен),
       `${f}: нет «объекты_стен» (связь с каталогом не проверима)`);

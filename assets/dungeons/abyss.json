@@ -2,9 +2,9 @@
   "id": 4,
   "название": "бездна",
   "мобы": [
-    "assets/mobs/000034.json",
-    "assets/mobs/000035.json",
-    "assets/mobs/000036.json"
+    "assets/mobs/lower_demon.json",
+    "assets/mobs/succubus.json",
+    "assets/mobs/abomination.json"
   ],
   "предметы": [
     "assets/items/000007.json",

@@ -223,9 +223,10 @@ test('побеждённая группа не двигается', () => {
 // ограничения «перенумерации НЕТ»): DUNGEON_TYPES = 0..4, фон боя
 // assets/combat/bg выбирается именно по этим числам (000049), а
 // нумерация файлов каталога в проекте — с 000001 (тест assets-schemas).
-// Поэтому файл 0000NN.json хранит id NN−1 (0..4), МНОЖЕСТВО id по
-// файлам = ровно {0..4} (уникальность схемой не выразима — проверяется
-// здесь и в sync-скрипте). `название` — ТОЧНО из DUNGEON_NAMES,
+// Поэтому id хранится в JSON (0..4), имя файла — slug (таблица
+// 000318.04, номер более не носитель), МНОЖЕСТВО id по файлам = ровно
+// {0..4} (уникальность схемой не выразима — проверяется здесь и в
+// sync-скрипте). `название` — ТОЧНО из DUNGEON_NAMES,
 // кодовый регистр (строчный): строки HUD/логов не меняются.
 // `постройка` — id пещеры 31..35 из assets/buildings (связь
 // однонаправленная: dungeons → buildings, buildings не меняется).
@@ -236,13 +237,16 @@ const ROOT = path.join(__dirname, '..');
 const DDIR = path.join(ROOT, 'assets', 'dungeons');
 
 function loadDungeonCatalog() {
-  const files = fs.readdirSync(DDIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
-    .sort();
-  return files.map((f) => ({
+  const files = fs.readdirSync(DDIR).filter((f) => f !== 'schema.json'
+    && refLib.SHAPE_BASENAME_RES[refLib.ASSET_NAME_SHAPES.dungeons].test(f));
+  const recs = files.map((f) => ({
     file: f,
     data: JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8')),
   }));
+  // Порядок — по возрастанию id (lex-порядок slug ≠ id-порядку, 000318.04);
+  // поз. сверки зеркал (DUNGEONS[i]) опираются на этот контракт.
+  recs.sort((a, b) => a.data.id - b.data.id);
+  return recs;
 }
 
 test('DUNGEON_NAMES — кодовый регистр (строки HUD/логов), 1:1', () => {
@@ -316,24 +320,29 @@ test('golden: детерминизм — закреплённые значени
   ]);
 });
 
-test('assets/dungeons: ровно 000001..000005.json + schema.json, id = номер файла − 1, множество id = {0..4}', () => {
+test('assets/dungeons: ровно 5 slug-файлов (таблица id→slug 000318.04) + schema.json, множество id = {0..4}', () => {
+  const re = refLib.SHAPE_BASENAME_RES[refLib.ASSET_NAME_SHAPES.dungeons];
+  const DUNGEON_SLUG_00031804 = {
+    0: 'simple_cave', 1: 'crypt', 2: 'castle_ruins', 3: 'flooded_cave',
+    4: 'abyss',
+  };
   const dir = fs.readdirSync(DDIR).sort();
   for (const f of dir) {
-    assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+    assert.ok(re.test(f) || f === 'schema.json',
       `чужой файл в каталоге dungeons: ${f}`);
   }
   assert.ok(fs.existsSync(path.join(DDIR, 'schema.json')),
     'нет assets/dungeons/schema.json');
-  const files = dir.filter((f) => /^\d{6}\.json$/.test(f));
-  assert.deepEqual(files, [
-    '000001.json', '000002.json', '000003.json', '000004.json', '000005.json',
-  ], 'в каталоге ровно 5 файлов подряд 000001..000005');
-  // Файл 0000NN.json хранит id NN−1 (значения DUNGEON_TYPES, перенумерации
-  // НЕТ — фон боя по ним, 000049).
+  const files = dir.filter((f) => f !== 'schema.json' && re.test(f));
+  assert.deepEqual(files, Object.values(DUNGEON_SLUG_00031804)
+    .map((x) => x + '.json').sort(),
+    'в каталоге ровно 5 файлов по таблице slug 000318.04');
+  // id (значения DUNGEON_TYPES, перенумерации НЕТ — фон боя по ним,
+  // 000049) хранится в JSON; имя файла — slug из таблицы.
   const ids = files.map((f) => {
     const data = JSON.parse(fs.readFileSync(path.join(DDIR, f), 'utf8'));
-    const n = parseInt(f, 10);
-    assert.equal(data.id, n - 1, `${f}: id ≠ номер файла − 1 (ожидалось ${n - 1})`);
+    assert.equal(f, DUNGEON_SLUG_00031804[data.id] + '.json',
+      `${f}: имя ≠ таблице id→slug 000318.04 (id ${data.id})`);
     return data.id;
   });
   // Уникальность (схемой не выразима): множество id — ровно {0..4}.
@@ -344,7 +353,7 @@ test('assets/dungeons: ровно 000001..000005.json + schema.json, id = ном
 test('зеркало src/dungeons-data.js ≡ JSON-файлы каталога (deepEqual)', () => {
   const DD = require('../src/dungeons-data.js');
   const cat = loadDungeonCatalog();
-  assert.equal(DD.DUNGEONS.length, 5, 'DUNGEONS — 5 записей в порядке файлов');
+  assert.equal(DD.DUNGEONS.length, 5, 'DUNGEONS — 5 записей в порядке id');
   cat.forEach(({ file, data }, i) => {
     assert.deepEqual(DD.DUNGEONS[i], resolvedDungeonRecord(data, file),
       `DUNGEONS[${i}] ≠ ${file}`);
@@ -812,7 +821,7 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
   // (DROWNED) — 6 legacy + 25 = 31 предмет. Ре-пин 000235.12:
   // +25 свитков волны Природа КОНЦОМ пула 000003 (RUINS) — 32 → 57.
   const EXPECTED = {
-    '000001.json': ['iron_sword', 'healing_potion', 'sulfur',
+    'simple_cave.json': ['iron_sword', 'healing_potion', 'sulfur',
       'stone_fist_grimoire', 'frost_bolt_scroll',
       'ice_lance_scroll', 'rime_bolt_scroll', 'hail_scroll',
       'shatter_scroll', 'glacial_spike_scroll', 'permafrost_scroll',
@@ -823,7 +832,7 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
       'freeze_scroll', 'glacier_grasp_scroll', 'frost_wisp_scroll',
       'winter_elemental_scroll', 'frost_walk_scroll',
       'cold_breath_scroll', 'frozen_stillness_scroll'],
-    '000002.json': ['alchemy_manual', 'mana_potion',
+    'crypt.json': ['alchemy_manual', 'mana_potion',
       'meditation_scroll', 'chill_scroll', 'light_heal_scroll',
       'blueprint_alchemy', 'blueprint_carving',
       'umbra_bolt_scroll', 'drain_life_scroll', 'void_arrow_scroll',
@@ -848,7 +857,7 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
       'holy_ground_scroll', 'prayer_scroll',
       'divine_protection_scroll', 'holy_light_scroll',
       'miracle_scroll'],
-    '000003.json': ['steel_sword', 'war_hammer',
+    'castle_ruins.json': ['steel_sword', 'war_hammer',
       'iron_hide_tome', 'fireball_scroll', 'vine_scroll',
       'blueprint_forge', 'blueprint_woodwork',
       'ember_scroll', 'ignite_scroll', 'fire_nova_scroll',
@@ -869,7 +878,7 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
       'entangle_scroll', 'root_grasp_scroll', 'forest_beast_scroll',
       'treant_scroll', 'wild_growth_scroll', 'beast_friend_scroll',
       'path_of_vines_scroll'],
-    '000004.json': ['mana_elixir', 'hunting_bow', 'moonstone',
+    'flooded_cave.json': ['mana_elixir', 'hunting_bow', 'moonstone',
       'nature_scroll', 'magic_shield_scroll', 'blueprint_runecraft',
       'iron_bulwark_scroll', 'aegis_scroll', 'shield_wall_scroll',
       'magical_barrier_scroll', 'stony_hide_scroll',
@@ -882,7 +891,7 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
       'stone_golem_scroll', 'iron_sentinel_scroll',
       'stone_anchor_scroll', 'recall_scroll', 'gate_scroll',
       'warding_circle_scroll'],
-    '000005.json': ['war_hammer', 'phoenix_feather', 'greater_healing',
+    'abyss.json': ['war_hammer', 'phoenix_feather', 'greater_healing',
       'heavy_tome', 'fire_spellbook', 'flame_burst_scroll',
       'blizzard_scroll', 'blueprint_enchant'],
   };
@@ -975,10 +984,10 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
 // заменяет предмет с явным slot предметом EQUIP_POOLS — выпасть из
 // сундуков они не могут. Пины данных (красные до фикса). Контракт:
 // memory/000251-chest-phantoms.md §5 (C-1..C-3), §6.1.
-test('000251-P1: CRYPT (assets/dungeons/000002.json) пул «предметы» — БЕЗ chainmail (assets/items/000009.json): фантом удалён (явный slot torso → chest-equip-блок 000230.05 ВСЕГДА заменяет его предметом EQUIP_POOLS; выпадать из сундуков не может)', () => {
+test('000251-P1: CRYPT (assets/dungeons/crypt.json) пул «предметы» — БЕЗ chainmail (assets/items/000009.json): фантом удалён (явный slot torso → chest-equip-блок 000230.05 ВСЕГДА заменяет его предметом EQUIP_POOLS; выпадать из сундуков не может)', () => {
   const cat = loadDungeonCatalog();
-  const crypt = cat.find(({ file }) => file === '000002.json');
-  const rec = resolvedDungeonRecord(crypt.data, '000002.json');
+  const crypt = cat.find(({ file }) => file === 'crypt.json');
+  const rec = resolvedDungeonRecord(crypt.data, 'crypt.json');
   assert.ok(
     !rec.предметы.includes('chainmail'),
     'CRYPT «предметы»: «chainmail» (assets/items/000009.json, явный ' +
@@ -996,10 +1005,10 @@ test('000251-P1: CRYPT (assets/dungeons/000002.json) пул «предметы»
   }
 });
 
-test('000251-P2: RUINS (assets/dungeons/000003.json) пул «предметы» — БЕЗ knight_plate (assets/items/000010.json): фантом удалён (то же основание)', () => {
+test('000251-P2: RUINS (assets/dungeons/castle_ruins.json) пул «предметы» — БЕЗ knight_plate (assets/items/000010.json): фантом удалён (то же основание)', () => {
   const cat = loadDungeonCatalog();
-  const ruins = cat.find(({ file }) => file === '000003.json');
-  const rec = resolvedDungeonRecord(ruins.data, '000003.json');
+  const ruins = cat.find(({ file }) => file === 'castle_ruins.json');
+  const rec = resolvedDungeonRecord(ruins.data, 'castle_ruins.json');
   assert.ok(
     !rec.предметы.includes('knight_plate'),
     'RUINS «предметы»: «knight_plate» (assets/items/000010.json, ' +
@@ -2628,7 +2637,7 @@ function resolvedDungeonRecord(data, file) {
 // на существование (missing=[]). Для mobs/items файл ≠ номер id
 // (таблица id→файл — из каталогов); buildings — identity 31..35.
 const DUN_REF_PREV = {
-  '000001.json': {
+  'simple_cave.json': {
     мобы: ['skeleton', 'ant', 'crawling_bones', 'giant_larva'],
     постройки_id: 31,
     // Ре-пин 000235.08: +25 свитков волны Лёд КОНЦОМ пула (5 → 30).
@@ -2650,7 +2659,7 @@ const DUN_REF_PREV = {
       ['phosphorite', 'минерал'], ['herb_healing', 'минерал'],
     ],
   },
-  '000002.json': {
+  'crypt.json': {
     мобы: ['skeleton', 'skeleton_archer', 'rot', 'vampire', 'bone_coloss'],
     постройки_id: 32,
     // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
@@ -2689,7 +2698,7 @@ const DUN_REF_PREV = {
       ['herb_mana', 'минерал'],
     ],
   },
-  '000003.json': {
+  'castle_ruins.json': {
     мобы: ['orc_warrior', 'orc_archer', 'wolf', 'troll', 'skeleton'],
     постройки_id: 33,
     // Ре-пин 000232: приложенные чертежи (концом массива). Ре-пин
@@ -2723,7 +2732,7 @@ const DUN_REF_PREV = {
       ['ruby', 'самоцвет'], ['wood_log', 'минерал'], ['hide', 'минерал'],
     ],
   },
-  '000004.json': {
+  'flooded_cave.json': {
     мобы: ['water_elemental', 'scorpion', 'spider', 'imp'],
     постройки_id: 34,
     // Ре-пин 000232: приложенный чертёж (концом массива). Ре-пин
@@ -2748,7 +2757,7 @@ const DUN_REF_PREV = {
       ['herb_bitter', 'минерал'],
     ],
   },
-  '000005.json': {
+  'abyss.json': {
     мобы: ['lower_demon', 'succubus', 'abomination'],
     постройки_id: 35,
     // Ре-пин 000232: приложенный чертёж (концом массива).
@@ -2778,7 +2787,7 @@ test('DUN-REF-1: dungeons: мобы[] — json-ссылки на assets/mobs, id
       const id = prev.мобы[i];
       assert.equal(refLib.isRef(ref), true,
         file + ' мобы[' + i + ']: «' + JSON.stringify(ref) +
-        '» — не якорная ссылка (ожидается assets/mobs/NNNNNN.json)');
+        '» — не якорная ссылка (ожидается assets/mobs/<slug>.json, 000318.04)');
       assert.ok(String(ref).startsWith('assets/mobs/'),
         file + ' мобы[' + i + ']: ссылка вне каталога assets/mobs: '
         + ref);
@@ -2928,9 +2937,9 @@ test('DUN-REF-4: dungeons: ∈-проверка мобы ПОСЛЕ резолю
     ['assets/items/000001.json', JSON.stringify({ id: 'wood_sword' })],
   ], (dir) => {
     // (а) якорная ссылка на несуществующий файл мобов → битый.
-    assert.equal(mobRefBroken(dir, 'assets/mobs/000999.json',
+    assert.equal(mobRefBroken(dir, 'assets/mobs/no_such_mob.json',
       C.MOB_TYPES), 'no-file',
-      'провисший путь assets/mobs/000999.json → no-file');
+      'провисший путь assets/mobs/no_such_mob.json → no-file');
     // (б) ссылка резолвится, но id ∉ MOB_TYPES (чужой каталог
     // items) → битый: миграция в чужой каталог не пройдёт.
     assert.equal(mobRefBroken(dir, 'assets/items/000001.json',
@@ -3655,9 +3664,9 @@ const NATURE12_SCROLLS = [
 
 test('W-07. 000235.07: пул RUINS 000003 — 57 предметов (7 + 25 свитков Огонь + 25 свитков Природа КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, баланс 52/57 (ре-пин 000235.12: +25 волны Природа)', () => {
   const cat = loadDungeonCatalog();
-  const ruins = cat.find(({ file }) => file === '000003.json');
-  assert.ok(ruins, '000003.json (RUINS) в каталоге');
-  assert.equal(ruins.data.id, 2, '000003.json — RUINS (id 2)');
+  const ruins = cat.find(({ file }) => file === 'castle_ruins.json');
+  assert.ok(ruins, 'castle_ruins.json (RUINS) в каталоге');
+  assert.equal(ruins.data.id, 2, 'castle_ruins.json — RUINS (id 2)');
   const rec = resolvedDungeonRecord(ruins.data, ruins.file);
   assert.deepEqual(rec.предметы,
     ['steel_sword', 'war_hammer',
@@ -3727,9 +3736,9 @@ const ICE08_SCROLLS = [
 
 test('W-07. 000235.08: пул CAVE 000001 — 30 предметов (5 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 9/30', () => {
   const cat = loadDungeonCatalog();
-  const cave = cat.find(({ file }) => file === '000001.json');
-  assert.ok(cave, '000001.json (CAVE) в каталоге');
-  assert.equal(cave.data.id, 0, '000001.json — CAVE (id 0)');
+  const cave = cat.find(({ file }) => file === 'simple_cave.json');
+  assert.ok(cave, 'simple_cave.json (CAVE) в каталоге');
+  assert.equal(cave.data.id, 0, 'simple_cave.json — CAVE (id 0)');
   const rec = resolvedDungeonRecord(cave.data, cave.file);
   assert.deepEqual(rec.предметы,
     ['iron_sword', 'healing_potion', 'sulfur',
@@ -3818,9 +3827,9 @@ const HEAL10_SCROLLS = [
 
 test('W-07. 000235.09: пул CRYPT 000002 — 57 предметов (7 + 25 + 25 свитков КОНЦОМ), каждый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 14/57 (ре-пин 000251: −chainmail; ре-пин 000235.10: +25 волны Исцеление)', () => {
   const cat = loadDungeonCatalog();
-  const crypt = cat.find(({ file }) => file === '000002.json');
-  assert.ok(crypt, '000002.json (CRYPT) в каталоге');
-  assert.equal(crypt.data.id, 1, '000002.json — CRYPT (id 1)');
+  const crypt = cat.find(({ file }) => file === 'crypt.json');
+  assert.ok(crypt, 'crypt.json (CRYPT) в каталоге');
+  assert.equal(crypt.data.id, 1, 'crypt.json — CRYPT (id 1)');
   const rec = resolvedDungeonRecord(crypt.data, crypt.file);
   assert.deepEqual(rec.предметы,
     ['alchemy_manual', 'mana_potion',
@@ -3887,9 +3896,9 @@ test('W-07. 000235.09: пул CRYPT 000002 — 57 предметов (7 + 25 + 2
 // slot; T1) — 58 → 57, T1 15 → 14.
 test('W-07. 000235.10: пул CRYPT 000002 — 57 предметов (7 + 25 + 25 свитков КОНЦОМ), ПИН 50 свитков волн, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 14/57 (ре-пин 000251: −chainmail)', () => {
   const cat = loadDungeonCatalog();
-  const crypt = cat.find(({ file }) => file === '000002.json');
-  assert.ok(crypt, '000002.json (CRYPT) в каталоге');
-  assert.equal(crypt.data.id, 1, '000002.json — CRYPT (id 1)');
+  const crypt = cat.find(({ file }) => file === 'crypt.json');
+  assert.ok(crypt, 'crypt.json (CRYPT) в каталоге');
+  assert.equal(crypt.data.id, 1, 'crypt.json — CRYPT (id 1)');
   const rec = resolvedDungeonRecord(crypt.data, crypt.file);
   assert.deepEqual(rec.предметы,
     ['alchemy_manual', 'mana_potion',
@@ -3975,9 +3984,9 @@ const PROT11_SCROLLS = [
 
 test('W-07. 000235.11: пул DROWNED 000004 — 31 предмет (6 + 25 свитков КОНЦОМ), ПИН 26 свитков в пуле, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 9/31', () => {
   const cat = loadDungeonCatalog();
-  const drowned = cat.find(({ file }) => file === '000004.json');
-  assert.ok(drowned, '000004.json (DROWNED) в каталоге');
-  assert.equal(drowned.data.id, 3, '000004.json — DROWNED (id 3)');
+  const drowned = cat.find(({ file }) => file === 'flooded_cave.json');
+  assert.ok(drowned, 'flooded_cave.json (DROWNED) в каталоге');
+  assert.equal(drowned.data.id, 3, 'flooded_cave.json — DROWNED (id 3)');
   const rec = resolvedDungeonRecord(drowned.data, drowned.file);
   assert.deepEqual(rec.предметы,
     ['mana_elixir', 'hunting_bow', 'moonstone', 'nature_scroll',
@@ -4045,9 +4054,9 @@ test('W-07. 000235.11: пул DROWNED 000004 — 31 предмет (6 + 25 св�
 // thorn_whip/heart_of_forest/wild_growth/poison).
 test('W-07. 000235.12: пул RUINS 000003 — 57 предметов (7 + 25 + 25 свитков КОНЦОМ), ПИН 50 свитков волн в пуле, каждый новый свиток РОВНО в одном пуле, FALLBACK 1:1, T1-баланс 15/57', () => {
   const cat = loadDungeonCatalog();
-  const ruins = cat.find(({ file }) => file === '000003.json');
-  assert.ok(ruins, '000003.json (RUINS) в каталоге');
-  assert.equal(ruins.data.id, 2, '000003.json — RUINS (id 2)');
+  const ruins = cat.find(({ file }) => file === 'castle_ruins.json');
+  assert.ok(ruins, 'castle_ruins.json (RUINS) в каталоге');
+  assert.equal(ruins.data.id, 2, 'castle_ruins.json — RUINS (id 2)');
   const rec = resolvedDungeonRecord(ruins.data, ruins.file);
   assert.deepEqual(rec.предметы,
     ['steel_sword', 'war_hammer',

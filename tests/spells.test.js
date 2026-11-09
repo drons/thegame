@@ -6573,7 +6573,7 @@ test('000235.11 W-07: контроль/создание/дебаф — stone_gra
   }
 });
 
-test('000235.11 W-08: призывы — stone_golem → «Каменный голем» (assets/mobs/000033, shield) level 3 / iron_sentinel → «Костяной колосс» (summon bone_coloss 000015, shield) level 4: level = уровень спелла, summonTurns 4, статы из makeAlly (deepEqual); u.spells [] (HEAL_SUMMON_IDS НЕ расширяется — source-пин)', () => {
+test('000235.11 W-08: призывы — stone_golem → «Каменный голем» (assets/mobs/stone_golem.json, shield) level 3 / iron_sentinel → «Костяной колосс» (summon bone_coloss.json, shield) level 4: level = уровень спелла, summonTurns 4, статы из makeAlly (deepEqual); u.spells [] (HEAL_SUMMON_IDS НЕ расширяется — source-пин)', () => {
   const dataMod = loadSpellsData();
   for (const id of ['stone_golem', 'iron_sentinel']) {
     assert.ok(dataMod.SPELLS_BY_ID[id], `W-08: ${id} (RED: нет)`);

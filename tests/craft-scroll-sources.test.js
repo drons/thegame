@@ -32,7 +32,8 @@ const { DUNGEONS } = require('../src/dungeons-data.js');
 const DUN = require('../src/dungeon.js');
 const { MOB_TYPES } = require('../src/combat.js');
 const { createCharacter } = require('../src/player.js');
-const { isRef } = require('../scripts/lib/json-ref.js');
+const { isRef, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('../scripts/lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const readJson = (rel) =>
@@ -110,7 +111,8 @@ test('SRC-1: NPC — каждый из 6 чертежей продаётся ≥
 
 test('SRC-2: сундуки — каждый из 6 чертежей ≥1 пуле (ref-форма, резолвится в id чертежа); простая пещера (id 0) — БЕЗ чертежей (пул не тронут); зеркало dungeons-data ≡ JSON (ref→id); FALLBACK_DUNGEONS (src/dungeon.js) синхронно 1:1; RED: пулы без чертежей', () => {
   const files = fs.readdirSync(path.join(ROOT, 'assets', 'dungeons'))
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.dungeons].test(f)).sort();
   assert.equal(files.length, DUNGEONS.length,
     'пулов — ровно как записей dungeons-data');
   const t = track();
@@ -155,7 +157,8 @@ test('SRC-2: сундуки — каждый из 6 чертежей ≥1 пул
 
 test('SRC-3: мобы — каждый из 6 чертежей ≥1 лут-таблицы (chance 0.05, append КОНЦОМ таблицы, ref-форма); MOB_TYPES (src/combat.js) ≡ JSON (ref→id) — двухфайловый lockstep; RED: лут без чертежей', () => {
   const files = fs.readdirSync(path.join(ROOT, 'assets', 'mobs'))
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mobs].test(f)).sort();
   const t = track();
   for (const f of files) {
     const j = readJson('assets/mobs/' + f);

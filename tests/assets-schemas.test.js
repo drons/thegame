@@ -45,6 +45,38 @@ const VISUALS_SLUGS_000318 = [
   'rock.json', 'snow_patch.json',
 ].sort();
 
+// 000318.04: assets/mobs — slug-каталог (имя = строковый id); assets/
+// mob_groups и assets/dungeons — slug-каталоги с РУКОПИСНЫМИ именами
+// (числовой id остаётся в JSON, имя — таблица 000318.04). Прежний
+// числовой пин «подряд 1..N» заменён ФИКСИРОВАННЫМ множеством имён —
+// не ослабление: состав каталога пиннован целиком (прецедент visuals .03).
+const MOBS_SLUGS_000318 = [
+  'orc_grunt.json', 'orc_warrior.json', 'orc_archer.json', 'orc_shaman.json',
+  'orc_rider.json', 'orc_mad.json', 'orc_captain.json', 'orc_chief.json',
+  'skeleton.json', 'skeleton_archer.json', 'crawling_bones.json',
+  'giant_larva.json', 'vampire.json', 'rot.json', 'bone_coloss.json',
+  'wolf.json', 'wolf_pack.json', 'boar.json', 'cave_bear.json', 'spider.json',
+  'troll.json', 'ant.json', 'ant_queen.json', 'scorpion.json',
+  'centipede.json', 'fire_elemental.json', 'water_elemental.json',
+  'wind_elemental.json', 'earth_elemental.json', 'imp.json',
+  'salamander.json', 'fairy.json', 'stone_golem.json', 'lower_demon.json',
+  'succubus.json', 'abomination.json',
+].sort();
+const MOB_GROUPS_SLUGS_000318 = [
+  'orc_camp.json', 'orc_raiders.json', 'skeleton_den.json', 'wolf_pack.json',
+  'spider_nest.json', 'elemental_circle.json', 'abyss_spirit.json',
+].sort();
+const DUNGEONS_SLUGS_000318 = [
+  'simple_cave.json', 'crypt.json', 'castle_ruins.json', 'flooded_cave.json',
+  'abyss.json',
+].sort();
+const SLUG_PINNED_000318 = {
+  visuals: VISUALS_SLUGS_000318,
+  mobs: MOBS_SLUGS_000318,
+  mob_groups: MOB_GROUPS_SLUGS_000318,
+  dungeons: DUNGEONS_SLUGS_000318,
+};
+
 function catalogDir(name) {
   return path.join(ROOT, 'assets', name);
 }
@@ -237,6 +269,10 @@ for (const name of CATALOGS) {
   test(name === 'visuals'
     ? name + ': файлы каталога — контрактованное множество slug-имён '
       + '(000318.03: basename «спрайт»), каталог не пуст'
+    : SLUG_PINNED_000318[name] !== undefined
+      ? name + ': файлы каталога — контрактованное множество slug-имён '
+        + '(000318.04: mobs — id, mob_groups/dungeons — таблица id→slug), '
+        + 'каталог не пуст'
     : `${name}: файлы 000001.json … N.json подряд${name === 'items'
       ? ' (ре-пин 000235.10: +25 свитков 000258–000282 — резервная '
       + 'дыра закрыта; ре-пин 000230.11: +50 рук 000283–000332; '
@@ -282,11 +318,11 @@ for (const name of CATALOGS) {
     // 000613 заполнены (50 брони) — items 000001–000613 подряд, дыр
     // нет; резерв с 000614; craft 000360..000469 → 000360..000519
     // (+50 рецептов 000470–000519, сегмент сливается), резерв с 000520.
-    if (name === 'visuals') {
-      // 000318.03: slug-каталог — вместо числовых сегментов пин фиксированным
-      // множеством имён (носитель числа/состава — сам сет из 13).
-      assert.deepEqual(files, VISUALS_SLUGS_000318,
-        'visuals: имена файлов ≡ контрактованному множеству slug');
+    if (SLUG_PINNED_000318[name] !== undefined) {
+      // 000318.03/.04: slug-каталог — вместо числовых сегментов пин
+      // фиксированным множеством имён (носитель состава — сам сет).
+      assert.deepEqual(files, SLUG_PINNED_000318[name],
+        name + ': имена файлов ≡ контрактованному множеству slug');
     } else {
       const segments = name === 'items'
         ? [[1, 613]]

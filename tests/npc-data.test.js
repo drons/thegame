@@ -25,7 +25,8 @@ const { getItem } = require('../src/items.js');
 const { PRIMARY_SKILLS, SECONDARY_SKILLS } = require('../src/player.js');
 const { mobGroupCount } = require('../src/map.js');
 const { SPELLS_BY_ID } = require('../src/spells-data.js');
-const { resolveRef } = require('../scripts/lib/json-ref.js');
+const { resolveRef, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('../scripts/lib/json-ref.js');
 
 const DIR = path.join(__dirname, '..', 'assets', 'npc');
 
@@ -434,7 +435,8 @@ test('квесты kill_group: группа — из каталога assets/mob
   // числа групп квесты обязаны остаться валидными.
   const MG_DIR = path.join(__dirname, '..', 'assets', 'mob_groups');
   const groups = fs.readdirSync(MG_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mob_groups].test(f)).sort();
   assert.equal(groups.length, 7, 'в каталоге ровно 7 групп мобов');
   let n = 0;
   for (const npc of NPCS) {

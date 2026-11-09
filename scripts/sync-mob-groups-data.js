@@ -27,7 +27,8 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { isRefPath } = require('./lib/json-ref.js');
+const { isRefPath, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'mob_groups');
@@ -38,15 +39,16 @@ const HEADER =
 
 // --- Чтение каталога ---
 const files = fs.readdirSync(DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
-  .sort();
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.mob_groups].test(f));
 if (files.length === 0) {
-  console.error('assets/mob_groups: не найдено ни одного файла 0000NN.json');
+  console.error('assets/mob_groups: не найдено ни одного файла <slug>.json');
   process.exit(1);
 }
 
 // Задача 000211.08: состав.мобы — ссылка на файл
-// «assets/mobs/NNNNNN.json» (контракт 000211 §2); при запекании
+// «assets/mobs/<id>.json» (контракт 000211 §2, шейп slug — 000318.04);
+// при запекании
 // резолюция в id файла-цели — зеркало src/mob-groups-data.js остаётся
 // в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed: значение
 // вне паттерна (включая голый id — дрейф), файл-цель отсутствует /
@@ -59,7 +61,7 @@ function resolveMobRef(file, ref, where) {
     || !isRefPath('mobs', ref.slice(prefix.length))) {
     console.error(
       `${file}: ${where} «${ref}» — не ссылка `
-      + 'на файл mobs (формат "assets/mobs/NNNNNN.json")');
+      + 'на файл mobs (формат "assets/mobs/<id>.json")');
     process.exit(1);
   }
   if (MOBS_REF_CACHE.has(ref)) return MOBS_REF_CACHE.get(ref);
@@ -80,15 +82,16 @@ function resolveMobRef(file, ref, where) {
   return tj.id;
 }
 
-const groups = [];
+const entries = [];
 for (const f of files) {
-  const n = parseInt(f, 10);
   const data = JSON.parse(
     fs.readFileSync(path.join(DIR, f), 'utf8'));
   // Минимальная проверка (полная структура закреплена в schema.json,
   // ссылочная целостность id мобов — в tests/mob-groups.test.js).
-  if (!data || data.id !== n) {
-    console.error(`${f}: id ≠ номер файла (${n})`);
+  // Номера в имени файла НЕТ (000318.04) — id проверяется как целое,
+  // множество {1..N} и уникальность — после сбора каталога.
+  if (!data || !Number.isInteger(data.id)) {
+    console.error(`${f}: id отсутствует или не целый`);
     process.exit(1);
   }
   if (typeof data.название !== 'string' || data.название.trim() === '' ||
@@ -102,9 +105,24 @@ for (const f of files) {
   }
   // Задача 000211.08: ссылки состав.мобы → id целей (до генерации;
   // зеркало — в id-форме); «кадры» — аддитивное поле, as-is.
+  entries.push({ file: f, data });
+}
+
+// Множество id — ровно {1..N}, уникально (номера файлов более не носитель).
+const sortedIds = entries.map((e) => e.data.id).sort((a, b) => a - b);
+const expectIds = Array.from({ length: entries.length }, (_, i) => i + 1);
+if (JSON.stringify(sortedIds) !== JSON.stringify(expectIds)) {
+  console.error(
+    `множество id ≠ {1..${entries.length}}: ${sortedIds.join(', ')}`);
+  process.exit(1);
+}
+
+// Порядок зеркал — ПО ЧИСЛОВИЧ data.id: позиция = id − 1 = кодовый индекс
+// группы (MOB_GROUP_TYPES), lex-порядок slug-имён ему не равен (000318.04).
+const groups = entries.sort((a, b) => a.data.id - b.data.id);
+for (const { file: f, data } of groups) {
   data.состав.мобы = data.состав.мобы.map((m, n) =>
     resolveMobRef(f, m, 'состав.мобы[' + n + ']'));
-  groups.push({ file: f, data });
 }
 
 // --- Генерация JS ---
@@ -156,7 +174,7 @@ L.push('  }');
 L.push('})(typeof globalThis !== "undefined" ? globalThis : self, function () {');
 L.push('');
 L.push(`  // Записи групп (assets/mob_groups/${range});`);
-L.push('  // порядок массива = нумерация файлов; позиция = id − 1 =');
+L.push('  // порядок массива = возрастание id; позиция = id − 1 =');
 L.push('  // кодовый индекс группы (hash2 % N, MOB_GROUP_TYPES в src/map.js).');
 L.push('  const MOB_GROUPS = [');
 for (const { file, data } of groups) {

@@ -20,9 +20,9 @@ const path = require('path');
 // <slug>.json с буквы. Живой объект: тесты могут временно менять шейп
 // каталога в try/finally (фикстуры обеих форм), REF_RE при этом статичен.
 const ASSET_NAME_SHAPES = {
-  items: 'number', skills: 'number', spells: 'number', mobs: 'number',
-  mob_groups: 'number', buildings: 'number', craft: 'number',
-  dungeons: 'number', npc: 'number', runes: 'slug', visuals: 'slug',
+  items: 'number', skills: 'number', spells: 'number', mobs: 'slug',
+  mob_groups: 'slug', buildings: 'number', craft: 'number',
+  dungeons: 'slug', npc: 'number', runes: 'slug', visuals: 'slug',
   portraits: 'named',
 };
 
@@ -90,7 +90,7 @@ function isRef(v) {
 // root — позиционный, ОБЯЗАТЕЛЕН, дефолта НЕТ (негативные фикстуры
 // изолируются в mkdtemp tmp-корне). БЕЗ бросаний: структурный результат,
 // reason — not-a-ref | no-file | not-json | no-id. «Содержит id» —
-// hasOwnProperty, НЕ truthiness: assets/dungeons/000001.json — id = 0.
+// hasOwnProperty, НЕ truthiness: assets/dungeons/simple_cave.json — id = 0.
 function resolveRef(root, ref) {
   if (!isRef(ref)) return { ok: false, reason: 'not-a-ref' };
   let st;

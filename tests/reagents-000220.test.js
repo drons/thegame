@@ -41,7 +41,9 @@ const FIVE = [
 ];
 const FIVE_IDS = new Set(FIVE.map(([id]) => id));
 const DUN_FILES = fs.readdirSync(DDIR)
-  .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  .filter((f) => f !== 'schema.json'
+    && refLib.SHAPE_BASENAME_RES[refLib.ASSET_NAME_SHAPES.dungeons].test(f))
+  .sort();
 
 function itemJson(file) {
   return JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
@@ -154,23 +156,23 @@ const T1_TABLE = [
   { id: 'wood_log', itemFile: '000035.json',
     loot: { terrains: ['лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/wood_log.svg',
-    dungeonFile: '000003.json', type: 2, kind: 'минерал' },
+    dungeonFile: 'castle_ruins.json', type: 2, kind: 'минерал' },
   { id: 'hide', itemFile: '000037.json',
     loot: { terrains: ['лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/hide.svg',
-    dungeonFile: '000003.json', type: 2, kind: 'минерал' },
+    dungeonFile: 'castle_ruins.json', type: 2, kind: 'минерал' },
   { id: 'herb_healing', itemFile: '000039.json',
     loot: { terrains: ['болото', 'лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/herb_healing.svg',
-    dungeonFile: '000001.json', type: 0, kind: 'минерал' },
+    dungeonFile: 'simple_cave.json', type: 0, kind: 'минерал' },
   { id: 'herb_mana', itemFile: '000040.json',
     loot: { terrains: ['болото', 'лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/herb_mana.svg',
-    dungeonFile: '000002.json', type: 1, kind: 'минерал' },
+    dungeonFile: 'crypt.json', type: 1, kind: 'минерал' },
   { id: 'herb_bitter', itemFile: '000041.json',
     loot: { terrains: ['болото', 'лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/herb_bitter.svg',
-    dungeonFile: '000004.json', type: 3, kind: 'минерал' },
+    dungeonFile: 'flooded_cave.json', type: 3, kind: 'минерал' },
 ];
 
 test("000220 REAG-T1: таблица «где-что» — точное размещение 5 reagent'ов (terrains/frequency/icon + dungeon-файл/тип/«вид» ≡ memory §2; новые записи — В КОНЕЦ «руда», порядок таблицы; ABYSS — без записей) + составы пулов deepEqual (каталог ↔ dungeons-data ↔ D.DUNGEON_ORES)", () => {

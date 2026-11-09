@@ -11,7 +11,8 @@
 //
 // Контракты:
 //   * RN1 — реестр шейпов: 11 нумерованных каталогов → 'number'
-//     (runes — 'slug' с 000318.02, visuals — 'slug' с 000318.03),
+//     (runes — 'slug' с 000318.02, visuals — 'slug' с 000318.03,
+//     mobs/mob_groups/dungeons — 'slug' с 000318.04),
 //     portraits → 'named';
 //     REF_LINKED_CATALOGS — РОВНО 9 мишеней ссылок
 //     (REF_CATALOGS минус visuals и portraits); ref-eligibility ≠ name-shape
@@ -97,11 +98,23 @@ function withTmpRoot(files, fn) {
 
 // Имя-носитель для slug-каталогов (по умолчанию basename === id + '.json'):
 // runes (000318.02) — id; visuals (000318.03) — basename поля «спрайт»
-// (id каталога ЧИСЛОВОЙ 1..13, имя — по спрайту). Честный экстрактор вместо
-// ослабления свипа: форма + уникальность сохранены.
+// (id каталога ЧИСЛОВОЙ 1..13, имя — по спрайту); mobs (000318.04) — id
+// (строковый, default). mob_groups/dungeons (000318.04) — ИМЕНА РУКОПИСНЫЕ
+// (id числовой, имя не выводится из данных): честный пин — таблица id→slug
+// задачи .04 (память memory/000318-asset-rename.md), а не ослабление свипа.
+const MOB_GROUP_SLUG_00031804 = {
+  1: 'orc_camp', 2: 'orc_raiders', 3: 'skeleton_den', 4: 'wolf_pack',
+  5: 'spider_nest', 6: 'elemental_circle', 7: 'abyss_spirit',
+};
+const DUNGEON_SLUG_00031804 = {
+  0: 'simple_cave', 1: 'crypt', 2: 'castle_ruins', 3: 'flooded_cave',
+  4: 'abyss',
+};
 const NAME_OF_000318 = {
   runes: (data) => data.id + '.json',
   visuals: (data) => path.basename(data.спрайт, '.svg') + '.json',
+  mob_groups: (data) => MOB_GROUP_SLUG_00031804[data.id] + '.json',
+  dungeons: (data) => DUNGEON_SLUG_00031804[data.id] + '.json',
 };
 
 // Семантика свипа для будущих дочерних 000318.YY (НЕ реальный rename):
@@ -130,7 +143,8 @@ function renameViolations(mod, dir, cat) {
 
 // Переименованные дочерними каталоги (000318.YY) — вне прежнего default
 // 'number'; остальные NUMBERED остаются number до своих дочерних.
-const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug' }; // .02, .03
+const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug',
+  mobs: 'slug', mob_groups: 'slug', dungeons: 'slug' }; // .02, .03, .04
 
 test('RN1: реестр шейпов — переименованные каталоги по таблице, прочие number, portraits named, 9 мишеней', () => {
   const mod = loadShapes();
@@ -138,7 +152,8 @@ test('RN1: реестр шейпов — переименованные ката
     assert.equal(mod.ASSET_NAME_SHAPES[cat],
       SHAPES_EXPECTED_000318[cat] || 'number',
       cat + ': шейп по таблице переименований 000318 (.01 — все number; '
-      + '.02 переименовал runes в slug; .03 — visuals)');
+      + '.02 переименовал runes в slug; .03 — visuals; .04 — '
+      + 'mobs/mob_groups/dungeons)');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE, вне SHAPE_BASENAME_RES)');
@@ -156,14 +171,17 @@ test('RN1: реестр шейпов — переименованные ката
     'slug в number-каталоге — НЕ ref (негатив ТЗ)');
   assert.equal(mod.refPath('items', '000001.json'),
     'assets/items/000001.json', 'refPath собирает корневой путь');
-  assert.equal(mod.isRefPathFull('assets/mobs/000036.json'), true);
+  assert.equal(mod.isRefPathFull('assets/mobs/abomination.json'), true,
+    'mobs (slug с 000318.04): slug-имя — ref');
+  assert.equal(mod.isRefPathFull('assets/mobs/000036.json'), false,
+    'mobs (slug с 000318.04): прежний номер — НЕ ref');
   assert.equal(mod.isRefPathFull('assets/mobs/00001.json'), false,
     '5 цифр — не ref');
   assert.equal(mod.isRefPathFull('assets/mobs/0000001.json'), false,
     '7 цифр — не ref');
 });
 
-test('RN2: свип каталогов — имена по форме lib; number — номера подряд (craft — дыры), slug — basename == NameOf (runes — id, visuals — спрайт; .02/.03)', () => {
+test('RN2: свип каталогов — имена по форме lib; number — номера подряд (craft — дыры), slug — basename == NameOf (runes — id, visuals — спрайт, mobs — id, mob_groups/dungeons — таблицы 000318.04)', () => {
   const mod = loadShapes();
   for (const cat of NUMBERED) {
     const files = dataFiles(ROOT, cat);
@@ -234,8 +252,9 @@ test('RN3: каждая межкаталожная ссылка в 11 нумер
 
 test('RN4: slug-шейп (временная подмена) — свип требует basename == id; number — НЕ требует', () => {
   const mod = loadShapes();
-  assert.deepEqual(renameViolations(mod, ROOT, 'dungeons'), [],
-    'number-шейп: смещение id допустимо (dungeons id 0..4 при 000001..000005)');
+  assert.deepEqual(renameViolations(mod, ROOT, 'items'), [],
+    'number-шейп: смещение id допустимо (items id — строковые slug-имена '
+    + 'при файлах 0000NN.json; dungeons с 000318.04 сам slug-шейп)');
   const saved = mod.ASSET_NAME_SHAPES.items;
   mod.ASSET_NAME_SHAPES.items = 'slug';
   try {
@@ -275,6 +294,9 @@ test('RN5: изоморфный набор — isRef ≡ REF_RE ∪ PORTRAITS_RE
   samples.push(
     'assets/visuals/000001.json',
     'assets/visuals/grass_blades_light.json',
+    'assets/mobs/abomination.json',
+    'assets/mob_groups/orc_camp.json',
+    'assets/dungeons/abyss.json',
     'assets/runes/000001.json',
     'assets/runes/wood_sword.json',
     'assets/portraits/efir.json',

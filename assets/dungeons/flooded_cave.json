@@ -2,10 +2,10 @@
   "id": 3,
   "название": "затопленная пещера",
   "мобы": [
-    "assets/mobs/000027.json",
-    "assets/mobs/000024.json",
-    "assets/mobs/000020.json",
-    "assets/mobs/000030.json"
+    "assets/mobs/water_elemental.json",
+    "assets/mobs/scorpion.json",
+    "assets/mobs/spider.json",
+    "assets/mobs/imp.json"
   ],
   "предметы": [
     "assets/items/000015.json",

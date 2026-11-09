@@ -293,7 +293,11 @@ test('CT-2: пол пещеры (cave_1..8): ни один текстурный 
 
 test('CT-3: стены каждого подземелья из каталога: базовый тон заметно отличается от пола того же типа (WCAG contrast ≥ 1.5 И стена светлее пола) по ВСЕМ парам стопов; базы rock/column/stalactite идентичны', () => {
   const dir = path.join(ROOT, 'assets', 'dungeons');
-  const cats = fs.readdirSync(dir).filter((f) => /^\d{6}\.json$/.test(f))
+  const cats = fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json'
+      && require('../scripts/lib/json-ref.js')
+        .SHAPE_BASENAME_RES[require('../scripts/lib/json-ref.js')
+          .ASSET_NAME_SHAPES.dungeons].test(f))
     .map((f) => JSON.parse(read('assets/dungeons/' + f)))
     .sort((a, b) => a.id - b.id);
   assert.equal(cats.length, 5, 'каталог подземелий = 5 типов');

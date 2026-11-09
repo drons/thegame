@@ -3,7 +3,7 @@
   "название": "логово скелетов",
   "состав": {
     "название": "skeleton_den",
-    "мобы": ["assets/mobs/000009.json", "assets/mobs/000009.json", "assets/mobs/000009.json", "assets/mobs/000011.json", "assets/mobs/000011.json"]
+    "мобы": ["assets/mobs/skeleton.json", "assets/mobs/skeleton.json", "assets/mobs/skeleton.json", "assets/mobs/crawling_bones.json", "assets/mobs/crawling_bones.json"]
   },
   "спрайт": "skeleton",
   "особые_параметры": {},

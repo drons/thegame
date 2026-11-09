@@ -70,7 +70,7 @@
 
   // --- Таблицы по типу подземелья: каталог assets/dungeons ---
   //
-  // Source of truth — JSON-файлы assets/dungeons/0000*.json (схема —
+  // Source of truth — JSON-файлы assets/dungeons/*.json (схема —
   // assets/dungeons/schema.json, задача 000058). В node — require
   // './dungeons-data.js', в браузере — Game.DungeonsData
   // (src/dungeons-data.js подключён в index.html ДО dungeon.js).

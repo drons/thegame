@@ -37,7 +37,7 @@
           "maxItems": 6,
           "items": {
             "type": "string",
-            "pattern": "^assets/mobs/\\d{6}\\.json$"
+            "pattern": "^assets/mobs/[a-z][a-z0-9_]*\\.json$"
           }
         }
       }

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 // Перегенерирует униформный JS-модуль src/dungeons-data.js из каталога
-// assets/dungeons/0000*.json (source of truth — JSON-файлы, задача 000058).
+// assets/dungeons/*.json (source of truth — JSON-файлы, задача 000058).
 //
 // Зачем: игра открывается двойным кликом (file://), где fetch() локальных
 // JSON недоступен, поэтому каталог подземелий дублируется в JS-модуле.
@@ -12,11 +12,11 @@
 // и закоммитьте оба каталога вместе (тесты tests/dungeon.test.js
 // проверяют точное зеркало JSON <-> JS-модуля).
 //
-// Конвенция id: файл 0000NN.json хранит id NN−1 (0..4 = значения
-// DUNGEON_TYPES, перенумерации НЕТ — фон боя выбирается по этим
-// числам, задача 000049). Множество id по файлам — ровно {0..4}:
-// уникальность схемой не выразима, проверяется здесь и в
-// tests/dungeon.test.js.
+// Конвенция id: id хранится в JSON (0..4 = значения DUNGEON_TYPES,
+// перенумерации НЕТ — фон боя выбирается по этим числам, задача
+// 000049); имя файла — slug (000318.04), номер более не носитель.
+// Множество id по файлам — ровно {0..4}: уникальность схемой не
+// выразима, проверяется здесь и в tests/dungeon.test.js.
 //
 // СТИЛЬ — как scripts/sync-spells-data.js (jsValue), но зеркало
 // ДОВОЛЬНОЕ: выводятся ТОЛЬКО ключи, присутствующие в JSON, в
@@ -25,7 +25,8 @@
 //
 // Задача 000211.05: 4 группы ссылочных полей (мобы[], предметы[],
 // постройка, руда[].предмет) — ссылки на файлы каталогов
-// («assets/<каталог>/NNNNNN.json», контракт 000211.01 §1). При
+// («assets/<каталог>/<имя>.json», контракт 000211.01 §1, форма имени
+// по реестру шейпов 000318.01). При
 // сборке резолюция в id файла-цели — зеркало src/dungeons-data.js
 // остаётся в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed:
 // значение не-ссылка (включая голый id — дрейф) или цель-файл
@@ -36,7 +37,8 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { isRef, resolveRef } = require('./lib/json-ref.js');
+const { isRef, resolveRef, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'dungeons');
@@ -48,7 +50,7 @@ function resolveRefField(file, where, value) {
   if (!isRef(value)) {
     console.error(
       `${file}: ${where} «${JSON.stringify(value)}» — не ссылка на файл`
-      + ' каталога (формат "assets/<каталог>/NNNNNN.json")');
+      + ' каталога (формат "assets/<каталог>/<имя>.json")');
     process.exit(1);
   }
   const r = resolveRef(ROOT, value);
@@ -61,21 +63,22 @@ function resolveRefField(file, where, value) {
 
 // --- Чтение каталога ---
 const files = fs.readdirSync(DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
-  .sort();
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.dungeons].test(f));
 if (files.length === 0) {
-  console.error('assets/dungeons: не найдено ни одного файла 0000NN.json');
+  console.error('assets/dungeons: не найдено ни одного файла <slug>.json');
   process.exit(1);
 }
 
-const dungeons = [];
+const entries = [];
 for (const f of files) {
-  const n = parseInt(f, 10);
   const data = JSON.parse(
     fs.readFileSync(path.join(DIR, f), 'utf8'));
-  // id = номер файла − 1 (значения DUNGEON_TYPES, 000049).
-  if (!data || !Number.isInteger(data.id) || data.id !== n - 1) {
-    console.error(`${f}: id ≠ номер файла − 1 (ожидалось ${n - 1})`);
+  // id — целое из JSON (значения DUNGEON_TYPES, 000049); номер в
+  // имени файла более не носитель (000318.04), множество {0..4}
+  // проверяется после сбора каталога.
+  if (!data || !Number.isInteger(data.id)) {
+    console.error(`${f}: id отсутствует или не целый`);
     process.exit(1);
   }
   // 000211.05: ссылки 4 групп → id (ПЕРЕД эмиссией; зеркало —
@@ -101,20 +104,24 @@ for (const f of files) {
       return rec;
     });
   }
-  dungeons.push({ file: f, data });
+  entries.push({ file: f, data });
 }
 // Множество id — ровно {0..4} (уникальность схемой не выразима).
-const ids = dungeons.map((d) => d.data.id).sort((a, b) => a - b);
+const ids = entries.map((d) => d.data.id).sort((a, b) => a - b);
 if (JSON.stringify(ids) !== JSON.stringify([0, 1, 2, 3, 4])) {
   console.error(`множество id ≠ {0..4}: ${ids.join(', ')}`);
   process.exit(1);
 }
 
+// Порядок зеркал — ПО ЧИСЛОВИЧ data.id (lex-порядок slug-имён ему не
+// равен, 000318.04): DUNGEONS = ids 0..4 позиционно.
+const dungeons = entries.sort((a, b) => a.data.id - b.data.id);
+
 // Канонический порядок ключей (схема assets/dungeons/schema.json).
 const KEYS = ['id', 'название', 'мобы', 'предметы', 'размер', 'постройка', 'объекты_стен', 'руда'];
 
 // --- Генерация JS ---
-const range = `${files[0]} … ${files[files.length - 1]}`;
+const range = `${dungeons[0].file} … ${dungeons[dungeons.length - 1].file}`;
 
 // Форматирует значение JS-литералом (JSON-совместимо).
 function jsValue(v) {
@@ -145,7 +152,7 @@ function jsDungeonAt(data, col) {
 const L = [];
 L.push('// Каталог подземелий: униформный JS-модуль (фолбэк для file://).');
 L.push('//');
-L.push('// Source of truth — JSON-файлы каталога assets/dungeons/0000*.json');
+L.push('// Source of truth — JSON-файлы каталога assets/dungeons/*.json');
 L.push('// (один тип подземелья — один файл, схема —');
 L.push('// assets/dungeons/schema.json, задача 000058).');
 L.push('// Файл ГЕНЕРИРУЕТСЯ скриптом scripts/sync-dungeons-data.js,');
@@ -153,7 +160,7 @@ L.push('// не редактируйте вручную: правьте JSON и 
 L.push('//');
 L.push('// Униформный модуль: в браузере — globalThis.Game.DungeonsData,');
 L.push('// в node — require() (CommonJS).');
-L.push('// DUNGEONS — массив записей В ПОРЯДКЕ ФАЙЛОВ каталога;');
+L.push('// DUNGEONS — массив записей В ПОРЯДКЕ ВОЗРАСТАНИЯ id;');
 L.push('// DUNGEONS_BY_ID — индекс по id (значения DUNGEON_TYPES, 0..4).');
 L.push('');
 L.push('(function (root, factory) {');
