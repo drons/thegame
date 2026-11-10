@@ -1,0 +1,18 @@
+{
+  "id": "scholar_lens",
+  "name": "Линза учёного",
+  "kind": "artifact",
+  "weight": 0.6,
+  "value": 78,
+  "desc": "Линза учёного: мелкий шрифт становится крупным.",
+  "icon": "assets/sprites/items/scholar_lens.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.06
+    }
+  ]
+}

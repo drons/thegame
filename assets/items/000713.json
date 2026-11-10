@@ -1,0 +1,22 @@
+{
+  "id": "crown_of_ages",
+  "name": "Корона веков",
+  "kind": "artifact",
+  "weight": 1.55,
+  "value": 1290,
+  "desc": "Корона веков: на ней имена, которые ещё не написаны.",
+  "icon": "assets/sprites/items/crown_of_ages.svg",
+  "slot": "left_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.36
+    },
+    {
+      "type": "free_cast",
+      "spell": "meteor"
+    }
+  ]
+}

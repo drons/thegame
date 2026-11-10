@@ -1,0 +1,31 @@
+{
+  "id": "arcane_nexus",
+  "name": "Арканный узел",
+  "kind": "artifact",
+  "weight": 1.5,
+  "value": 1250,
+  "desc": "Арканный узел: в узле сходятся все руны — и ни одна не спорит.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/arcane_nexus.svg",
+  "slot": "left_hand",
+  "rarity": "impossible",
+  "set": "arcane_focus",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.4
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "runes",
+        "amount": 0.05
+      }
+    ]
+  }
+}

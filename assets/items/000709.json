@@ -1,0 +1,31 @@
+{
+  "id": "arcane_diadem",
+  "name": "Венец тайн",
+  "kind": "artifact",
+  "weight": 1.25,
+  "value": 560,
+  "desc": "Венец тайн: обруч, который держит больше, чем голову.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/arcane_diadem.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "set": "arcane_focus",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.28
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "runes",
+        "amount": 0.05
+      }
+    ]
+  }
+}

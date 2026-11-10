@@ -1,0 +1,18 @@
+{
+  "id": "amber_bead",
+  "name": "Янтарная бусина",
+  "kind": "artifact",
+  "weight": 0.5,
+  "value": 52,
+  "desc": "Янтарная бусина: в янтаре закончилось время — чужое.",
+  "icon": "assets/sprites/items/amber_bead.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.04
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "spark_totem",
+  "name": "Искрящийся тотем",
+  "kind": "artifact",
+  "weight": 0.65,
+  "value": 94,
+  "desc": "Искрящийся тотем: искра из него просится только на волю.",
+  "icon": "assets/sprites/items/spark_totem.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.08
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "ink_tablet",
+  "name": "Чернильная дощечка",
+  "kind": "artifact",
+  "weight": 0.65,
+  "value": 90,
+  "desc": "Чернильная дощечка: помнит то, что забыл её хозяин.",
+  "icon": "assets/sprites/items/ink_tablet.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.07
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "ward_prism",
+  "name": "Обережная призма",
+  "kind": "artifact",
+  "weight": 0.9,
+  "value": 210,
+  "desc": "Обережная призма: преломляет удар — и разворачивает его.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ward_prism.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.11
+    }
+  ]
+}

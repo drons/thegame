@@ -1,0 +1,21 @@
+{
+  "id": "rime_charm",
+  "name": "Инейный оберег",
+  "kind": "artifact",
+  "weight": 0.7,
+  "value": 86,
+  "desc": "Инейный оберег: иней на нём ложится до первого удара.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rime_charm.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.08
+    }
+  ]
+}

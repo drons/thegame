@@ -1,0 +1,21 @@
+{
+  "id": "cinder_charm",
+  "name": "Пепельный оберег",
+  "kind": "artifact",
+  "weight": 0.65,
+  "value": 84,
+  "desc": "Пепельный оберег: пепел защищает того, кто помнит огонь.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/cinder_charm.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.07
+    }
+  ]
+}

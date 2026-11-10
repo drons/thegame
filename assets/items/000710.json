@@ -1,0 +1,18 @@
+{
+  "id": "star_compass",
+  "name": "Звёздный компас",
+  "kind": "artifact",
+  "weight": 1.25,
+  "value": 600,
+  "desc": "Звёздный компас: север в небе ему понятнее земного.",
+  "icon": "assets/sprites/items/star_compass.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.32
+    }
+  ]
+}

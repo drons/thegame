@@ -1,0 +1,18 @@
+{
+  "id": "runeglass",
+  "name": "Руническое стекло",
+  "kind": "artifact",
+  "weight": 0.8,
+  "value": 180,
+  "desc": "Руническое стекло: руны видны через него — и сквозь него.",
+  "icon": "assets/sprites/items/runeglass.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.12
+    }
+  ]
+}

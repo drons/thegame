@@ -1,0 +1,22 @@
+{
+  "id": "sun_reliquary",
+  "name": "Солнечный реликварий",
+  "kind": "artifact",
+  "weight": 1.3,
+  "value": 650,
+  "desc": "Солнечный реликварий: внутри — луч, снаружи — лето.",
+  "icon": "assets/sprites/items/sun_reliquary.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.22
+    },
+    {
+      "type": "free_cast",
+      "spell": "fire_aura"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "rune_stone",
+  "name": "Рунный камень",
+  "kind": "artifact",
+  "weight": 0.65,
+  "value": 75,
+  "desc": "Рунный камень: одна руна — и она верная.",
+  "icon": "assets/sprites/items/rune_stone.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.05
+    }
+  ]
+}

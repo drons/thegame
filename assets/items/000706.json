@@ -1,0 +1,25 @@
+{
+  "id": "ice_sigil",
+  "name": "Ледяная печатка",
+  "kind": "artifact",
+  "weight": 1,
+  "value": 270,
+  "desc": "Ледяная печатка: печать, за которой идёт стужа.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ice_sigil.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.14
+    },
+    {
+      "type": "free_cast",
+      "spell": "chill"
+    }
+  ]
+}

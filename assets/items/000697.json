@@ -1,0 +1,21 @@
+{
+  "id": "glass_eye",
+  "name": "Стеклянный глаз",
+  "kind": "artifact",
+  "weight": 0.7,
+  "value": 96,
+  "desc": "Стеклянный глаз: отражает взгляд — и смотрит сам.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/glass_eye.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.09
+    }
+  ]
+}

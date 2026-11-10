@@ -1,0 +1,18 @@
+{
+  "id": "tin_charm",
+  "name": "Оловянный оберег",
+  "kind": "artifact",
+  "weight": 0.45,
+  "value": 38,
+  "desc": "Оловянный оберег: звенит тихо — но звенит верно.",
+  "icon": "assets/sprites/items/tin_charm.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.04
+    }
+  ]
+}

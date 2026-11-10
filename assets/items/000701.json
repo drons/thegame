@@ -1,0 +1,18 @@
+{
+  "id": "seer_monocle",
+  "name": "Монокль провидца",
+  "kind": "artifact",
+  "weight": 0.85,
+  "value": 220,
+  "desc": "Монокль провидца: одним глазом видит то, чего нет другим.",
+  "icon": "assets/sprites/items/seer_monocle.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.15
+    }
+  ]
+}

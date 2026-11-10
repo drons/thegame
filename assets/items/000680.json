@@ -1,0 +1,18 @@
+{
+  "id": "clay_lens",
+  "name": "Глиняная линза",
+  "kind": "artifact",
+  "weight": 0.55,
+  "value": 60,
+  "desc": "Глиняная линза: обожжена один раз — смотрит всю жизнь.",
+  "icon": "assets/sprites/items/clay_lens.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.03
+    }
+  ]
+}

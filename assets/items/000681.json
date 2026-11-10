@@ -1,0 +1,18 @@
+{
+  "id": "wood_lens",
+  "name": "Деревянная линза",
+  "kind": "artifact",
+  "weight": 0.55,
+  "value": 61,
+  "desc": "Деревянная линза: отшлифована рукавом учёного.",
+  "icon": "assets/sprites/items/wood_lens.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.05
+    }
+  ]
+}

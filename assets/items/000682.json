@@ -1,0 +1,21 @@
+{
+  "id": "wool_tassel",
+  "name": "Шерстяной султан",
+  "kind": "artifact",
+  "weight": 0.6,
+  "value": 63,
+  "desc": "Шерстяной султан: прячет шею от ветра и от чужого взгляда.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wool_tassel.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.05
+    }
+  ]
+}

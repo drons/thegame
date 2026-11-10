@@ -1,0 +1,18 @@
+{
+  "id": "hawk_eye",
+  "name": "Ястребиный глаз",
+  "kind": "artifact",
+  "weight": 0.65,
+  "value": 80,
+  "desc": "Ястребиный глаз: примечает мышь в траве.",
+  "icon": "assets/sprites/items/hawk_eye.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.07
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "hide_tassel",
+  "name": "Кожаный султан",
+  "kind": "artifact",
+  "weight": 0.6,
+  "value": 65,
+  "desc": "Кожаный султан: в жару — тень, в стужу — жар.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hide_tassel.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.04
+    }
+  ]
+}

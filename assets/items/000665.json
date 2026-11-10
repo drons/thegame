@@ -1,0 +1,18 @@
+{
+  "id": "ash_charm",
+  "name": "Зольный оберег",
+  "kind": "artifact",
+  "weight": 0.4,
+  "value": 32,
+  "desc": "Зольный оберег: помнит тепло костра, когда костра уже нет.",
+  "icon": "assets/sprites/items/ash_charm.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.04
+    }
+  ]
+}

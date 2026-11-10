@@ -1,0 +1,18 @@
+{
+  "id": "frost_core",
+  "name": "Морозное ядро",
+  "kind": "artifact",
+  "weight": 0.9,
+  "value": 240,
+  "desc": "Морозное ядро: ядро льда, что не тает от рук.",
+  "icon": "assets/sprites/items/frost_core.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.16
+    }
+  ]
+}

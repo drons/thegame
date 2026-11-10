@@ -1,0 +1,18 @@
+{
+  "id": "bark_idol",
+  "name": "Корьяной идол",
+  "kind": "artifact",
+  "weight": 0.5,
+  "value": 46,
+  "desc": "Корьяной идол: срезан с дерева, которое не запомнило обиды.",
+  "icon": "assets/sprites/items/bark_idol.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.05
+    }
+  ]
+}

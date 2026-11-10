@@ -1,0 +1,28 @@
+{
+  "id": "prism_focus",
+  "name": "Призматический фокус",
+  "kind": "artifact",
+  "weight": 0.85,
+  "value": 200,
+  "desc": "Призматический фокус: раскладывает заклинание на грани.",
+  "icon": "assets/sprites/items/prism_focus.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "set": "arcane_focus",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.14
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "runes",
+        "amount": 0.05
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "chill_totem",
+  "name": "Студящий тотем",
+  "kind": "artifact",
+  "weight": 0.7,
+  "value": 95,
+  "desc": "Студящий тотем: рядом с ним дыхание стынет.",
+  "icon": "assets/sprites/items/chill_totem.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.09
+    }
+  ]
+}

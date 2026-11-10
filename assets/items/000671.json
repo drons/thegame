@@ -1,0 +1,18 @@
+{
+  "id": "flint_idol",
+  "name": "Кременевой идол",
+  "kind": "artifact",
+  "weight": 0.5,
+  "value": 44,
+  "desc": "Кременевой идол: высечен так, чтобы выдерживал удар.",
+  "icon": "assets/sprites/items/flint_idol.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.04
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "dew_fetish",
+  "name": "Росный фетиш",
+  "kind": "artifact",
+  "weight": 0.45,
+  "value": 48,
+  "desc": "Росный фетиш: по росе видно то, чего днём не разглядеть.",
+  "icon": "assets/sprites/items/dew_fetish.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.03
+    }
+  ]
+}

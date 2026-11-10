@@ -1,0 +1,18 @@
+{
+  "id": "pebble_charm",
+  "name": "Галечный оберег",
+  "kind": "artifact",
+  "weight": 0.4,
+  "value": 36,
+  "desc": "Галечный оберег: речной камешек с одним-единственным знаком.",
+  "icon": "assets/sprites/items/pebble_charm.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.03
+    }
+  ]
+}

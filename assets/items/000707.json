@@ -1,0 +1,18 @@
+{
+  "id": "rune_tablet",
+  "name": "Рунная дощечка",
+  "kind": "artifact",
+  "weight": 1,
+  "value": 300,
+  "desc": "Рунная дощечка: доска, пережившая своего мастера.",
+  "icon": "assets/sprites/items/rune_tablet.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "runes",
+      "amount": 0.19
+    }
+  ]
+}

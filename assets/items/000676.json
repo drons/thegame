@@ -1,0 +1,18 @@
+{
+  "id": "jet_bead",
+  "name": "Гагатовая бусина",
+  "kind": "artifact",
+  "weight": 0.5,
+  "value": 54,
+  "desc": "Гагатовая бусина: чёрный камень отводит беду.",
+  "icon": "assets/sprites/items/jet_bead.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.05
+    }
+  ]
+}

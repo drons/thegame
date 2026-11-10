@@ -1,0 +1,18 @@
+{
+  "id": "flame_sigil",
+  "name": "Печатка пламени",
+  "kind": "artifact",
+  "weight": 0.95,
+  "value": 260,
+  "desc": "Печатка пламени: ставит огонь так, как надо.",
+  "icon": "assets/sprites/items/flame_sigil.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.17
+    }
+  ]
+}

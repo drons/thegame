@@ -1763,7 +1763,21 @@ const SHOP_GOLDEN = {
     runeward_shield: 2,     steel_targe: 1,     blacksteel_shield: 3,     mirror_buckler: 3,
     bulwark_shield: 4,     lion_shield: 3,     carved_shield: 3,     frontier_shield: 5,
     dragonplate_shield: 2,     ironbulwark_shield: 3,     dawnwall_shield: 4,     aegis_shield: 2,
-    lastwall_shield: 1
+    lastwall_shield: 1,
+    // Ре-пин 000321.04: артефакты 000664–000713 — КОНЕЦ каталога,
+    // rng-хвост allItems-пула (universam w3) → += 45 артефактов;
+    // остальные ключи стока не сдвинулись (seed byte-identical,
+    // 553 → 598 ключа; node-симуляция: старые ключи
+    // value-identical).
+    bone_charm: 3,     ash_charm: 3,     reed_charm: 3,     pebble_charm: 2,     tin_charm: 1,
+    straw_idol: 1,     flint_idol: 5,     bark_idol: 5,     bone_fetish: 4,     amber_bead: 1,
+    jet_bead: 5,     resin_bead: 4,     salt_eye: 1,     clay_lens: 3,     wood_lens: 4,     wool_tassel: 5,
+    ember_bead: 4,     frost_bead: 5,     rune_stone: 3,     scholar_lens: 5,     hawk_eye: 1,
+    seer_stone: 5,     cinder_charm: 2,     rime_charm: 4,     ward_stone: 2,     ink_tablet: 3,
+    watch_stone: 2,     spark_totem: 1,     chill_totem: 2,     glass_eye: 2,     runeglass: 1,
+    prism_focus: 1,     ward_prism: 2,     seer_monocle: 3,     ember_core: 2,     mind_lattice: 3,
+    flame_sigil: 1,     ice_sigil: 1,     rune_tablet: 2,     archmage_eye: 2,     arcane_diadem: 5,
+    star_compass: 2,     sun_reliquary: 3,     arcane_nexus: 2,     crown_of_ages: 3
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,

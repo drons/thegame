@@ -1,0 +1,18 @@
+{
+  "id": "bone_charm",
+  "name": "Костяной оберег",
+  "kind": "artifact",
+  "weight": 0.4,
+  "value": 30,
+  "desc": "Костяной оберег: счётчик чужих шагов — свой тише.",
+  "icon": "assets/sprites/items/bone_charm.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.03
+    }
+  ]
+}

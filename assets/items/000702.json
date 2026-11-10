@@ -1,0 +1,21 @@
+{
+  "id": "ember_core",
+  "name": "Углевое ядро",
+  "kind": "artifact",
+  "weight": 0.9,
+  "value": 230,
+  "desc": "Углевое ядро: в центре жара, снаружи — рука.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ember_core.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.13
+    }
+  ]
+}

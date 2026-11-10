@@ -1,0 +1,18 @@
+{
+  "id": "straw_idol",
+  "name": "Соломенный идол",
+  "kind": "artifact",
+  "weight": 0.45,
+  "value": 42,
+  "desc": "Соломенный идол: просто связал тростник — и вышло верно.",
+  "icon": "assets/sprites/items/straw_idol.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.03
+    }
+  ]
+}

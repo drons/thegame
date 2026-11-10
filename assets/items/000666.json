@@ -1,0 +1,21 @@
+{
+  "id": "reed_charm",
+  "name": "Камышовый оберег",
+  "kind": "artifact",
+  "weight": 0.45,
+  "value": 34,
+  "desc": "Камышовый оберег: гнётся под стужей, но не трескается.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/reed_charm.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.05
+    }
+  ]
+}
