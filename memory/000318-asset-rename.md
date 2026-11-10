@@ -11,7 +11,7 @@ tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
 |---|---|---|---|
 | items | number | 513 | да |
 | skills | number | 44 | да |
-| spells | number | 169 | да |
+| spells | slug (000318.05; было number) | 169 — <id>.json (id строка === basename) | да |
 | mobs | slug (000318.04; было number) | 36 — <id>.json (id строка === basename) | да |
 | mob_groups | slug (000318.04; было number) | 7 — рукописный slug (id 1..7 числовой в JSON — НЕ basename) | да |
 | buildings | number | 55 | да |
@@ -43,11 +43,13 @@ name-shape ('number'/'slug') ≠ 'named' (portraits). Переименовани
   (пин AR11) — рантайм-носитель строки: pattern в assets/skills/schema.json
   (SR5, skills.test.js сверяют с REF_RE.source; дрейп вывода красит сьюту;
   schema.json в .01 не тронут). ПОСЛЕ 000318.04 флипы НЕ «не-мишеней»
-  (runes/visuals) — мишеней mobs/mob_groups/dungeons: source ДРЕЙФУЕТ —
-  ДВЕ группы `…(items|skills|spells|buildings|craft|npc)/\d{6}…` +
-  `…(mobs|mob_groups|dungeons)/[a-z][a-z0-9_]*…`; AR11 пере-пинут побайтово,
-  носители pattern (skills/dungeons/mob_groups schema.json) обновлены там же
-  (memory/000318-mobs-mobgroups-dungeons.md §3).
+  (runes/visuals) — мишеней mobs/mob_groups/dungeons: source ДРЕЙФУЕТ;
+  ПОСЛЕ 000318.05 кslug-группе добавился spells (тоже мишень). Текущий
+  source — ДВЕ группы `…(items|skills|buildings|craft|npc)/\d{6}…` +
+  `…(spells|mobs|mob_groups|dungeons)/[a-z][a-z0-9_]*…`; AR11 пере-пинут
+  побайтово (цепочка .04 → .05), носители pattern (skills/dungeons/
+  mob_groups/spells/mobs schema.json) обновлены в тех же коммитах
+  (memory/000318-mobs-mobgroups-dungeons.md §3, memory/000318-spells.md).
 * Lib обязан остаться ОДНИМ файлом без внутренних require-соседей:
   tests/items.test.js копирует в tmp ровно файл json-ref.js.
 * Производительность: ни одного new RegExp на вызов (isRef гоняется по
@@ -124,6 +126,17 @@ src/map.js и формулы визуалов/сидов); перевод сор
   5 spider_nest, 6 elemental_circle, 7 abyss_spirit;
   dungeons 0 simple_cave, 1 crypt, 2 castle_ruins, 3 flooded_cave, 4 abyss.
   Детали — memory/000318-mobs-mobgroups-dungeons.md.
+* spells → slug (000318.05, 169 файлов <id>.json, контент 0-diff кроме 34
+  self-ссылок «база»): вторая после .04 флипающаяся МИШЕНЬ ⇒ REF_RE дрейфует
+  (spells переехал в slug-группу; AR11 + побайтовые дубли в тестах .02/.03/
+  .04 + носители pattern skills/mobs/dungeons/spells schema.json — ре-пин в
+  том же коммите). NameOf по умолчанию (id === basename, как runes/mobs —
+  NAME_OF_000318 не расширялся). Порядок зеркала spells-data — по data.id
+  (лекс. имя = id ⇒ компаратор наблюдаем tmp-свопом контентов, не имен);
+  169/169 позиций сменились, но рантайм порядок SPELLS НЕ читает
+  (0 индексных/rng-выборов) ⇒ golden-пересимуляции и CHANGELOG НЕ
+  потребовались (мутация M4: ручной shuffle зеркала — позиционные тесты
+  красные, поведенческие зелёные). Детали — memory/000318-spells.md.
 
 ## 5. Памятка оркестратору волн
 

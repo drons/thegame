@@ -55,7 +55,10 @@ function skillFilesOf(dir) {
 }
 
 function spellFilesOf(dir) {
-  return jsonFiles(dir).filter((f) => /^\d{6}\.json$/.test(f));
+  // 000318.05: spells — slug из живого реестра; schema.json — исключение.
+  const JR = require('../scripts/lib/json-ref.js');
+  return jsonFiles(dir).filter((f) => f !== 'schema.json'
+    && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f));
 }
 
 function readSrc(name) {

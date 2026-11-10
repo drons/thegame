@@ -37,7 +37,9 @@ const DIR = path.join(__dirname, '..', 'assets', 'spells');
 // Каталог: Map<file, data> (сырой JSON, «база» — файловая ссылка).
 function catalogByFile() {
   const m = new Map();
-  for (const f of fs.readdirSync(DIR).filter((x) => /^\d{6}\.json$/.test(x))) {
+  const JR = require('../scripts/lib/json-ref.js');
+  for (const f of fs.readdirSync(DIR).filter((x) => x !== 'schema.json'
+    && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(x))) {
     m.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')));
   }
   return m;
@@ -139,33 +141,33 @@ test('000306 R2: в цепочках «база» множитель_степе�
 test('000306 R3: контрпример — цепочка с РАВНЫМИ значениями ст.1/ст.2 и спелл без поля дают нарушения walker (чистая функция; гард)', () => {
   // (а) Равные значения у ст.1 и ст.2 — нарушение ровно по улучшению.
   const equal = new Map([
-    ['assets/spells/000001.json',
+    ['assets/spells/tier_a.json',
       { id: 'a', действие: 'урон', степень: 1, база: null,
         множитель_степени: 1.15 }],
-    ['assets/spells/000002.json',
+    ['assets/spells/tier_b.json',
       { id: 'b', действие: 'урон', степень: 2,
-        база: 'assets/spells/000001.json', множитель_степени: 1.15 }],
+        база: 'assets/spells/tier_a.json', множитель_степени: 1.15 }],
   ]);
   const vEq = chainTierViolations(equal);
   assert.equal(vEq.length, 1, `ожидалось 1 нарушение, факт: ${JSON.stringify(vEq)}`);
-  assert.ok(vEq[0].includes('000002.json'),
+  assert.ok(vEq[0].includes('tier_b.json'),
     'нарушение — на улучшении (ст.2), факт: ' + vEq[0]);
   // (б) Отсутствующее поле — нарушение.
   const missing = new Map([
-    ['assets/spells/000001.json',
+    ['assets/spells/tier_a.json',
       { id: 'a', действие: 'лечение', степень: 1, база: null }],
   ]);
   const vMiss = chainTierViolations(missing);
-  assert.ok(vMiss.some((s) => s.includes('000001.json')),
+  assert.ok(vMiss.some((s) => s.includes('tier_a.json')),
     'отсутствие поля — нарушение: ' + JSON.stringify(vMiss));
   // (в) Строгий рост 1 → 1.15 — без нарушений.
   const ok = new Map([
-    ['assets/spells/000001.json',
+    ['assets/spells/tier_a.json',
       { id: 'a', действие: 'урон', степень: 1, база: null,
         множитель_степени: 1 }],
-    ['assets/spells/000002.json',
+    ['assets/spells/tier_b.json',
       { id: 'b', действие: 'урон', степень: 2,
-        база: 'assets/spells/000001.json', множитель_степени: 1.15 }],
+        база: 'assets/spells/tier_a.json', множитель_степени: 1.15 }],
   ]);
   assert.deepEqual(chainTierViolations(ok), [],
     'строгой рост 1 → 1.15 не обязан давать нарушений');

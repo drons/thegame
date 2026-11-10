@@ -30,7 +30,7 @@
     },
     "база": {
       "anyOf": [
-        { "type": "string", "pattern": "^assets/spells/\\d{6}\\.json$" },
+        { "type": "string", "pattern": "^assets/spells/[a-z][a-z0-9_]*\\.json$" },
         { "type": "null" }
       ]
     },

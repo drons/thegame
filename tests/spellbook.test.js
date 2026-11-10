@@ -591,8 +591,10 @@ test('SB8: canDoAction «spellbook» — ok / «заклинаний нет» / 
 // ---------------------------------------------------------------------------
 
 test('SB9: 169 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149; ре-пин 000333: +2 навигации)', () => {
+  const JR = require('../scripts/lib/json-ref.js');
   const files = fs.readdirSync(SPELLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
   // 000163 (ребейз 000149): в каталог вошло 000017.json (resurrect) —
   // 16 → 17; иконка/prompt добавлены на стадии мержа (memory §14).
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
@@ -635,8 +637,10 @@ test('SB9: 169 JSON — непустые icon/icon_prompt; оба поля в sc
 // ---------------------------------------------------------------------------
 
 test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; assets/spells закрыт (000149)', () => {
+  const JR = require('../scripts/lib/json-ref.js');
   const files = fs.readdirSync(SPELLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
   for (const f of files) {
     const d = JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8'));
     const expected = 'assets/spell-icons/' + d.id + '.svg';
@@ -648,7 +652,8 @@ test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; 
   }
   // Закрытость каталога (регрессия: иконки — ТОЛЬКО в assets/spell-icons/).
   for (const f of fs.readdirSync(SPELLS_DIR)) {
-    assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+    assert.ok(JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)
+      || f === 'schema.json',
       'чужой файл в assets/spells: ' + f + ' (иконки — в assets/spell-icons/)');
   }
 });

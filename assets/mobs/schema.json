@@ -47,7 +47,7 @@
     },
     "spells": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^assets/spells/\\d{6}\\.json$" }
+      "items": { "type": "string", "pattern": "^assets/spells/[a-z][a-z0-9_]*\\.json$" }
     },
     "loot": {
       "type": "array",

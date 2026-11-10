@@ -5264,10 +5264,12 @@ function catalogScan00023008() {
 // Id заклинаний каталога assets/spells (локальный хелпер — как
 // loadSpellIds в tests/craft.test.js; src-модуля заклинаний нет).
 function spellIds00023008() {
+  const JR = require('../scripts/lib/json-ref.js');
   const dir = path.join(__dirname, '..', 'assets', 'spells');
   const ids = new Set();
   for (const f of fs.readdirSync(dir)) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (f === 'schema.json'
+      || !JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)) continue;
     ids.add(JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).id);
   }
   return ids;
@@ -9403,13 +9405,15 @@ test('000230.15 LF4: free_cast РОВНО 2 (ember_pants→blazing_speed, frost_
     'free_cast — ровно ember_pants→blazing_speed + '
     + 'frost_sandals→winter_haste (§2.1, D-03)');
   const spellsDir = path.join(__dirname, '..', 'assets', 'spells');
+  const JR = require('../scripts/lib/json-ref.js');
   for (const f of freeCast) {
     assert.equal(f.rarity, 'epic',
       f.id + ': free_cast — ТОЛЬКО у epic (D-03); факт: '
       + f.rarity);
     let spell = null;
     for (const sf of fs.readdirSync(spellsDir)) {
-      if (!/^\d{6}\.json$/.test(sf)) continue;
+      if (sf === 'schema.json'
+        || !JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(sf)) continue;
       const d = JSON.parse(
         fs.readFileSync(path.join(spellsDir, sf), 'utf8'));
       if (d.id === f.spell) { spell = d; break; }

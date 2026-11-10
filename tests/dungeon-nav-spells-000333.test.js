@@ -48,8 +48,8 @@ const WALL = D.CELL_WALL;
 
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
-const SPELL_UP_FILE = path.join(SPELLS_DIR, '000168.json');
-const SPELL_DOWN_FILE = path.join(SPELLS_DIR, '000169.json');
+const SPELL_UP_FILE = path.join(SPELLS_DIR, 'way_up.json');
+const SPELL_DOWN_FILE = path.join(SPELLS_DIR, 'way_down.json');
 const SCROLL_UP_FILE = path.join(ITEMS_DIR, '000512.json');
 const SCROLL_DOWN_FILE = path.join(ITEMS_DIR, '000513.json');
 
@@ -262,7 +262,7 @@ test('N-SAVE-1: activeRec С navPaths → serializeDungeonMemory теряет na
 
 function readJson(f) { return JSON.parse(fs.readFileSync(f, 'utf8')); }
 
-test('N-JSON-1: assets/spells/000168,000169 + assets/items/000512,000513 — схема-валидны, roundtrip-канон (000327 S5), поля: природа/wisdom/внебой/days 1/мани 6/здания [21,38]; свитки spell_scroll value 60 tier 2, effect.spell = ID, base_price НЕТ', () => {
+test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,000513 — схема-валидны, roundtrip-канон (000327 S5), поля: природа/wisdom/внебой/days 1/мани 6/здания [21,38]; свитки spell_scroll value 60 tier 2, effect.spell = ID, base_price НЕТ', () => {
   for (const f of [SPELL_UP_FILE, SPELL_DOWN_FILE,
     SCROLL_UP_FILE, SCROLL_DOWN_FILE]) {
     assert.ok(fs.existsSync(f),
@@ -278,9 +278,9 @@ test('N-JSON-1: assets/spells/000168,000169 + assets/items/000512,000513 — с�
     'way_up: канон JSON.stringify(obj,null,2)+\\n (roundtrip 000327 S5)');
   assert.equal(downRaw, JSON.stringify(downS, null, 2) + '\n',
     'way_down: канон roundtrip');
-  const e1 = []; validate(spellSchema, upS, '000168.json', e1);
+  const e1 = []; validate(spellSchema, upS, SPELL_UP_FILE, e1);
   assert.deepEqual(e1, [], 'way_up: схема-ошибки: ' + e1.join('; '));
-  const e2 = []; validate(spellSchema, downS, '000169.json', e2);
+  const e2 = []; validate(spellSchema, downS, SPELL_DOWN_FILE, e2);
   assert.deepEqual(e2, [], 'way_down: схема-ошибки: ' + e2.join('; '));
   assert.equal(upS.id, 'way_up', 'way_up: id');
   assert.equal(downS.id, 'way_down', 'way_down: id');

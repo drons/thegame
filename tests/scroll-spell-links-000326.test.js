@@ -47,6 +47,14 @@ function dataFiles(dir) {
   return fs.readdirSync(dir).filter((f) => /^\d{6}\.json$/.test(f)).sort();
 }
 
+// 000318.05: spells — slug из живого реестра; schema.json — исключение.
+function spellDataFiles(dir) {
+  const JR = require('../scripts/lib/json-ref.js');
+  return fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
+}
+
 function readJson(dir, f) {
   return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
 }
@@ -54,7 +62,7 @@ function readJson(dir, f) {
 function checkScrollLinks(itemsDir, spellsDir, craftDir) {
   const v = [];
   const spellIds = new Set();
-  for (const f of dataFiles(spellsDir)) {
+  for (const f of spellDataFiles(spellsDir)) {
     const id = readJson(spellsDir, f).id;
     if (typeof id === 'string' && id) spellIds.add(id);
   }
@@ -167,7 +175,7 @@ test('000326 T2: зеркало src/items-data.js — effect.spell spell_scroll 
 test('000326 T3: self-check чекера — чистая фикстура []; кривые spell-id/recipe-в-id-форме/битый путь craft/свиток без effect/resurrect со spell — нарушения с маркером (os.tmpdir(), не каталог)', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scroll-spell-links-000326-'));
   try {
-    const mk = (name, { items, spells = { '000001.json': { id: 'fireball' } },
+    const mk = (name, { items, spells = { 'fireball.json': { id: 'fireball' } },
       craft = { '000001.json': { id: 'iron_sword' } } }) => {
       const d = path.join(tmp, name);
       for (const sub of ['items', 'spells', 'craft']) {
@@ -214,7 +222,7 @@ test('000326 T3: self-check чекера — чистая фикстура []; �
       'чекер не сообщил нарушение для свитка без effect: ' + JSON.stringify(noEffect));
     const resWithSpell = mk('resurrect-spell', {
       items: { '000001.json': { id: 'r1', kind: 'resurrection_scroll', effect: { kind: 'resurrect', spell: 'fireball' } } },
-      spells: { '000001.json': { id: 'fireball' } },
+      spells: { 'fireball.json': { id: 'fireball' } },
     });
     assert.ok(resWithSpell.some((s) => s.includes('resurrect') && s.includes('spell')),
       'чекер не сообщил нарушение для resurrect с полем spell (by design — без ссылок): ' + JSON.stringify(resWithSpell));

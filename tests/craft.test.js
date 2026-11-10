@@ -56,11 +56,15 @@ function loadCatalog() {
   return { all, byId };
 }
 
+// Форма имени spells — из живого реестра (000318.05: spells — slug).
+const JR = require('../scripts/lib/json-ref.js');
+
 // Id заклинаний каталога assets/spells (задача 000023; src-модуля нет).
 function loadSpellIds() {
   const ids = new Set();
   for (const f of fs.readdirSync(SPELLS_DIR)) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (f === 'schema.json'
+      || !JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)) continue;
     const data = JSON.parse(
       fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8'));
     ids.add(data.id);

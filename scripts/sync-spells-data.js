@@ -26,18 +26,23 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { isRefPath } = require('./lib/json-ref.js');
+const { isRefPath, SHAPE_BASENAME_RES, ASSET_NAME_SHAPES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const OUT_FILE = path.join(ROOT, 'src', 'spells-data.js');
 
 // --- Чтение каталога ---
+// Форма имени — из живого реестра lib (000318.01/.05: spells — slug,
+// имя = строковый id); schema.json матчается slug-regex — исключение
+// ЯВНОЕ (000318.02/.03/.04 — грабельный прецедент).
 const files = fs.readdirSync(SPELLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json')
+  .filter((f) => SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.spells].test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/spells: не найдено ни одного файла 0000NN.json');
+  console.error('assets/spells: не найдено ни одного файла-заклинания');
   process.exit(1);
 }
 
@@ -105,6 +110,11 @@ for (const f of files) {
   spells.push({ file: f, data: resolveSpellData(data, f) });
 }
 
+// Порядок записей — СЕМАНТИЧЕСКИ по id (000318.05: имя файла === id,
+// но компаратор по данным делает выход независимым от имени — прецедент
+// runes .02 / mob_groups .04).
+spells.sort((a, b) => (a.data.id < b.data.id ? -1 : a.data.id > b.data.id ? 1 : 0));
+
 const TIER_ACTIONS = new Set(['урон', 'лечение']);
 const byId = new Map(spells.map((s) => [s.data.id, s.data]));
 for (const { file, data } of spells) {
@@ -130,7 +140,7 @@ const KEYS = ['id', 'название', 'школа', 'база', 'степен�
   'icon', 'icon_prompt', 'параметры', 'вне_боя'];
 
 // --- Генерация JS ---
-const range = `${files[0]} … ${files[files.length - 1]}`;
+const range = `${spells[0].file} … ${spells[spells.length - 1].file}`;
 
 // Форматирует значение JS-литералом (JSON-совместимо).
 function jsValue(v) {

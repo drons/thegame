@@ -7894,8 +7894,9 @@ test('mobs schema (000211.03): поля-ссылки закрепили якор
   const p = schema.properties;
   assert.equal(p.skills.items.pattern, '^assets/skills/\\d{6}\\.json$',
     'skills: pattern не закреплён якорный (assets/skills)');
-  assert.equal(p.spells.items.pattern, '^assets/spells/\\d{6}\\.json$',
-    'spells: pattern не закреплён якорный (assets/spells)');
+  assert.equal(p.spells.items.pattern,
+    '^assets/spells/[a-z][a-z0-9_]*\\.json$',
+    'spells: pattern — slug-носитель (000318.05: assets/spells — имя = id)');
   assert.equal(p.loot.items.properties.item.pattern,
     '^assets/items/\\d{6}\\.json$',
     'loot.item: pattern не закреплён якорный (assets/items)');

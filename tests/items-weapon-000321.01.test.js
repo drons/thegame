@@ -253,8 +253,10 @@ function skillIds() {
     .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
 }
 function spellIds() {
+  const JR = require('../scripts/lib/json-ref.js');
   return new Set(fs.readdirSync(SPELLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')).id));
 }
 

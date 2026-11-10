@@ -125,11 +125,15 @@ function withGame(fake, fn) {
 // Game.Sheet.addXp (единый лист).
 const gameWithXp = () => ({ xpForNext: P.xpForNext, Sheet });
 
+const { isRef, resolveRef, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
+
 // Каталог заклинаний (целостность id, прецедент 000053).
 const SPELL_IDS = (() => {
   const dir = path.join(ROOT, 'assets', 'spells');
   return new Set(fs.readdirSync(dir)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.spells].test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).id));
 })();
 
@@ -139,8 +143,6 @@ const SPELL_IDS = (() => {
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 const SKILL_FILES = () => fs.readdirSync(SKILLS_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f));
-const { isRef, resolveRef } = require(
-  path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
 const SKILL_IDS = new Set(SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
 const SKILL_META = (() => {
@@ -173,7 +175,8 @@ const SKILL_CATALOG = SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const SPELL_FILES = () => fs.readdirSync(SPELLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f));
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.spells].test(f));
 const SPELL_CATALOG = SPELL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')));
 

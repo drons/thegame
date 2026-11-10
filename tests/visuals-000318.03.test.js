@@ -188,11 +188,11 @@ test('000318.03 T4: visuals вне мишеней ссылок навсегда 
     'шейп restored с сохранённого — после 000318.03 сохранённый «slug»; '
     + 'факт: «' + mod.ASSET_NAME_SHAPES.visuals + '»');
   assert.equal(mod.REF_RE.source,
-    '^assets\\/(items|skills|spells|buildings|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(mobs|mob_groups|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
-    'REF_RE — ДВЕ группы после 000318.04 (mobs/mob_groups/dungeons — ref-'
-    + 'мишени, их флип в slug меняет source; флипы runes/visuals ∉ ref-'
-    + 'группам его НЕ меняли; пин AR11 дублирован страховкой)');
+    '^assets\\/(items|skills|buildings|craft|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    'REF_RE — ДВЕ группы после 000318.05 (spells/mobs/mob_groups/dungeons —'
+    + ' ref-мишени, их флипы в slug меняют source; флипы runes/visuals ∉ '
+    + 'ref-группам его НЕ меняли; пин AR11 дублирован страховкой)');
 });
 
 // --- T5: золотой порядок видимых носителей (спрайт-пути в id-порядке) ---

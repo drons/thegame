@@ -20,7 +20,7 @@ const path = require('path');
 // <slug>.json с буквы. Живой объект: тесты могут временно менять шейп
 // каталога в try/finally (фикстуры обеих форм), REF_RE при этом статичен.
 const ASSET_NAME_SHAPES = {
-  items: 'number', skills: 'number', spells: 'number', mobs: 'slug',
+  items: 'number', skills: 'number', spells: 'slug', mobs: 'slug',
   mob_groups: 'slug', buildings: 'number', craft: 'number',
   dungeons: 'slug', npc: 'number', runes: 'slug', visuals: 'slug',
   portraits: 'named',

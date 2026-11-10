@@ -1,7 +1,7 @@
 // Каталог заклинаний (assets/spells) — задача 000023.
 //
 // Проверяем:
-//  * нумерацию файлов 000001.json … N подряд, без чужих файлов;
+//  * имена файлов <id>.json в lex-порядке (000318.05), без чужих файлов;
 //  * валидность каждого файла по assets/spells/schema.json (минимальный
 //    валидатор, допустимые ключи — ALLOWED_SCHEMA_KEYS, задача 000015);
 //  * правила каталога: уникальные id, «база null ⇔ степень 1»,
@@ -27,6 +27,10 @@ const DIR = path.join(__dirname, '..', 'assets', 'spells');
 // tests/json-schema.js (допустимые ключи — ALLOWED_SCHEMA_KEYS).
 const { validate, ALLOWED_SCHEMA_KEYS } = require('./json-schema.js');
 
+// Форма имени каталога — из живого реестра (000318.01/.05: spells — slug).
+const { SHAPE_BASENAME_RES, ASSET_NAME_SHAPES } =
+  require('../scripts/lib/json-ref.js');
+
 // Школа → атрибут (spec/spells.md «Школы магии»).
 const SCHOOL_ATTR = {
   'огонь': 'intelligence',
@@ -48,7 +52,8 @@ const SCHOOL_RANKS = [
 
 function listSpellFiles() {
   return fs.readdirSync(DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json')
+    .filter((f) => SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.spells].test(f))
     .sort();
 }
 
@@ -58,8 +63,10 @@ function loadCatalog() {
   const byId = new Map();
   for (const f of all) {
     if (f === 'schema.json') continue;
-    assert.match(f, /^\d{6}\.json$/, `чужой файл в каталоге заклинаний: ${f}`);
+    assert.ok(SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.spells].test(f),
+      `чужой файл в каталоге заклинаний: ${f}`);
     const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(f, data.id + '.json', `имя файла ≠ id: ${f} (000318.05)`);
     assert.ok(!byId.has(data.id), `дубликат id заклинания "${data.id}" в ${f}`);
     byId.set(data.id, { file: f, data });
   }
@@ -70,20 +77,22 @@ function loadSchema() {
   return JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
 }
 
-// --- Нумерация ---
+// --- Именование (000318.05: имя = id, numeric-нумерации больше нет) ---
 
-test('каталог: нумерация файлов 000001..N подряд', () => {
+test('каталог: файлы <id>.json, numeric-имён нет', () => {
   const files = listSpellFiles();
   assert.ok(files.length >= 10, 'каталог подозрительно маленький');
-  files.forEach((f, i) => {
-    assert.equal(f, String(i + 1).padStart(6, '0') + '.json',
-      `пробел в нумерации на позиции ${i + 1}: ${f}`);
-  });
+  for (const f of files) {
+    assert.ok(!/^\d{6}\.json$/.test(f), `numeric-имя осталось: ${f}`);
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(f, data.id + '.json', `имя файла ≠ id: ${f}`);
+  }
 });
 
-test('каталог: чужих файлов нет (только NNNNNN.json и schema.json)', () => {
+test('каталог: чужих файлов нет (только <id>.json и schema.json)', () => {
   for (const f of fs.readdirSync(DIR).sort()) {
-    assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+    assert.ok(SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.spells].test(f)
+      || f === 'schema.json',
       `чужой файл в каталоге заклинаний: ${f}`);
   }
 });
@@ -1315,13 +1324,14 @@ function deadAlly163(c) {
   return a;
 }
 
-test('000163 R1: каталог 000017.json — 17-й файл, поля по ТЗ, схема (enum «воскрешение»), ссылки phoenix_feather/здания [21,36,37,38], зеркало SPELLS[16]/SPELLS_BY_ID.resurrect', () => {
-  // (a) Нумерация: 000017.json — 17-й файл (краснота: файла нет).
+test('000163 R1: каталог resurrect.json (бывш. 000017.json — 000318.05), поля по ТЗ, схема (enum «воскрешение»), ссылки phoenix_feather/здания [21,36,37,38], зеркало на позиции каталога/SPELLS_BY_ID.resurrect', () => {
+  // (a) Имя = id (000318.05: прежняя позиция 17 заменена slug-именем;
+  //     краснота: файла нет).
   const files = listSpellFiles();
-  assert.equal(files[16], '000017.json',
-    'файл 000017.json — 17-й в каталоге (краснота: файла нет)');
+  const ri = files.indexOf('resurrect.json');
+  assert.ok(ri >= 0, 'resurrect.json — есть в каталоге (краснота: файла нет)');
   const data = JSON.parse(
-    fs.readFileSync(path.join(DIR, '000017.json'), 'utf8'));
+    fs.readFileSync(path.join(DIR, 'resurrect.json'), 'utf8'));
   // (b) Поля по ТЗ (контракт §3.1 memory/000163).
   assert.equal(data.id, 'resurrect');
   assert.equal(data.название, 'Воскрешение');
@@ -1333,11 +1343,11 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   assert.equal(data.мани, 15);
   assert.equal(data.действие, 'воскрешение', 'НОВОЕ значение enum');
   assert.deepEqual(
-    data.предметы.map((it) => refId(it, REF_ITEMS, '000017.json')),
+    data.предметы.map((it) => refId(it, REF_ITEMS, 'resurrect.json')),
     ['phoenix_feather'],
     'предмет: phoenix_feather (свиток НЕ здесь — 000165)');
   assert.deepEqual(
-    data.здания.map((b) => refId(b, REF_BUILDINGS, '000017.json')),
+    data.здания.map((b) => refId(b, REF_BUILDINGS, 'resurrect.json')),
     [21, 36, 37, 38],
     'здания: Храм исцеления (21) + храмы (36/37/38)');
   assert.ok(typeof data.описание === 'string'
@@ -1345,21 +1355,21 @@ test('000163 R1: каталог 000017.json — 17-й файл, поля по Т
   // (c) Валиден по schema.json: enum «действие» обязан содержать
   //     «воскрешение» (краснота: схемы ещё нет этого значения).
   const errors = [];
-  validate(loadSchema(), data, '000017.json', errors);
+  validate(loadSchema(), data, 'resurrect.json', errors);
   assert.deepEqual(errors, [], 'схема: ' + errors.join('; '));
   // (d) Ссылочная целостность (локально для 000017; дубль generic).
   assert.ok(getItem('phoenix_feather') !== null,
     'phoenix_feather — в каталоге assets/items');
   for (const b of data.здания) {
-    const id = refId(b, REF_BUILDINGS, '000017.json');
+    const id = refId(b, REF_BUILDINGS, 'resurrect.json');
     assert.ok(getBuilding(id) !== null, 'здание ' + id + ' — в каталоге');
   }
   // (e) Зеркало src/spells-data.js (regen sync-spells-data.js).
   const { SPELLS, SPELLS_BY_ID } = loadSpellsData();
   assert.equal(SPELLS.length, 169, 'зеркало: 169 заклинаний (ре-пин 000235.11: +25 волны Защита; ре-пин 000235.12: +25 волны Природа; ре-пин 000333: +2 навигации; RED: 117)');
-  assert.deepEqual(SPELLS[16], resolveSpell(data, '000017.json'),
-    'SPELLS[16] — зеркало 000017.json');
-  assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, '000017.json'),
+  assert.deepEqual(SPELLS[ri], resolveSpell(data, 'resurrect.json'),
+    'SPELLS на той же позиции, что и каталог (000318.05: lex/id-порядок)');
+  assert.deepEqual(SPELLS_BY_ID.resurrect, resolveSpell(data, 'resurrect.json'),
     'SPELLS_BY_ID.resurrect');
 });
 
@@ -1718,7 +1728,7 @@ const { spawnSync } = require('node:child_process');
 const os = require('node:os');
 const SCRIPTS = path.join(__dirname, '..', 'scripts');
 
-const REF_SPELLS = /^assets\/spells\/\d{6}\.json$/;
+const REF_SPELLS = /^assets\/spells\/[a-z][a-z0-9_]*\.json$/;
 const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
@@ -1788,7 +1798,7 @@ const FIXTURE_SPELL = {
   id: 'flame_burst',
   'название': 'Пламенный взрыв',
   'школа': 'огонь',
-  'база': 'assets/spells/000002.json',
+  'база': 'assets/spells/fireball.json',
   'степень': 2,
   'множитель_степени': 1.15,
   'атрибут': 'intelligence',
@@ -1850,7 +1860,7 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
   const schema = loadSchema();
   assert.deepEqual(schema.properties['база'].anyOf,
     [
-      { type: 'string', pattern: '^assets/spells/\\d{6}\\.json$' },
+      { type: 'string', pattern: '^assets/spells/[a-z][a-z0-9_]*\\.json$' },
       { type: 'null' },
     ],
     '«база» — ссылка на файл assets/spells (null-ветка сохраняется)');
@@ -1972,8 +1982,8 @@ test('000211.04 R3: membership — здания: города 51–54 прохо
 
 test('000211.04 R4: sync-spells-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
   const dir = makeTmpSpellsRepo({
-    '000001.json': JSON.stringify(FIXTURE_SPELL),
-    '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+    'flame_burst.json': JSON.stringify(FIXTURE_SPELL),
+    'fireball.json': JSON.stringify(FIXTURE_BASE_SPELL),
   }, FIXTURE_TARGETS);
   try {
     const script = path.join(dir, 'scripts', 'sync-spells-data.js');
@@ -2006,13 +2016,13 @@ test('000211.04 R4: sync-spells-data.js запекает ссылки в id-фо
 });
 
 test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refId (не по формату / нет цели / не JSON / без id) → exit 1 + контекст в stderr', () => {
-  // 1. Нет цели ссылки (000009.json — за максимальным номером фикстуры).
+  // 1. Нет цели ссылки (no_such_spell.json — такого файла нет).
   {
     const spell = Object.assign({}, FIXTURE_SPELL,
-      { 'база': 'assets/spells/000009.json' });
+      { 'база': 'assets/spells/no_such_spell.json' });
     const dir = makeTmpSpellsRepo({
-      '000001.json': JSON.stringify(spell),
-      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+      'flame_burst.json': JSON.stringify(spell),
+      'fireball.json': JSON.stringify(FIXTURE_BASE_SPELL),
     }, FIXTURE_TARGETS);
     try {
       const r = spawnSync(process.execPath,
@@ -2021,7 +2031,7 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
       assert.equal(r.status, 1,
         'битая ссылка (нет цели) обязана дать exit 1: '
         + (r.stdout || '') + (r.stderr || ''));
-      assert.match(r.stderr || '', /assets\/spells\/000009\.json/,
+      assert.match(r.stderr || '', /assets\/spells\/no_such_spell\.json/,
         'в stderr — имя битой ссылки (нет цели)');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -2034,8 +2044,8 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
       buildings: { '000001.json': '{"id": 17}\n' },
     };
     const dir = makeTmpSpellsRepo({
-      '000001.json': JSON.stringify(FIXTURE_SPELL),
-      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+      'flame_burst.json': JSON.stringify(FIXTURE_SPELL),
+      'fireball.json': JSON.stringify(FIXTURE_BASE_SPELL),
     }, targets);
     try {
       const r = spawnSync(process.execPath,
@@ -2053,10 +2063,10 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
   // 3. Ссылка-строка вне паттерна каталога (без префикса assets/).
   {
     const spell = Object.assign({}, FIXTURE_SPELL,
-      { 'база': 'spells/000002.json' });
+      { 'база': 'spells/fireball.json' });
     const dir = makeTmpSpellsRepo({
-      '000001.json': JSON.stringify(spell),
-      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+      'flame_burst.json': JSON.stringify(spell),
+      'fireball.json': JSON.stringify(FIXTURE_BASE_SPELL),
     }, FIXTURE_TARGETS);
     try {
       const r = spawnSync(process.execPath,
@@ -2067,7 +2077,7 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
         + (r.stdout || '') + (r.stderr || ''));
       assert.match(r.stderr || '', /не по формату/,
         'в stderr — «не по формату»');
-      assert.match(r.stderr || '', /spells\/000002\.json/,
+      assert.match(r.stderr || '', /spells\/fireball\.json/,
         'в stderr — имя ссылки вне паттерна');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -2080,8 +2090,8 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
       buildings: { '000001.json': '{"id": 17}\n' },
     };
     const dir = makeTmpSpellsRepo({
-      '000001.json': JSON.stringify(FIXTURE_SPELL),
-      '000002.json': JSON.stringify(FIXTURE_BASE_SPELL),
+      'flame_burst.json': JSON.stringify(FIXTURE_SPELL),
+      'fireball.json': JSON.stringify(FIXTURE_BASE_SPELL),
     }, targets);
     try {
       const r = spawnSync(process.execPath,
@@ -2230,7 +2240,16 @@ test('000235.01 S3: «вне_боя» — опционально, default false;
   // false; гейт — по ДЕЙСТВИЮ (не по флагу): «телепорт» БЕЗ вне_боя
   // в бою — отказ ДО расхода пула/маны (зеркало 000037).
   const dataMod = loadSpellsData();
-  for (const s of dataMod.SPELLS.slice(0, 17)) {
+  // 000318.05: позиционный срез slice(0, 17) заменён id-множеством
+  // ПЕРВЫХ 17 файлов каталога (в id-порядке срез попадал на beast_friend
+  // с вне_боя: true — контракт это первые 17 ЗАПИСЕЙ 000023, не позиции).
+  const BASE17_IDS = new Set(['spark', 'fireball', 'flame_burst', 'inferno',
+    'frost_bolt', 'blizzard', 'chill', 'shadow_bolt', 'mend', 'light_heal',
+    'greater_heal', 'magic_shield', 'stone_skin', 'ward', 'vine',
+    'nature_blessing', 'resurrect']);
+  const base17 = dataMod.SPELLS.filter((s) => BASE17_IDS.has(s.id));
+  assert.equal(base17.length, 17, 'первые 17 записей каталога — в зеркале');
+  for (const s of base17) {
     assert.ok(!s.вне_боя, `${s.id}: «вне_боя» отсутствует/false`);
   }
   const ghost = {
@@ -3226,9 +3245,9 @@ test('000235.04 H4: dispatch-пины — «телепорт» БЕЗ mode → s
 const FIRE07 = [
   // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
   ['ember', 'Тлеющий уголёк', 'урон', 1, 1, null, 3, false],
-  ['ignite', 'Поджечь', 'урон', 2, 2, 'assets/spells/000018.json', 7, false],
+  ['ignite', 'Поджечь', 'урон', 2, 2, 'assets/spells/ember.json', 7, false],
   ['fire_nova', 'Огненная нова', 'урон', 2, 1, null, 6, false],
-  ['lava_burst', 'Лава-всплеск', 'урон', 3, 3, 'assets/spells/000019.json', 10, false],
+  ['lava_burst', 'Лава-всплеск', 'урон', 3, 3, 'assets/spells/ignite.json', 10, false],
   ['meteor', 'Метеор', 'урон', 3, 1, null, 15, false],
   ['flame_strike', 'Огненный удар', 'урон', 3, 1, null, 12, false],
   ['hellfire', 'Адское пламя', 'урон', 4, 1, null, 20, false],
@@ -3237,12 +3256,12 @@ const FIRE07 = [
   ['wall_of_fire', 'Стена огня', 'создание', 3, 1, null, 12, false],
   ['burning_haze', 'Облако пламени', 'создание', 3, 1, null, 12, false],
   ['blazing_speed', 'Пламенная стремительность', 'баф', 1, 1, null, 4, false],
-  ['fire_aura', 'Аура пламени', 'баф', 2, 2, 'assets/spells/000029.json', 7, false],
+  ['fire_aura', 'Аура пламени', 'баф', 2, 2, 'assets/spells/blazing_speed.json', 7, false],
   ['heat_shield', 'Жаровой щит', 'баф', 2, 1, null, 8, false],
-  ['sunfire', 'Солнечный огонь', 'баф', 3, 3, 'assets/spells/000030.json', 13, false],
+  ['sunfire', 'Солнечный огонь', 'баф', 3, 3, 'assets/spells/fire_aura.json', 13, false],
   ['scorch', 'Обжечь', 'дебаф', 2, 1, null, 7, false],
-  ['cinder', 'Пепел', 'дебаф', 3, 2, 'assets/spells/000033.json', 10, false],
-  ['ashen_debilitation', 'Пепельная слабость', 'дебаф', 4, 3, 'assets/spells/000034.json', 20, false],
+  ['cinder', 'Пепел', 'дебаф', 3, 2, 'assets/spells/scorch.json', 10, false],
+  ['ashen_debilitation', 'Пепельная слабость', 'дебаф', 4, 3, 'assets/spells/cinder.json', 20, false],
   ['lava_snare', 'Лава-петля', 'контроль', 2, 1, null, 6, false],
   ['burning_cage', 'Огненная клетка', 'контроль', 3, 1, null, 12, false],
   ['flame_imp', 'Огненный имп', 'призыв', 2, 1, null, 8, false],
@@ -3255,7 +3274,7 @@ const FIRE07_IDS = FIRE07.map((r) => r[0]);
 const FIRE07_OC = ['firelight', 'hearthfire', 'flame_step'];
 
 function fireSpellFile(i) {
-  return path.join(DIR, String(18 + i).padStart(6, '0') + '.json');
+  return path.join(DIR, FIRE07_IDS[i] + '.json');
 }
 function fireScrollFile(i) {
   return `assets/items/${String(108 + i).padStart(6, '0')}.json`;
@@ -3575,23 +3594,23 @@ test('000235.07 W-13: призывы flame_imp/phoenix — makeAlly level=уро
 const ICE08 = [
   // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
   ['ice_lance', 'Ледяное копьё', 'урон', 1, 1, null, 4, false],
-  ['rime_bolt', 'Морозный снаряд', 'урон', 2, 2, 'assets/spells/000043.json', 6, false],
+  ['rime_bolt', 'Морозный снаряд', 'урон', 2, 2, 'assets/spells/ice_lance.json', 6, false],
   ['hail', 'Град', 'урон', 2, 1, null, 7, false],
-  ['shatter', 'Расколоть', 'урон', 3, 3, 'assets/spells/000044.json', 12, false],
+  ['shatter', 'Расколоть', 'урон', 3, 3, 'assets/spells/rime_bolt.json', 12, false],
   ['glacial_spike', 'Ледяной пик', 'урон', 3, 1, null, 10, false],
   ['permafrost', 'Вечная мерзлота', 'урон', 4, 1, null, 20, false],
   ['absolute_zero', 'Абсолютный ноль', 'урон', 4, 1, null, 20, false],
   ['ice_field', 'Ледяное поле', 'создание', 2, 1, null, 8, false],
   ['wall_of_ice', 'Ледяная стена', 'создание', 3, 1, null, 12, false],
   ['blizzard_field', 'Поле метели', 'создание', 4, 1, null, 20, false],
-  ['frost_aura', 'Морозная аура', 'баф', 2, 2, 'assets/spells/000056.json', 7, false],
+  ['frost_aura', 'Морозная аура', 'баф', 2, 2, 'assets/spells/frostbite_blessing.json', 7, false],
   ['ice_armor', 'Ледяные латы', 'баф', 2, 1, null, 8, false],
-  ['winter_haste', 'Зимняя спешка', 'баф', 3, 3, 'assets/spells/000053.json', 13, false],
+  ['winter_haste', 'Зимняя спешка', 'баф', 3, 3, 'assets/spells/frost_aura.json', 13, false],
   ['frostbite_blessing', 'Благословение мороза', 'баф', 1, 1, null, 4, false],
   ['slow', 'Морозное замедление', 'дебаф', 1, 1, null, 4, false],
-  ['frostbite', 'Обморожение', 'дебаф', 2, 2, 'assets/spells/000057.json', 7, false],
+  ['frostbite', 'Обморожение', 'дебаф', 2, 2, 'assets/spells/slow.json', 7, false],
   ['arctic_touch', 'Полярное прикосновение', 'дебаф', 2, 1, null, 7, false],
-  ['deep_freeze', 'Глубокое замерзание', 'дебаф', 3, 3, 'assets/spells/000058.json', 10, false],
+  ['deep_freeze', 'Глубокое замерзание', 'дебаф', 3, 3, 'assets/spells/frostbite.json', 10, false],
   ['freeze', 'Заморозить', 'контроль', 2, 1, null, 6, false],
   ['glacier_grasp', 'Ледниковая хватка', 'контроль', 3, 1, null, 12, false],
   ['frost_wisp', 'Морозный вестник', 'призыв', 2, 1, null, 8, false],
@@ -3604,7 +3623,7 @@ const ICE08_IDS = ICE08.map((r) => r[0]);
 const ICE08_OC = ['frost_walk', 'cold_breath', 'frozen_stillness'];
 
 function iceSpellFile(i) {
-  return path.join(DIR, String(43 + i).padStart(6, '0') + '.json');
+  return path.join(DIR, ICE08_IDS[i] + '.json');
 }
 function iceScrollFile(i) {
   return `assets/items/${String(133 + i).padStart(6, '0')}.json`;
@@ -3698,7 +3717,7 @@ test('000235.08 W-03: параметры по D1 — точный deepEqual на
     assert.equal(childDegree, parentDegree + 1,
       `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
     assert.equal(byId.get(child)[5],
-      `assets/spells/${String(43 + pi).padStart(6, '0')}.json`,
+      `assets/spells/${ICE08_IDS[pi]}.json`,
       `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
   }
   for (const [child, parent] of CHAINS) {
@@ -3706,8 +3725,7 @@ test('000235.08 W-03: параметры по D1 — точный deepEqual на
     const f = iceSpellFile(ci);
     if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
     const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const parentFile = String(43 + ICE08_IDS.indexOf(parent))
-      .padStart(6, '0') + '.json';
+    const parentFile = parent + '.json'; // 000318.05: имя файла === id
     assert.equal(d.база, 'assets/spells/' + parentFile,
       `цепочка ${parent} → ${child}: база = файл предка`);
   }
@@ -4059,19 +4077,19 @@ test('000235.08 W-13: призывы frost_wisp/winter_elemental — makeAlly le
 const SHADOW09 = [
   // id, название, действие, уровень, степень, база(файл|null), мани, вне_боя
   ['umbra_bolt', 'Умбровый снаряд', 'урон', 1, 1, null, 4, false],
-  ['drain_life', 'Пожизненная сила', 'урон', 2, 2, 'assets/spells/000068.json', 6, false],
+  ['drain_life', 'Пожизненная сила', 'урон', 2, 2, 'assets/spells/umbra_bolt.json', 6, false],
   ['void_arrow', 'Стрела пустоты', 'урон', 3, 1, null, 11, false],
   ['night_strike', 'Ночной удар', 'урон', 3, 1, null, 12, false],
-  ['soul_drain', 'Извлечение души', 'урон', 4, 3, 'assets/spells/000069.json', 20, false],
+  ['soul_drain', 'Извлечение души', 'урон', 4, 3, 'assets/spells/drain_life.json', 20, false],
   ['shadowflame', 'Теневое пламя', 'урон', 4, 1, null, 20, false],
   ['dark_nova', 'Тёмная нова', 'урон', 4, 1, null, 20, false],
   ['shroud', 'Теневая вуаль', 'баф', 1, 1, null, 3, false],
-  ['night_blade', 'Ночное лезвие', 'баф', 2, 2, 'assets/spells/000075.json', 6, false],
-  ['vampire_touch', 'Вампирское прикосновение', 'баф', 3, 3, 'assets/spells/000076.json', 12, false],
+  ['night_blade', 'Ночное лезвие', 'баф', 2, 2, 'assets/spells/shroud.json', 6, false],
+  ['vampire_touch', 'Вампирское прикосновение', 'баф', 3, 3, 'assets/spells/night_blade.json', 12, false],
   ['fear', 'Страх', 'дебаф', 2, 1, null, 6, false],
-  ['doom_mark', 'Печать дурного предзнаменования', 'дебаф', 3, 2, 'assets/spells/000078.json', 11, false],
+  ['doom_mark', 'Печать дурного предзнаменования', 'дебаф', 3, 2, 'assets/spells/fear.json', 11, false],
   ['despair', 'Отчаяние', 'дебаф', 3, 1, null, 12, false],
-  ['shadow_curse', 'Теневое проклятие', 'дебаф', 4, 3, 'assets/spells/000079.json', 20, false],
+  ['shadow_curse', 'Теневое проклятие', 'дебаф', 4, 3, 'assets/spells/doom_mark.json', 20, false],
   ['shadow_bind', 'Теневые узы', 'контроль', 2, 1, null, 6, false],
   ['nightmare', 'Кошмар', 'контроль', 3, 1, null, 12, false],
   ['dark_ensnare', 'Тёмные оковы', 'контроль', 4, 1, null, 20, false],
@@ -4088,7 +4106,7 @@ const SHADOW09_IDS = SHADOW09.map((r) => r[0]);
 const SHADOW09_OC = ['shadow_step', 'invisibility', 'shroud_of_night', 'dark_presence'];
 
 function shadowSpellFile(i) {
-  return path.join(DIR, String(68 + i).padStart(6, '0') + '.json');
+  return path.join(DIR, SHADOW09_IDS[i] + '.json');
 }
 function shadowScrollFile(i) {
   return `assets/items/${String(233 + i).padStart(6, '0')}.json`;
@@ -4185,7 +4203,7 @@ test('000235.09 W-03: параметры по D1 — точный deepEqual на
     assert.equal(childDegree, parentDegree + 1,
       `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
     assert.equal(byId.get(child)[5],
-      `assets/spells/${String(68 + pi).padStart(6, '0')}.json`,
+      `assets/spells/${SHADOW09_IDS[pi]}.json`,
       `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
   }
   for (const [child, parent] of CHAINS) {
@@ -4193,8 +4211,7 @@ test('000235.09 W-03: параметры по D1 — точный deepEqual на
     const f = shadowSpellFile(ci);
     if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
     const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const parentFile = String(68 + SHADOW09_IDS.indexOf(parent))
-      .padStart(6, '0') + '.json';
+    const parentFile = parent + '.json'; // 000318.05: имя файла === id
     assert.equal(d.база, 'assets/spells/' + parentFile,
       `цепочка ${parent} → ${child}: база = файл предка`);
   }
@@ -4645,15 +4662,15 @@ const HEAL10 = [
   ['purify', 'Очищение', 'лечение', 2, 1, null, 6, false],
   ['mass_heal', 'Массовое исцеление', 'лечение', 3, 1, null, 13, false],
   ['holy_mending', 'Святое исцеление', 'лечение', 3, 3,
-    'assets/spells/000011.json', 13, false],
+    'assets/spells/greater_heal.json', 13, false],
   ['mass_holy_light', 'Массовый святой свет', 'лечение', 4, 1, null, 20, false],
   ['regeneration', 'Регенерация', 'лечение', 4, 1, null, 20, false],
   ['blessing', 'Благословение', 'баф', 1, 1, null, 3, false],
   ['divine_favor', 'Божественное благоволение', 'баф', 2, 2,
-    'assets/spells/000100.json', 7, false],
+    'assets/spells/blessing.json', 7, false],
   ['guardian_blessing', 'Хранительное благословение', 'баф', 2, 1, null, 6, false],
   ['swift_prayer', 'Молитва о проворстве', 'баф', 3, 3,
-    'assets/spells/000101.json', 12, false],
+    'assets/spells/divine_favor.json', 12, false],
   ['faith_shield', 'Щит веры', 'баф', 1, 1, null, 4, false],
   ['smite', 'Святое поразить', 'дебаф', 2, 1, null, 6, false],
   ['unholy_wrath', 'Божественный гнев', 'дебаф', 3, 1, null, 12, false],
@@ -4673,7 +4690,7 @@ const HEAL10_IDS = HEAL10.map((r) => r[0]);
 const HEAL10_OC = ['prayer', 'divine_protection', 'holy_light', 'miracle'];
 
 function healSpellFile(i) {
-  return path.join(DIR, String(93 + i).padStart(6, '0') + '.json');
+  return path.join(DIR, HEAL10_IDS[i] + '.json');
 }
 function healScrollFile(i) {
   return `assets/items/${String(258 + i).padStart(6, '0')}.json`;
@@ -4761,7 +4778,7 @@ test('000235.10 W-03: параметры по D1 — точный deepEqual на
   {
     const row = HEAL10.find((r) => r[0] === 'holy_mending');
     const parent = JSON.parse(
-      fs.readFileSync(path.join(DIR, '000011.json'), 'utf8'));
+      fs.readFileSync(path.join(DIR, 'greater_heal.json'), 'utf8'));
     assert.equal(parent.id, 'greater_heal', 'фикстура: 000011 = greater_heal');
     assert.equal(parent.степень, 2, 'фикстура: greater_heal ст2');
     assert.equal(parent.уровень, 3, 'фикстура: greater_heal ур3');
@@ -4770,12 +4787,12 @@ test('000235.10 W-03: параметры по D1 — точный deepEqual на
       'C1: holy_mending ст3 = greater_heal ст2 + 1');
     assert.ok(row[3] >= parent.уровень, 'C1: уровень не ниже предка');
     assert.ok(row[6] >= parent.мани, 'C1: мани не ниже предка (13 ≥ 11)');
-    assert.equal(row[5], 'assets/spells/000011.json',
+    assert.equal(row[5], 'assets/spells/greater_heal.json',
       'C1: база = файл предка (таблица)');
     const f = healSpellFile(HEAL10_IDS.indexOf('holy_mending'));
     if (fs.existsSync(f)) {
       const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-      assert.equal(d.база, 'assets/spells/000011.json',
+      assert.equal(d.база, 'assets/spells/greater_heal.json',
         'C1: база = файл предка (файл)');
     }
   }
@@ -4794,7 +4811,7 @@ test('000235.10 W-03: параметры по D1 — точный deepEqual на
     assert.equal(childDegree, parentDegree + 1,
       `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
     assert.equal(byId.get(child)[5],
-      `assets/spells/${String(93 + pi).padStart(6, '0')}.json`,
+      `assets/spells/${HEAL10_IDS[pi]}.json`,
       `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
   }
   for (const [child, parent] of CHAINS) {
@@ -4802,8 +4819,7 @@ test('000235.10 W-03: параметры по D1 — точный deepEqual на
     const f = healSpellFile(ci);
     if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
     const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const parentFile = String(93 + HEAL10_IDS.indexOf(parent))
-      .padStart(6, '0') + '.json';
+    const parentFile = parent + '.json'; // 000318.05: имя файла === id
     assert.equal(d.база, 'assets/spells/' + parentFile,
       `цепочка ${parent} → ${child}: база = файл предка`);
   }
@@ -5984,12 +6000,12 @@ const PROT11 = [
   ['iron_bulwark', 'Железный бастион', 'защита', 1, 1, null, 4, false],
   ['aegis', 'Эгида', 'защита', 2, 1, null, 8, false],
   ['shield_wall', 'Стена щитов', 'защита', 2, 2,
-    'assets/spells/000118.json', 7, false],
+    'assets/spells/iron_bulwark.json', 7, false],
   ['magical_barrier', 'Магический барьер', 'защита', 3, 3,
-    'assets/spells/000014.json', 13, false],
+    'assets/spells/ward.json', 13, false],
   ['stony_hide', 'Каменный панцирь', 'защита', 3, 1, null, 12, false],
   ['iron_bastion', 'Железная твердыня', 'защита', 4, 3,
-    'assets/spells/000120.json', 20, false],
+    'assets/spells/shield_wall.json', 20, false],
   ['bulwark_ward', 'Ограда бастиона', 'защита', 4, 1, null, 20, false],
   ['resilience', 'Стойкость', 'баф', 1, 1, null, 3, false],
   ['thorns', 'Шипы', 'баф', 1, 1, null, 4, false],
@@ -6014,7 +6030,7 @@ const PROT11_IDS = PROT11.map((r) => r[0]);
 const PROT11_OC = ['stone_anchor', 'recall', 'gate', 'warding_circle'];
 
 function protSpellFile(i) {
-  return path.join(DIR, String(118 + i).padStart(6, '0') + '.json');
+  return path.join(DIR, PROT11_IDS[i] + '.json');
 }
 function protScrollFile(i) {
   return `assets/items/${String(460 + i).padStart(6, '0')}.json`;
@@ -6128,7 +6144,7 @@ test('000235.11 W-03: параметры — точный deepEqual на 23 (т�
   {
     const row = PROT11.find((r) => r[0] === 'magical_barrier');
     const parent = JSON.parse(
-      fs.readFileSync(path.join(DIR, '000014.json'), 'utf8'));
+      fs.readFileSync(path.join(DIR, 'ward.json'), 'utf8'));
     assert.equal(parent.id, 'ward', 'фикстура: 000014 = ward');
     assert.equal(parent.степень, 2, 'фикстура: ward ст2');
     assert.equal(parent.уровень, 3, 'фикстура: ward ур3');
@@ -6137,19 +6153,19 @@ test('000235.11 W-03: параметры — точный deepEqual на 23 (т�
       'C1: magical_barrier ст3 = ward ст2 + 1');
     assert.ok(row[3] >= parent.уровень, 'C1: уровень не ниже предка');
     assert.ok(row[6] >= parent.мани, 'C1: мани не ниже предка (13 ≥ 12)');
-    assert.equal(row[5], 'assets/spells/000014.json',
+    assert.equal(row[5], 'assets/spells/ward.json',
       'C1: база = файл предка (таблица)');
     const f = protSpellFile(PROT11_IDS.indexOf('magical_barrier'));
     if (fs.existsSync(f)) {
       const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-      assert.equal(d.база, 'assets/spells/000014.json',
+      assert.equal(d.база, 'assets/spells/ward.json',
         'C1: база = файл предка (файл)');
     }
     const base = JSON.parse(
-      fs.readFileSync(path.join(DIR, '000012.json'), 'utf8'));
+      fs.readFileSync(path.join(DIR, 'magic_shield.json'), 'utf8'));
     assert.equal(base.id, 'magic_shield',
       'фикстура: 000012 = magic_shield');
-    assert.equal(parent.база, 'assets/spells/000012.json',
+    assert.equal(parent.база, 'assets/spells/magic_shield.json',
       'C1 регрессия: ward.база = 000012 (цепочка цела)');
   }
   // C2 — новая цепочка iron_bulwark → shield_wall → iron_bastion.
@@ -6167,7 +6183,7 @@ test('000235.11 W-03: параметры — точный deepEqual на 23 (т�
     assert.equal(childDegree, parentDegree + 1,
       `цепочка ${parent} → ${child}: степень = ${parentDegree} + 1`);
     assert.equal(byId.get(child)[5],
-      `assets/spells/${String(118 + pi).padStart(6, '0')}.json`,
+      `assets/spells/${PROT11_IDS[pi]}.json`,
       `цепочка ${parent} → ${child}: база (таблица) = файл предка`);
   }
   for (const [child, parent] of CHAINS) {
@@ -6175,8 +6191,7 @@ test('000235.11 W-03: параметры — точный deepEqual на 23 (т�
     const f = protSpellFile(ci);
     if (!fs.existsSync(f)) continue; // RED: файл нет — выше упали
     const d = JSON.parse(fs.readFileSync(f, 'utf8'));
-    const parentFile = String(118 + PROT11_IDS.indexOf(parent))
-      .padStart(6, '0') + '.json';
+    const parentFile = parent + '.json'; // 000318.05: имя файла === id
     assert.equal(d.база, 'assets/spells/' + parentFile,
       `цепочка ${parent} → ${child}: база = файл предка`);
   }
@@ -6191,7 +6206,7 @@ test('000235.11 W-03: параметры — точный deepEqual на 23 (т�
 
 test('000283.01-DESC: thorns 000126 «описание» — «ближнего» убрано (решение дизайнера (a): ЛЮБОЙ урон) + зеркало spells-data; aegis/stony_hide/fortitude — guard (красный, 000283.01)', () => {
   const d = JSON.parse(fs.readFileSync(
-    path.join(DIR, '000126.json'), 'utf8'));
+    path.join(DIR, 'thorns.json'), 'utf8'));
   assert.equal(d.id, 'thorns', 'фикстура: 000126 = thorns');
   assert.equal(d.описание, 'Шипы: отражение 25% урона на 3 раунда.',
     'RED: desc «ближнего» убрано (вариант (a): counter на ЛЮБОМ уроне)');
@@ -6199,11 +6214,11 @@ test('000283.01-DESC: thorns 000126 «описание» — «ближнего�
     'Шипы: отражение 25% урона на 3 раунда.',
     'RED: зеркало spells-data = каталог (W-08: sync в том же коммите)');
   for (const [f, id, desc] of [
-    ['000119.json', 'aegis',
+    ['aegis.json', 'aegis',
      'Эгида: +2 к броне и отражение 25% урона на 3 раунда.'],
-    ['000122.json', 'stony_hide',
+    ['stony_hide.json', 'stony_hide',
      'Каменный панцирь: +2 к броне и иммунитет к контролю на 3 раунда.'],
-    ['000127.json', 'fortitude',
+    ['fortitude.json', 'fortitude',
      'Крепость духа: иммунитет к контролю на 3 раунда.']]) {
     const dd = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
     assert.equal(dd.описание, desc, `${id}: desc без изменений (guard)`);
@@ -6799,10 +6814,10 @@ const NATURE12 = [
   ['acid_splash', 'Кислотное швыряние', 'урон', 1, 1, null, 4, false],
   ['thorn_whip', 'Шиповая плеть', 'урон', 1, 1, null, 3, false],
   ['poison_spore', 'Ядовитый спор', 'урон', 2, 1, null, 7, false],
-  ['vine_lash', 'Витие лоз', 'урон', 3, 2, 'assets/spells/000144.json',
+  ['vine_lash', 'Витие лоз', 'урон', 3, 2, 'assets/spells/thorn_whip.json',
     11, false],
   ['thorn_storm', 'Шиповый шторм', 'урон', 3, 3,
-    'assets/spells/000146.json', 12, false],
+    'assets/spells/vine_lash.json', 12, false],
   ['nature_wrath', 'Гнев природы', 'урон', 4, 1, null, 20, false],
   ['hurricane', 'Ураган', 'урон', 4, 1, null, 20, false],
   ['poison_cloud', 'Ядовитое облако', 'создание', 2, 1, null, 7, false],
@@ -6810,7 +6825,7 @@ const NATURE12 = [
   ['wall_of_thorns', 'Стена шипов', 'создание', 3, 1, null, 12, false],
   ['life_force', 'Живая сила', 'баф', 2, 1, null, 8, false],
   ['barkskin', 'Коростенная кожа', 'баф', 2, 2,
-    'assets/spells/000016.json', 7, false],
+    'assets/spells/nature_blessing.json', 7, false],
   ['heart_of_forest', 'Сердце леса', 'баф', 1, 1, null, 4, false],
   ['nature_haste', 'Стремительность дикаря', 'баф', 3, 1, null,
     12, false],
@@ -6819,10 +6834,10 @@ const NATURE12 = [
   ['rot', 'Гниль', 'дебаф', 2, 1, null, 8, false],
   ['paralyzing_spore', 'Парализующий спор', 'дебаф', 3, 1, null, 11,
     false],
-  ['entangle', 'Упутать', 'контроль', 2, 2, 'assets/spells/000015.json',
+  ['entangle', 'Упутать', 'контроль', 2, 2, 'assets/spells/vine.json',
     8, false],
   ['root_grasp', 'Корневая хватка', 'контроль', 3, 3,
-    'assets/spells/000161.json', 12, false],
+    'assets/spells/entangle.json', 12, false],
   ['forest_beast', 'Лесной зверь', 'призыв', 2, 1, null, 7, false],
   ['treant', 'Трент', 'призыв', 3, 1, null, 14, false],
   ['wild_growth', 'Дикий рост', 'внебой', 1, 1, null, 4, true],
@@ -6834,7 +6849,7 @@ const NATURE12_OC = ['wild_growth', 'beast_friend', 'path_of_vines'];
 const NATURE12_SCROLLS = NATURE12.map((r) => r[0] + '_scroll');
 
 function natureSpellFile(i) {
-  return path.join(DIR, String(143 + i).padStart(6, '0') + '.json');
+  return path.join(DIR, NATURE12_IDS[i] + '.json');
 }
 function natureScrollFile(i) {
   return `assets/items/${String(487 + i).padStart(6, '0')}.json`;
@@ -6879,7 +6894,7 @@ test('000235.12 W-02: 25 записей spells — id/название/школ�
     assert.equal(d.вне_боя === true, oc, `${id}: вне_боя`);
     assert.ok(dataMod.SPELLS_BY_ID[id],
       `W-02: ${id} — запись в зеркале (RED: нет)`);
-    const fname = String(143 + i).padStart(6, '0') + '.json';
+    const fname = NATURE12_IDS[i] + '.json';
     assert.deepEqual(dataMod.SPELLS_BY_ID[id], resolveSpell(d, fname),
       `${id}: зеркало ≡ JSON (resolveSpell)`);
     levels[level] += 1;

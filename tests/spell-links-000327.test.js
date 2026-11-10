@@ -31,12 +31,15 @@ const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 const MOBS_DIR = path.join(ROOT, 'assets', 'mobs');
 
+// 000318.05: те же 17 legacy-файлов (000001–000017) переименованы в
+// slug по id (spark…resurrect) + schema.json; порядок — новый lex.
 const FORMAT_EXCEPTIONS_000327 = [
-  '000001.json', '000002.json', '000003.json', '000004.json',
-  '000005.json', '000006.json', '000007.json', '000008.json',
-  '000009.json', '000010.json', '000011.json', '000012.json',
-  '000013.json', '000014.json', '000015.json', '000016.json',
-  '000017.json', 'schema.json',
+  'blizzard.json', 'chill.json', 'fireball.json', 'flame_burst.json',
+  'frost_bolt.json', 'greater_heal.json', 'inferno.json',
+  'light_heal.json', 'magic_shield.json', 'mend.json',
+  'nature_blessing.json', 'resurrect.json', 'schema.json',
+  'shadow_bolt.json', 'spark.json', 'stone_skin.json', 'vine.json',
+  'ward.json',
 ];
 
 function jsonFiles(dir) {
@@ -48,7 +51,10 @@ function readJson(dir, f) {
 }
 
 function spellFilesOf(dir) {
-  return jsonFiles(dir).filter((f) => /^\d{6}\.json$/.test(f));
+  // 000318.05: spells — slug из живого реестра; schema.json — исключение.
+  const JR = require('../scripts/lib/json-ref.js');
+  return jsonFiles(dir).filter((f) => f !== 'schema.json'
+    && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f));
 }
 
 function checkCatalog(spellDir, skillsDir, mobsDir) {
@@ -171,23 +177,23 @@ test('000327 S4: self-check чекера — чистая фикстура []; �
     };
     const clean = mk('clean', {
       spells: {
-        '000001.json': spell({}),
-        '000002.json': spell({ id: 'fx2', школа: 'лёд', атрибут: 'wisdom', действие: 'призыв', параметры: { summon: 'imp', turns: 4 } }),
+        'fx.json': spell({}),
+        'fx2.json': spell({ id: 'fx2', школа: 'лёд', атрибут: 'wisdom', действие: 'призыв', параметры: { summon: 'imp', turns: 4 } }),
       },
     });
     assert.deepEqual(clean, { school: [], attr: [], summon: [], seenSchools: ['огонь', 'лёд'], seenAttrs: ['intelligence', 'wisdom'] }, 'чистая фикстура — без нарушений: ' + JSON.stringify(clean));
-    const badSchool = mk('bad-school', { spells: { '000001.json': spell({ школа: 'взрыв' }) } });
+    const badSchool = mk('bad-school', { spells: { 'fx.json': spell({ школа: 'взрыв' }) } });
     assert.ok(badSchool.school.some((s) => s.includes('«взрыв»')), 'кривая школа «взрыв»: ' + JSON.stringify(badSchool));
-    const badAttr = mk('bad-attr', { spells: { '000001.json': spell({ атрибут: 'agility' }) } });
+    const badAttr = mk('bad-attr', { spells: { 'fx.json': spell({ атрибут: 'agility' }) } });
     assert.ok(badAttr.attr.some((s) => s.includes('«agility»')), 'кривой атрибут «agility»: ' + JSON.stringify(badAttr));
-    const badSummon = mk('bad-summon', { spells: { '000001.json': spell({ действие: 'призыв', параметры: { summon: 'dragon', turns: 4 } }) } });
+    const badSummon = mk('bad-summon', { spells: { 'fx.json': spell({ действие: 'призыв', параметры: { summon: 'dragon', turns: 4 } }) } });
     assert.ok(badSummon.summon.some((s) => s.includes('«dragon»')), 'кривой summon «dragon»: ' + JSON.stringify(badSummon));
-    const noParam = mk('summon-no-param', { spells: { '000001.json': spell({ действие: 'призыв', параметры: { turns: 4 } }) } });
+    const noParam = mk('summon-no-param', { spells: { 'fx.json': spell({ действие: 'призыв', параметры: { turns: 4 } }) } });
     assert.ok(noParam.summon.some((s) => s.includes('параметры.summon отсутствует')), 'призыв без summon: ' + JSON.stringify(noParam));
-    const noAction = mk('param-no-summon', { spells: { '000001.json': spell({ параметры: { summon: 'imp' } }) } });
+    const noAction = mk('param-no-summon', { spells: { 'fx.json': spell({ параметры: { summon: 'imp' } }) } });
     assert.ok(noAction.summon.some((s) => s.includes('без «действие» «призыв»')), 'summon без призыва: ' + JSON.stringify(noAction));
     const dup = mk('dup-school', {
-      spells: { '000001.json': spell({}) },
+      spells: { 'fx.json': spell({}) },
       skills: Object.assign({}, goodSkills, { '000005.json': { id: 'fire2', type: 'school', name: 'Огонь' } }),
     });
     assert.ok(dup.school.some((s) => s.includes('дубль школы')), 'дубль школы: ' + JSON.stringify(dup));

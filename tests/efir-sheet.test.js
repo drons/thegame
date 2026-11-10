@@ -105,9 +105,12 @@ const SKILL_FILES = () => fs.readdirSync(SKILLS_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f));
 const SKILL_CATALOG = SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
+// Форма имени spells — из живого реестра (000318.05: spells — slug).
+const JR = require('../scripts/lib/json-ref.js');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const SPELL_FILES = () => fs.readdirSync(SPELLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f));
+  .filter((f) => f !== 'schema.json'
+    && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f));
 const SPELL_CATALOG = SPELL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8')));
 

@@ -102,8 +102,10 @@ test('A3: каждое различное «школа» 169 spells совпад
       present.push(JSON.parse(fs.readFileSync(p, 'utf8')).name.toLowerCase());
     }
   }
+  const JR = require('../scripts/lib/json-ref.js');
   const spellFiles = fs.readdirSync(SPELLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
   assert.equal(spellFiles.length, 169, '169 заклинаний (факт диска; ре-пин 000333: +2 навигации)');
   const values = new Set();
   for (const f of spellFiles) {
