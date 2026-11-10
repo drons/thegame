@@ -138,7 +138,8 @@ const SHIELD_SKILLS_00032103 = new Set(['endurance', 'golem', 'hide',
 // Сет-контракт: ПРОДОЛЖЕНИЕ bulwark (+3 члена epic/legendary/
 // impossible; бонус НОВЫХ членов побайтово ≡ существующим — SB13).
 // DORMANT (порог «2» при единственном слоте left_hand — 000230.13
-// D-07; disk-прецеденты arcane_focus/penitent/ember/rime):
+// D-07; disk-прецеденты arcane_focus/penitent; ember/rime — НЕ dormancy:
+// у колец 8 экипировочных позиций, src/items.js:110 — ретро-b14):
 const BULWARK_BONUS_00032103 = { 2: { armor: 1 } };
 const BULWARK_NEW_MEMBERS_00032103 = ['bulwark_shield',
   'ironbulwark_shield', 'aegis_shield'];
