@@ -33,11 +33,12 @@
 //     хвостовика (.06), коллекции (.05), старых походов/арены (.04),
 //     наёма/жалованья (.07), метлы/стены клинков (.08) НЕ дублируются
 //     дословно в текстах диалога;
-//   * [E]-оверлей Бронника — ДВЕ dialog-строки в порядке каталога:
-//     'dialog' (Грота) → 'dialog:armor_specialist' (Чекан); хоткеи
-//     Digit1..2 — общий механизм src/building-ui.js /^Digit([1-9])$/
-//     по индексу строки. Оверлей Оружейной (ДЕВЯТЬ строк) НЕ
-//     затрагивается.
+//   * [E]-оверлей Бронника — с 000320.10 — ТРИ dialog-строки в
+//     порядке каталога: 'dialog' (Грота) →
+//     'dialog:armor_specialist' (Чекан) →
+//     'dialog:golem_instructor' (Глыба); хоткеи Digit1..3 — общий
+//     механизм src/building-ui.js /^Digit([1-9])$/ по индексу строки.
+//     Оверлей Оружейной (ДЕВЯТЬ строк) НЕ затрагивается.
 //
 // КРАСНЫЕ (TDD): T1..T9 красные до зелёной стадии (000027.json нет,
 // каталог 26, ростер Бронника 1, оверлей 1 строка), без краха загрузки.
@@ -74,17 +75,17 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 27 файл 000001..000027 подряд; зеркало NPCS 27 запись с armor_specialist', () => {
+test('T1: каталог — ровно 28 файл 000001..000028 подряд; зеркало NPCS 28 запись с armor_specialist', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 27,
-    'в каталоге NPC 27 файл (000320.06: +Оружейник; 000320.07: +Отставной наёмник; 000320.08: +Подмастерье; 000320.09: +Специалист по броне), факт: ' + files.length);
+  assert.equal(files.length, 28,
+    'в каталоге NPC 28 файл (000320.06: +Оружейник; 000320.07: +Отставной наёмник; 000320.08: +Подмастерье; 000320.09: +Специалист по броне; 000320.10: +Наставник-големовед), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 27,
-    'зеркало src/npc-data.js — 27 запись (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 28,
+    'зеркало src/npc-data.js — 28 запись (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[26];
   assert.ok(last, '27-я запись зеркала существует');
@@ -298,11 +299,13 @@ test('T7: торговля — РОВНО 3 входа брони; пути на
 
 // --- T8: ростер Бронника — ДВЕ записи, Грота первая --------------------------
 
-test('T8: npcsForBuilding(NPCS, 2) — ДВЕ записи Бронника в порядке каталога [armor_merchant, armor_specialist]; npcForBuilding(2) — по-прежнему Грота; Оружейная — ДЕВЯТЬ не тронута', () => {
+test('T8: npcsForBuilding(NPCS, 2) — ТРИ записи Бронника в порядке каталога [armor_merchant, armor_specialist, golem_instructor]; npcForBuilding(2) — по-прежнему Грота; Оружейная — ДЕВЯТЬ не тронута', () => {
   const list = N.npcsForBuilding(NPCS, 2);
-  assert.deepEqual(list.map((n) => n.id), ['armor_merchant', ID],
-    'Бронник (2): Грота (000002) + Специалист (000027), порядок = '
-    + 'нумерация файлов; факт: ' + JSON.stringify(list.map((n) => n.id)));
+  assert.deepEqual(list.map((n) => n.id),
+    ['armor_merchant', ID, 'golem_instructor'],
+    'Бронник (2): Грота (000002) + Специалист (000027) + Наставник-'
+    + 'големовед (000028, ре-пин 000320.10), порядок = нумерация '
+    + 'файлов; факт: ' + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 2).id, 'armor_merchant',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Грота; HUD/«Здесь:» не тронуты)');
   const armory = N.npcsForBuilding(NPCS, 1);
@@ -316,20 +319,20 @@ test('T8: npcsForBuilding(NPCS, 2) — ДВЕ записи Бронника в �
 
 // --- T9: оверлей Бронника — ровно 2 dialog-строки -----------------------------
 
-test('T9: [E]-оверлей Бронника — ровно 2 строки: dialog (Грота), dialog:armor_specialist (Чекан)', () => {
+test('T9: [E]-оверлей Бронника — ровно 3 строки: dialog (Грота), dialog:armor_specialist (Чекан), dialog:golem_instructor (Глыба) — ре-пин 000320.10', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', '000002.json'));
   const list = N.npcsForBuilding(NPCS, 2);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:' + ID],
+    ['dialog', 'dialog:' + ID, 'dialog:golem_instructor'],
     'у здания 2 эффектов нет — список = dialog-строки по каждому NPC; '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Грота', 'Диалог: ' + NAME],
+    ['Диалог: Грота', 'Диалог: ' + NAME, 'Диалог: Глыба'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['armor_merchant', ID],
+    ['armor_merchant', ID, 'golem_instructor'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
-    + 'Digit1..2 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'Digit1..3 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');
 });

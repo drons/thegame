@@ -4005,7 +4005,7 @@ test('A59. serialize/restoreCampStocks: roundtrip, независимость «
     'saved массив — {}');
 });
 
-test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 27 запись, npcForBuilding(47) (задача 000095)', () => {
+test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 28 запись, npcForBuilding(47) (задача 000095)', () => {
   const NDIR = path.join(ROOT, 'assets', 'npc');
   // Файл — по нумерации (npc-data.test.js: ровно N файлов
   // 000001..N.json подряд, N = NPCS.length): 17 + Кочевник = 18;
@@ -4015,7 +4015,8 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   // 000320.06: +Оружейник (000024) = 24;
   // 000320.07: +Отставной наёмник (000025) = 25;
   // 000320.08: +Подмастерье (000026) = 26;
-  // 000320.09: +Специалист по броне (000027) = 27.
+  // 000320.09: +Специалист по броне (000027) = 27;
+  // 000320.10: +Наставник-големовед (000028) = 28.
   const npc = JSON.parse(
     fs.readFileSync(path.join(NDIR, '000018.json'), 'utf8'));
   assert.equal(npc.id, 'camp_wanderer', 'id «camp_wanderer»');
@@ -4049,10 +4050,10 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   // 000320.05: 22 → 23 (Коллекционер); 000320.06: 23 → 24 (Оружейник);
   // 000320.07: 24 → 25 (Отставной наёмник);
   // 000320.08: 25 → 26 (Подмастерье); 000320.09: 26 → 27 (Специалист
-  // по броне).
+  // по броне); 000320.10: 27 → 28 (Наставник-големовед).
   const ND = require('../src/npc-data.js');
-  assert.equal(ND.NPCS.length, 27,
-    'зеркало: 27 NPC (17 + Кочевник + Корд + Родар + Скарн + Ветеран + Коллекционер + Оружейник + Отставной наёмник + Подмастерье + Специалист по броне)');
+  assert.equal(ND.NPCS.length, 28,
+    'зеркало: 28 NPC (17 + Кочевник + Корд + Родар + Скарн + Ветеран + Коллекционер + Оружейник + Отставной наёмник + Подмастерье + Специалист по броне + Наставник-големовед)');
   const inMirror = ND.NPCS.find((n) => n.id === 'camp_wanderer');
   assert.ok(inMirror, 'зеркало: camp_wanderer на месте');
   assert.deepEqual(inMirror.постройки, [47],
