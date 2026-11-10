@@ -101,19 +101,19 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 31 файл 000001..000031 подряд; зеркало NPCS 31 запись с alchemy_instructor', () => {
+test('T1: каталог — ровно 32 файла 000001..000032 подряд; зеркало NPCS 32 записи с alchemy_instructor', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 31,
-    'в каталоге NPC 31 файл (000320.10: +Наставник-големовед; 000320.11: '
+  assert.equal(files.length, 32,
+    'в каталоге NPC 32 файла (000320.10: +Наставник-големовед; 000320.11: '
     + '+Торговец зельями; 000320.12: +Торговка травами; 000320.13: '
-    + '+Алхимик-наставник), факт: ' + files.length);
+    + '+Алхимик-наставник; 000320.14: +Фельдшер), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 31,
-    'зеркало src/npc-data.js — 31 запись (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 32,
+    'зеркало src/npc-data.js — 32 записи (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[30];
   assert.ok(last, '31-я запись зеркала существует');
@@ -381,15 +381,16 @@ test('T6: блок «обучение» — форма 000005 (ключи нав
     'зеркало NPCS[30].описание ≡ JSON');
 });
 
-// --- T7: ростер Аптекаря — ЧЕТЫРЕ записи, Мила первая ------------------------
+// --- T7: ростер Аптекаря — ПЯТЬ записей, Мила первая -------------------------
 
-test('T7: npcsForBuilding(NPCS, 3) — ЧЕТЫРЕ записи Аптекаря в порядке каталога [apothecary, brewer, herbalist, alchemy_instructor]; npcForBuilding(3) — по-прежнему Мила; Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 3) — ПЯТЬ записей Аптекаря в порядке каталога [apothecary, brewer, herbalist, alchemy_instructor, village_doctor] (ре-пин 000320.14); npcForBuilding(3) — по-прежнему Мила; Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 3);
   assert.deepEqual(list.map((n) => n.id),
-    ['apothecary', 'brewer', 'herbalist', ID],
+    ['apothecary', 'brewer', 'herbalist', ID, 'village_doctor'],
     'Аптекарь (3): Мила (000003) + Зельевар (000029) + Травница '
-    + '(000030) + Алхимик-наставник (000031), порядок = нумерация '
-    + 'файлов; факт: ' + JSON.stringify(list.map((n) => n.id)));
+    + '(000030) + Алхимик-наставник (000031) + Фельдшер (000032, '
+    + '000320.14), порядок = нумерация файлов; факт: '
+    + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 3).id, 'apothecary',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Мила; HUD/«Здесь:» не тронуты)');
   const brunnik = N.npcsForBuilding(NPCS, 2);
@@ -406,24 +407,25 @@ test('T7: npcsForBuilding(NPCS, 3) — ЧЕТЫРЕ записи Аптекар�
     + JSON.stringify(armory.map((n) => n.id)));
 });
 
-// --- T8: оверлей Аптекаря — ровно 4 dialog-строки ------------------------------
+// --- T8: оверлей Аптекаря — ровно 5 dialog-строк ------------------------------
 
-test('T8: [E]-оверлей Аптекаря — ровно 4 строки: dialog (Мила), dialog:brewer (Отвар), dialog:herbalist (Полынь), dialog:alchemy_instructor (Тигель) — ре-пин 000320.13 (было 3 в .12)', () => {
+test('T8: [E]-оверлей Аптекаря — ровно 5 строк: dialog (Мила), dialog:brewer (Отвар), dialog:herbalist (Полынь), dialog:alchemy_instructor (Тигель), dialog:village_doctor (Жгут) — ре-пин 000320.14 (было 4 в .13)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', '000003.json'));
   const list = N.npcsForBuilding(NPCS, 3);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:brewer', 'dialog:herbalist', 'dialog:' + ID],
+    ['dialog', 'dialog:brewer', 'dialog:herbalist', 'dialog:' + ID,
+      'dialog:village_doctor'],
     'у здания 3 эффектов нет — список = dialog-строки по каждому NPC; '
-    + 'ре-пин при появлении пятого NPC Аптекаря (.14 — фельдшер); '
+    + 'ре-пин при появлении шестого NPC Аптекаря; '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
     ['Диалог: Мила', 'Диалог: Отвар', 'Диалог: Полынь',
-      'Диалог: ' + NAME],
+      'Диалог: ' + NAME, 'Диалог: Жгут'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['apothecary', 'brewer', 'herbalist', ID],
+    ['apothecary', 'brewer', 'herbalist', ID, 'village_doctor'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
-    + 'Digit1..4 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'Digit1..5 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');
 });
