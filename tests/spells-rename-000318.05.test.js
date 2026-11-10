@@ -46,6 +46,12 @@
 //     runes T5/M2) — выход всё равно в id-порядке и записи ≡ зеркалу.
 //   * T7 — иконки: биекция каталога с assets/spell-icons/<id>.svg —
 //     basename json === basename svg (иконки УЖЕ id-именованы — 0-diff).
+//   * T8 (000338, follow-up ретро-b14 Finding 1) — SPEC-guard: § «Архитектура
+//     хранения (каталог assets/spells)» spec/spells.md (читается с диска,
+//     скоуп — только срез H2) предписывает slug-именование (`<id>.json`,
+//     basename === `id`) и НЕ содержит «сквозная нумерация» / numeric-имён
+//     0000NN.json / «нумерацию»; краснеет при возврате spec-текста на
+//     числовую схему (правится вместе с Δ0-правкой spec, пин 470 не двигать).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -406,4 +412,32 @@ test('000318.05 T7: иконки — биекция каталога assets/spel
     assert.ok(svgs.has(f.replace(/\.json$/, '.svg')),
       `${f}: файла иконки нет в assets/spell-icons`);
   }
+});
+
+// SPEC-guard (000338): § «Архитектура хранения» с диска == slug-контракт
+// каталога (диск пиннут T1; здесь — только текст SPEC, скоуп — срез H2,
+// прецедент h2-хелпера spec-000235-wording: до следующего '\n## ' или EOF).
+test('000318.05 T8 (000338): spec/spells.md § «Архитектура хранения» — slug-именование (`<id>.json`, basename === `id`), без «сквозная нумерация»/numeric-имён/«нумерацию»', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'spec', 'spells.md'), 'utf8');
+  const NAME = 'Архитектура хранения (каталог assets/spells)';
+  const esc = NAME.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = text.match(new RegExp('^## ' + esc + '\\s*$', 'm'));
+  assert.ok(m, 'spec/spells.md: H2 «' + NAME + '» не найден');
+  const j = text.indexOf('\n## ', m.index + 1);
+  const sec = text.slice(m.index, j === -1 ? text.length : j);
+  assert.ok(sec.includes('<id>.json'),
+    'RED (000338): § не предписывает slug-именование `<id>.json` '
+    + '(каталог — 169 `<id>.json`, numeric-имён 0 — диск пиннут T1)');
+  assert.ok(sec.includes('basename === `id`'),
+    'RED (000338): § не связывает имя файла с id (basename === `id` — '
+    + 'default NameOf, прецедент runes .02)');
+  assert.ok(!sec.includes('сквозная нумерация'),
+    'RED (000338): § содержит устаревшее «сквозная нумерация» (000318.05: '
+    + 'каталог slug-именован, нумерации нет)');
+  assert.ok(!/000\d{3}\.json/.test(sec),
+    'RED (000338): § содержит numeric-имена файлов 000NNN.json '
+    + '(легальные skills-id-ссылки § — без «.json», regex их не трогает)');
+  assert.ok(!sec.includes('нумерацию'),
+    'RED (000338): § предписывает тесту проверять «нумерацию» '
+    + '(spells.test.js проверяет именование, numeric-нумерации больше нет)');
 });
