@@ -673,13 +673,13 @@ test('000321.01 T9: spec/items.md — буллет волны 000321.01 + append
 
 // --- T10: канарейки -----------------------------------------------------
 
-test('000321.01 T10: регресс-канарейки — каталог 713 ≡ items-data (ре-пин 000321.02: +50 брони; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов); base_price РОВНО у 41 (новое оружие не продаётся фиксированно); slot — у 489, «прочих» без slot — 224 (713−489); stroke= в assets/sprites/items — ровно 46 legacy (заморозка 000335 — новые иконки без stroke); spell_scroll — 160 (свитки НЕ росли) (краснота: каталог 513)', () => {
+test('000321.01 T10: регресс-канарейки — каталог 713 ≡ items-data (ре-пин 000321.02: +50 брони; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов); base_price РОВНО у 44 (новое оружие не продаётся фиксированно; ре-пин 000320.15: +3 свитка Торговца свитками — base_price=value); slot — у 489, «прочих» без slot — 224 (713−489); stroke= в assets/sprites/items — ровно 46 legacy (заморозка 000335 — новые иконки без stroke); spell_scroll — 160 (свитки НЕ росли) (краснота: каталог 513)', () => {
   assert.equal(I.allItems().length, 713);
   assert.equal(ITD.ITEMS.length, 713,
     'items-data ≡ каталог (713)');
   const withBase = I.allItems().filter((it) => 'base_price' in it);
-  assert.equal(withBase.length, 41,
-    'base_price — ровно у 41; факт: ' + withBase.length);
+  assert.equal(withBase.length, 44,
+    'base_price — ровно у 44 (ре-пин 000320.15); факт: ' + withBase.length);
   const withSlot = I.allItems().filter((it) => 'slot' in it);
   assert.equal(withSlot.length, 489,
     'slot — у 489 (289 + 50 оружия + 50 брони 000321.02 + 50 щитов '

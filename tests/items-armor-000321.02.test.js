@@ -768,7 +768,7 @@ test('000321.02 T9: зеркала — src/items-data.js содержит 50 н�
 
 // --- T10: счётчики/канарейки -----------------------------------------
 
-test('000321.02 T10: регресс-канарейки — каталог 713 ≡ items-data; armor 257, weapon 72 (не выросли), spell_scroll 160; slot — у 489, «прочих» без slot — 224; base_price РОВНО у 41 (броня волны не продаётся фиксированно); free_cast — 26 (23 epic + 2 legendary + 1 impossible; ре-пин 000321.03: +2 epic щиты; ре-пин 000321.04: +2 epic +1 legendary +1 impossible); наборы 18 / 57 предмета (ре-пин 000321.03: bulwark +3; ре-пин 000321.04: arcane_focus +3); craft — 543 с типами зачарование 206 / кузнечное 150 / столярное 114 / резьба 61 / алхимия 10 / рунопись 2; stroke= в assets/sprites/items — ровно 46 legacy (краснота: каталог 563)', () => {
+test('000321.02 T10: регресс-канарейки — каталог 713 ≡ items-data; armor 257, weapon 72 (не выросли), spell_scroll 160; slot — у 489, «прочих» без slot — 224; base_price РОВНО у 44 (броня волны не продаётся фиксированно; ре-пин 000320.15: +3 свитка Торговца свитками — base_price=value); free_cast — 26 (23 epic + 2 legendary + 1 impossible; ре-пин 000321.03: +2 epic щиты; ре-пин 000321.04: +2 epic +1 legendary +1 impossible); наборы 18 / 57 предмета (ре-пин 000321.03: bulwark +3; ре-пин 000321.04: arcane_focus +3); craft — 543 с типами зачарование 206 / кузнечное 150 / столярное 114 / резьба 61 / алхимия 10 / рунопись 2; stroke= в assets/sprites/items — ровно 46 legacy (краснота: каталог 563)', () => {
   assert.equal(I.allItems().length, 713);
   assert.equal(ITD.ITEMS.length, 713, 'items-data ≡ каталог (713)');
   const all = I.allItems();
@@ -780,8 +780,8 @@ test('000321.02 T10: регресс-канарейки — каталог 713 �
   assert.equal(all.filter((it) => it.kind === 'spell_scroll').length, 160,
     'spell_scroll — 160 (без смены)');
   const withBase = all.filter((it) => 'base_price' in it);
-  assert.equal(withBase.length, 41,
-    'base_price — ровно у 41; факт: ' + withBase.length);
+  assert.equal(withBase.length, 44,
+    'base_price — ровно у 44 (ре-пин 000320.15); факт: ' + withBase.length);
   const withSlot = all.filter((it) => 'slot' in it);
   assert.equal(withSlot.length, 489,
     'slot — у 489 (339 + 50 брони + 50 щитов 000321.03 + 50 артефактов '
