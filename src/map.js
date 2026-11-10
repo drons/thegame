@@ -1177,6 +1177,8 @@
   // от которых браузер тормозит.
   const ZOOM_START = 80;
 
+  const TILE_CACHE_MAX = 262144;
+
   /**
    * Диапазон тайлов, который нужно отрисовать (задача 000019):
    * видимая область окна плюс небольшой запас. Чистая функция —
@@ -1205,10 +1207,10 @@
    * Ограниченный FIFO: при переполнении вытесняется самый старый
    * тайл (худший случай — пересчёт, результат рендера не меняется).
    * @param {{tileAt:function}} map генератор из createMap
-   * @param {number} [maxSize=65536] максимум тайлов в кэше
+   * @param {number} [maxSize=TILE_CACHE_MAX] максимум тайлов в кэше
    * @returns {{tile:Function, size:Function}}
    */
-  function createTileCache(map, maxSize = 65536) {
+  function createTileCache(map, maxSize = TILE_CACHE_MAX) {
     const cache = new Map();
 
     /** Тайл в (x, y): из кэша, либо сгенерированный и положенный в кэш. */
@@ -1469,6 +1471,7 @@
     buildMaxW, buildMaxH,
     MOB_GROUP_TYPES, mobGroupCount, mobGroupName,
     ZOOM_MIN, ZOOM_MAX, ZOOM_START,
+    TILE_CACHE_MAX,
     createMap, syntheticPixels,
     visibleTileRange, createTileCache,
     worldToScreen, orthoMatrix, // проекция мир→экран (задача 000061)
