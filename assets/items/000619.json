@@ -1,0 +1,21 @@
+{
+  "id": "rattan_buckler",
+  "name": "Ротанговый буклер",
+  "kind": "shield",
+  "weight": 1.3,
+  "value": 22,
+  "desc": "Ротанговый буклер: гнётся — и возвращается.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rattan_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.02
+    }
+  ]
+}

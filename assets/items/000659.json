@@ -1,0 +1,21 @@
+{
+  "id": "dragonplate_shield",
+  "name": "Драконий щит",
+  "kind": "shield",
+  "weight": 4.5,
+  "value": 520,
+  "desc": "Драконий щит: чешуя помнит жар.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/dragonplate_shield.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.28
+    }
+  ]
+}

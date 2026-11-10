@@ -1,0 +1,21 @@
+{
+  "id": "riveted_shield",
+  "name": "Клёпаный щит",
+  "kind": "shield",
+  "weight": 2.1,
+  "value": 88,
+  "desc": "Клёпаный щит: держится на гвоздях и упрямстве.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/riveted_shield.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.1
+    }
+  ]
+}

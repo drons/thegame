@@ -1,0 +1,21 @@
+{
+  "id": "thorn_shield",
+  "name": "Терновый щит",
+  "kind": "shield",
+  "weight": 3.1,
+  "value": 270,
+  "desc": "Терновый щит: об него ломают не только руки.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/thorn_shield.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.2
+    }
+  ]
+}

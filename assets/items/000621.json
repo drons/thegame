@@ -1,0 +1,21 @@
+{
+  "id": "straw_shield",
+  "name": "Соломенный щит",
+  "kind": "shield",
+  "weight": 1.5,
+  "value": 25,
+  "desc": "Соломенный щит: пугает лучше, чем держит.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/straw_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.05
+    }
+  ]
+}

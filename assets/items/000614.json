@@ -1,0 +1,21 @@
+{
+  "id": "splint_shield",
+  "name": "Фанерный щит",
+  "kind": "shield",
+  "weight": 0.8,
+  "value": 15,
+  "desc": "Фанерный щит: слой к слою — уже стена.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/splint_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "antler_buckler",
+  "name": "Олений буклер",
+  "kind": "shield",
+  "weight": 1.2,
+  "value": 31,
+  "desc": "Олений буклер: рог помнит, куда бодать.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/antler_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.03
+    }
+  ]
+}

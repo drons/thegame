@@ -1,0 +1,21 @@
+{
+  "id": "hidefaced_shield",
+  "name": "Обтяжной щит",
+  "kind": "shield",
+  "weight": 1.7,
+  "value": 45,
+  "desc": "Обтяжной щит: ткань снаружи, дерево внутри, тайна посередине.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/hidefaced_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.05
+    }
+  ]
+}

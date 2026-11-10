@@ -1,0 +1,21 @@
+{
+  "id": "dawnwall_shield",
+  "name": "Рассветная стена",
+  "kind": "shield",
+  "weight": 5.5,
+  "value": 820,
+  "desc": "Рассветная стена: утро встаёт раньше врага.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/dawnwall_shield.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.34
+    }
+  ]
+}

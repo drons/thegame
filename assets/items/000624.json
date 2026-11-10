@@ -1,0 +1,21 @@
+{
+  "id": "stitched_shield",
+  "name": "Прошитый щит",
+  "kind": "shield",
+  "weight": 1,
+  "value": 30,
+  "desc": "Прошитый щит: каждый стежок — второй край.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/stitched_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.04
+    }
+  ]
+}

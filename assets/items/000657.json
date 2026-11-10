@@ -1,0 +1,21 @@
+{
+  "id": "carved_shield",
+  "name": "Резной щит",
+  "kind": "shield",
+  "weight": 4.4,
+  "value": 360,
+  "desc": "Резной щит: узор рассказывает то, о чём молчит владелец.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/carved_shield.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.1
+    }
+  ]
+}

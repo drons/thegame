@@ -1,0 +1,21 @@
+{
+  "id": "frontier_shield",
+  "name": "Рубежный щит",
+  "kind": "shield",
+  "weight": 4,
+  "value": 400,
+  "desc": "Рубежный щит: там, где он, — уже граница.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/frontier_shield.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.22
+    }
+  ]
+}

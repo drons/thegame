@@ -1,0 +1,21 @@
+{
+  "id": "wicker_targe",
+  "name": "Ивовая тарга",
+  "kind": "shield",
+  "weight": 1.6,
+  "value": 41,
+  "desc": "Ивовая тарга: прутья вместе держат удар.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/wicker_targe.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.02
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "oak_shield",
+  "name": "Дубовый щит",
+  "kind": "shield",
+  "weight": 1.6,
+  "value": 27,
+  "desc": "Дубовый щит: дуб не спорит — дуб стоит.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/oak_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.05
+    }
+  ]
+}

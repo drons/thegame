@@ -1,0 +1,31 @@
+{
+  "id": "bulwark_shield",
+  "name": "Щит бастиона",
+  "kind": "shield",
+  "weight": 3.8,
+  "value": 250,
+  "desc": "Щит бастиона: за ним уже не отступление, а позиция.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/bulwark_shield.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "set": "bulwark",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.14
+    },
+    {
+      "type": "free_cast",
+      "spell": "shield_wall"
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

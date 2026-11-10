@@ -1748,7 +1748,23 @@ const SHOP_GOLDEN = {
     goldstring_bow: 3,     windfletch_bow: 5,     tempest_staff: 1,
     pyre_staff: 1,     hoarfrost_staff: 1,     archivist_staff: 5,
     dawnedge_blade: 5,     gate_hammer: 2,     aurora_bow: 3,
-    starvault_staff: 1,     fate_cleaver: 4,     genesis_staff: 1} },
+    starvault_staff: 1,     fate_cleaver: 4,     genesis_staff: 1,
+    // Ре-пин 000321.03: щиты 000614–000663 — КОНЕЦ каталога,
+    // rng-хвост allItems-пула (universam w3) → += 42 щита; остальные
+    // ключи стока не сдвинулись (seed byte-identical, 511 → 553
+    // ключа; node-симуляция: старые ключи value-identical).
+    splint_shield: 5,     reed_buckler: 4,     birch_shield: 3,     pine_shield: 3,
+    rawhide_shield: 4,     felt_shield: 4,     straw_shield: 4,     oak_shield: 4,     resin_shield: 1,
+    shingle_shield: 2,     adobe_shield: 3,     rushtwine_buckler: 1,     goatskin_shield: 2,
+    tarred_shield: 5,     wicker_targe: 5,     ashround_buckler: 3,     hidefaced_shield: 5,
+    rimmed_shield: 1,     iron_boss_shield: 3,     bronze_buckler: 5,     brass_buckler: 4,
+    spiked_buckler: 1,     ironbark_shield: 1,     lamellar_shield: 5,     tower_shield: 5,
+    quenched_shield: 2,     boar_shield: 3,     scalefront_shield: 2,     garrison_buckler: 5,
+    runeward_shield: 2,     steel_targe: 1,     blacksteel_shield: 3,     mirror_buckler: 3,
+    bulwark_shield: 4,     lion_shield: 3,     carved_shield: 3,     frontier_shield: 5,
+    dragonplate_shield: 2,     ironbulwark_shield: 3,     dawnwall_shield: 4,     aegis_shield: 2,
+    lastwall_shield: 1
+  } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,

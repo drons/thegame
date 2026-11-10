@@ -1,0 +1,21 @@
+{
+  "id": "rimmed_shield",
+  "name": "Окованный щит",
+  "kind": "shield",
+  "weight": 1.8,
+  "value": 55,
+  "desc": "Окованный щит: железо по краю — слова по делу.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/rimmed_shield.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.06
+    }
+  ]
+}

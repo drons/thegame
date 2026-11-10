@@ -1,0 +1,21 @@
+{
+  "id": "lastwall_shield",
+  "name": "Последняя стена",
+  "kind": "shield",
+  "weight": 6,
+  "value": 1400,
+  "desc": "Последняя стена: за ней — только назад.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/lastwall_shield.svg",
+  "slot": "left_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.42
+    }
+  ]
+}

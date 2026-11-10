@@ -1,0 +1,21 @@
+{
+  "id": "reed_buckler",
+  "name": "Тростниковый буклер",
+  "kind": "shield",
+  "weight": 0.9,
+  "value": 17,
+  "desc": "Тростниковый буклер: лёгкий, зато слышен каждый удар.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/reed_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.04
+    }
+  ]
+}

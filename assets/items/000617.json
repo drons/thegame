@@ -1,0 +1,21 @@
+{
+  "id": "pine_shield",
+  "name": "Сосновый щит",
+  "kind": "shield",
+  "weight": 1.1,
+  "value": 20,
+  "desc": "Сосновый щит: смола держит то, что разошлось.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/pine_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.02
+    }
+  ]
+}

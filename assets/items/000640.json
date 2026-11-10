@@ -1,0 +1,21 @@
+{
+  "id": "lamellar_shield",
+  "name": "Ламеллярный щит",
+  "kind": "shield",
+  "weight": 2.8,
+  "value": 75,
+  "desc": "Ламеллярный щит: чешуйки железа, шов терпения.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/lamellar_shield.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.08
+    }
+  ]
+}

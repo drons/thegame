@@ -1,0 +1,21 @@
+{
+  "id": "mirror_buckler",
+  "name": "Зерцальный буклер",
+  "kind": "shield",
+  "weight": 3.6,
+  "value": 210,
+  "desc": "Зерцальный буклер: враг видит себя — и пугается.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/mirror_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.18
+    }
+  ]
+}

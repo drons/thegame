@@ -1,0 +1,21 @@
+{
+  "id": "resin_shield",
+  "name": "Смолистый щит",
+  "kind": "shield",
+  "weight": 0.9,
+  "value": 28,
+  "desc": "Смолистый щит: к нему липнут не только щепки.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/resin_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "runeward_shield",
+  "name": "Рунный щит",
+  "kind": "shield",
+  "weight": 3,
+  "value": 150,
+  "desc": "Рунный щит: руны читают чужие удары вслух.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/runeward_shield.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.12
+    }
+  ]
+}

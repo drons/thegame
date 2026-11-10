@@ -164,9 +164,11 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
 
   // Ре-пин 000321.02: после волны брони (50 предметов
   // 000564–000613) ВСЕ 8 броневых слотов имеют СВОИ векторы
-  // редкости — прежний def-вектор 10/7/5/2/1 остаётся только у
-  // left_hand/ring. Игла — по фактической строке канона §2.
-  m = anchor(/после 000321\.02 \(50 брони, 8 слотов\) факт каталога: head (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), ears (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), neck (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), torso (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), forearms (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), palms (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), legs (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), feet (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\); left_hand\/ring — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\./, 'c4');
+  // редкости. Ре-пин 000321.03: после волны щитов (50 предметов
+  // 000614–000663, left_hand) свой вектор и у left_hand —
+  // def-вектор 10/7/5/2/1 остаётся только у ring. Игла — по
+  // фактической строке канона §2.
+  m = anchor(/после 000321\.02 \(50 брони, 8 слотов\) и 000321\.03 \(50 щитов, left_hand\) факт каталога: head (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), ears (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), neck (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), torso (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), forearms (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), palms (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), legs (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\), feet (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \((\d+)\); left_hand — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+) \([^)]*\), ring — (\d+)\/(\d+)\/(\d+)\/(\d+)\/(\d+)\./, 'c4');
   const V = it.vectors;
   const eq = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
   {
@@ -178,9 +180,12 @@ test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', (
         'c4: ' + slot + ' disk=' + JSON.stringify(V[slot]));
       gi += 6;
     }
-    const def = [D(m[gi]), D(m[gi + 1]), D(m[gi + 2]), D(m[gi + 3]), D(m[gi + 4])];
-    assert.ok(eq(V.left_hand, def) && eq(V.ring, def),
-      'c4: left_hand/ring disk=' + JSON.stringify(V.left_hand) + '/' + JSON.stringify(V.ring));
+    const lh = [D(m[gi]), D(m[gi + 1]), D(m[gi + 2]), D(m[gi + 3]), D(m[gi + 4])];
+    const rg = [D(m[gi + 5]), D(m[gi + 6]), D(m[gi + 7]), D(m[gi + 8]), D(m[gi + 9])];
+    assert.ok(eq(V.left_hand, lh), 'c4: left_hand disk=' + JSON.stringify(V.left_hand));
+    assert.ok(eq(V.ring, rg), 'c4: ring disk=' + JSON.stringify(V.ring));
+    assert.ok(lh.every((x, i) => x === [10, 7, 5, 2, 1][i] + [20, 14, 10, 4, 2][i]),
+      'c4: левый вектор != волна 000230.13 + волна щитов 000321.03');
   }
   // Ре-пин 000321.01: right_hand больше НЕ def-вектор — 50 оружия
   // 000514–000563 прилипли к слоту; отдельная игла суммы волн.
@@ -260,7 +265,7 @@ test('T7: sets + affixes: c5+c10 (диск == канон §2)', () => {
   const C = cat();
   const it = C.items;
 
-  let m = anchor(/Наборы: (\d+) наборов \/ (\d+) предметов/, 'c5a');
+  let m = anchor(/Наборы: (\d+) наборов \/ (\d+) предмета/, 'c5a');
   assert.equal(D(m[1]), it.sets.count, 'c5a: канон ' + m[1] + ' наборов != диск ' + it.sets.count);
   assert.equal(D(m[2]), it.sets.itemCount, 'c5a: канон ' + m[2] + ' предметов != диск ' + it.sets.itemCount);
   m = anchor(/Пороги по ФАКТУ — \{([^}]+)\}:/, 'c5b');
@@ -278,7 +283,7 @@ test('T7: sets + affixes: c5+c10 (диск == канон §2)', () => {
   assert.equal(it.affixes.noAffix, 0, 'c10: предметы без аффиксов: ' + it.affixes.noAffix);
   assert.equal(it.affixes.base6, 0, 'c10: base6 skill-аффиксов != 0: ' + it.affixes.base6);
   assert.equal(it.affixes.staffAffix, 0, 'c10: staff skill-аффиксов != 0: ' + it.affixes.staffAffix);
-  m = anchor(/free_cast: (\d+) предметов = (\d+) epic \+ (\d+) legendary/, 'c10c');
+  m = anchor(/free_cast: (\d+) предмета = (\d+) epic \+ (\d+) legendary/, 'c10c');
   const FC = it.affixes.freeCast;
   assert.ok(D(m[1]) === FC.count && D(m[2]) === FC.epic && D(m[3]) === FC.legendary, 'c10c: freeCast disk=' + JSON.stringify(FC));
   m = anchor(/(\d+) разных спеллов\./, 'c10d');

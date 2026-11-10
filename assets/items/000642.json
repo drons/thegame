@@ -1,0 +1,21 @@
+{
+  "id": "quenched_shield",
+  "name": "Калёный щит",
+  "kind": "shield",
+  "weight": 2.3,
+  "value": 84,
+  "desc": "Калёный щит: вода кричала — сталь молчит.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/quenched_shield.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.07
+    }
+  ]
+}

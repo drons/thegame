@@ -1,0 +1,27 @@
+{
+  "id": "ironbulwark_shield",
+  "name": "Железный бастион",
+  "kind": "shield",
+  "weight": 5,
+  "value": 650,
+  "desc": "Железный бастион: целая крепость на одной руке.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/ironbulwark_shield.svg",
+  "slot": "left_hand",
+  "rarity": "legendary",
+  "set": "bulwark",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.3
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

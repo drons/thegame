@@ -1,0 +1,21 @@
+{
+  "id": "ashround_buckler",
+  "name": "Ясеневый буклер",
+  "kind": "shield",
+  "weight": 1.3,
+  "value": 43,
+  "desc": "Ясеневый буклер: ясень растёт вверх — держать вниз.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/ashround_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.05
+    }
+  ]
+}

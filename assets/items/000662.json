@@ -1,0 +1,27 @@
+{
+  "id": "aegis_shield",
+  "name": "Эгида Первозданная",
+  "kind": "shield",
+  "weight": 5,
+  "value": 1000,
+  "desc": "Эгида Первозданная: её держала сама земля — и не удержалась.",
+  "stats": {
+    "armor": 4
+  },
+  "icon": "assets/sprites/items/aegis_shield.svg",
+  "slot": "left_hand",
+  "rarity": "impossible",
+  "set": "bulwark",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.38
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    }
+  }
+}

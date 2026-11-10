@@ -1,0 +1,21 @@
+{
+  "id": "rushtwine_buckler",
+  "name": "Ситниковый буклер",
+  "kind": "shield",
+  "weight": 1.4,
+  "value": 36,
+  "desc": "Ситниковый буклер: болото плетёт свою броню.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/rushtwine_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.02
+    }
+  ]
+}

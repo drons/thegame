@@ -1,0 +1,25 @@
+{
+  "id": "sentinel_shield",
+  "name": "Часовой щит",
+  "kind": "shield",
+  "weight": 3.5,
+  "value": 350,
+  "desc": "Часовой щит: часовой не уходит первым.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/sentinel_shield.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.19
+    },
+    {
+      "type": "free_cast",
+      "spell": "iron_bulwark"
+    }
+  ]
+}

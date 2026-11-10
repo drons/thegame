@@ -1,0 +1,21 @@
+{
+  "id": "garrison_shield",
+  "name": "Караульный щит",
+  "kind": "shield",
+  "weight": 4,
+  "value": 300,
+  "desc": "Караульный щит: не спит, даже когда его снимают.",
+  "stats": {
+    "armor": 3
+  },
+  "icon": "assets/sprites/items/garrison_shield.svg",
+  "slot": "left_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.13
+    }
+  ]
+}

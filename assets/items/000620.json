@@ -1,0 +1,21 @@
+{
+  "id": "felt_shield",
+  "name": "Войлочный щит",
+  "kind": "shield",
+  "weight": 1.4,
+  "value": 24,
+  "desc": "Войлочный щит: тишина против звона.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/felt_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.03
+    }
+  ]
+}

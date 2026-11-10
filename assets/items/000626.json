@@ -1,0 +1,21 @@
+{
+  "id": "shingle_shield",
+  "name": "Дощатый щит",
+  "kind": "shield",
+  "weight": 1.1,
+  "value": 33,
+  "desc": "Дощатый щит: с крыши снят, на руку повешен.",
+  "stats": {
+    "armor": 1
+  },
+  "icon": "assets/sprites/items/shingle_shield.svg",
+  "slot": "left_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.02
+    }
+  ]
+}

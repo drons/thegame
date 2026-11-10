@@ -1,0 +1,21 @@
+{
+  "id": "bronze_buckler",
+  "name": "Бронзовый буклер",
+  "kind": "shield",
+  "weight": 2.2,
+  "value": 62,
+  "desc": "Бронзовый буклер: звонкий, как монета, твёрдый, как долг.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/bronze_buckler.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.05
+    }
+  ]
+}

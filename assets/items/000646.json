@@ -1,0 +1,21 @@
+{
+  "id": "crown_shield",
+  "name": "Венцовый щит",
+  "kind": "shield",
+  "weight": 3.1,
+  "value": 102,
+  "desc": "Венцовый щит: венец из железа — корона без короля.",
+  "stats": {
+    "armor": 2
+  },
+  "icon": "assets/sprites/items/crown_shield.svg",
+  "slot": "left_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.08
+    }
+  ]
+}
