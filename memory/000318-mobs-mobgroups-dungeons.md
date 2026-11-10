@@ -22,8 +22,10 @@ git mv + M-правка ссылок в одном коммите снижают
   (= прежние файлы 000001..000036 по порядку).
 * mob_groups (7): id ЧИСЛОВОЙ 1..7 остался в JSON; имя — РУКОПИСНАЯ таблица:
   1 orc_camp, 2 orc_raiders, 3 skeleton_den, 4 wolf_pack, 5 spider_nest,
-  6 elemental_circle, 7 abyss_spirit.
-* dungeons (5): id ЧИСЛОВОЙ 0..4 (в файле простого_cave id = 0 — контракт
+  6 elemental_circle, 7 abyss_spirit (ТЗ tasks/done/000318.04.md:14 содержит
+  опечатку «abyssspirit» — диск/пины/память используют abyss_spirit; done-файл
+  неизменяем, расхождение фиксируется здесь — ретро-b13).
+* dungeons (5): id ЧИСЛОВОЙ 0..4 (в файле simple_cave id = 0 — контракт
   000211 «id ≠ номер файла»); таблица: 0 simple_cave, 1 crypt,
   2 castle_ruins, 3 flooded_cave, 4 abyss.
   Числовой id и имя — РАЗНЫЕ носители (как visuals .03): честные пины —
@@ -33,7 +35,7 @@ git mv + M-правка ссылок в одном коммите снижают
 
 src/mob-groups-data.js: позиция записи = id − 1 = кодовый индекс группы
 (MOB_GROUP_TYPES / hash2 % N в src/map.js). src/dungeons-data.js: позиция =
-id (0..4, DUNGEON_FLEX-индексы src/sprites.js COMBAT_BG_DUNGEON /
+id (0..4, индексы src/sprites.js COMBAT_BG_DUNGEON /
 DUNGEON_FLOOR_FRAMES). Lex-порядок slug-имён НЕ равен id-порядку
 (mob_groups по имени: abyss_spirit, elemental_circle, orc_camp, orc_raiders,
 skeleton_den, spider_nest, wolf_pack → ids [7,6,1,2,3,5,4]; dungeons:
