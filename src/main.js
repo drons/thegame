@@ -3683,8 +3683,8 @@
              entrance: [ax, ay], wealth: 0 };
   }
 
-  function legacyTileVerts(t, tx, ty, now, verts) {
-    if (!tileFrameImg(t, now)) {
+  function legacyTileVerts(t, tx, ty, now, verts, skipBase) {
+    if (!skipBase && !tileFrameImg(t, now)) {
       const base = TILE_COLORS[t.terrain];
       // Небольшое вариативное освещение, чтобы тайлы не были
       // «кляксами» (шум — только для рисуемых legacy-тайлов).
@@ -3747,6 +3747,9 @@
     // данными и шум brightness() убраны (нагрузка из 000176).
     const range = G.visibleTileRange(cam.x, cam.y, canvas.width, canvas.height, zoom);
     const exploredVersion = exploredSize();
+    const gateSkip = !!spriteLoader
+      && spriteLoader.totalCount() > 0
+      && spriteLoader.readyCount() === spriteLoader.totalCount();
     const hit = frameTilesKey !== null
       && frameTilesKey.x0 === range.x0
       && frameTilesKey.y0 === range.y0
@@ -3757,7 +3760,7 @@
     if (hit) {
       frameTilesHits += 1;
       for (const t of frameTiles) {
-        legacyTileVerts(t, t.x, t.y, now, verts);
+        legacyTileVerts(t, t.x, t.y, now, verts, gateSkip);
       }
     } else {
       frameTiles.length = 0;
@@ -3765,7 +3768,7 @@
         for (let tx = range.x0; tx <= range.x1; tx++) {
           const t = tileCache.tile(tx, ty);
           frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
-          legacyTileVerts(t, tx, ty, now, verts);
+          legacyTileVerts(t, tx, ty, now, verts, gateSkip);
         }
       }
       frameTilesKey = {
