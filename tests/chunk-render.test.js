@@ -1230,7 +1230,13 @@ test('CC-9: мир z=4 — readiness re-bake (readyCount-гард): bake с ды
     if (set.size < minChunks) { minChunks = set.size; chosen = terrain; }
   }
   assert.ok(minChunks > 0, 'сценарий: выбранный террейн присутствует');
-  const withheld = new Set(SPR.tileFrames(chosen));
+  // 000353: множество «текстуры террейна не загружены» += варианты
+  // начертания (base-only при вариантах не давал бы дыр: тайл выбрал
+  // бы загруженный вариант).
+  const withheld = new Set([
+    ...SPR.tileFrames(chosen),
+    ...(SPR.TILE_VARIANTS[chosen] || []),
+  ]);
   const h = await boot(VIEW_W, VIEW_H, withheld);
   const g = h.sandbox.__game;
   const spr = g.state.sprites;

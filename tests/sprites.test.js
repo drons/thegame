@@ -118,14 +118,20 @@ test('TILE_BASE ≡ base единой таблицы (потребитель ≡
 test('TILE_FRAMES: ключи ≡ id таблицы (ровно 8, без лишних); файлы assets/tiles ≡ объединению путей', () => {
   // Прямое направление (террейн → файлы существуют) закрывает тест выше
   // («у каждого террейна есть текстура»); обратное — сиротских файлов
-  // assets/tiles нет: на диске ровно то, что перечислено в TILE_FRAMES.
+  // assets/tiles нет: на диске ровно то, что перечислено в
+  // TILE_FRAMES ∪ TILE_VARIANTS (000353).
   assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
     'map.js: нет TERRAIN_DATA');
   assert.deepEqual(
     Object.keys(S.TILE_FRAMES).map(Number).sort((a, b) => a - b),
     Object.keys(TERRAIN_DATA).map(Number).sort((a, b) => a - b),
     'ключи TILE_FRAMES ≠ id единой таблицы');
-  const listed = Object.values(S.TILE_FRAMES).flat().sort();
+  // 000353: объединение += TILE_VARIANTS (варианты начертаний
+  // статичных террейнов; pool[0] дублирует базу — дедуп через Set).
+  const listed = [...new Set([
+    ...Object.values(S.TILE_FRAMES).flat(),
+    ...Object.values(S.TILE_VARIANTS).flat(),
+  ])].sort();
   const onDisk = fs.readdirSync(path.join(__dirname, '..', 'assets', 'tiles'))
     .filter((f) => f.endsWith('.svg'))
     .map((f) => 'assets/tiles/' + f)

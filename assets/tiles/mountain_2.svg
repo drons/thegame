@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="mo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5d5864"/>
+      <stop offset="1" stop-color="#4f4a58"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#mo)"/>
+  <!-- пики и подножие — общие во всех вариантах (шов конструкцией) -->
+  <polygon points="-2,56 18,16 36,56" fill="#6a6472"/>
+  <polygon points="-2,56 18,16 18,56" fill="#5f5968" opacity="0.7"/>
+  <polygon points="18,16 25,29 21.5,26.5 18,30 14.5,26.5 11,29" fill="#e8e8f0"/>
+  <polygon points="26,58 46,22 66,58" fill="#767080"/>
+  <polygon points="26,58 46,22 46,58" fill="#6a6474" opacity="0.65"/>
+  <polygon points="46,22 52,33 48.5,30.5 45,34 41.5,30.5 39,33" fill="#f0f0f6"/>
+  <rect y="54" width="64" height="10" fill="#46414f" opacity="0.75"/>
+  <g fill="#5d5866">
+    <ellipse cx="14" cy="57" rx="2.6" ry="1.5"/>
+    <ellipse cx="42" cy="58" rx="3" ry="1.7"/>
+    <ellipse cx="58" cy="57.5" rx="2.4" ry="1.4"/>
+  </g>
+  <g fill="#5f5968">
+    <circle cx="24" cy="44" r="1.2"/>
+    <circle cx="29" cy="48" r="0.9"/>
+    <circle cx="19" cy="50" r="1"/>
+    <circle cx="31" cy="43" r="0.8"/>
+  </g>
+</svg>

@@ -87,6 +87,47 @@
     [TERRAIN.SWAMP]: ['assets/tiles/swamp_1.svg'],
   };
 
+  const MAP_TILE_VARIANT_SALT = 0x7d150353;
+
+  const TILE_VARIANTS = {
+    [TERRAIN.SAND]: [
+      'assets/tiles/sand_1.svg',
+      'assets/tiles/sand_2.svg',
+      'assets/tiles/sand_3.svg',
+      'assets/tiles/sand_4.svg',
+    ],
+    [TERRAIN.GRASS]: [
+      'assets/tiles/grass_1.svg',
+      'assets/tiles/grass_2.svg',
+      'assets/tiles/grass_3.svg',
+      'assets/tiles/grass_4.svg',
+    ],
+    [TERRAIN.FOREST]: [
+      'assets/tiles/forest_1.svg',
+      'assets/tiles/forest_2.svg',
+      'assets/tiles/forest_3.svg',
+      'assets/tiles/forest_4.svg',
+    ],
+    [TERRAIN.HILL]: [
+      'assets/tiles/hill_1.svg',
+      'assets/tiles/hill_2.svg',
+      'assets/tiles/hill_3.svg',
+      'assets/tiles/hill_4.svg',
+    ],
+    [TERRAIN.MOUNTAIN]: [
+      'assets/tiles/mountain_1.svg',
+      'assets/tiles/mountain_2.svg',
+      'assets/tiles/mountain_3.svg',
+      'assets/tiles/mountain_4.svg',
+    ],
+    [TERRAIN.SWAMP]: [
+      'assets/tiles/swamp_1.svg',
+      'assets/tiles/swamp_2.svg',
+      'assets/tiles/swamp_3.svg',
+      'assets/tiles/swamp_4.svg',
+    ],
+  };
+
   // Анимации Флогистона (кадры на действие).
   const PHLOGISTON_ACTIONS = {
     idle: [
@@ -765,6 +806,20 @@
     return TILE_FRAMES[terrain] || [];
   }
 
+  function tileVariant(terrain, x, y) {
+    const pool = TILE_VARIANTS[terrain];
+    if (!pool) return 0;
+    return hash2(x, y, MAP_TILE_VARIANT_SALT ^ terrain) % pool.length;
+  }
+
+  function tileFramePath(terrain, x, y, now) {
+    const frames = TILE_FRAMES[terrain];
+    if (!frames || frames.length === 0) return null;
+    if (frames.length > 1) return frames[frameIndex(now, x, y, frames.length)];
+    const pool = TILE_VARIANTS[terrain];
+    return pool ? pool[tileVariant(terrain, x, y)] : frames[0];
+  }
+
   /** Базовый тип мобов для группы (orc/skeleton/wolf/spider/elemental/abyss). */
   function mobKind(groupType) {
     return MOB_KINDS[groupType] || null;
@@ -1139,6 +1194,7 @@
   function allAssetPaths() {
     const paths = [];
     for (const frames of Object.values(TILE_FRAMES)) paths.push(...frames);
+    for (const pool of Object.values(TILE_VARIANTS)) paths.push(...pool);
     for (const frames of Object.values(PHLOGISTON_ACTIONS)) paths.push(...frames);
     // Эфир (задача 000034): 8 кадров (idle/walk/attack/cast × 2).
     for (const frames of Object.values(EFIR_FRAMES)) paths.push(...frames);
@@ -1320,6 +1376,7 @@
 
   return {
     TILE_BASE, TILE_FRAMES,
+    TILE_VARIANTS, MAP_TILE_VARIANT_SALT, tileVariant, tileFramePath,
     PHLOGISTON_ACTIONS,
     EFIR_FRAMES,
     MERC_FRAMES,

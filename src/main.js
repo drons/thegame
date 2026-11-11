@@ -3625,15 +3625,15 @@
   // запрещён (дрейф = дубль или пропажа). Возврат null — «спрайт
   // нарисовать не может» (нет лоадера / кадр не загрузился).
   //
-  // Тайлы — по ТЕКУЩЕМУ кадру анимации (G.frameIndex): иначе вода
-  // «мерцала» бы цветным при смене кадра.
+  // Тайлы — общий селектор G.tileFramePath (000353): анимированные
+  // (вода) — ТЕКУЩИЙ кадр анимации, иначе вода «мерцала» бы цветным при
+  // смене кадра; статичные — вариант начертания по координатам (чистая
+  // f(terrain, x, y), без now — bake-чанка детерминирован).
   function tileFrameImg(t, now) {
     if (!spriteLoader) return null;
-    const frames = G.tileFrames(t.terrain);
-    if (!frames.length) return null;
-    const idx = frames.length > 1
-      ? G.frameIndex(now, t.x, t.y, frames.length) : 0;
-    return spriteLoader.image(frames[idx]) || null;
+    const p = G.tileFramePath(t.terrain, t.x, t.y, now);
+    if (!p) return null;
+    return spriteLoader.image(p) || null;
   }
 
   function mobFrameImg(t, now) {

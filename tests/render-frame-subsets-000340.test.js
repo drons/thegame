@@ -35,7 +35,8 @@
 // ТЕСТЫ:
 //   T1 эквивалентность: на HIT-кадре плоская последовательность вызовов
 //      2D-канваса == независимая full-scan референс-последовательность
-//      теста (row-major по range + G.tileFrames/frameIndex/tileVisuals/
+//      теста (row-major по range + G.tileFrames/frameIndex/вариант
+//      статичных 000353/tileVisuals/
 //      lootSprite/buildingAt/groupZoneInfo/worldToScreen/ChunkCache —
 //      пересчёт 1:1, стиль LM/FT) — бит-в-бит; фикстуры: 3840×2160 при
 //      z∈[24;32) (чанки + decor + loot + вода — все слои) и 1280×720 при
@@ -552,10 +553,20 @@ function referenceSeq(h, now) {
       const isWater = t.terrain === MAP.TERRAIN.WATER
         || t.terrain === MAP.TERRAIN.DEEP_WATER;
       if (frames.length && !(useChunks && !isWater)) {
-        const idx = frames.length > 1
-          ? SPR.frameIndex(now, tx, ty, frames.length) : 0;
+        // Селектор текстуры (000340) + вариант начертания статичных
+        // тайлов (000353): инлайн-формула hash2(x,y,SALT^terrain)%len.
+        let path;
+        if (frames.length > 1) {
+          path = frames[SPR.frameIndex(now, tx, ty, frames.length)];
+        } else {
+          const pool = SPR.TILE_VARIANTS[t.terrain];
+          path = pool
+            ? pool[MAP.hash2(tx, ty,
+              SPR.MAP_TILE_VARIANT_SALT ^ t.terrain) % pool.length]
+            : frames[0];
+        }
         const ix = tx - r.x0, iy = ty - r.y0;
-        seq.push(['img', frames[idx], edges.x[ix], edges.y[iy],
+        seq.push(['img', path, edges.x[ix], edges.y[iy],
           edges.x[ix + 1] - edges.x[ix], edges.y[iy + 1] - edges.y[iy]]);
       }
       if (showVisuals && !(t.inBuilding && !t.isEntrance)) {

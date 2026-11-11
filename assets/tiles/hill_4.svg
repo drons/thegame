@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="hi" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7a7452"/>
+      <stop offset="1" stop-color="#6b6644"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" fill="url(#hi)"/>
+  <ellipse cx="16" cy="58" rx="24" ry="18" fill="#857f57"/>
+  <ellipse cx="50" cy="62" rx="26" ry="20" fill="#7d7850"/>
+  <g stroke="#948d62" stroke-width="1.1" fill="none" opacity="0.55" stroke-linecap="round">
+    <path d="M4 38 Q14 33 26 37"/>
+    <path d="M30 50 Q44 44 58 49"/>
+    <path d="M8 56 Q20 51 32 55"/>
+    <path d="M40 60 Q50 56 60 59"/>
+  </g>
+  <g fill="#5d583c">
+    <ellipse cx="42" cy="52" rx="2.2" ry="1.4"/>
+    <ellipse cx="48" cy="55" rx="1.8" ry="1.1"/>
+    <ellipse cx="12" cy="44" rx="2.6" ry="1.5"/>
+  </g>
+  <g stroke="#8a8454" stroke-width="1.2" stroke-linecap="round">
+    <path d="M18 40 q1 -3 0 -5 M21 40 q0 -3 1.5 -5"/>
+    <path d="M34 44 q1 -3 0 -5"/>
+    <path d="M54 36 q1 -3 0 -5 M57 36 q0 -3 1.5 -5"/>
+    <path d="M28 54 q1 -3 0 -5"/>
+  </g>
+</svg>
