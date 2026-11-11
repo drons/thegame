@@ -1058,9 +1058,7 @@
     // Game.LearnTarget; fallback — hero-носитель, D2). Ключевой
     // шов: фильтр кандидатов и learn (спец-модуль) — ОДИН sheet
     // → picked = learned. (tile, day)-сид НЕ тронут.
-    const LT = G.LearnTarget;
-    const learner = (LT && typeof LT.activeSheet === 'function')
-      ? LT.activeSheet(hero) : hero;
+    const learner = craftExecutor(hero);
     // КАНДИДАТЫ — пул ∩ canLearn('rune') (интерпретация «из
     // доступных», ТЗ дословно: filter→pick; canLearn — ЧИСТОЕ чтение).
     const cands = pool.filter(
@@ -1127,6 +1125,13 @@
     return (Number.isFinite(s.runes) && s.runes > 0) ? s.runes : 0;
   }
 
+  function craftExecutor(hero) {
+    const G = lazyGame();
+    const LT = G && G.LearnTarget;
+    return (LT && typeof LT.activeSheet === 'function')
+      ? LT.activeSheet(hero) : hero;
+  }
+
   function heroEquipMaps(hero) {
     const eq = (hero.equipment && typeof hero.equipment === 'object'
       && !Array.isArray(hero.equipment)) ? hero.equipment : {};
@@ -1153,7 +1158,7 @@
     if (!hero || typeof hero !== 'object' || Array.isArray(hero)) {
       return { ok: false, message: 'недоступно' };
     }
-    const R = heroRuneLevel(hero);
+    const R = heroRuneLevel(craftExecutor(hero));
     if (R < 1) return { ok: false, message: 'нужен навык «Рунопись»' };
     const eqm = heroEquipMaps(hero);
     let sawRarity = false;
@@ -1243,7 +1248,7 @@
     }
     const it = target.it;
     if (!it || !it.rarity) return { ok: false, message: 'недоступно' };
-    const R = heroRuneLevel(hero);
+    const R = heroRuneLevel(craftExecutor(hero));
     const cost = eraseCost(params, it.rarity, target.owned.length - 1, R);
     if (cost === null) return { ok: false, message: 'недоступно' };
     if (!(hero.gold >= cost)) {
@@ -1358,9 +1363,7 @@
     if (!info) return { ok: false, message: 'недоступно' };
     // 000147: кандидаты ПО АКТИВНОМУ (picked = learnable в
     // хендлере — один носитель).
-    const LT = G.LearnTarget;
-    const learner = (LT && typeof LT.activeSheet === 'function')
-      ? LT.activeSheet(hero) : hero;
+    const learner = craftExecutor(hero);
     // 000222 (D-E): cap — из УРОВНЯ постройки (st.level, проводка
     // building-actions.js apply-state); absent/мусор → 4 (бит-в-бит).
     const lvl = st && st.level;
