@@ -76,7 +76,7 @@ tasks/result/000320.01.md).
 | 000320.13 | assets/buildings/000003.json — Аптекарь | наставник | обучение + торговля (чертёж алхимии — обязателен D5/SRC-1, см. memory/000320-alchemy_instructor.md) | assets/npc/000031.json (Тигель) |
 | 000320.14 | assets/buildings/000003.json — Аптекарь | фельдшер | подсказка | assets/npc/000032.json (Жгут) |
 | 000320.15 | assets/buildings/000004.json — Магазин магии | торговец свитками | торговля | assets/npc/000033.json (Пергамент) |
-| 000320.16 | assets/buildings/000004.json — Магазин магии | наставник | обучение | — |
+| 000320.16 | assets/buildings/000004.json — Магазин магии | наставник | обучение (навыки [firelord, icelord]; nature ОТВЕРГНУТ: ∈ SKILL_CRAFT_TYPE ⇒ SRC-1 потребовал бы торговлю чертежом — см. memory/000320-magic_instructor.md) | assets/npc/000034.json (Пробник) |
 | 000320.17 | assets/buildings/000004.json — Магазин магии | переписчик | подсказка | — |
 | 000320.18 | assets/buildings/000005.json — Лавка странника | странствующий торговец | торговля | — |
 | 000320.19 | assets/buildings/000005.json — Лавка странника | торговец специями | торговля | — |

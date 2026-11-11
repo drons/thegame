@@ -59,7 +59,7 @@
 //     вынесла бы abandoned_temple в начало).
 //   * T8 — sync-npc-data.js buildRefMap: shape-aware (buildings-ключи
 //     карты — slug-файлы каталога, schema.json исключён); на РЕАЛЬНЫХ
-//     данных sync-npc резолвит все 33 npc («постройки» → целые id).
+//     данных sync-npc резолвит все 34 npc («постройки» → целые id).
 //   * T9 — иконки 0-diff: assets/building-icons РОВНО 26 numeric-имён
 //     (контракт 000293 BI-2), assets/sprites/buildings РОВНО 53 svg,
 //     assets/sprites/cities ⊇ city_51..54; icon у всех 55 записей —
@@ -474,7 +474,7 @@ test('000318.06 T8: sync-npc-data.js buildRefMap — shape-aware (buildings-кл
   assert.equal(run.status, 0,
     'sync-npc на реальных данных: ' + (run.stderr || run.stdout));
   const { NPCS } = require(path.join(ROOT, 'src', 'npc-data.js'));
-  assert.equal(NPCS.length, 33, 'зеркало NPCS — 33 записи (ре-пин 000320.15: Пергамент)');
+  assert.equal(NPCS.length, 34, 'зеркало NPCS — 34 записи (ре-пин 000320.15: Пергамент; 000320.16: Пробник)');
   for (const n of NPCS) {
     for (const b of n.постройки) {
       assert.ok(Number.isInteger(b),
