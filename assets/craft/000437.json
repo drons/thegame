@@ -20,7 +20,7 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json"
+    "assets/buildings/blacksmith.json"
   ],
   "уровень": 6,
   "описание": "Обух и бородка — одна закалка, длинное дерево — одна рука."

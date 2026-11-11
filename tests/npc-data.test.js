@@ -55,14 +55,30 @@ function loadSchema() {
 const REF_MAPS = {};
 for (const name of ['buildings', 'items']) {
   const dir = path.join(__dirname, '..', 'assets', name);
+  // 000318.06: фильтр — по шейпу каталога из живого реестра
+  // (buildings — slug, items — number); slug-regex матчит schema.json.
+  const shapeRe = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES[name]];
   const map = new Map();
   for (const f of fs.readdirSync(dir)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    .filter((x) => x !== 'schema.json' && shapeRe.test(x)).sort()) {
     map.set(`assets/${name}/${f}`,
       JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).id);
   }
   REF_MAPS[name] = map;
 }
+
+// 000318.06: сырой каталог зданий по id (номер файла больше не id).
+const BUILDINGS_RAW = (() => {
+  const dir = path.join(__dirname, '..', 'assets', 'buildings');
+  const byId = {};
+  for (const f of fs.readdirSync(dir)
+    .filter((x) => x !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.buildings].test(x))) {
+    const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
+    byId[j.id] = j;
+  }
+  return byId;
+})();
 
 function resolveNpcRefs(fromFile) {
   for (let i = 0; i < fromFile.постройки.length; i++)
@@ -309,9 +325,7 @@ test('школы: «тренирует» здания = обучение.нав�
     for (const bId of n.постройки) {
       const b = getBuilding(bId);
       if (!b || b.категория !== 'школа_навыков') continue;
-      const file = path.join(root, 'assets', 'buildings',
-        String(bId).padStart(6, '0') + '.json');
-      const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+      const raw = BUILDINGS_RAW[bId];
       const trains = raw.особые_параметры
         && raw.особые_параметры.тренирует;
       if (!Array.isArray(trains)) continue;

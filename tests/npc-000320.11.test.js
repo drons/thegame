@@ -12,7 +12,7 @@
 //     «торговец зельями» (фикс ТЗ; строка НОВА в каталоге — свипов
 //     уникальности ролей нет, уникальны по контракту id/имя/описание;
 //     прецедент дубля роли .09 «торговец бронёй» vs Грота), постройка
-//     assets/buildings/000003.json (Аптекарь — ВТОРОЙ NPC: Мила
+//     assets/buildings/apothecary.json (Аптекарь — ВТОРОЙ NPC: Мила
 //     ПЕРВАЯ, npcForBuilding(3) продолжает возвращать Милу), хук
 //     истории «Варит зелья на вес, а не на счёт» (последнее
 //     предложение описания, с заглавной — прецеденты .02–.10);
@@ -353,7 +353,7 @@ test('T8: npcsForBuilding(NPCS, 3) — ПЯТЬ записей Аптекаря 
 // --- T9: оверлей Аптекаря — ровно 5 dialog-строк -----------------------------
 
 test('T9: [E]-оверлей Аптекаря — ровно 5 строк: dialog (Мила), dialog:brewer (Отвар), dialog:herbalist (Полынь), dialog:alchemy_instructor (Тигель), dialog:village_doctor (Жгут) — пин 000320.11, ре-пины 000320.12/000320.13/000320.14', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000003.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'apothecary.json'));
   const list = N.npcsForBuilding(NPCS, 3);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

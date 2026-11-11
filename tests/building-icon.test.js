@@ -46,7 +46,8 @@ const BA = require('../src/building-actions.js');
 // --- Каталог (сырые JSON — source of truth; зеркало — BI-4) ---
 
 const FILES = fs.readdirSync(DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
+  .sort();
 const RECORDS = FILES.map((f) => ({
   file: f,
   data: JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')),

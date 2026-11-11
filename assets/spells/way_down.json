@@ -16,8 +16,8 @@
     "assets/items/000513.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Путь вниз: 1 день на карте подземелья от героя к входу на нижний этаж (лестнице вниз) горит полупрозрачная линия маршрута. Пути нет — заклинание не расходуется.",
   "icon": "assets/spell-icons/way_down.svg",

@@ -17,7 +17,7 @@
     "assets/items/000131.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Костёр, согревающий и восстанавливающий кастера. Длится 1 день.",
   "icon": "assets/spell-icons/hearthfire.svg",

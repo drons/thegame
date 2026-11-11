@@ -12,7 +12,7 @@
     "assets/items/000247.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Теневые узы: сковывают цель тьмой — обездвижено на 1 ход.",
   "icon": "assets/spell-icons/shadow_bind.svg",

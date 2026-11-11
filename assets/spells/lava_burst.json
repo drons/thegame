@@ -13,7 +13,7 @@
     "assets/items/000111.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Всплеск расплавленной породы: сильный удар и долгое жжение.",
   "icon": "assets/spell-icons/lava_burst.svg",

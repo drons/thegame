@@ -13,7 +13,7 @@
     "assets/items/000114.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Сгусток адского пламени, игнорирующий часть брони цели.",
   "icon": "assets/spell-icons/hellfire.svg",

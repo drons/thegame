@@ -167,7 +167,7 @@ test('AR2: isRef — якорный паттерн 9 каталогов (+/−)'
     'assets/dungeons/abyss.json',        // dungeons — slug с 000318.04
     'assets/mobs/abomination.json',      // mobs — slug с 000318.04
     'assets/mob_groups/abyss_spirit.json',  // mob_groups — slug с 000318.04
-    'assets/buildings/000054.json',
+    'assets/buildings/city_54.json',    // buildings — slug с 000318.06
     'assets/craft/000031.json',
     'assets/spells/resurrect.json',    // spells — slug с 000318.05
     'assets/npc/000018.json',
@@ -177,6 +177,7 @@ test('AR2: isRef — якорный паттерн 9 каталогов (+/−)'
   for (const s of [
     'assets/visuals/000001.json',  // visuals вне паттерна (прямые svg-пути)
     'assets/mobs/000001.json',     // mobs slug с 000318.04: номер — не ref
+    'assets/buildings/' + '000054' + '.json', // buildings slug с 000318.06: номер — не ref
     'assets/mobs/00001.json',      // 5 цифр
     'assets/mobs/0000001.json',    // 7 цифр
     'assets/items/1.json',
@@ -219,7 +220,7 @@ test('AR4: resolveRef — файл существует, парсится, со�
   const cases = [
     ['assets/items/000001.json', 'wood_sword'],  // id — строка
     ['assets/dungeons/simple_cave.json', 0],     // id = 0 (falsy!)
-    ['assets/buildings/000001.json', 1],         // id — число
+    ['assets/buildings/weapons_shop.json', 1],         // id — число
     ['assets/portraits/efir.json', 'efir'],      // именованный portraits
   ];
   for (const [ref, id] of cases) {
@@ -316,7 +317,7 @@ function loadShapes() {
 
 test('AR10: поверхность 000318.01 — реестр шейпов и резолверы формы', () => {
   const mod = loadShapes();
-  for (const cat of ['items', 'skills', 'buildings', 'craft', 'npc']) {
+  for (const cat of ['items', 'skills', 'craft', 'npc']) {
     assert.equal(mod.ASSET_NAME_SHAPES[cat], 'number',
       cat + ': не переименован дочерними 000318 — шейп number');
   }
@@ -336,6 +337,13 @@ test('AR10: поверхность 000318.01 — реестр шейпов и р
     'spells (000318.05): slug-имя — ref');
   assert.equal(mod.isRefPath('spells', '000017.json'), false,
     'spells (000318.05): прежняя номерная форма — НЕ ref');
+  assert.equal(mod.ASSET_NAME_SHAPES.buildings, 'slug',
+    'buildings — slug (переименован 000318.06: имя — basename «спрайт» '
+    + 'для 29 записей, рукописная таблица — для 26 без «спрайт»)');
+  assert.equal(mod.isRefPath('buildings', 'camp.json'), true,
+    'buildings (000318.06): slug-имя — ref');
+  assert.equal(mod.isRefPath('buildings', '000047.json'), false,
+    'buildings (000318.06): прежняя номерная форма — НЕ ref');
   assert.equal(mod.ASSET_NAME_SHAPES.runes, 'slug',
     'runes — slug (переименован 000318.02; мишенью ссылок не был никогда)');
   assert.equal(mod.ASSET_NAME_SHAPES.visuals, 'slug',
@@ -363,11 +371,12 @@ test('AR10: поверхность 000318.01 — реестр шейпов и р
 test('AR11: REF_RE.source — побайтовый пин обратной совместимости', () => {
   const mod = loadRef();
   assert.equal(mod.REF_RE.source,
-    '^assets\\/(items|skills|buildings|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
-    'REF_RE выводится из шейпов группами; с 000318.05 — ДВЕ группы '
-    + '(number: items/skills/buildings/craft/npc; slug: spells/mobs/'
-    + 'mob_groups/dungeons). Прежний литерал ДО .05 (spells в number-'
+    '^assets\\/(items|skills|craft|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|buildings|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    'REF_RE выводится из шейпов группами; с 000318.06 — ДВЕ группы '
+    + '(number: items/skills/craft/npc; slug: spells/mobs/mob_groups/'
+    + 'buildings/dungeons — buildings перешёл из number-группы по '
+    + 'REF_LINKED_CATALOGS). Прежний литерал ДО .06 (buildings в number-'
     + 'группе); рантайм-носитель: pattern в assets/skills/schema.json, '
     + 'SR5/skills.test');
 });

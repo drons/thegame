@@ -14,7 +14,7 @@ tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
 | spells | slug (000318.05; было number) | 169 — <id>.json (id строка === basename) | да |
 | mobs | slug (000318.04; было number) | 36 — <id>.json (id строка === basename) | да |
 | mob_groups | slug (000318.04; было number) | 7 — рукописный slug (id 1..7 числовой в JSON — НЕ basename) | да |
-| buildings | number | 55 | да |
+| buildings | slug (000318.06; было number) | 55 — рукописный slug (id 1..55 числовой в JSON — НЕ basename; 29 = basename «спрайт», 26 — таблица) | да |
 | craft | number | 343 (max 000419 — СЕГМЕНТАМИ, дыры) | да |
 | dungeons | slug (000318.04; было number) | 5 — рукописный slug (id 0..4 числовой в JSON — НЕ basename) | да |
 | npc | number | 22 | да |
@@ -50,6 +50,12 @@ name-shape ('number'/'slug') ≠ 'named' (portraits). Переименовани
   побайтово (цепочка .04 → .05), носители pattern (skills/dungeons/
   mob_groups/spells/mobs schema.json) обновлены в тех же коммитах
   (memory/000318-mobs-mobgroups-dungeons.md §3, memory/000318-spells.md).
+  ПОСЛЕ 000318.06 кslug-группе добавился buildings (третья флипающаяся
+  МИШЕНЬ): текущий source — `…(items|skills|craft|npc)/\d{6}…` +
+  `…(spells|mobs|mob_groups|buildings|dungeons)/[a-z][a-z0-9_]*…`;
+  AR11 + побайтовые дубли .02/.03/.04/.05 + носители pattern
+  skills/craft/spells/npc/dungeons/mob_groups schema.json — ре-пин в том
+  же коммите (memory/000318-buildings.md).
 * Lib обязан остаться ОДНИМ файлом без внутренних require-соседей:
   tests/items.test.js копирует в tmp ровно файл json-ref.js.
 * Производительность: ни одного new RegExp на вызов (isRef гоняется по
@@ -81,7 +87,8 @@ src/map.js и формулы визуалов/сидов); перевод сор
 * Правило имени: slug-шейп каталога ⇒ basename === id + '.json' (свип
   renameViolations в tests/assets-renames-000318.test.js — эталон семантики;
   number-шейп НЕ требует basename == id: dungeons — id 0..4 при файлах
-  000001..000005, buildings — id 1..55 совпадает).
+  000001..000005; рукописный slug-шейп тем более: buildings — id 1..55
+  при slug-именах с 000318.06).
 * Rename — отдельным `git mv` (R100, контент 0-diff) от M-правок строк
   referrer-ов (проверять `git show -M`); правки ссылок в JSON — тот же
   коммит или следующий, но диффы не смешивать по типу.
@@ -137,9 +144,29 @@ src/map.js и формулы визуалов/сидов); перевод сор
   (0 индексных/rng-выборов) ⇒ golden-пересимуляции и CHANGELOG НЕ
   потребовались (мутация M4: ручной shuffle зеркала — позиционные тесты
   красные, поведенческие зелёные). Детали — memory/000318-spells.md.
+* buildings → slug (000318.06, 55 файлов <slug>.json, контент 0-diff;
+  750 referrer-JSON / 1045 вхождения: craft 725, spells 280, npc 35,
+  dungeons 5 — свип повторён после ре-базы на 000320.15): ТРЕТЬЯ
+  флипающаяся МИШЕНЬ. Имя — ГИБРИД (29 = basename
+  «спрайт», 26 — таблица id→slug; ТЗ-премисса «55 уникальных спрайтов»
+  ЛОЖНА); sync-buildings-data — сортировка по data.id + исключение
+  schema.json (главная ловушка: slug-regex матчит schema.json);
+  sync-npc-data buildRefMap — shape-aware (иначе numeric-имена зданий
+  теряются в маппинге). Порядок зеркала BUILDINGS по id = прежний
+  файтовый ⇒ 635 non-comment строк блока бит-в-бит, CHANGELOG не
+  требовался. Детали, ростер и матрица — memory/000318-buildings.md.
 
 ## 5. Памятка оркестратору волн
 
 Тексты закоммиченных pending-задач 000320.x/000321.x цитируют старые пути
 «assets/…/NNNNNN.json» — при переименованиях дочерними 000318.YY эти
 ЗАКОММИЧЕННЫЕ тексты не правятся (задачи в master не меняются).
+
+С 000318.06 в волнах: здания — `assets/buildings/<slug>.json` (ростер
+id→slug — в memory/000318-buildings.md и тестах
+buildings-rename-000318.06/assets-renames-000318); numeric-путь
+`assets/buildings/000NNN.json` — НЕ ref (REF_RE/sync-резолюции/schema-
+паттерны его не принимают; AR8/AR9 его НЕ видят — guard'ы только
+перевёрнутые pattern'ы схем + zero-sweep T5 в buildings-rename-тесте).
+spec/runes.md:47 остаётся устаревшим (числовой naming руны) — 0-diff по
+решению 000318.02, не «чинить» попутно.

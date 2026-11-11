@@ -13,7 +13,7 @@
     "assets/items/000112.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Горящая порода с неба: большой урон и долгий поджог.",
   "icon": "assets/spell-icons/meteor.svg",

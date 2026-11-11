@@ -17,8 +17,8 @@
     "assets/items/000270.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Святое поразить: урон моба −15% на 3 хода (урона нет).",
   "icon": "assets/spell-icons/smite.svg",

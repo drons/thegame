@@ -17,7 +17,7 @@
     "assets/items/000081.json"
   ],
   "размер": 35,
-  "постройка": "assets/buildings/000035.json",
+  "постройка": "assets/buildings/abyss.json",
   "объекты_стен": [
     "stalactite",
     "rock"

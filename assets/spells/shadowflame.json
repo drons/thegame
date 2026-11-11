@@ -13,7 +13,7 @@
     "assets/items/000238.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Теневое пламя: тёмный огонь, сжигающий цель и накладывающий сильный дебаф.",
   "icon": "assets/spell-icons/shadowflame.svg",

@@ -24,8 +24,8 @@
     "assets/skills/000027.json"
   ],
   "здания": [
-    "assets/buildings/000040.json",
-    "assets/buildings/000048.json"
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
   ],
   "уровень": 18,
   "описание": "Обсидиан, отшлифованный: видит тьму."

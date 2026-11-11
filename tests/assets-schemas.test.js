@@ -70,11 +70,32 @@ const DUNGEONS_SLUGS_000318 = [
   'simple_cave.json', 'crypt.json', 'castle_ruins.json', 'flooded_cave.json',
   'abyss.json',
 ].sort();
+const BUILDINGS_SLUGS_000318 = [
+  'weapons_shop.json', 'armor_shop.json', 'apothecary.json',
+  'magic_shop.json', 'wanderer_shop.json', 'universam.json',
+  'arena.json', 'blacksmith.json', 'gladiator_yard.json',
+  'archery_range.json', 'academy.json', 'hunting_estate.json',
+  'gymnasium.json', 'gladiator_camp.json', 'bathhouse.json',
+  'library.json', 'alchemy_lab.json', 'mage_tower.json',
+  'monastery.json', 'elders_hut.json', 'healing_temple.json',
+  'tavern_school.json', 'theater.json', 'town_hall.json',
+  'npc_house.json', 'healer_house.json', 'scribe_house.json',
+  'merchant_house.json', 'hermit_hut.json', 'orc_pagan_house.json',
+  'cave_entrance.json', 'crypt.json', 'castle_ruins.json',
+  'flooded_cave.json', 'abyss.json', 'temple.json',
+  'moon_temple.json', 'mountain_temple.json', 'abandoned_temple.json',
+  'rune_stone.json', 'teleport_circle.json', 'obelisk.json',
+  'magic_circle.json', 'tavern.json', 'well.json',
+  'watchtower.json', 'camp.json', 'ruins.json',
+  'fountain.json', 'bridge_gate.json', 'city_51.json',
+  'city_52.json', 'city_53.json', 'city_54.json', 'storage.json',
+].sort();
 const SLUG_PINNED_000318 = {
   visuals: VISUALS_SLUGS_000318,
   mobs: MOBS_SLUGS_000318,
   mob_groups: MOB_GROUPS_SLUGS_000318,
   dungeons: DUNGEONS_SLUGS_000318,
+  buildings: BUILDINGS_SLUGS_000318,
 };
 
 function catalogDir(name) {
@@ -271,7 +292,8 @@ for (const name of CATALOGS) {
       + '(000318.03: basename «спрайт»), каталог не пуст'
     : SLUG_PINNED_000318[name] !== undefined
       ? name + ': файлы каталога — контрактованное множество slug-имён '
-        + '(000318.04: mobs — id, mob_groups/dungeons — таблица id→slug), '
+        + '(000318.04: mobs — id, mob_groups/dungeons — таблица id→slug; '
+        + '000318.06: buildings — «спрайт»/таблица id→slug), '
         + 'каталог не пуст'
     : `${name}: файлы 000001.json … N.json подряд${name === 'items'
       ? ' (ре-пин 000235.10: +25 свитков 000258–000282 — резервная '
@@ -396,12 +418,12 @@ for (const name of CATALOGS) {
 
 // --- 000077: «ежедневный контент» — форма новых полей каталога 39/43 ---
 
-test('buildings: 000039/000043 — «ежедневный контент» (000077): форма новых полей', () => {
+test('buildings: abandoned_temple/magic_circle (id 39/43) — «ежедневный контент» (000077): форма новых полей', () => {
   const schema = loadSchema('buildings');
   const read = (f) => JSON.parse(
     fs.readFileSync(path.join(catalogDir('buildings'), f), 'utf8'));
-  const j39 = read('000039.json');
-  const j43 = read('000043.json');
+  const j39 = read('abandoned_temple.json');
+  const j43 = read('magic_circle.json');
   // Фиксатор: оба файла валидны по схеме (особые_параметры —
   // free-form: проходят и до, и после 000077).
   assert.deepEqual(validateData(schema, j39), [],
@@ -443,22 +465,23 @@ test('buildings: 000039/000043 — «ежедневный контент» (0000
 
 // --- Задача 000094: развалины (id 48) — «Осмотр» ---
 //
-// Запись 000048.json получает особые_параметры.раз_в_день: true +
+// Запись ruins.json (id 48; 000318.06: имя = slug) получает
+// особые_параметры.раз_в_день: true +
 // эффект (доли, урон_ловушки, порог_интеллект, предметы, тексты).
 // specials_параметры в схеме — ОТКРЫТЫЙ объект (без правки схемы —
 // ТЗ), поэтому общий цикл «каждый файл валиден» выше закрывает
 // «запись 48 проходит схему» автоматически; здесь — ЯВНАЯ проверка
 // новых полей (red: полей нет до каталожного коммита).
 
-test('buildings 000048 (000094): запись проходит schema.json + поля «Осмотреть» на месте', () => {
+test('buildings ruins.json (id 48; 000094): запись проходит schema.json + поля «Осмотреть» на месте', () => {
   const schema = loadSchema('buildings');
   const j48 = JSON.parse(
     fs.readFileSync(
-      path.join(catalogDir('buildings'), '000048.json'), 'utf8'));
+      path.join(catalogDir('buildings'), 'ruins.json'), 'utf8'));
   const errors = [];
-  validate(schema, j48, '000048.json', errors);
+  validate(schema, j48, 'ruins.json', errors);
   assert.deepEqual(errors, [],
-    '000048.json валиден по schema.json: ' + errors.join('; '));
+    'ruins.json валиден по schema.json: ' + errors.join('; '));
   const op = j48.особые_параметры;
   assert.equal(op.раз_в_день, true,
     '48: раз_в_день — true (red: поля нет)');

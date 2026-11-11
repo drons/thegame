@@ -17,8 +17,8 @@
     "assets/items/000269.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Щит веры: −10% получаемого урона партии на 3 хода.",
   "icon": "assets/spell-icons/faith_shield.svg",

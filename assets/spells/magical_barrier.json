@@ -16,9 +16,9 @@
     "assets/items/000463.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Магический барьер: +3 к броне на 3 раунда.",
   "icon": "assets/spell-icons/magical_barrier.svg",

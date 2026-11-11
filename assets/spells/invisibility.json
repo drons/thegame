@@ -16,7 +16,7 @@
     "assets/items/000255.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Невидимость: 1 день — мобы не видят героя (зоны и погоня не триггерятся).",
   "icon": "assets/spell-icons/invisibility.svg",

@@ -11,7 +11,7 @@
 //     роль «наставник» (фикс ТЗ; в каталоге раньше были только
 //     составные «наставник-боец/лучник/акробат/мечник» — точная
 //     строка «наставник» свободна; свипов уникальности ролей нет),
-//     постройка assets/buildings/000002.json (Бронник — ТРЕТИЙ NPC:
+//     постройка assets/buildings/armor_shop.json (Бронник — ТРЕТИЙ NPC:
 //     Грота ПЕРВАЯ, npcForBuilding(2) продолжает возвращать Гроту),
 //     хук истории «Тренирует големоведов: броня — первое оружие»
 //     (последнее предложение описания, с заглавной — прецеденты
@@ -307,7 +307,7 @@ test('T7: npcsForBuilding(NPCS, 2) — ТРИ записи Бронника в �
 // --- T8: оверлей Бронника — ровно 3 dialog-строки -----------------------------
 
 test('T8: [E]-оверлей Бронника — ровно 3 строки: dialog (Грота), dialog:armor_specialist (Чекан), dialog:golem_instructor (Глыба)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000002.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'armor_shop.json'));
   const list = N.npcsForBuilding(NPCS, 2);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

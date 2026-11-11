@@ -17,7 +17,7 @@
     "assets/items/000147.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Морозное замедление: цель — конец очереди ходов на 3 хода.",
   "icon": "assets/spell-icons/slow.svg",

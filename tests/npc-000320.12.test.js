@@ -12,7 +12,7 @@
 //     с темой .11 — там котёл и веса, здесь сушка), роль «торговка
 //     травами» (фикс ТЗ; строка НОВА в каталоге — свипов уникальности
 //     ролей нет, уникальны по контракту id/имя/описание; прецедент
-//     дубля роли .09), постройка assets/buildings/000003.json
+//     дубля роли .09), постройка assets/buildings/apothecary.json
 //     (Аптекарь — ТРЕТИЙ NPC: Мила ПЕРВАЯ, npcForBuilding(3)
 //     продолжает возвращать Милу), хук истории «Знает все травы
 //     долины; продаёт только сушёные» (последнее предложение
@@ -344,7 +344,7 @@ test('T7: npcsForBuilding(NPCS, 3) — ПЯТЬ записей Аптекаря 
 // --- T8: оверлей Аптекаря — ровно 5 dialog-строк -----------------------------
 
 test('T8: [E]-оверлей Аптекаря — ровно 5 строк: dialog (Мила), dialog:brewer (Отвар), dialog:herbalist (Полынь), dialog:alchemy_instructor (Тигель), dialog:village_doctor (Жгут) — ре-пины 000320.13/000320.14 (было 3 в .12)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000003.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'apothecary.json'));
   const list = N.npcsForBuilding(NPCS, 3);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

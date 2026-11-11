@@ -17,7 +17,7 @@
     "assets/items/000246.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Теневое проклятие: порча тьмы — урон цели сильно снижен, 3 хода.",
   "icon": "assets/spell-icons/shadow_curse.svg",

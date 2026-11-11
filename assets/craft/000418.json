@@ -20,7 +20,7 @@
     "assets/skills/000002.json"
   ],
   "здания": [
-    "assets/buildings/000005.json"
+    "assets/buildings/wanderer_shop.json"
   ],
   "уровень": 8,
   "описание": "Кожа и дерево, тронутые дорогой: шаг не сбивается на крутом."

@@ -8,7 +8,7 @@
     { "предмет": "assets/items/000042.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000027.json", "assets/skills/000026.json"],
-  "здания": ["assets/buildings/000040.json", "assets/buildings/000016.json", "assets/buildings/000042.json"],
+  "здания": ["assets/buildings/rune_stone.json", "assets/buildings/library.json", "assets/buildings/obelisk.json"],
   "уровень": 2,
   "описание": "На огранённый камень вводят руны: записи библиотеки и свет обелиска учат камень помнить."
 }

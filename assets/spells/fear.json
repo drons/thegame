@@ -17,7 +17,7 @@
     "assets/items/000243.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Страх: цель повержена в трепет — урон и попадание цели снижены (мораль), 3 хода.",
   "icon": "assets/spell-icons/fear.svg",

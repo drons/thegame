@@ -13,8 +13,8 @@
     "assets/items/000263.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Массовый святой свет: восстанавливает здоровье всей партии и снимает дебафы союзников.",
   "icon": "assets/spell-icons/mass_holy_light.svg",

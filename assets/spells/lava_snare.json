@@ -12,7 +12,7 @@
     "assets/items/000126.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Раскалённая петля, сковывающая ноги цели на ход.",
   "icon": "assets/spell-icons/lava_snare.svg",

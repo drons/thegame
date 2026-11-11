@@ -32,6 +32,29 @@ const vm = require('node:vm');
 // осмысленная, терпимый no-op отклонён (серийный паттерн 000211.08).
 const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
 const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
+// 000318.06: assets/buildings — slug-имена (номер файла больше не id);
+// обход каталога по id — через эти хелперы.
+const SLUG_FILE_RE_00031806 = /^[a-z][a-z0-9_]*\.json$/;
+function buildingsFiles_00031806() {
+  return fs.readdirSync(DIR)
+    .filter((f) => f !== 'schema.json' && SLUG_FILE_RE_00031806.test(f))
+    .sort();
+}
+function buildingsRawById_00031806() {
+  const raw = {};
+  for (const f of buildingsFiles_00031806()) {
+    const j = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    raw[j.id] = j;
+  }
+  return raw;
+}
+function buildingFileById_00031806(n) {
+  for (const f of buildingsFiles_00031806()) {
+    const j = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    if (j.id === n) return f;
+  }
+  throw new Error('assets/buildings: нет файла с id ' + n);
+}
 const { resolveRef } = require('../scripts/lib/json-ref.js');
 function resolveRefs(record) {
   const out = JSON.parse(JSON.stringify(record));
@@ -139,16 +162,24 @@ test('каталог: обязательные поля, допустимые_т
   }
 });
 
-test('файлы assets/buildings: ровно 000001..000055.json, содержимое = JS-фолбэк', () => {
-  const files = fs.readdirSync(DIR).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+test('файлы assets/buildings: ровно 55 slug-файлов (000318.06: имя = slug, id 1..55 покрывают), содержимое = JS-фолбэк', () => {
+  const files = fs.readdirSync(DIR)
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
+    .sort();
   assert.equal(files.length, 55, 'ровно 55 файла типа');
-  for (let i = 0; i < 55; i++) {
-    const num = String(i + 1).padStart(6, '0');
-    assert.equal(files[i], num + '.json', `файл ${files[i]} вместо ${num}.json`);
-    const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
-    assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i],
-      `${num}.json совпадает с JS-фолбэком (ссылки — в id-форме)`);
+  const byId = new Map();
+  for (const f of files) {
+    const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.ok(Number.isInteger(fromFile.id) && fromFile.id >= 1
+      && fromFile.id <= 55,
+      f + ': id ∈ 1..55 (000318.06: номер файла больше не id)');
+    assert.ok(!byId.has(fromFile.id), f + ': дубль id ' + fromFile.id);
+    byId.set(fromFile.id, { f, fromFile });
+  }
+  for (let i = 1; i <= 55; i++) {
+    const { f, fromFile } = byId.get(i);
+    assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i - 1],
+      f + ' совпадает с JS-фолбэком (ссылки — в id-форме)');
   }
   // schema.json на месте и разбирается.
   const schema = JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
@@ -858,19 +889,24 @@ test('placeBuilding (000102): флаг берётся строго === true — 
     'не_сжимать=true: не влез → null (3x3 не строится)');
 });
 
-test('зеркало (000102): файлы 000001..000055.json, содержимое = JS-каталог', () => {
+test('зеркало (000102): файлы assets/buildings — 55 slug-имён (000318.06), id 1..55, содержимое = JS-каталог', () => {
   const files = fs.readdirSync(DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
+    .sort();
   assert.equal(files.length, 55, 'ровно 55 файла типа');
-  for (let i = 0; i < 55; i++) {
-    const num = String(i + 1).padStart(6, '0');
-    assert.equal(files[i], num + '.json',
-      `файл ${files[i]} вместо ${num}.json`);
-    const fromFile = JSON.parse(
-      fs.readFileSync(path.join(DIR, files[i]), 'utf8'));
-    assert.equal(fromFile.id, i + 1, 'id = номер файла');
-    assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i],
-      `${num}.json совпадает с JS-каталогом (ссылки — в id-форме)`);
+  const byId = new Map();
+  for (const f of files) {
+    const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.ok(Number.isInteger(fromFile.id) && fromFile.id >= 1
+      && fromFile.id <= 55,
+      f + ': id ∈ 1..55 (000318.06)');
+    assert.ok(!byId.has(fromFile.id), f + ': дубль id ' + fromFile.id);
+    byId.set(fromFile.id, { f, fromFile });
+  }
+  for (let i = 1; i <= 55; i++) {
+    const { f, fromFile } = byId.get(i);
+    assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i - 1],
+      f + ' совпадает с JS-каталогом (ссылки — в id-форме)');
   }
 });
 
@@ -1152,19 +1188,15 @@ const REF_PIN_IDS_000207 = Object.keys(REF_PIN_000207).map(Number);
 const R4_NO_BUILD_000207 = [5, 31];
 
 function readBuildingRaw_000207(n) {
-  const f = String(n).padStart(6, '0') + '.json';
+  const f = buildingFileById_00031806(n);
   return JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
 }
 
 test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/\\d{6}\\.json$); ровно 22 здания D3, 24 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
-  const files = fs.readdirSync(DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
-  assert.equal(files.length, 55, 'каталог: ровно 55 файлов 0000NN.json');
-  const raw = {};
-  for (const f of files) {
-    raw[parseInt(f, 10)] = JSON.parse(
-      fs.readFileSync(path.join(DIR, f), 'utf8'));
-  }
+  const files = buildingsFiles_00031806();
+  assert.equal(files.length, 55,
+    'каталог: ровно 55 slug-файлов (000318.06)');
+  const raw = buildingsRawById_00031806();
   const withBuild = [];
   let pos = 0;
   for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
@@ -1296,7 +1328,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
     // без .стройки (контур); файлы-цели — копии assets/items +
     // assets/skills.
     for (const n of REF_PIN_IDS_000207.concat(R4_NO_BUILD_000207)) {
-      const f = String(n).padStart(6, '0') + '.json';
+      const f = buildingFileById_00031806(n);
       const j = readBuildingRaw_000207(n);
       const s = j.особые_параметры && j.особые_параметры.стройка;
       if (s) {
@@ -1351,7 +1383,8 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
         + ' — as-is в блоке (поле-данные, не ссылка): '
         + SPRITE_PIN_000211_07[bid]);
     }
-    const p1 = path.join(tmp, 'assets', 'buildings', '000001.json');
+    const p1 = path.join(tmp, 'assets', 'buildings',
+      buildingFileById_00031806(1));
     const j1 = JSON.parse(fs.readFileSync(p1, 'utf8'));
     j1.особые_параметры.стройка.исходники[0].предмет = 'assets/items/999999.json';
     fs.writeFileSync(p1, JSON.stringify(j1, null, 2));
@@ -1359,7 +1392,8 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
       { cwd: tmp, encoding: 'utf8' });
     assert.notEqual(res2.status, 0,
       'прогон 2 (битая ссылка items, файл-цель отсутствует): обязателен exit ≠ 0 (fail-closed); получен exit 0 — ссылка запекнулась бы молча');
-    const p7 = path.join(tmp, 'assets', 'buildings', '000007.json');
+    const p7 = path.join(tmp, 'assets', 'buildings',
+      buildingFileById_00031806(7));
     const j7 = JSON.parse(fs.readFileSync(p7, 'utf8'));
     j7.особые_параметры.тренирует[0] = 'assets/skills/999999.json';
     fs.writeFileSync(p7, JSON.stringify(j7, null, 2));
@@ -1385,7 +1419,7 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
   const rec = readBuildingRaw_000207(1);
   const bare = JSON.parse(JSON.stringify(rec));
   bare.особые_параметры.стройка.исходники[0].предмет = 'wood_log';
-  const errBare = validateData(schema, bare, '000001.json');
+  const errBare = validateData(schema, bare, buildingFileById_00031806(1));
   assert.ok(errBare.length >= 1,
     'запись с голым id предмета — ошибка схемы обязательна (получено 0 ошибок — «особые_параметры» свободный объект, под-схема «стройка» не закреплена)');
   assert.ok(errBare.some((e) => e.includes('assets/items')),
@@ -1419,10 +1453,9 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
     'особые_параметры остаётся СВОБОДНЫМ объектом (без additionalProperties:false)');
   const refd = JSON.parse(JSON.stringify(rec));
   refd.особые_параметры.стройка.исходники[0].предмет = 'assets/items/000035.json';
-  assert.deepEqual(validateData(schema, refd, '000001.json'), [],
+  assert.deepEqual(validateData(schema, refd, buildingFileById_00031806(1)), [],
     'запись со ссылкой на файл items — валидна');
-  for (const f of fs.readdirSync(DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+  for (const f of buildingsFiles_00031806()) {
     const errs = validateData(
       schema, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')), f);
     assert.deepEqual(errs, [], f + ': ошибки схемы: ' + errs.join(' | '));
@@ -1561,12 +1594,7 @@ function convertTrainsRefs_000211_07(record) {
 }
 
 test('000211.07 R1 (ре-пин 000265): "спрайт" — ровно 29 из 55 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54 + 11 подтипов слотов 8..12 (000265)); значение = ЗАКРЫТОМУ пину (byte-идентично); файл svg существует; у остальных 26 — нет (строгий контур)', () => {
-  const raw = {};
-  for (const f of fs.readdirSync(DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
-    raw[parseInt(f, 10)] = JSON.parse(
-      fs.readFileSync(path.join(DIR, f), 'utf8'));
-  }
+  const raw = buildingsRawById_00031806();
   assert.equal(Object.keys(raw).length, 55, 'каталог: 55 файлов');
   const slotIds = Object.keys(raw).map(Number).filter((n) => {
     const p = raw[n].особые_параметры;
@@ -1653,12 +1681,7 @@ test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строги�
   assert.equal(pos, 34,
     'позиций «тренирует» = 34 (16 школ × 2 + 2 школы × 1; '
     + 'получено ' + pos + ')');
-  const raw = {};
-  for (const f of fs.readdirSync(DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
-    raw[parseInt(f, 10)] = JSON.parse(
-      fs.readFileSync(path.join(DIR, f), 'utf8'));
-  }
+  const raw = buildingsRawById_00031806();
   for (const n of Object.keys(raw).map(Number).sort((a, b) => a - b)) {
     if (SCHOOL_IDS_000211_07.includes(n)) continue;
     assert.equal(raw[n].особые_параметры.тренирует, undefined,
@@ -1696,7 +1719,7 @@ test('000211.07 R3: schema.json — форма новых свойств: топ
   const rec = readBuildingRaw_000207(24);
   const bad = JSON.parse(JSON.stringify(rec));
   bad.особые_параметры.тренирует = ['мечник'];
-  const errBad = validateData(schema, bad, '000024.json');
+  const errBad = validateData(schema, bad, buildingFileById_00031806(24));
   assert.ok(errBad.length >= 1,
     'запись с ИМЕНЕМ «мечник» в «тренирует» — ошибка схемы '
     + 'обязательна (получено 0 ошибок — паттерн не закреплён)');
@@ -1705,10 +1728,9 @@ test('000211.07 R3: schema.json — форма новых свойств: топ
     + errBad.join(' | ') + ')');
   const good = JSON.parse(JSON.stringify(rec));
   good.особые_параметры.тренирует = ['assets/skills/000035.json'];
-  assert.deepEqual(validateData(schema, good, '000024.json'), [],
+  assert.deepEqual(validateData(schema, good, buildingFileById_00031806(24)), [],
     'запись со ссылкой на файл skills — валидна');
-  for (const f of fs.readdirSync(DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+  for (const f of buildingsFiles_00031806()) {
     const errs = validateData(
       schema, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')), f);
     assert.deepEqual(errs, [], f + ': ошибки схемы: ' + errs.join(' | '));
@@ -1735,7 +1757,7 @@ test('000211.07 R4: sync-buildings-data.js — "тренирует"-ссылки
     }
     const FIXTURE_IDS_000211_07 = [7, 8, 10, 11, 5, 31];
     for (const n of FIXTURE_IDS_000211_07) {
-      const f = String(n).padStart(6, '0') + '.json';
+      const f = buildingFileById_00031806(n);
       const j = readBuildingRaw_000207(n);
       const s = j.особые_параметры && j.особые_параметры.стройка;
       if (s) {
@@ -1784,7 +1806,8 @@ test('000211.07 R4: sync-buildings-data.js — "тренирует"-ссылки
         + ' — as-is в блоке (поле-данные, не ссылка): '
         + SPRITE_PIN_000211_07[bid]);
     }
-    const p7 = path.join(tmp, 'assets', 'buildings', '000007.json');
+    const p7 = path.join(tmp, 'assets', 'buildings',
+      buildingFileById_00031806(7));
     const j7 = JSON.parse(fs.readFileSync(p7, 'utf8'));
     j7.особые_параметры.тренирует[0] = 'assets/skills/999999.json';
     fs.writeFileSync(p7, JSON.stringify(j7, null, 2));
@@ -1848,12 +1871,7 @@ const SPRITE_PATTERN_000265 = /^assets\/sprites\/(buildings|cities)\/[\w]+\.svg$
 test('000265 R1 (RED): 11 записей-подтипов (37/38/39/41/42/43/45/46/48/49/55) — «спрайт» в assets/buildings/*.json И в зеркале src/buildings.js = ЗАКРЫТОМУ пину id→файл; значение проходит паттерн schema.json; файл svg существует; каталог остальных полей (id/название/слот/доля/map_index/размер) — без изменений; базовые 18 «спрайт» — бит-в-бит SPRITE_PIN_000211_07', () => {
   assert.equal(SUBTYPE_IDS_000265.length, 11,
     'пин: ровно 11 подтипов');
-  const raw = {};
-  for (const f of fs.readdirSync(DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
-    raw[parseInt(f, 10)] = JSON.parse(
-      fs.readFileSync(path.join(DIR, f), 'utf8'));
-  }
+  const raw = buildingsRawById_00031806();
   assert.equal(Object.keys(raw).length, 55, 'каталог: 55 файлов');
   for (const n of SUBTYPE_IDS_000265) {
     const pin = SUBTYPE_SPRITE_PIN_000265[n];

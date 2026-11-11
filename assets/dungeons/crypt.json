@@ -68,7 +68,7 @@
     "assets/items/000282.json"
   ],
   "размер": 27,
-  "постройка": "assets/buildings/000032.json",
+  "постройка": "assets/buildings/crypt.json",
   "объекты_стен": [
     "column",
     "rock"

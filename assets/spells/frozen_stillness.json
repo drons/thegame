@@ -17,7 +17,7 @@
     "assets/items/000157.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Замершая неподвижность: 1 день — в радиусе 5 вокруг кастера мобы неподвижны (зоны не триггерятся).",
   "icon": "assets/spell-icons/frozen_stillness.svg",

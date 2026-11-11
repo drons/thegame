@@ -16,8 +16,8 @@
     "assets/items/000511.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Тропа лоз: 1 день лес не замедляет героя — шаг по лесу стоит 1 ход, как по открытой местности. (База: лес — 2 хода.)",
   "icon": "assets/spell-icons/path_of_vines.svg",

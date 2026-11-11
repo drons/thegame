@@ -16,7 +16,7 @@
     "assets/items/000141.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Стена льда, преграждающая путь на 5 ходов.",
   "icon": "assets/spell-icons/wall_of_ice.svg",

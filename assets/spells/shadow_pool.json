@@ -19,7 +19,7 @@
     "assets/items/000250.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Лужа тьмы: зона — врагам в ней труднее попадать, 3 хода (радиус 2).",
   "icon": "assets/spell-icons/shadow_pool.svg",

@@ -13,8 +13,8 @@
     "assets/items/000258.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Лучистое исцеление: надёжное восстановление здоровья по формуле школы.",
   "icon": "assets/spell-icons/radiant_heal.svg",

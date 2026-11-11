@@ -5,7 +5,7 @@
 // 000320.01, spec/npc.md «Несколько NPC на постройку»,
 // memory/000320-npcs-batch.md):
 //   * assets/npc/000024.json — id blade_smith, имя «Дарн», роль
-//     «оружейник» (фикс), постройка assets/buildings/000001.json
+//     «оружейник» (фикс), постройка assets/buildings/weapons_shop.json
 //     (Оружейная — седьмая связь), хук истории «Точит клинки сам;
 //     торгует тем, на что не хватает времени»;
 //   * профиль — ТОРГОВЛЯ (без квестов): ≥1 опций с действием
@@ -281,7 +281,7 @@ test('T8: npcsForBuilding(NPCS, 1) — ДЕВЯТЬ NPC Оружейной в п
 // --- T9: оверлей Оружейной — ровно 9 dialog-строк ----------------------------
 
 test('T9: [E]-оверлей Оружейной — ровно 9 строк: dialog (Бренн), dialog:blade_merchant (Корд), dialog:fencing_instructor (Родар), dialog:duelist (Скарн), dialog:veteran_blade (Боримир), dialog:sword_collector (Рарог), dialog:blade_smith (Дарн), dialog:ex_mercenary (Горм), dialog:armory_apprentice (Опилка)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000001.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'weapons_shop.json'));
   const list = N.npcsForBuilding(NPCS, 1);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

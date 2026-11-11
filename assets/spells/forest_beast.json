@@ -16,8 +16,8 @@
     "assets/items/000507.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Лесной зверь: призывает волка на 4 хода (уровень 2).",
   "icon": "assets/spell-icons/forest_beast.svg",

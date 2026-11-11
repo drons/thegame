@@ -7,7 +7,7 @@
     { "предмет": "assets/items/000039.json", "количество": 2 }
   ],
   "навыки": ["assets/skills/000025.json", "assets/skills/000031.json"],
-  "здания": ["assets/buildings/000003.json", "assets/buildings/000017.json"],
+  "здания": ["assets/buildings/apothecary.json", "assets/buildings/alchemy_lab.json"],
   "уровень": 1,
   "описание": "Две травы исцеления, вода и слабый огонь: первая в жизни варка, на чём держится аптекарь."
 }

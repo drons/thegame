@@ -24,7 +24,7 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json"
+    "assets/buildings/blacksmith.json"
   ],
   "уровень": 8,
   "описание": "Рёбра набалдашника навариваются поверх боевого железа."

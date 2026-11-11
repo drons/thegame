@@ -13,7 +13,7 @@
     "assets/items/000135.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Град ледяных глыб: урон цели и соседей.",
   "icon": "assets/spell-icons/hail.svg",

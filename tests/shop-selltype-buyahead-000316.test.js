@@ -50,7 +50,7 @@ const FULL_CHAIN = Array.from(html.matchAll(/<script\s+src="([^"]+)"/g),
   .filter((f) => f !== 'main.js');
 
 const campRec = JSON.parse(
-  fs.readFileSync(path.join(ROOT, 'assets', 'buildings', '000047.json'),
+  fs.readFileSync(path.join(ROOT, 'assets', 'buildings', 'camp.json'),
     'utf8'));
 
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');

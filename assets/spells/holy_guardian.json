@@ -16,8 +16,8 @@
     "assets/items/000276.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Святой страж: призывает Земляного стихийника — крепкий щит (4 хода).",
   "icon": "assets/spell-icons/holy_guardian.svg",

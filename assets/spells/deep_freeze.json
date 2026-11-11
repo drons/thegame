@@ -17,7 +17,7 @@
     "assets/items/000150.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Глубокое замерзание: сильный дебаф, урон_вниз цели (×2 эффект slow).",
   "icon": "assets/spell-icons/deep_freeze.svg",

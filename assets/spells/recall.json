@@ -16,9 +16,9 @@
     "assets/items/000482.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Возврат: телепорт к портальной метке (нужен «Каменный якорь»).",
   "icon": "assets/spell-icons/recall.svg",

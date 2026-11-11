@@ -24,7 +24,7 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json"
+    "assets/buildings/blacksmith.json"
   ],
   "уровень": 20,
   "описание": "Высокий круг под рост коваля."

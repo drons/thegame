@@ -530,7 +530,7 @@ function ocGuest(id, over = {}) {
     действие: 'внебой',
     вне_боя: true,
     параметры: { days: 1 },
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Гостевое заклинание (000235.02)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.02)',

@@ -16,8 +16,8 @@
     "assets/items/000508.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Трент: призывает трента (земляной стихийник) на 4 хода (уровень 3); при попадании опутывает цель корнями.",
   "icon": "assets/spell-icons/treant.svg",

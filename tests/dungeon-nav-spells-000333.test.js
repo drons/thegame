@@ -298,7 +298,7 @@ test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,
     assert.equal(s['степень'], 1, `${id}: степень 1`);
     assert.equal(s['база'], null, `${id}: база null`);
     assert.deepEqual(s['здания'],
-      ['assets/buildings/000021.json', 'assets/buildings/000038.json'],
+      ['assets/buildings/healing_temple.json', 'assets/buildings/mountain_temple.json'],
       `${id}: здания [21, 38] — общий якорь внебоевых природных`);
     assert.equal(s.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
     assert.ok(typeof s.icon_prompt === 'string'

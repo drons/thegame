@@ -21,7 +21,7 @@ const path = require('path');
 // каталога в try/finally (фикстуры обеих форм), REF_RE при этом статичен.
 const ASSET_NAME_SHAPES = {
   items: 'number', skills: 'number', spells: 'slug', mobs: 'slug',
-  mob_groups: 'slug', buildings: 'number', craft: 'number',
+  mob_groups: 'slug', buildings: 'slug', craft: 'number',
   dungeons: 'slug', npc: 'number', runes: 'slug', visuals: 'slug',
   portraits: 'named',
 };

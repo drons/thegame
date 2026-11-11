@@ -17,8 +17,8 @@
     "assets/items/000266.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Божественное благоволение: +15% урона партии на 3 хода.",
   "icon": "assets/spell-icons/divine_favor.svg",

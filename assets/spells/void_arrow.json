@@ -13,7 +13,7 @@
     "assets/items/000235.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Стрела пустоты: пронзающий выстрел, игнорирующий половину брони цели.",
   "icon": "assets/spell-icons/void_arrow.svg",

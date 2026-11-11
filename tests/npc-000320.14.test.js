@@ -12,7 +12,7 @@
 //     «Отвар», 000030 «Полынь», 000031 «Тигель»), роль «фельдшер»
 //     (фикс ТЗ; строка НОВА в каталоге — свипов уникальности ролей
 //     нет, Т4 пишет точное равенство), постройка
-//     assets/buildings/000003.json (Аптекарь — ПЯТЫЙ NPC: Мила
+//     assets/buildings/apothecary.json (Аптекарь — ПЯТЫЙ NPC: Мила
 //     ПЕРВАЯ, npcForBuilding(3) продолжает возвращать Милу), хук
 //     истории «Видел все раны арены; о здоровье говорит трезво»
 //     (последнее предложение описания, с заглавной — прецеденты
@@ -306,7 +306,7 @@ test('T7: npcsForBuilding(NPCS, 3) — ПЯТЬ записей Аптекаря 
 // --- T8: оверлей Аптекаря — ровно 5 dialog-строк ------------------------------
 
 test('T8: [E]-оверлей Аптекаря — ровно 5 строк: dialog (Мила), dialog:brewer (Отвар), dialog:herbalist (Полынь), dialog:alchemy_instructor (Тигель), dialog:village_doctor (Жгут) — ре-пин 000320.14 (было 4 в .13)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000003.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'apothecary.json'));
   const list = N.npcsForBuilding(NPCS, 3);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

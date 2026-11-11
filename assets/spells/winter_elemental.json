@@ -16,7 +16,7 @@
     "assets/items/000154.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Призывает сильного Водного стихийника, сражающегося на стороне кастера (морозный урон).",
   "icon": "assets/spell-icons/winter_elemental.svg",

@@ -83,7 +83,7 @@ function loadSpellIds() {
 
 const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
 const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
-const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_BUILDINGS = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
 const REF_CRAFT = /^assets\/craft\/\d{6}\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
 
@@ -93,7 +93,7 @@ const BUILDING_IDS = (() => {
   const dir = path.join(__dirname, '..', 'assets', 'buildings');
   const ids = new Set();
   for (const f of fs.readdirSync(dir)) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (f === 'schema.json' || !/^[a-z][a-z0-9_]*\.json$/.test(f)) continue;
     const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
     ids.add(data.id);
   }
@@ -786,7 +786,7 @@ const FIXTURE_TARGETS = {
     '000002.json': '{"id": "wood_log"}\n',
   },
   skills: { '000001.json': '{"id": "forge"}\n' },
-  buildings: { '000003.json': '{"id": 3}\n' },
+  buildings: { 'apothecary.json': '{"id": 3}\n' },
 };
 
 const FIXTURE_RECIPE = {
@@ -796,7 +796,7 @@ const FIXTURE_RECIPE = {
   'результат': { 'предмет': 'assets/items/000001.json', 'количество': 1 },
   'исходники': [{ 'предмет': 'assets/items/000002.json', 'количество': 3 }],
   'навыки': ['assets/skills/000001.json'],
-  'здания': ['assets/buildings/000003.json'],
+  'здания': ['assets/buildings/apothecary.json'],
   'уровень': 1,
   'описание': 'Фикстура 000208: ссылки на файлы каталогов',
 };
@@ -811,7 +811,7 @@ const FIXTURE_BASE_RECIPE = {
   'результат': { 'предмет': 'assets/items/000001.json', 'количество': 1 },
   'исходники': [{ 'предмет': 'assets/items/000002.json', 'количество': 2 }],
   'навыки': ['assets/skills/000001.json'],
-  'здания': ['assets/buildings/000003.json'],
+  'здания': ['assets/buildings/apothecary.json'],
   'уровень': 1,
   'описание': 'Фикстура 000211.09: цель self-ссылки «база»',
 };
@@ -854,8 +854,8 @@ test('000208 R1: schema.json — поля-ссылки зафиксирован�
     { type: 'string', pattern: '^assets/skills/\\d{6}\\.json$' },
     'навыки[] — ссылка на файл assets/skills');
   assert.deepEqual(schema.properties.здания.items,
-    { type: 'string', pattern: '^assets/buildings/\\d{6}\\.json$' },
-    'здания[] — ссылка на файл assets/buildings (integer → string)');
+    { type: 'string', pattern: '^assets/buildings/[a-z][a-z0-9_]*\\.json$' },
+    'здания[] — ссылка на файл assets/buildings (000318.06: slug)');
 });
 
 test('000208 R2: все 543 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000321.04: +50 рецептов артефактов 000570–000619; ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов; ре-пин 000230.15: +56 legs/feet-рецептов; ре-пин 000230.19: +2 set-рецептов; ре-пин 000277: +2 set-рецептов; ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.03: +50 рецептов щитов 000520–000569)', () => {
@@ -954,7 +954,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
         '000002.json': '{"id": "wood_log"}\n',
       },
       skills: { '000001.json': '{"id": "forge"}\n' },
-      buildings: { '000003.json': '{"id": 3}\n' },
+      buildings: { 'apothecary.json': '{"id": 3}\n' },
     };
     const dir = makeTmpCraftRepo(
       { '000001.json': JSON.stringify(FIXTURE_RECIPE) }, targets);

@@ -12,7 +12,7 @@
     "assets/items/000127.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Клетка из пламени, запирающая врага на месте и жгущая его.",
   "icon": "assets/spell-icons/burning_cage.svg",

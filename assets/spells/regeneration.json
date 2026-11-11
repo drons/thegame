@@ -18,8 +18,8 @@
     "assets/items/000264.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Регенерация: баф регенерации на 3 хода (лечения нет).",
   "icon": "assets/spell-icons/regeneration.svg",

@@ -29,8 +29,8 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json",
-    "assets/buildings/000025.json"
+    "assets/buildings/blacksmith.json",
+    "assets/buildings/npc_house.json"
   ],
   "уровень": 100,
   "описание": "Алмаз в раме Титана: земля отзывается тише."

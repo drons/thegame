@@ -16,7 +16,7 @@
     "assets/items/000117.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Препятствие из пламени, жгущее пытающихся его перейти.",
   "icon": "assets/spell-icons/wall_of_fire.svg",

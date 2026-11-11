@@ -8,7 +8,7 @@
     { "предмет": "assets/items/000023.json", "количество": 2 }
   ],
   "навыки": ["assets/skills/000027.json", "assets/skills/000020.json"],
-  "здания": ["assets/buildings/000018.json", "assets/buildings/000025.json"],
+  "здания": ["assets/buildings/mage_tower.json", "assets/buildings/npc_house.json"],
   "заклинания": ["stone_skin"],
   "уровень": 8,
   "описание": "Кольчугу наращивают пластинами и вписывают в них «Каменную кожу»: латы с каменным чешуйчатым узором."

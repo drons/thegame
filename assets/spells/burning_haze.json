@@ -19,7 +19,7 @@
     "assets/items/000118.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Туча дымящего пламени: жжёт врагов и мешает попаданию по ним.",
   "icon": "assets/spell-icons/burning_haze.svg",

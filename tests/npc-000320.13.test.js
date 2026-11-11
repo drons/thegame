@@ -12,7 +12,7 @@
 //     «Полынь»), роль «наставник» (фикс ТЗ; точная строка ЗАНЯТА
 //     Глыбой .10 — легальный дубль: свипов уникальности ролей нет,
 //     прецеденты .09 «торговец бронёй» vs Грота и .10; T4 пишет точное
-//     равенство), постройка assets/buildings/000003.json (Аптекарь —
+//     равенство), постройка assets/buildings/apothecary.json (Аптекарь —
 //     ЧЕТВЁРТЫЙ NPC: Мила ПЕРВАЯ, npcForBuilding(3) продолжает
 //     возвращать Милу), хук истории «Учит алхимии у прилавка
 //     аптекаря» (последнее предложение описания, с заглавной —
@@ -410,7 +410,7 @@ test('T7: npcsForBuilding(NPCS, 3) — ПЯТЬ записей Аптекаря 
 // --- T8: оверлей Аптекаря — ровно 5 dialog-строк ------------------------------
 
 test('T8: [E]-оверлей Аптекаря — ровно 5 строк: dialog (Мила), dialog:brewer (Отвар), dialog:herbalist (Полынь), dialog:alchemy_instructor (Тигель), dialog:village_doctor (Жгут) — ре-пин 000320.14 (было 4 в .13)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000003.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'apothecary.json'));
   const list = N.npcsForBuilding(NPCS, 3);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

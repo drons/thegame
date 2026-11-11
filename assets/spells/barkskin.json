@@ -17,8 +17,8 @@
     "assets/items/000498.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Коростенная кожа: +1 брони на 3 раунда (степень 2 благословения природы).",
   "icon": "assets/spell-icons/barkskin.svg",

@@ -19,7 +19,7 @@
     "assets/items/000116.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Зона выжженной земли, жгущая стоящих в ней врагов.",
   "icon": "assets/spell-icons/burning_ground.svg",

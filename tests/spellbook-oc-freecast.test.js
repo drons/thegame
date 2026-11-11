@@ -76,7 +76,7 @@ function guest(id, over = {}) {
     действие: 'внебой',
     вне_боя: true,
     параметры: { days: 2 },
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000230.17)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000230.17)',

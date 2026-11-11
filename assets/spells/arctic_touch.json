@@ -17,7 +17,7 @@
     "assets/items/000149.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Полярное прикосновение: урон_вниз и попадание_вниз цели.",
   "icon": "assets/spell-icons/arctic_touch.svg",

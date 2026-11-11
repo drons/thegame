@@ -186,6 +186,11 @@ function refNum(ref) {
   const m = /(\d{6})\.json$/.exec(ref);
   return m ? m[1] : null;
 }
+
+function buildingTargetId(ref) {
+  return JSON.parse(
+    fs.readFileSync(path.join(ROOT, ref), 'utf8')).id;
+}
 function loadItemFile(num) {
   const f = String(num).padStart(6, '0') + '.json';
   const p = path.join(ITEMS_DIR, f);
@@ -366,7 +371,7 @@ test('000321.03 T3: редкость волны РОВНО 20/14/10/4/2; rarity-
     'ARMOR_SHOP (виды [armor]) НЕ видит kind shield — сток брони '
     + '0-diff; факт hits=' + armorHits);
   const campRec = JSON.parse(fs.readFileSync(
-    path.join(BUILDINGS_DIR, '000047.json'), 'utf8'));
+    path.join(BUILDINGS_DIR, 'camp.json'), 'utf8'));
   for (const w of [2, 3]) {
     const camp = I.makeCampShop(10, 20, 1, w, campRec);
     for (const id of Object.keys(camp.stock)) {
@@ -558,7 +563,8 @@ test('000321.03 T8: 50 рецептов 000520–000569 подряд; резул
   const skills = new Set(fs.readdirSync(SKILLS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)));
   const buildings = new Set(fs.readdirSync(BUILDINGS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)));
+    .filter((f) => f !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(f)));
   const skillById = new Map();
   for (const f of fs.readdirSync(SKILLS_DIR)
     .filter((x) => /^\d{6}\.json$/.test(x))) {
@@ -610,12 +616,12 @@ test('000321.03 T8: 50 рецептов 000520–000569 подряд; резул
     assert.equal(j['уровень'], level, f + ': уровень ' + level);
     const high = ['epic', 'legendary', 'impossible'].includes(rarity);
     const expectedB = тип === 'столярное_дело'
-      ? ['000005']
-      : (high ? ['000008', '000025'] : ['000008']);
-    assert.deepEqual(j['здания'].map((b) => refNum(b)), expectedB,
+      ? [5]
+      : (high ? [8, 25] : [8]);
+    assert.deepEqual(j['здания'].map((b) => buildingTargetId(b)), expectedB,
       f + ': здания ' + JSON.stringify(expectedB));
     for (const b of j['здания']) {
-      assert.ok(buildings.has(refNum(b) + '.json'), f + ': здание ' + b);
+      assert.ok(buildings.has(b.split('/').pop()), f + ': здание ' + b);
     }
     const skillNames = j['навыки'].map((s) => skillById.get(refNum(s) + '.json'));
     for (const s of j['навыки']) {
@@ -679,7 +685,7 @@ test('000321.03 T9: зеркала — src/items-data.js содержит 50 н�
         path.join(SKILLS_DIR, refNum(s) + '.json'), 'utf8')).id),
       f + ': зеркало — навыки резолвлены в id');
     assert.deepEqual(m['здания'], j['здания'].map(
-      (b) => Number(refNum(b))),
+      (b) => buildingTargetId(b)),
       f + ': зеркало — здания резолвлены в числовой id');
   });
 });

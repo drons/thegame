@@ -177,7 +177,7 @@ test('000318.04 T2: зеркала позиционно — MOB_GROUPS ids [1..7
   });
 });
 
-test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→mobs + 21 dungeons→mobs в slug-форме (isRef, резолв, id==basename); numeric-форм в данных 0; items/buildings dungeons — numeric', () => {
+test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→mobs + 21 dungeons→mobs в slug-форме (isRef, резолв, id==basename); numeric-форм в данных 0; items dungeons — numeric, buildings — slug с 000318.06', () => {
   const NUM_MOB_REF = /assets\/mobs\/\d{6}\.json/g;
   let nMg = 0;
   for (const f of shapeFiles('mob_groups')) {
@@ -214,8 +214,8 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
         `dungeons/${f}: items-ссылка «${m}» — не numeric (шейп items не менялся)`);
     }
     if (data.постройка !== undefined) {
-      assert.match(data.постройка, /^assets\/buildings\/\d{6}\.json$/,
-        `dungeons/${f}: постройка «${data.постройка}» — не numeric`);
+      assert.match(data.постройка, /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/,
+        `dungeons/${f}: постройка «${data.постройка}» — не slug (000318.06)`);
     }
     for (const rec of (data.руда || [])) {
       if (rec && rec.предмет !== undefined) {
@@ -229,8 +229,8 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
 
 test('000318.04 T4: REF_RE — побайтовый пин ДВУХгруппного source + таблица истинности формы × каталога', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|skills|buildings|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    '^assets\\/(items|skills|craft|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|buildings|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
     'REF_RE группами по шейпам: number-группа (items первым в '
     + 'REF_LINKED_CATALOGS) + slug-группа (spells с .05, mobs) — drift '
     + 'узаконен .04/.05; рантайм-носитель pattern обновлён в '
@@ -244,7 +244,7 @@ test('000318.04 T4: REF_RE — побайтовый пин ДВУХгруппн�
     ['assets/dungeons/000005.json', false],
     ['assets/items/000001.json', true],
     ['assets/items/wood_sword.json', false],
-    ['assets/buildings/000001.json', true],
+    ['assets/buildings/weapons_shop.json', true],
     ['assets/runes/stone_hide.json', false],
     ['assets/visuals/bush.json', false],
   ]) {

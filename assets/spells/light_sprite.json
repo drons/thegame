@@ -16,8 +16,8 @@
     "assets/items/000274.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Световой sprite: призывает Фею — союзного целителя (4 хода).",
   "icon": "assets/spell-icons/light_sprite.svg",

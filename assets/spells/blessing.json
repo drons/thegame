@@ -17,8 +17,8 @@
     "assets/items/000265.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Благословение: +10% урона герою и всем живым союзникам на 3 хода.",
   "icon": "assets/spell-icons/blessing.svg",

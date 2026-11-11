@@ -10,7 +10,7 @@
     { "предмет": "assets/items/000042.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000027.json"],
-  "здания": ["assets/buildings/000040.json", "assets/buildings/000048.json"],
+  "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],
   "уровень": 5,
   "описание": "Обсидиан точит грани, фосфорит подсвечивает жилу: рубин из грубой руды."
 }

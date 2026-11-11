@@ -17,7 +17,7 @@
     "assets/items/000244.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Печать дурного предзнаменования: цель получает повышенный урон на 3 хода.",
   "icon": "assets/spell-icons/doom_mark.svg",

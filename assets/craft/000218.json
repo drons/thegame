@@ -20,7 +20,7 @@
     "assets/skills/000025.json"
   ],
   "здания": [
-    "assets/buildings/000017.json"
+    "assets/buildings/alchemy_lab.json"
   ],
   "уровень": 3,
   "описание": "Камень толчёный — и зелье толчёное."

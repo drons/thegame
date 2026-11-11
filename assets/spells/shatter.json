@@ -13,7 +13,7 @@
     "assets/items/000136.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Удар раскола: большой урон, ×2 урона по замороженной цели.",
   "icon": "assets/spell-icons/shatter.svg",

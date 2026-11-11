@@ -8,7 +8,7 @@
 //
 // КРАСНЫЕ тесты (TDD): написаны ДО реализации. Причины падения на
 // текущем коде — отсутствие функциональности (не синтаксис/среда):
-//   * R1 — assets/buildings/000055.json НЕТ, зеркало buildings.js
+//   * R1 — assets/buildings/storage.json НЕТ, зеркало buildings.js
 //     без 55 (getBuilding(55) — null, каталог 54 записи);
 //   * R2 — buildableBuildingIds — 21 id (55 нет), buildCost(55) —
 //     throw (id вне каталога);
@@ -235,9 +235,9 @@ function lastOverlay(t) {
 // ============================================================
 
 test('000221-R1. каталог: 000055.json «Хранилище» + зеркало getBuilding(55): прочее, npc null, слот 12/доля 0, БЕЗ map_index/«размер», «спрайт» — свой (ре-пин 000265), эффекты ["storage"], слоты 40, стройка 100 з. + Бревно×2 + Каменный обломок×2', () => {
-  const p = path.join(ROOT, 'assets/buildings/000055.json');
+  const p = path.join(ROOT, 'assets/buildings/storage.json');
   assert.ok(fs.existsSync(p),
-    'RED: файл assets/buildings/000055.json отсутствует');
+    'RED: файл assets/buildings/storage.json отсутствует');
   const j = JSON.parse(fs.readFileSync(p, 'utf8'));
   assert.equal(j.id, 55, 'RED: id 55');
   assert.equal(j.название, 'Хранилище', 'RED: название');

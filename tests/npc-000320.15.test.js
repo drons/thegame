@@ -12,7 +12,7 @@
 //     000030 «Полынь», 000031 «Тигель», 000032 «Жгут»), роль
 //     «торговец свитками» (фикс ТЗ; строка НОВА в каталоге — свипов
 //     уникальности ролей нет, Т4 пишет точное равенство), постройка
-//     assets/buildings/000004.json (Магазин магии — ВТОРОЙ NPC: Зира
+//     assets/buildings/magic_shop.json (Магазин магии — ВТОРОЙ NPC: Зира
 //     ПЕРВАЯ, npcForBuilding(4) продолжает возвращать Зиру), хук
 //     истории «Покупает и продаёт свитки; знает, какое заклинание в
 //     каком» (последнее предложение описания, с заглавной —
@@ -386,7 +386,7 @@ test('T7: npcsForBuilding(NPCS, 4) — ДВЕ записи Магазина ма
 // --- T8: оверлей дома 4 — ровно 2 dialog-строки ------------------------------
 
 test('T8: [E]-оверлей Магазина магии — ровно 2 строки: dialog (Зира), dialog:scroll_merchant (Пергамент) — пин 000320.15; ре-пин при появлении третьего NPC дома 4 (.16)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000004.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'magic_shop.json'));
   const list = N.npcsForBuilding(NPCS, 4);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

@@ -13,7 +13,7 @@
     "assets/items/000137.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Пик ледника: урон цели и root на 1 ход.",
   "icon": "assets/spell-icons/glacial_spike.svg",

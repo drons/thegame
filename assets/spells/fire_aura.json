@@ -17,7 +17,7 @@
     "assets/items/000120.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Огненная аура: урон кастера возрастает.",
   "icon": "assets/spell-icons/fire_aura.svg",

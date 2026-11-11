@@ -13,7 +13,7 @@
     "assets/items/000134.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Морозный снаряд: урон цели, броня_вниз на 3 хода.",
   "icon": "assets/spell-icons/rime_bolt.svg",

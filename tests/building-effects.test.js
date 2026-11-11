@@ -1377,9 +1377,9 @@ test('A43. каталог 40/42: эффект — ОБЪЕКТ (параметр
   // Зеркало src/buildings.js — byte-в-byte с каталогом (000055;
   // регенерация npm run sync:buildings).
   const j40 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000040.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'rune_stone.json'), 'utf8'));
   const j42 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000042.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'obelisk.json'), 'utf8'));
   assert.deepEqual(B.getBuilding(40), resolveItemRefs(j40),
     'зеркало 40: buildings.js ≡ JSON');
   assert.deepEqual(B.getBuilding(42), resolveItemRefs(j42),
@@ -2241,7 +2241,7 @@ test('A62. каталог 46: эффект.радиус = 20 (раз_в_день
   // Зеркало src/buildings.js — byte-в-byte с каталогом (000055;
   // регенерация npm run sync:buildings; паттерн A43).
   const j46 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000046.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'watchtower.json'), 'utf8'));
   assert.deepEqual(B.getBuilding(46), resolveItemRefs(j46),
     'зеркало 46: buildings.js ≡ JSON');
 });
@@ -2412,9 +2412,9 @@ test('A57. 000077: детерминизм — тот же (tile,day) → тот 
 test('A58. 000077: каталог 39/43 — эффект-объект { доли, реликвии } + раз_в_день (39) + зеркало buildings.js', () => {
   const B = require('../src/buildings.js');
   const j39 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000039.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'abandoned_temple.json'), 'utf8'));
   const j43 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000043.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'magic_circle.json'), 'utf8'));
   // 8 СУЩЕСТВУЮЩИХ id (контракт §6; новых предметов НЕТ — ТЗ).
   const RELICS = [
     'phoenix_feather', 'heavy_tome', 'stone_fist_grimoire',
@@ -2814,7 +2814,7 @@ test('A56. каталог 000048: раз_в_день + эффект (доли 40
   // Зеркало src/buildings.js — byte-в-byte с каталогом (000055;
   // регенерация npm run sync:buildings).
   const j48 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000048.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'ruins.json'), 'utf8'));
   assert.deepEqual(B.getBuilding(48), resolveItemRefs(j48),
     'зеркало 48: buildings.js ≡ JSON');
 });
@@ -3605,7 +3605,7 @@ test('A55. «Лагерь» (47): EFFECTS «fire»/«market» — имена, Б
 test('A56. каталог 000047: эффекты/эффект + зеркало src/buildings.js; 000050 — без изменений (задача 000095)', () => {
   const BDIR = path.join(ROOT, 'assets', 'buildings');
   const b47 = JSON.parse(
-    fs.readFileSync(path.join(BDIR, '000047.json'), 'utf8'));
+    fs.readFileSync(path.join(BDIR, 'camp.json'), 'utf8'));
   assert.equal(b47.id, 47, 'id 47');
   assert.equal(b47.название, 'Лагерь', 'название «Лагерь»');
   const op = b47.особые_параметры;
@@ -3638,7 +3638,7 @@ test('A56. каталог 000047: эффекты/эффект + зеркало s
   // id 50 (Мост / Ворота) — РЕЗЕРВ: решение только в SPEC/memory
   // (L565–568), кода не требует — запись НЕ ТРОГАЕТСЯ.
   const b50 = JSON.parse(
-    fs.readFileSync(path.join(BDIR, '000050.json'), 'utf8'));
+    fs.readFileSync(path.join(BDIR, 'bridge_gate.json'), 'utf8'));
   assert.equal(b50.id, 50, 'id 50');
   assert.equal(b50.название, 'Мост / Ворота', 'название 000050');
   assert.ok(
@@ -4027,7 +4027,7 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   assert.equal(npc.имя, 'Кочевник', 'имя «Кочевник»');
   assert.equal(npc.роль, 'странствующий торговец',
     'роль «странствующий торговец»');
-  assert.deepEqual(npc.постройки, ['assets/buildings/000047.json'],
+  assert.deepEqual(npc.постройки, ['assets/buildings/camp.json'],
     'постройки: ссылка на 000047 (связь с лагерем → npcForBuilding, 000071)');
   assert.deepEqual(
     npc.диалог.map((d) => [d.id, d.действие]),
@@ -4134,9 +4134,9 @@ test('A56. каталог 49 (фонтан): эффекты + раз_в_день
   }, '49: эффект — параметры формул (000053; red: отсутствует)');
   // Зеркало src/buildings.js — тождественно каталогу (000055).
   const j49 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000049.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'fountain.json'), 'utf8'));
   assert.deepEqual(B.getBuilding(49), resolveItemRefs(j49),
-    'зеркало 49: buildings.js ≡ assets/buildings/000049.json');
+    'зеркало 49: buildings.js ≡ assets/buildings/fountain.json');
 });
 
 test('A57. каталог 45 (колодец): раз_в_день (boolean) + эффект (шанс + 10 предметов) + зеркало buildings.js ≡ JSON', () => {
@@ -4160,9 +4160,9 @@ test('A57. каталог 45 (колодец): раз_в_день (boolean) + э
       '45: «' + id + '» ∈ assets/items (не новый предмет)');
   }
   const j45 = JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings', '000045.json'), 'utf8'));
+    path.join(ROOT, 'assets', 'buildings', 'well.json'), 'utf8'));
   assert.deepEqual(B.getBuilding(45), resolveItemRefs(j45),
-    'зеркало 45: buildings.js ≡ assets/buildings/000045.json');
+    'зеркало 45: buildings.js ≡ assets/buildings/well.json');
 });
 
 test('A58. hasDailyLimit: per-effect объект (49: heal true / coin false; 45: «45» true); boolean — регрессия; у объекта НЕТ фолбэка на реестр', () => {
@@ -9271,7 +9271,7 @@ test('RG1. 000200: реестр EFFECTS["fullrest"] {имя:"Полный отд
   // Зеркало src/buildings.js — byte-пин (000053, sync:buildings):
   // особые_параметры ≡ JSON-каталогу (обе записи).
   const BDIR = path.join(ROOT, 'assets', 'buildings');
-  for (const [id, fname] of [[44, '000044.json'], [47, '000047.json']]) {
+  for (const [id, fname] of [[44, 'tavern.json'], [47, 'camp.json']]) {
     const json = JSON.parse(
       fs.readFileSync(path.join(BDIR, fname), 'utf8'));
     assert.deepEqual(B.getBuilding(id).особые_параметры,

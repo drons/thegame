@@ -12,7 +12,7 @@
     "assets/items/000152.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Ледниковая хватка: root цели на 1 ход и броня_вниз.",
   "icon": "assets/spell-icons/glacier_grasp.svg",

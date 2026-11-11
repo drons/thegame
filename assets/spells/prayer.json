@@ -16,8 +16,8 @@
     "assets/items/000279.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Молитва: 1 день — ночной отдых восстанавливает +10% (как лагерь).",
   "icon": "assets/spell-icons/prayer.svg",

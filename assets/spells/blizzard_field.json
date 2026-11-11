@@ -19,7 +19,7 @@
     "assets/items/000142.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Поле метели: зона, враги в ней получают dot-урон и замедлены на 3 хода.",
   "icon": "assets/spell-icons/blizzard_field.svg",

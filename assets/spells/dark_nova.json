@@ -13,7 +13,7 @@
     "assets/items/000239.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Тёмная нова: всплеск тьмы вокруг цели — урон и дебаф ближайшим врагам.",
   "icon": "assets/spell-icons/dark_nova.svg",

@@ -17,9 +17,9 @@
     "assets/items/000484.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Круг защиты: 1 день — в радиусе 5 не триггерятся зоны, погон нет.",
   "icon": "assets/spell-icons/warding_circle.svg",

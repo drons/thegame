@@ -13,7 +13,7 @@
     "assets/items/000110.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Кольцо пламени вокруг кастера, ожигающее соседей.",
   "icon": "assets/spell-icons/fire_nova.svg",

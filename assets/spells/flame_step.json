@@ -13,7 +13,7 @@
     "assets/items/000132.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Кастер исчезает в вспышке пламени и оказывается на несколько тайлов дальше по направлению движения.",
   "icon": "assets/spell-icons/flame_step.svg",

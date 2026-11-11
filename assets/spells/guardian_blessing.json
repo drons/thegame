@@ -17,8 +17,8 @@
     "assets/items/000267.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Хранительное благословение: +1 броня партии на 3 хода.",
   "icon": "assets/spell-icons/guardian_blessing.svg",

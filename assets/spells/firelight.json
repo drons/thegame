@@ -17,7 +17,7 @@
     "assets/items/000130.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Огненный свет, рассеивающий темноту подземелья: +5 к радиусу видимости в подземельях. Длится 1 день.",
   "icon": "assets/spell-icons/firelight.svg",

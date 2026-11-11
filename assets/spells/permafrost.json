@@ -13,7 +13,7 @@
     "assets/items/000138.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Волна вечной мерзлоты: урон цели и заморозка на 1 ход.",
   "icon": "assets/spell-icons/permafrost.svg",

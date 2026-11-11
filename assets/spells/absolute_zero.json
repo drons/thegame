@@ -13,7 +13,7 @@
     "assets/items/000139.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Абсолютный ноль: большой урон цели и всех вокруг неё.",
   "icon": "assets/spell-icons/absolute_zero.svg",

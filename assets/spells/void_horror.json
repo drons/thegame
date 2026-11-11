@@ -16,7 +16,7 @@
     "assets/items/000253.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Призывает Ужас пустоты — сильного союзника, внушающего страх, сражается 4 хода.",
   "icon": "assets/spell-icons/void_horror.svg",

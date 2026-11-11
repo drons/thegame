@@ -487,7 +487,7 @@ function portalGuest(over = {}) {
     действие: 'телепорт',
     вне_боя: true,
     параметры: { mode: 'город' },
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.04)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.04)',

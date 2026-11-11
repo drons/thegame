@@ -2916,10 +2916,12 @@ test('000211.07 R5: sprites.js (vm) — чтение каталога ЛЕНИВ
 test('000211.07 SP-B1: vm цепочка index.html (perlin→map→buildings→sprites, РЕАЛЬНЫЙ каталог src/buildings.js) — buildingSprite(0..12)/citySprite(51..54)/campSprite(47) = «спрайт» каталожных записей (= закрытому пину); slot→id — из данных (map_index); null-гарды каналов', () => {
   const raw = {};
   for (const f of fs.readdirSync(path.join(ROOT, 'assets', 'buildings'))
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
-    raw[parseInt(f, 10)] = JSON.parse(
+    .filter((x) => x !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(x)).sort()) {
+    const j = JSON.parse(
       fs.readFileSync(
         path.join(ROOT, 'assets', 'buildings', f), 'utf8'));
+    raw[j.id] = j;
   }
   const slotOf = {};
   for (const n of Object.keys(raw).map(Number)) {

@@ -16,9 +16,9 @@
     "assets/items/000480.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Железный страж: сильный союзник-щит, 4 хода.",
   "icon": "assets/spell-icons/iron_sentinel.svg",

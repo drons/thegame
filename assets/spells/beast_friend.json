@@ -17,8 +17,8 @@
     "assets/items/000510.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Зверь-приятель: 3 дня волк-спутник рядом; в подземельях +3 к радиусу видимости.",
   "icon": "assets/spell-icons/beast_friend.svg",

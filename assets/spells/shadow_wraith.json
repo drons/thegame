@@ -16,7 +16,7 @@
     "assets/items/000252.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Призывает Теневого виверна — союзника с уроном и вампиризмом, сражается 4 хода.",
   "icon": "assets/spell-icons/shadow_wraith.svg",

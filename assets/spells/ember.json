@@ -13,7 +13,7 @@
     "assets/items/000108.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Искра тлеющих углей, опаляющая врага. Базовое заклинание школы Огня.",
   "icon": "assets/spell-icons/ember.svg",

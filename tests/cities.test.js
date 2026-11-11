@@ -323,7 +323,7 @@ test('ссылочная целостность: 4 типа «город» ка�
   const C = loadCities();
   const dir = path.join(ROOT, 'assets', 'buildings');
   const cities = fs.readdirSync(dir)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')))
     .filter((b) => b.категория === 'город');
   assert.equal(cities.length, 4, 'каталог 000102: ровно 4 типа города');
@@ -619,7 +619,7 @@ const BUILDINGS_DIR = path.join(ROOT, 'assets', 'buildings');
 
 function catalogAll() {
   return fs.readdirSync(BUILDINGS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(BUILDINGS_DIR, f), 'utf8')));
 }
 const CATALOG_BY_ID = new Map(catalogAll().map((b) => [b.id, b]));
@@ -1095,7 +1095,8 @@ test('wealth: город (100,−40) — (w0) ≠ (w3); count = мин_пост�
 // Новый map_index ЗАПРЕЩЁН (spec/buildings.md «Расширение карты», 000064 R1).
 //
 // СТАНЦИЯ КРАСНЫХ ТЕСТОВ: падают на отсутствие ключа «5» в
-// доли_типов 52/53/54 (assets/buildings/00005x.json) — осмысленно
+// доли_типов 52/53/54 (assets/buildings/city_5x.json, 000318.06) —
+// осмысленно
 // (нет функциональности), не синтаксически. Литералы генерации —
 // замер зондом станции Проектирования; на зелёной стадии сверить
 // с ПЕРВЫМ зелёным прогоном (правило 000104).

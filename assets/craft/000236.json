@@ -30,8 +30,8 @@
     "assets/skills/000008.json"
   ],
   "здания": [
-    "assets/buildings/000008.json",
-    "assets/buildings/000025.json"
+    "assets/buildings/blacksmith.json",
+    "assets/buildings/npc_house.json"
   ],
   "уровень": 88,
   "описание": "Алмаз в голове молота: удар становится точкой."

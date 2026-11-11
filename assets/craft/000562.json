@@ -28,8 +28,8 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json",
-    "assets/buildings/000025.json"
+    "assets/buildings/blacksmith.json",
+    "assets/buildings/npc_house.json"
   ],
   "уровень": 48,
   "описание": "Часовой круг выдерживают дольше."

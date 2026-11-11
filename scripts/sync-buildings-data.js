@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 // Перегенерирует блок данных BUILDINGS в src/buildings.js из каталога
-// assets/buildings/0000*.json (source of truth — JSON-файлы).
+// assets/buildings/<slug>.json (source of truth — JSON-файлы; имя —
+// 000318.06: basename «спрайт» / таблица, порядок блока — по data.id).
 //
 // Зачем: игра открывается двойным кликом (file://), где fetch() локальных
 // JSON недоступен, поэтому каталог зданий дублируется в JS-модуле
@@ -23,7 +24,8 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { isRefPath } = require('./lib/json-ref.js');
+const { isRefPath, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'buildings');
@@ -35,11 +37,14 @@ const HEADER =
   '(scripts/sync-buildings-data.js)';
 
 // --- Чтение каталога ---
+// Форма имени — из ЖИВОГО реестра lib (000318.06: buildings — slug);
+// slug-regex матчит и schema.json — исключаем явно (прецедент .02).
 const files = fs.readdirSync(DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.buildings].test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/buildings: не найдено ни одного файла 0000NN.json');
+  console.error('assets/buildings: не найдено ни одного файла каталога');
   process.exit(1);
 }
 
@@ -114,16 +119,24 @@ function resolveSkillRef(file, ref) {
   return tj.id;
 }
 const buildings = [];
+const seenIds = new Set();
 for (const f of files) {
-  const n = parseInt(f, 10);
   const data = JSON.parse(
     fs.readFileSync(path.join(DIR, f), 'utf8'));
   // Минимальная проверка (полная структура закреплена в schema.json,
-  // сверка с JS-модулем — в tests/buildings.test.js).
-  if (!data || data.id !== n) {
-    console.error(`${f}: id ≠ номер файла (${n})`);
+  // сверка с JS-модулем — в tests/buildings.test.js). С 000318.06 имя
+  // файла — slug-носитель, «id = номер файла» более не контракт:
+  // целостность — целочисленность и уникальность id (порядок блока —
+  // компаратор по data.id ниже, байт-в-байт прежний id-порядок).
+  if (!data || !Number.isInteger(data.id)) {
+    console.error(`${f}: id отсутствует или не целое`);
     process.exit(1);
   }
+  if (seenIds.has(data.id)) {
+    console.error(`${f}: дубль id ${data.id}`);
+    process.exit(1);
+  }
+  seenIds.add(data.id);
   for (const k of REQUIRED) {
     if (!(k in data)) {
       console.error(`${f}: нет обязательного поля «${k}»`);
@@ -148,6 +161,11 @@ for (const f of files) {
   }
   buildings.push({ file: f, data });
 }
+// Порядок блока — по data.id (000318.06): прежний .sort() по имени файла
+// был контрактом id-порядка только пока имя = номер; lex-порядок slug-
+// имён ≠ id-порядку — без компаратора сдвинулся бы позиционный контракт
+// BUILDINGS (getBuilding(i) === BUILDINGS[i-1], секции категорий).
+buildings.sort((a, b) => a.data.id - b.data.id);
 
 // --- Генерация JS ---
 

@@ -18,8 +18,8 @@
     "assets/items/000259.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Расцвет жизни: восстанавливает здоровье цели и даёт регенерацию на 2 хода.",
   "icon": "assets/spell-icons/life_bloom.svg",

@@ -6,7 +6,7 @@
 // memory/000320-npcs-batch.md):
 //   * assets/npc/000020.json — id fencing_instructor, имя «Родар»,
 //     роль «наставник-мечник» (фикс), постройка
-//     assets/buildings/000001.json (Оружейная — третья связь),
+//     assets/buildings/weapons_shop.json (Оружейная — третья связь),
 //     хук описания «Учит на деревянных мечах — сталь в учений не
 //     допускает»;
 //   * профиль — обучение: ≥1 опция диалога «обучение» (формат
@@ -213,7 +213,7 @@ test('T7: npcsForBuilding(NPCS, 1) — ДЕВЯТЬ NPC Оружейной в п
 // --- T8: оверлей Оружейной — ровно 9 dialog-строк ----------------------------
 
 test('T8: [E]-оверлей Оружейной — ровно 9 строк: dialog (Бренн), dialog:blade_merchant (Корд), dialog:fencing_instructor (Родар), dialog:duelist (Скарн), dialog:veteran_blade (Боримир), dialog:sword_collector (Рарог), dialog:blade_smith (Дарн), dialog:ex_mercenary (Горм), dialog:armory_apprentice (Опилка)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000001.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'weapons_shop.json'));
   const list = N.npcsForBuilding(NPCS, 1);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

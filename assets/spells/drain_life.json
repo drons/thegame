@@ -16,7 +16,7 @@
     "assets/items/000234.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Пожизненная сила: урон цели, кастер лечится на половину нанесённого урона.",
   "icon": "assets/spell-icons/drain_life.svg",

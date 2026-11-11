@@ -19,7 +19,7 @@
     "assets/items/000251.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Покров ночи: зона — урон врагов в ней снижен, 3 хода (радиус 2).",
   "icon": "assets/spell-icons/veil_of_night.svg",

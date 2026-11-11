@@ -8,7 +8,7 @@
 //     (выбор агента: прозвище за метлу — стружку и пыль Оружейной;
 //     прецедент не-личного имени 000018 «Кочевник»), роль
 //     «подмастерье» (фикс, в каталоге новая), постройка
-//     assets/buildings/000001.json (Оружейная — девятая связь), хук
+//     assets/buildings/weapons_shop.json (Оружейная — девятая связь), хук
 //     истории «Метёт пол и мечтает о своей стене клинков» (последнее
 //     предложение описания, с заглавной — прецеденты .02 «Учит»/.03
 //     «Ищет»/.04 «Помнит»/.05 «Собирает»/.06 «Точит»/.07 «Ушёл»);
@@ -252,7 +252,7 @@ test('T7: npcsForBuilding(NPCS, 1) — ДЕВЯТЬ NPC Оружейной в п
 // --- T8: оверлей Оружейной — ровно 9 dialog-строк ----------------------------
 
 test('T8: [E]-оверлей Оружейной — ровно 9 строк: dialog (Бренн), dialog:blade_merchant (Корд), dialog:fencing_instructor (Родар), dialog:duelist (Скарн), dialog:veteran_blade (Боримир), dialog:sword_collector (Рарог), dialog:blade_smith (Дарн), dialog:ex_mercenary (Горм), dialog:armory_apprentice (Опилка)', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000001.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'weapons_shop.json'));
   const list = N.npcsForBuilding(NPCS, 1);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

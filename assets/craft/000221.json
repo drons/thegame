@@ -24,8 +24,8 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json",
-    "assets/buildings/000025.json"
+    "assets/buildings/blacksmith.json",
+    "assets/buildings/npc_house.json"
   ],
   "уровень": 16,
   "описание": "Аметист держит гребни в одной плоскости."

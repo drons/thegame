@@ -13,7 +13,7 @@
     "assets/items/000236.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Ночной удар: тяжёлый удар в темноте, большой урон.",
   "icon": "assets/spell-icons/night_strike.svg",

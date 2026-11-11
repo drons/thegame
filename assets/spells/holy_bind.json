@@ -12,8 +12,8 @@
     "assets/items/000273.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Священные узы: сковывает моба на одно действие.",
   "icon": "assets/spell-icons/holy_bind.svg",

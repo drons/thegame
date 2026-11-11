@@ -17,7 +17,7 @@
     "assets/items/000146.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Благословение мороза: попадание союзника улучшено на 3 хода.",
   "icon": "assets/spell-icons/frostbite_blessing.svg",

@@ -3,7 +3,7 @@
 //
 // GENERATED — не править руками, синхронизируется из assets/buildings (scripts/sync-buildings-data.js).
 //
-// Source of truth — JSON-файлы assets/buildings/NNNNNN.json (структура
+// Source of truth — JSON-файлы assets/buildings/<slug>.json (000318.06; структура
 // закреплена в assets/buildings/schema.json). Игра открывается двойным
 // кликом (file://), где fetch() локальных JSON не работает, поэтому данные
 // лежат прямо в модуле: блок BUILDINGS ниже (между маркерами BEGIN/END
@@ -101,13 +101,14 @@
     return tilesWhere((d) => d.dense);
   }
 
-  // Каталог: 55 типов, id = номер файла assets/buildings/0000NN.json.
+  // Каталог: 55 типов, имя файла = slug assets/buildings/<slug>.json
+  // (000318.06; id — поле данных, не номер файла).
   // Порядок: магазины (6), школы навыков (18), дома NPC (6), пещеры (5),
   // храмы (4), магические знаки (4), города (4), прочие (8).
   // BEGIN GENERATED (scripts/sync-buildings-data.js)
   const BUILDINGS = [
     // --- Магазины ---
-    // 000001.json
+    // weapons_shop.json
     {
       id: 1,
       название: "Оружейная",
@@ -120,7 +121,7 @@
       спрайт: "assets/sprites/buildings/weapons_shop.svg",
       icon: "assets/sprites/buildings/weapons_shop.svg",
     },
-    // 000002.json
+    // armor_shop.json
     {
       id: 2,
       название: "Бронник",
@@ -133,7 +134,7 @@
       спрайт: "assets/sprites/buildings/armor_shop.svg",
       icon: "assets/sprites/buildings/armor_shop.svg",
     },
-    // 000003.json
+    // apothecary.json
     {
       id: 3,
       название: "Аптекарь",
@@ -146,7 +147,7 @@
       спрайт: "assets/sprites/buildings/apothecary.svg",
       icon: "assets/sprites/buildings/apothecary.svg",
     },
-    // 000004.json
+    // magic_shop.json
     {
       id: 4,
       название: "Магазин магии",
@@ -159,7 +160,7 @@
       спрайт: "assets/sprites/buildings/magic_shop.svg",
       icon: "assets/sprites/buildings/magic_shop.svg",
     },
-    // 000005.json
+    // wanderer_shop.json
     {
       id: 5,
       название: "Лавка странника",
@@ -172,7 +173,7 @@
       icon: "assets/building-icons/000005.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Лавка странника». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000006.json
+    // universam.json
     {
       id: 6,
       название: "Универсам",
@@ -186,7 +187,7 @@
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Универсам». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
     // --- Школы навыков ---
-    // 000007.json
+    // arena.json
     {
       id: 7,
       название: "Арена",
@@ -200,7 +201,7 @@
       спрайт: "assets/sprites/buildings/arena.svg",
       icon: "assets/sprites/buildings/arena.svg",
     },
-    // 000008.json
+    // blacksmith.json
     {
       id: 8,
       название: "Кузница",
@@ -212,7 +213,7 @@
       спрайт: "assets/sprites/buildings/blacksmith.svg",
       icon: "assets/sprites/buildings/blacksmith.svg",
     },
-    // 000009.json
+    // gladiator_yard.json
     {
       id: 9,
       название: "Гладиаторский двор",
@@ -224,7 +225,7 @@
       icon: "assets/building-icons/000009.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Гладиаторский двор». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000010.json
+    // archery_range.json
     {
       id: 10,
       название: "Стрельбище",
@@ -236,7 +237,7 @@
       спрайт: "assets/sprites/buildings/archery_range.svg",
       icon: "assets/sprites/buildings/archery_range.svg",
     },
-    // 000011.json
+    // academy.json
     {
       id: 11,
       название: "Школа акробатов",
@@ -248,7 +249,7 @@
       спрайт: "assets/sprites/buildings/academy.svg",
       icon: "assets/sprites/buildings/academy.svg",
     },
-    // 000012.json
+    // hunting_estate.json
     {
       id: 12,
       название: "Охотничья усадьба",
@@ -260,7 +261,7 @@
       icon: "assets/building-icons/000012.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Охотничья усадьба». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000013.json
+    // gymnasium.json
     {
       id: 13,
       название: "Гимнасий",
@@ -272,7 +273,7 @@
       icon: "assets/building-icons/000013.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Гимнасий». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000014.json
+    // gladiator_camp.json
     {
       id: 14,
       название: "Лагерь гладиаторов",
@@ -284,7 +285,7 @@
       icon: "assets/building-icons/000014.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Лагерь гладиаторов». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000015.json
+    // bathhouse.json
     {
       id: 15,
       название: "Баня",
@@ -296,7 +297,7 @@
       icon: "assets/building-icons/000015.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Баня». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000016.json
+    // library.json
     {
       id: 16,
       название: "Библиотека",
@@ -308,7 +309,7 @@
       icon: "assets/building-icons/000016.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Библиотека». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000017.json
+    // alchemy_lab.json
     {
       id: 17,
       название: "Лаборатория алхимика",
@@ -320,7 +321,7 @@
       icon: "assets/building-icons/000017.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Лаборатория алхимика». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000018.json
+    // mage_tower.json
     {
       id: 18,
       название: "Башня мага",
@@ -334,7 +335,7 @@
       icon: "assets/building-icons/000018.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Башня мага». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000019.json
+    // monastery.json
     {
       id: 19,
       название: "Монастырь",
@@ -348,7 +349,7 @@
       icon: "assets/building-icons/000019.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Монастырь». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000020.json
+    // elders_hut.json
     {
       id: 20,
       название: "Хижина старейшин",
@@ -360,7 +361,7 @@
       icon: "assets/building-icons/000020.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Хижина старейшин». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000021.json
+    // healing_temple.json
     {
       id: 21,
       название: "Храм исцеления",
@@ -372,7 +373,7 @@
       icon: "assets/building-icons/000021.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Храм исцеления». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000022.json
+    // tavern_school.json
     {
       id: 22,
       название: "Таверна",
@@ -384,7 +385,7 @@
       icon: "assets/building-icons/000022.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Таверна». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000023.json
+    // theater.json
     {
       id: 23,
       название: "Театр",
@@ -396,7 +397,7 @@
       icon: "assets/building-icons/000023.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Театр». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000024.json
+    // town_hall.json
     {
       id: 24,
       название: "Ратуша",
@@ -411,7 +412,7 @@
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Ратуша». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
     // --- Дома NPC ---
-    // 000025.json
+    // npc_house.json
     {
       id: 25,
       название: "Дом кузнеца",
@@ -423,7 +424,7 @@
       спрайт: "assets/sprites/buildings/npc_house.svg",
       icon: "assets/sprites/buildings/npc_house.svg",
     },
-    // 000026.json
+    // healer_house.json
     {
       id: 26,
       название: "Дом целителя",
@@ -436,7 +437,7 @@
       icon: "assets/building-icons/000026.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Дом целителя». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000027.json
+    // scribe_house.json
     {
       id: 27,
       название: "Дом писаря",
@@ -448,7 +449,7 @@
       icon: "assets/building-icons/000027.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Дом писаря». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000028.json
+    // merchant_house.json
     {
       id: 28,
       название: "Дом торговца",
@@ -461,7 +462,7 @@
       icon: "assets/building-icons/000028.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Дом торговца». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000029.json
+    // hermit_hut.json
     {
       id: 29,
       название: "Хижина отшельника",
@@ -473,7 +474,7 @@
       icon: "assets/building-icons/000029.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Хижина отшельника». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000030.json
+    // orc_pagan_house.json
     {
       id: 30,
       название: "Домина орк-язычницы",
@@ -486,7 +487,7 @@
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Домина орк-язычницы». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
     // --- Пещеры ---
-    // 000031.json
+    // cave_entrance.json
     {
       id: 31,
       название: "Простая пещера",
@@ -498,7 +499,7 @@
       спрайт: "assets/sprites/buildings/cave_entrance.svg",
       icon: "assets/sprites/buildings/cave_entrance.svg",
     },
-    // 000032.json
+    // crypt.json
     {
       id: 32,
       название: "Склеп",
@@ -510,7 +511,7 @@
       icon: "assets/building-icons/000032.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Склеп». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000033.json
+    // castle_ruins.json
     {
       id: 33,
       название: "Руины замка",
@@ -522,7 +523,7 @@
       icon: "assets/building-icons/000033.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Руины замка». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000034.json
+    // flooded_cave.json
     {
       id: 34,
       название: "Затопленная пещера",
@@ -534,7 +535,7 @@
       icon: "assets/building-icons/000034.svg",
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Затопленная пещера». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
-    // 000035.json
+    // abyss.json
     {
       id: 35,
       название: "Бездна",
@@ -547,7 +548,7 @@
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Бездна». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
     // --- Храмы ---
-    // 000036.json
+    // temple.json
     {
       id: 36,
       название: "Храм солнца",
@@ -561,7 +562,7 @@
       спрайт: "assets/sprites/buildings/temple.svg",
       icon: "assets/sprites/buildings/temple.svg",
     },
-    // 000037.json
+    // moon_temple.json
     {
       id: 37,
       название: "Храм луны",
@@ -573,7 +574,7 @@
       спрайт: "assets/sprites/buildings/moon_temple.svg",
       icon: "assets/sprites/buildings/moon_temple.svg",
     },
-    // 000038.json
+    // mountain_temple.json
     {
       id: 38,
       название: "Храм горы",
@@ -585,7 +586,7 @@
       спрайт: "assets/sprites/buildings/mountain_temple.svg",
       icon: "assets/sprites/buildings/mountain_temple.svg",
     },
-    // 000039.json
+    // abandoned_temple.json
     {
       id: 39,
       название: "Заброшенный храм",
@@ -598,7 +599,7 @@
       icon: "assets/sprites/buildings/abandoned_temple.svg",
     },
     // --- Магические знаки ---
-    // 000040.json
+    // rune_stone.json
     {
       id: 40,
       название: "Рунический камень",
@@ -612,7 +613,7 @@
       спрайт: "assets/sprites/buildings/rune_stone.svg",
       icon: "assets/sprites/buildings/rune_stone.svg",
     },
-    // 000041.json
+    // teleport_circle.json
     {
       id: 41,
       название: "Телепорт-круг",
@@ -624,7 +625,7 @@
       спрайт: "assets/sprites/buildings/teleport_circle.svg",
       icon: "assets/sprites/buildings/teleport_circle.svg",
     },
-    // 000042.json
+    // obelisk.json
     {
       id: 42,
       название: "Обелиск",
@@ -636,7 +637,7 @@
       спрайт: "assets/sprites/buildings/obelisk.svg",
       icon: "assets/sprites/buildings/obelisk.svg",
     },
-    // 000043.json
+    // magic_circle.json
     {
       id: 43,
       название: "Магический круг",
@@ -649,7 +650,7 @@
       icon: "assets/sprites/buildings/magic_circle.svg",
     },
     // --- Прочие ---
-    // 000044.json
+    // tavern.json
     {
       id: 44,
       название: "Таверна (общественная)",
@@ -661,7 +662,7 @@
       спрайт: "assets/sprites/buildings/tavern.svg",
       icon: "assets/sprites/buildings/tavern.svg",
     },
-    // 000045.json
+    // well.json
     {
       id: 45,
       название: "Колодец",
@@ -673,7 +674,7 @@
       спрайт: "assets/sprites/buildings/well.svg",
       icon: "assets/sprites/buildings/well.svg",
     },
-    // 000046.json
+    // watchtower.json
     {
       id: 46,
       название: "Смотровая башня",
@@ -685,7 +686,7 @@
       спрайт: "assets/sprites/buildings/watchtower.svg",
       icon: "assets/sprites/buildings/watchtower.svg",
     },
-    // 000047.json
+    // camp.json
     {
       id: 47,
       название: "Лагерь",
@@ -697,7 +698,7 @@
       спрайт: "assets/sprites/buildings/camp.svg",
       icon: "assets/sprites/buildings/camp.svg",
     },
-    // 000048.json
+    // ruins.json
     {
       id: 48,
       название: "Развалины",
@@ -709,7 +710,7 @@
       спрайт: "assets/sprites/buildings/ruins.svg",
       icon: "assets/sprites/buildings/ruins.svg",
     },
-    // 000049.json
+    // fountain.json
     {
       id: 49,
       название: "Фонтан",
@@ -721,7 +722,7 @@
       спрайт: "assets/sprites/buildings/fountain.svg",
       icon: "assets/sprites/buildings/fountain.svg",
     },
-    // 000050.json
+    // bridge_gate.json
     {
       id: 50,
       название: "Мост / Ворота",
@@ -734,7 +735,7 @@
       icon_prompt: "Плоская одноцветная иконка для игры «Приключения Флогистона»: силуэт постройки «Мост / Ворота». 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста.",
     },
     // --- Города ---
-    // 000051.json
+    // city_51.json
     {
       id: 51,
       название: "Хутор",
@@ -748,7 +749,7 @@
       спрайт: "assets/sprites/cities/city_51.svg",
       icon: "assets/sprites/cities/city_51.svg",
     },
-    // 000052.json
+    // city_52.json
     {
       id: 52,
       название: "Деревня",
@@ -762,7 +763,7 @@
       спрайт: "assets/sprites/cities/city_52.svg",
       icon: "assets/sprites/cities/city_52.svg",
     },
-    // 000053.json
+    // city_53.json
     {
       id: 53,
       название: "Город",
@@ -776,7 +777,7 @@
       спрайт: "assets/sprites/cities/city_53.svg",
       icon: "assets/sprites/cities/city_53.svg",
     },
-    // 000054.json
+    // city_54.json
     {
       id: 54,
       название: "Столица",
@@ -791,7 +792,7 @@
       icon: "assets/sprites/cities/city_54.svg",
     },
     // --- Прочие ---
-    // 000055.json
+    // storage.json
     {
       id: 55,
       название: "Хранилище",

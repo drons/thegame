@@ -15,7 +15,7 @@
 // * W3 — spec/buildings.md «Строительство и цены»: «Хутор
 //   (интерьер 0) — НЕ застраивается» НЕТ; «потолок = floor(9/2) = 4»
 //   ЕСТЬ (хутор застраивается на общих основаниях).
-// * W4 — ВСЕ spec/*.md + assets/buildings/000051.json — «интерьер 0»
+// * W4 — ВСЕ spec/*.md + assets/buildings/city_51.json — «интерьер 0»
 //   и «без внутренностей» НЕТ (сейчас: 3 хита в spec/buildings.md —
 //   все в правимых строках + функция 000051.json). Зеркало
 //   src/buildings.js — регенерация scripts/sync-buildings-data.js
@@ -47,7 +47,7 @@ const BUILDINGS = norm(fs.readFileSync(
 const SPEC_FILES = fs.readdirSync(path.join(ROOT, 'spec'))
   .filter((f) => f.endsWith('.md'));
 const HAMLET_JSON = fs.readFileSync(
-  path.join(ROOT, 'assets', 'buildings', '000051.json'), 'utf8');
+  path.join(ROOT, 'assets', 'buildings', 'city_51.json'), 'utf8');
 
 test('SPEC 000259 W1: buildings «Вход и внутреннее пространство» — «max(4f−2, 5)» + строка «| 1 | 5×5 | 9 |» + «9 < 16 < 256 < 576»; без «вырожденный, интерьер 0»', () => {
   assert.ok(
@@ -93,7 +93,7 @@ test('SPEC 000259 W3: buildings «Строительство и цены» — �
     'новое wording «потолок = floor(9/2) = 4» отсутствует');
 });
 
-test('SPEC 000259 W4: ВСЕ spec/*.md + assets/buildings/000051.json — без «интерьер 0» и без «без внутренностей»', () => {
+test('SPEC 000259 W4: ВСЕ spec/*.md + assets/buildings/city_51.json — без «интерьер 0» и без «без внутренностей»', () => {
   const bad = [];
   for (const f of SPEC_FILES) {
     const text = fs.readFileSync(path.join(ROOT, 'spec', f), 'utf8');
@@ -102,9 +102,9 @@ test('SPEC 000259 W4: ВСЕ spec/*.md + assets/buildings/000051.json — без
       bad.push('spec/' + f + ': без внутренностей');
   }
   if (HAMLET_JSON.includes('интерьер 0'))
-    bad.push('assets/buildings/000051.json: интерьер 0');
+    bad.push('assets/buildings/city_51.json: интерьер 0');
   if (HAMLET_JSON.includes('без внутренностей'))
-    bad.push('assets/buildings/000051.json: без внутренностей');
+    bad.push('assets/buildings/city_51.json: без внутренностей');
   assert.deepEqual(bad, [],
     'старое wording (интерьер 0 / без внутренностей) осталось: ' +
     bad.join(', ') + ' — переписать по 000259 (хутор 5×5, интерьер ' +

@@ -12,7 +12,7 @@
     "assets/items/000151.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Заморозка: цель заморожена (скип хода) на 1 ход.",
   "icon": "assets/spell-icons/freeze.svg",

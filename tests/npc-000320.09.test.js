@@ -11,7 +11,7 @@
 //     «торговец бронёй» (фикс ТЗ; СОВПАДАЕТ с ролью Гроты
 //     armor_merchant 000002 — ЗАКОННО: свипов уникальности ролей в
 //     каталоге нет, уникальны по контракту id/имя/описание), постройка
-//     assets/buildings/000002.json (Бронник — ВТОРОЙ NPC: Грота
+//     assets/buildings/armor_shop.json (Бронник — ВТОРОЙ NPC: Грота
 //     ПЕРВАЯ, npcForBuilding(2) продолжает возвращать Гроту), хук
 //     истории «Определяет сталь по звону одного удара» (последнее
 //     предложение описания, с заглавной — прецеденты .02–.08);
@@ -320,7 +320,7 @@ test('T8: npcsForBuilding(NPCS, 2) — ТРИ записи Бронника в �
 // --- T9: оверлей Бронника — ровно 2 dialog-строки -----------------------------
 
 test('T9: [E]-оверлей Бронника — ровно 3 строки: dialog (Грота), dialog:armor_specialist (Чекан), dialog:golem_instructor (Глыба) — ре-пин 000320.10', () => {
-  const b = readJson(path.join(ROOT, 'assets', 'buildings', '000002.json'));
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'armor_shop.json'));
   const list = N.npcsForBuilding(NPCS, 2);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),

@@ -661,7 +661,8 @@ const bRec = (num) => JSON.parse(
   fs.readFileSync(path.join(BDIR, num + '.json'), 'utf8'));
 // map_index → JSON-файл записи (независимый от src/buildings.js).
 const SHOP_MAP_INDEX_TO_FILE = {
-  0: '000001', 1: '000002', 2: '000003', 3: '000004', 11: '000044',
+  0: 'weapons_shop', 1: 'armor_shop', 2: 'apothecary', 3: 'magic_shop',
+  11: 'tavern',
 };
 
 test('shopKindsFor: каталог (JSON assets/buildings) — источник истины (000060)', () => {
@@ -1069,7 +1070,7 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
 // type = id каталога 47). BUY-ONLY: shopKindsFor(47) → null
 // (нет map_index) → sellItem отказ, кнопок «продать» нет.
 
-const campRec = bRec('000047');
+const campRec = bRec('camp');
 const CAMP_KINDS = ['food', 'potion', 'weapon', 'armor'];
 
 test('makeCampShop: golden (x, y, day, wealth) — формула контракта (000095)', () => {
@@ -10025,7 +10026,7 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
       'тип': 'столярное_дело',
       'уровень': 8,
       'полоса': [1, 10],
-      'здания': ['assets/buildings/000005.json'],
+      'здания': ['assets/buildings/wanderer_shop.json'],
       'навыки': ['assets/skills/000002.json'],
       'заклинания': undefined,
       'исходники': ['assets/items/000037.json:2',
@@ -10043,7 +10044,7 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
       'тип': 'зачарование',
       'уровень': 45,
       'полоса': [30, 60],
-      'здания': ['assets/buildings/000018.json'],
+      'здания': ['assets/buildings/mage_tower.json'],
       'навыки': ['assets/skills/000027.json',
         'assets/skills/000029.json'],
       'заклинания': ['prayer'],
@@ -10450,7 +10451,7 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
       'тип': 'столярное_дело',
       'уровень': 8,
       'полоса': [1, 10],
-      'здания': ['assets/buildings/000005.json'],
+      'здания': ['assets/buildings/wanderer_shop.json'],
       'навыки': ['assets/skills/000002.json'],
       'заклинания': undefined,
       'исходники': ['assets/items/000037.json:2',
@@ -10468,7 +10469,7 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
       'тип': 'зачарование',
       'уровень': 45,
       'полоса': [30, 60],
-      'здания': ['assets/buildings/000018.json'],
+      'здания': ['assets/buildings/mage_tower.json'],
       'навыки': ['assets/skills/000027.json',
         'assets/skills/000029.json'],
       'заклинания': ['prayer'],

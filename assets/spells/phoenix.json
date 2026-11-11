@@ -16,7 +16,7 @@
     "assets/items/000129.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Призывает огненного стихийника — сильного союзника.",
   "icon": "assets/spell-icons/phoenix.svg",

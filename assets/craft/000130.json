@@ -23,7 +23,7 @@
   "навыки": [
     "assets/skills/000002.json"
   ],
-  "здания": ["assets/buildings/000008.json", "assets/buildings/000025.json"],
+  "здания": ["assets/buildings/blacksmith.json", "assets/buildings/npc_house.json"],
   "уровень": 20,
   "описание": "Кожаный халат с накладками: локти не сотрутся."
 }

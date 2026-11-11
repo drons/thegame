@@ -24,7 +24,7 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json"
+    "assets/buildings/blacksmith.json"
   ],
   "уровень": 5,
   "описание": "Медь льётся в форму, древко ставится насквозь."

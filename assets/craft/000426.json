@@ -24,7 +24,7 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json"
+    "assets/buildings/blacksmith.json"
   ],
   "уровень": 4,
   "описание": "Сталь ровная, гарда с накладками — караван платит вперёд."

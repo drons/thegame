@@ -40,7 +40,7 @@
     "assets/items/000157.json"
   ],
   "размер": 25,
-  "постройка": "assets/buildings/000031.json",
+  "постройка": "assets/buildings/cave_entrance.json",
   "объекты_стен": [
     "rock",
     "stalactite"

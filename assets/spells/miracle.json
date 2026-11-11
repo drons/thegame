@@ -13,8 +13,8 @@
     "assets/items/000282.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Чудо: возвращает в отряд ВСЕХ погибших наёмников (до места в отряде).",
   "icon": "assets/spell-icons/miracle.svg",

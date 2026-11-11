@@ -12,7 +12,7 @@
     "assets/items/000248.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Кошмар: цель тонет в кошмаре — обездвижено на 1 ход, урон снижен.",
   "icon": "assets/spell-icons/nightmare.svg",

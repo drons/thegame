@@ -17,7 +17,7 @@
     "assets/items/000124.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Пепел укрывает врага — он наносит меньше урона.",
   "icon": "assets/spell-icons/cinder.svg",

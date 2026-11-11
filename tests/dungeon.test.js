@@ -387,7 +387,8 @@ test('связь постройка: подземелье ↔ пещера 31..3
   const cat = loadDungeonCatalog();
   const bdir = path.join(ROOT, 'assets', 'buildings');
   const byId = {};
-  for (const f of fs.readdirSync(bdir).filter((f) => /^\d{6}\.json$/.test(f))) {
+  for (const f of fs.readdirSync(bdir)
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))) {
     const b = JSON.parse(fs.readFileSync(path.join(bdir, f), 'utf8'));
     byId[b.id] = b;
   }

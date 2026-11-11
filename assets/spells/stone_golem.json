@@ -16,9 +16,9 @@
     "assets/items/000479.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Каменный голем: танк-союзник с высокой бронёй, 4 хода.",
   "icon": "assets/spell-icons/stone_golem.svg",

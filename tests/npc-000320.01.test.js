@@ -18,7 +18,7 @@
 //     npc-параметр, регрессия BA2/BA3/000299.01).
 //
 // NPC «Корд» (assets/npc/000019.json): id blade_merchant, роль
-// «торговец оружием», постройки [assets/buildings/000001.json], профиль
+// «торговец оружием», постройки [assets/buildings/weapons_shop.json], профиль
 // «торговля» — только мечи и луки (kind weapon, subtype sword/bow),
 // формат цен 000322 (base_price предмета; mult_покупки при 1 — ключа нет).
 //

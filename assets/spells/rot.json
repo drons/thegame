@@ -17,8 +17,8 @@
     "assets/items/000503.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Гниль: по цели — урон −20% на 3 хода.",
   "icon": "assets/spell-icons/rot.svg",

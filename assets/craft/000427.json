@@ -20,7 +20,7 @@
     "assets/skills/000010.json"
   ],
   "здания": [
-    "assets/buildings/000008.json"
+    "assets/buildings/blacksmith.json"
   ],
   "уровень": 6,
   "описание": "Заготовка из слободы, городское клеймо, рука дозорного."

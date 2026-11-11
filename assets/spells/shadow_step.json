@@ -13,7 +13,7 @@
     "assets/items/000254.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Кастер исчезает в тени и оказывается до 10 тайлов дальше по направлению движения.",
   "icon": "assets/spell-icons/shadow_step.svg",

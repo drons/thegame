@@ -41,7 +41,7 @@
     "assets/items/000484.json"
   ],
   "размер": 27,
-  "постройка": "assets/buildings/000034.json",
+  "постройка": "assets/buildings/flooded_cave.json",
   "объекты_стен": [
     "rock"
   ],

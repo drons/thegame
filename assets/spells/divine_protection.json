@@ -16,8 +16,8 @@
     "assets/items/000280.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Божественная защита: 1 день — партия получает на 15% меньше урона в бою.",
   "icon": "assets/spell-icons/divine_protection.svg",

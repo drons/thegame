@@ -23,7 +23,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^assets/buildings/\\d{6}\\.json$"
+        "pattern": "^assets/buildings/[a-z][a-z0-9_]*\\.json$"
       }
     },
     "диалог": {

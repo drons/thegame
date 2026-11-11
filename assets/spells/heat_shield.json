@@ -17,7 +17,7 @@
     "assets/items/000121.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Оболочка жара, повышающая броню кастера.",
   "icon": "assets/spell-icons/heat_shield.svg",

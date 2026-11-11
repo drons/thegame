@@ -17,8 +17,8 @@
     "assets/items/000501.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Живучесть: вся партия +10% к максимуму здоровья на 3 хода; текущее HP не меняется.",
   "icon": "assets/spell-icons/vitality.svg",

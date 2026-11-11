@@ -12,7 +12,8 @@
 // Контракты:
 //   * RN1 — реестр шейпов: 11 нумерованных каталогов → 'number'
 //     (runes — 'slug' с 000318.02, visuals — 'slug' с 000318.03,
-//     mobs/mob_groups/dungeons — 'slug' с 000318.04),
+//     mobs/mob_groups/dungeons — 'slug' с 000318.04, spells — 'slug'
+//     с 000318.05, buildings — 'slug' с 000318.06),
 //     portraits → 'named';
 //     REF_LINKED_CATALOGS — РОВНО 9 мишеней ссылок
 //     (REF_CATALOGS минус visuals и portraits); ref-eligibility ≠ name-shape
@@ -110,11 +111,30 @@ const DUNGEON_SLUG_00031804 = {
   0: 'simple_cave', 1: 'crypt', 2: 'castle_ruins', 3: 'flooded_cave',
   4: 'abyss',
 };
+// buildings (000318.06): 29 записей несут «спрайт» (25 × sprites/buildings
+// + 4 города city_5N) — имя = basename спрайта (visuals .03); 26 без
+// «спрайт» — ИМЕНА РУКОПИСНЫЕ (иконки numeric — контракт 000293, имя не
+// выводится из данных): честный пин — таблица id→slug задачи .06 (память
+// memory/000318-buildings.md), а не ослабление свипа.
+const BUILDING_SLUG_00031806 = {
+  5: 'wanderer_shop', 6: 'universam', 9: 'gladiator_yard',
+  12: 'hunting_estate', 13: 'gymnasium', 14: 'gladiator_camp',
+  15: 'bathhouse', 16: 'library', 17: 'alchemy_lab', 18: 'mage_tower',
+  19: 'monastery', 20: 'elders_hut', 21: 'healing_temple',
+  22: 'tavern_school', 23: 'theater', 24: 'town_hall',
+  26: 'healer_house', 27: 'scribe_house', 28: 'merchant_house',
+  29: 'hermit_hut', 30: 'orc_pagan_house', 32: 'crypt',
+  33: 'castle_ruins', 34: 'flooded_cave', 35: 'abyss',
+  50: 'bridge_gate',
+};
 const NAME_OF_000318 = {
   runes: (data) => data.id + '.json',
   visuals: (data) => path.basename(data.спрайт, '.svg') + '.json',
   mob_groups: (data) => MOB_GROUP_SLUG_00031804[data.id] + '.json',
   dungeons: (data) => DUNGEON_SLUG_00031804[data.id] + '.json',
+  buildings: (data) => (typeof data.спрайт === 'string'
+    ? path.basename(data.спрайт, '.svg')
+    : BUILDING_SLUG_00031806[data.id]) + '.json',
 };
 
 // Семантика свипа для будущих дочерних 000318.YY (НЕ реальный rename):
@@ -145,7 +165,7 @@ function renameViolations(mod, dir, cat) {
 // 'number'; остальные NUMBERED остаются number до своих дочерних.
 const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug',
   mobs: 'slug', mob_groups: 'slug', dungeons: 'slug',
-  spells: 'slug' }; // .02, .03, .04, .05
+  spells: 'slug', buildings: 'slug' }; // .02, .03, .04, .05, .06
 
 test('RN1: реестр шейпов — переименованные каталоги по таблице, прочие number, portraits named, 9 мишеней', () => {
   const mod = loadShapes();
@@ -154,7 +174,7 @@ test('RN1: реестр шейпов — переименованные ката
       SHAPES_EXPECTED_000318[cat] || 'number',
       cat + ': шейп по таблице переименований 000318 (.01 — все number; '
       + '.02 переименовал runes в slug; .03 — visuals; .04 — '
-      + 'mobs/mob_groups/dungeons; .05 — spells)');
+      + 'mobs/mob_groups/dungeons; .05 — spells; .06 — buildings)');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE, вне SHAPE_BASENAME_RES)');

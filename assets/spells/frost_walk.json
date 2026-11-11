@@ -16,7 +16,7 @@
     "assets/items/000155.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Замёрзший путь: кастер может переходить по воде. Длится 1 день.",
   "icon": "assets/spell-icons/frost_walk.svg",

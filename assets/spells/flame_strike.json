@@ -13,7 +13,7 @@
     "assets/items/000113.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Пламя поражает врага, а часть его силы возвращается кастеру.",
   "icon": "assets/spell-icons/flame_strike.svg",

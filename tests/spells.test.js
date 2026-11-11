@@ -1730,7 +1730,7 @@ const SCRIPTS = path.join(__dirname, '..', 'scripts');
 
 const REF_SPELLS = /^assets\/spells\/[a-z][a-z0-9_]*\.json$/;
 const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
-const REF_BUILDINGS = /^assets\/buildings\/\d{6}\.json$/;
+const REF_BUILDINGS = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
 
 // Ссылка → id целевого файла: ссылка по per-catalog паттерну, цель
@@ -1780,7 +1780,7 @@ const BUILDING_IDS = (() => {
   const dir = path.join(__dirname, '..', 'assets', 'buildings');
   const ids = new Set();
   for (const f of fs.readdirSync(dir)) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (f === 'schema.json' || !/^[a-z][a-z0-9_]*\.json$/.test(f)) continue;
     const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
     ids.add(data.id);
   }
@@ -1806,7 +1806,7 @@ const FIXTURE_SPELL = {
   'мани': 10,
   'действие': 'урон',
   'предметы': ['assets/items/000001.json'],
-  'здания': ['assets/buildings/000001.json'],
+  'здания': ['assets/buildings/weapons_shop.json'],
   'описание': 'Фикстура 000211.04: ссылки на файлы каталогов',
 };
 
@@ -1821,13 +1821,13 @@ const FIXTURE_BASE_SPELL = {
   'уровень': 2,
   'мани': 6,
   'действие': 'урон',
-  'здания': ['assets/buildings/000001.json'],
+  'здания': ['assets/buildings/weapons_shop.json'],
   'описание': 'Фикстура 000211.04: цель self-ссылки «база»',
 };
 
 const FIXTURE_TARGETS = {
   items: { '000001.json': '{"id": "sulfur"}\n' },
-  buildings: { '000001.json': '{"id": 17}\n' },
+  buildings: { 'weapons_shop.json': '{"id": 17}\n' },
 };
 
 // tmp-«репозиторий»: копия реального sync-spells-data.js +
@@ -1868,8 +1868,8 @@ test('000211.04 R1: schema.json — поля-ссылки закреплены p
     { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
     '«предметы»[] — ссылка на файл assets/items');
   assert.deepEqual(schema.properties['здания'].items,
-    { type: 'string', pattern: '^assets/buildings/\\d{6}\\.json$' },
-    '«здания»[] — ссылка на файл assets/buildings (integer → string)');
+    { type: 'string', pattern: '^assets/buildings/[a-z][a-z0-9_]*\\.json$' },
+    '«здания»[] — ссылка на файл assets/buildings (000318.06: slug)');
 });
 
 test('000211.04 R2: 169 заклинаний — база/предметы/здания — ссылки: per-catalog паттерн, резолв, id ∈ каталогу, id = значению зеркала (анти-вакуум 34/164/276 — ре-пин 000235.11: +25 волны Защита; ре-пин 000235.12: +25 волны Природа; ре-пин 000333: +2 навигации)', () => {
@@ -2041,7 +2041,7 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
   {
     const targets = {
       items: { '000001.json': '{"name": "без id"}\n' },
-      buildings: { '000001.json': '{"id": 17}\n' },
+      buildings: { 'weapons_shop.json': '{"id": 17}\n' },
     };
     const dir = makeTmpSpellsRepo({
       'flame_burst.json': JSON.stringify(FIXTURE_SPELL),
@@ -2087,7 +2087,7 @@ test('000211.04 R5: sync-spells-data.js — все 4 ветки fail-closed refI
   {
     const targets = {
       items: { '000001.json': '{битый json\n' },
-      buildings: { '000001.json': '{"id": 17}\n' },
+      buildings: { 'weapons_shop.json': '{"id": 17}\n' },
     };
     const dir = makeTmpSpellsRepo({
       'flame_burst.json': JSON.stringify(FIXTURE_SPELL),
@@ -2134,7 +2134,7 @@ function ghostSpell0235(action, extra) {
     уровень: 1,
     мани: 3,
     действие: action,
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.01)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.01)',
@@ -2256,7 +2256,7 @@ test('000235.01 S3: «вне_боя» — опционально, default false;
     id: 'ghost_tport', название: 'Тестовый телепорт', школа: 'тень',
     база: null, степень: 1, атрибут: 'intelligence', уровень: 1,
     мани: 3, действие: 'телепорт',
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.01)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.01)',
@@ -2309,7 +2309,7 @@ function ocGuest0235(id, over = {}) {
     действие: 'внебой',
     вне_боя: true,
     параметры: { days: 2 },
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.02)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.02)',
@@ -2535,7 +2535,7 @@ function invGuest0235(id, over = {}) {
     действие: 'невидимость',
     вне_боя: true,
     параметры: { days: 1 },
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.03)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.03)',
@@ -2746,7 +2746,7 @@ function portalGuest0235(id, over = {}) {
     действие: 'телепорт',
     вне_боя: true,
     параметры: { mode: 'город' },
-    здания: ['assets/buildings/000001.json'],
+    здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.04)',
     icon: 'assets/spell-icons/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.04)',
@@ -3303,7 +3303,7 @@ test('000235.07 W-02: 25 записей spells — id/название/школ�
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
       `${id}: описание непустое`);
-    assert.deepEqual(d.здания, ['assets/buildings/000018.json'],
+    assert.deepEqual(d.здания, ['assets/buildings/mage_tower.json'],
       `${id}: здания = [000018]`);
     assert.deepEqual(d.предметы, [fireScrollFile(i)],
       `${id}: предметы = [свой свиток ${fireScrollFile(i)}]`);
@@ -3653,7 +3653,7 @@ test('000235.08 W-02: 25 записей spells — id/название/школ�
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
       `${id}: описание непустое`);
-    assert.deepEqual(d.здания, ['assets/buildings/000018.json'],
+    assert.deepEqual(d.здания, ['assets/buildings/mage_tower.json'],
       `${id}: здания = [000018]`);
     assert.deepEqual(d.предметы, [iceScrollFile(i)],
       `${id}: предметы = [свой свиток ${iceScrollFile(i)}]`);
@@ -4136,7 +4136,7 @@ test('000235.09 W-02: 25 записей spells — id/название/школ�
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
       `${id}: описание непустое`);
-    assert.deepEqual(d.здания, ['assets/buildings/000018.json'],
+    assert.deepEqual(d.здания, ['assets/buildings/mage_tower.json'],
       `${id}: здания = [000018]`);
     assert.deepEqual(d.предметы, [shadowScrollFile(i)],
       `${id}: предметы = [свой свиток ${shadowScrollFile(i)}]`);
@@ -4722,7 +4722,7 @@ test('000235.10 W-02: 25 записей spells — id/название/школ�
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
       `${id}: описание непустое`);
     assert.deepEqual(d.здания,
-      ['assets/buildings/000019.json', 'assets/buildings/000021.json'],
+      ['assets/buildings/monastery.json', 'assets/buildings/healing_temple.json'],
       `${id}: здания = [Монастырь 19, Храм исцеления 21] (D12)`);
     assert.deepEqual(d.предметы, [healScrollFile(i)],
       `${id}: предметы = [свой свиток ${healScrollFile(i)}]`);
@@ -6086,8 +6086,8 @@ test('000235.11 W-02: 25 записей spells — id/название/школ�
       && d.описание.trim().length > 0,
       `${id}: описание непустое`);
     assert.deepEqual(d.здания,
-      ['assets/buildings/000019.json', 'assets/buildings/000021.json',
-       'assets/buildings/000038.json'],
+      ['assets/buildings/monastery.json', 'assets/buildings/healing_temple.json',
+       'assets/buildings/mountain_temple.json'],
       `${id}: здания = [19, 21, 38] (D12)`);
     assert.deepEqual(d.предметы, [protScrollFile(i)],
       `${id}: предметы = [свой свиток ${protScrollFile(i)}]`);
@@ -6889,7 +6889,7 @@ test('000235.12 W-02: 25 записей spells — id/название/школ�
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
       `${id}: описание непустое`);
     assert.deepEqual(d.здания,
-      ['assets/buildings/000021.json', 'assets/buildings/000038.json'],
+      ['assets/buildings/healing_temple.json', 'assets/buildings/mountain_temple.json'],
       `${id}: здания = [000021 (Храм исцеления), 000038 (Храм горы)]`);
     assert.deepEqual(d.предметы, [natureScrollFile(i)],
       `${id}: предметы = [свой свиток ${natureScrollFile(i)}]`);

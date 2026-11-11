@@ -11,7 +11,9 @@ const { validateData } = require('./json-schema.js');
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'npc');
 
-const BUILDING_REF = /^assets\/buildings\/\d{6}\.json$/;
+// buildings — slug с 000318.06 (прежний numeric-паттерн — красен: номер
+// более не ref).
+const BUILDING_REF = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
 const ITEM_REF = /^assets\/items\/\d{6}\.json$/;
 
 function listNpcFiles() {
@@ -204,8 +206,10 @@ test('npc: schema — 4 ссылочных под-схемы зафиксиро�
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   const buildingSub = schema.properties.постройки.items;
   assert.deepEqual(buildingSub,
-    { type: 'string', pattern: '^assets/buildings/\\d{6}\\.json$' },
-    'постройки.items — строка с якорным паттерном buildings');
+    { type: 'string', pattern: '^assets/buildings/[a-z][a-z0-9_]*\\.json$' },
+    'постройки.items — строка с якорным паттерном buildings (slug с '
+    + '000318.06; прежний numeric-паттерн — «старое значение», ловится '
+    + 'отрицательной валидацией ниже)');
   const itemSubs = [
     ['торговля.предметы[].предмет',
       schema.properties.торговля.properties.предметы.items.properties.предмет],
@@ -228,9 +232,13 @@ test('npc: schema — 4 ссылочных под-схемы зафиксиро�
   assert.notDeepEqual(
     validateData(goalSchema, { тип: 'bring_item', предмет: 'moonstone', количество: 2 }, 'цель'),
     [], 'цель bring_item с голым id предмета по новой схеме — мимо');
+  assert.notDeepEqual(
+    validateData(buildingSub, 'assets/buildings/' + '000047' + '.json',
+      'постройки'),
+    [], 'прежняя numeric-ссылка здание по схеме 000318.06 — мимо');
   assert.deepEqual(
-    validateData(buildingSub, 'assets/buildings/000047.json', 'постройки'),
-    [], 'якорная ссылка на здание — валидна');
+    validateData(buildingSub, 'assets/buildings/camp.json', 'постройки'),
+    [], 'якорная slug-ссылка на здание — валидна');
   assert.deepEqual(
     validateData(itemSubs[0][1], 'assets/items/000001.json', 'предмет'),
     [], 'якорная ссылка на предмет — валидна');
@@ -247,8 +255,8 @@ const NPC_BODY = (постройки, торговля) =>
   }));
 
 const GOOD_ASSETS = {
-  'assets/buildings/000047.json': JSON.stringify({ id: 47 }),
-  'assets/buildings/000044.json': JSON.stringify({ id: 44 }),
+  'assets/buildings/camp.json': JSON.stringify({ id: 47 }),
+  'assets/buildings/tavern.json': JSON.stringify({ id: 44 }),
   'assets/items/000001.json': JSON.stringify({ id: 'wood_sword' }),
 };
 
@@ -265,8 +273,12 @@ function makeTmpNpcRepo(npc, assets) {
     JSON.stringify(npc), 'utf8');
   fs.copyFileSync(path.join(ROOT, 'scripts', 'sync-npc-data.js'),
     path.join(dir, 'scripts', 'sync-npc-data.js'));
-  fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', 'write-atomic.js'),
-    path.join(dir, 'scripts', 'lib', 'write-atomic.js'));
+  for (const libFile of ['write-atomic.js', 'json-ref.js']) {
+    // 000318.06: buildRefMap читает реестр имён из json-ref.js —
+    // без его копирки tmp-запуск падает MODULE_NOT_FOUND (прецедент .01).
+    fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', libFile),
+      path.join(dir, 'scripts', 'lib', libFile));
+  }
   fs.writeFileSync(path.join(dir, 'src', 'npc-data.js'),
     'SENTINEL: зеркало не испечено\n', 'utf8');
   return dir;
@@ -303,19 +315,19 @@ function expectSyncFailure(dir, stderrMustInclude) {
 
 test('sync-npc-data.js: битая/чужая ссылка — exit 1, зеркало не испечено (tmp-дерево), корректная — id-форма', () => {
   withTmpRepo(
-    NPC_BODY(['assets/buildings/000099.json']),
+    NPC_BODY(['assets/buildings/' + 'camp99' + '.json']),
     GOOD_ASSETS,
     (dir) => expectSyncFailure(dir, ['000001.json']));
 
   withTmpRepo(
-    NPC_BODY(['assets/buildings/000047.json']),
-    { ...GOOD_ASSETS, 'assets/buildings/000047.json': '{ не JSON' },
-    (dir) => expectSyncFailure(dir, ['000047.json']));
+    NPC_BODY(['assets/buildings/camp.json']),
+    { ...GOOD_ASSETS, 'assets/buildings/camp.json': '{ не JSON' },
+    (dir) => expectSyncFailure(dir, ['camp.json']));
 
   withTmpRepo(
-    NPC_BODY(['assets/buildings/000047.json']),
-    { ...GOOD_ASSETS, 'assets/buildings/000047.json': JSON.stringify({ имя: 'без id' }) },
-    (dir) => expectSyncFailure(dir, ['000047.json']));
+    NPC_BODY(['assets/buildings/camp.json']),
+    { ...GOOD_ASSETS, 'assets/buildings/camp.json': JSON.stringify({ имя: 'без id' }) },
+    (dir) => expectSyncFailure(dir, ['camp.json']));
 
   withTmpRepo(
     NPC_BODY([44], { предметы: [{ предмет: 'wood_sword', mult_продажи: 1, количество: 1 }] }),
@@ -323,7 +335,7 @@ test('sync-npc-data.js: битая/чужая ссылка — exit 1, зерк�
     (dir) => expectSyncFailure(dir, ['000001.json']));
 
   withTmpRepo(
-    NPC_BODY(['assets/buildings/000047.json'],
+    NPC_BODY(['assets/buildings/camp.json'],
       { предметы: [{ предмет: 'assets/items/000001.json', mult_продажи: 1, количество: 1 }] }),
     GOOD_ASSETS,
     (dir) => {

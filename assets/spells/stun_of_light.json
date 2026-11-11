@@ -12,8 +12,8 @@
     "assets/items/000272.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Сияние света: ковает моба на одно действие.",
   "icon": "assets/spell-icons/stun_of_light.svg",

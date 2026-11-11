@@ -12,7 +12,7 @@
     "assets/items/000249.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Тёмные оковы: заковывают цель во тьму — обездвижено на 1 ход, получаемый урон повышен.",
   "icon": "assets/spell-icons/dark_ensnare.svg",

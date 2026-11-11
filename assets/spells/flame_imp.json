@@ -16,7 +16,7 @@
     "assets/items/000128.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Призывает огненного импа, сражающегося на стороне кастера.",
   "icon": "assets/spell-icons/flame_imp.svg",

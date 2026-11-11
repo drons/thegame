@@ -17,7 +17,7 @@
     "assets/items/000123.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Обжигающий удар, снижающий броню цели.",
   "icon": "assets/spell-icons/scorch.svg",

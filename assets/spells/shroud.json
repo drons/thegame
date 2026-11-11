@@ -17,7 +17,7 @@
     "assets/items/000240.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Теневая вуаль: покров тьмы — врагам труднее попасть по кастеру, 3 хода.",
   "icon": "assets/spell-icons/shroud.svg",

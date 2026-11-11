@@ -16,6 +16,8 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
+const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const NPC_DIR = path.join(ROOT, 'assets', 'npc');
@@ -48,11 +50,15 @@ for (const f of files) {
   npcs.push({ file: f, data });
 }
 
+// Форма имени каталога-цели — из ЖИВОГО реестра lib (000318.06:
+// buildings — slug; items — number). slug-regex матчит и schema.json —
+// исключаем явно (прецедент .02).
 function buildRefMap(name) {
   const dir = path.join(ROOT, 'assets', name);
   const map = new Map();
+  const re = SHAPE_BASENAME_RES[ASSET_NAME_SHAPES[name]];
   for (const f of fs.readdirSync(dir)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    .filter((x) => x !== 'schema.json' && re.test(x)).sort()) {
     let data;
     try {
       data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));

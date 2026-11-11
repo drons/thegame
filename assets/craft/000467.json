@@ -33,7 +33,7 @@
     "assets/skills/000026.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "заклинания": [
     "circle_of_light"

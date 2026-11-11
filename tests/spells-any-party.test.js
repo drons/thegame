@@ -502,10 +502,15 @@ const MENTOR_POOLS = {
   38: ['magic_shield', 'stone_skin', 'ward'],          // Храм горы
 };
 const MENTOR_PRICE = 50;
-const buildingJson = (id) =>
-  JSON.parse(fs.readFileSync(
-    path.join(ROOT, 'assets', 'buildings',
-      String(id).padStart(6, '0') + '.json'), 'utf8'));
+const BDIR_00031806 = path.join(ROOT, 'assets', 'buildings');
+const buildingJson = (id) => {
+  for (const f of fs.readdirSync(BDIR_00031806)) {
+    if (f === 'schema.json' || !/^[a-z][a-z0-9_]*\.json$/.test(f)) continue;
+    const j = JSON.parse(fs.readFileSync(path.join(BDIR_00031806, f), 'utf8'));
+    if (j.id === id) return j;
+  }
+  throw new Error('assets/buildings: файл с id ' + id + ' не найден');
+};
 
 // --- AP-M1: каталоги + реестр + зеркало ---
 

@@ -68,7 +68,7 @@
     "assets/items/000511.json"
   ],
   "размер": 31,
-  "постройка": "assets/buildings/000033.json",
+  "постройка": "assets/buildings/castle_ruins.json",
   "объекты_стен": [
     "column"
   ],

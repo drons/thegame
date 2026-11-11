@@ -13,8 +13,8 @@
     "assets/items/000260.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Очищение: снимает дебаф с союзника (лечения нет).",
   "icon": "assets/spell-icons/purify.svg",

@@ -19,8 +19,8 @@
     "assets/items/000277.json"
   ],
   "здания": [
-    "assets/buildings/000019.json",
-    "assets/buildings/000021.json"
+    "assets/buildings/monastery.json",
+    "assets/buildings/healing_temple.json"
   ],
   "описание": "Круг света: зона регенерации (радиус 2, 3 хода) вокруг кастера.",
   "icon": "assets/spell-icons/circle_of_light.svg",

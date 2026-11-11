@@ -13,7 +13,7 @@
     "assets/items/000133.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Копьё инея: урон цели и мороз — ход_вниз на 1 ход.",
   "icon": "assets/spell-icons/ice_lance.svg",

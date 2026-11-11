@@ -13,7 +13,7 @@
     "assets/items/000109.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Капля горящего масла, поджигающая цель. Пламя продолжает гореть.",
   "icon": "assets/spell-icons/ignite.svg",

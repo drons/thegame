@@ -17,7 +17,7 @@
     "assets/items/000256.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Ночной покров: 3 дня — в радиусе 5 вокруг кастера мобы не видят героя (зоны не триггерятся).",
   "icon": "assets/spell-icons/shroud_of_night.svg",

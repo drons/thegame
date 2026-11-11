@@ -19,8 +19,8 @@
     "assets/items/000495.json"
   ],
   "здания": [
-    "assets/buildings/000021.json",
-    "assets/buildings/000038.json"
+    "assets/buildings/healing_temple.json",
+    "assets/buildings/mountain_temple.json"
   ],
   "описание": "Поле шипов: зона радиуса 2 — шипы втыкаются в мобов 3 раунда.",
   "icon": "assets/spell-icons/thorn_field.svg",

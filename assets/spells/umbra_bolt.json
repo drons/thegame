@@ -13,7 +13,7 @@
     "assets/items/000233.json"
   ],
   "здания": [
-    "assets/buildings/000018.json"
+    "assets/buildings/mage_tower.json"
   ],
   "описание": "Умбровый снаряд: теневой выстрел, поджигающий цель кратким дебафом.",
   "icon": "assets/spell-icons/umbra_bolt.svg",
