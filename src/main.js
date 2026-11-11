@@ -3485,6 +3485,7 @@
 
   // --- Отрисовка ---
   let quadVerts = []; // переиспользуемый массив [x,y,r,g,b,a]*6
+  let uploadBuf = new Float32Array(0);
 
   function pushQuad(verts, x0, y0, x1, y1, [r, g, b]) {
     // Два треугольника, 6 вершин по углам (повторяются).
@@ -3853,7 +3854,10 @@
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(verts), gl.DYNAMIC_DRAW);
+    if (uploadBuf.length < verts.length) uploadBuf = new Float32Array(verts.length);
+    const view = uploadBuf.subarray(0, verts.length);
+    view.set(verts);
+    gl.bufferData(gl.ARRAY_BUFFER, view, gl.DYNAMIC_DRAW);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, vertexSize, 0);
     gl.vertexAttribPointer(aColor, 4, gl.FLOAT, false, vertexSize, 2 * 4);
 
