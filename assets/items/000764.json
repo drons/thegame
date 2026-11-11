@@ -1,0 +1,14 @@
+{
+  "id": "decadance_scroll",
+  "name": "Свиток: Декаданс",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Декаданс» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "decadance"
+  },
+  "icon": "assets/sprites/items/decadance_scroll.svg"
+}

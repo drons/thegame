@@ -714,6 +714,34 @@
     });
   }
 
+  function deepDescendFloor(ds, ctx, levels) {
+    if (!ds || ds.kind !== 'dungeon' || !ctx || !ctx.map ||
+        typeof ctx.map.tileAt !== 'function' || !ctx.player ||
+        !ctx.memory) return null;
+    if (!Number.isInteger(levels) || levels < 1) return null;
+    if (ds.memoryBanned) {
+      console.error('locations.js: переход этажей из debug-входа ' +
+        '(memoryBanned, 000153.01) запрещён (000153.03 D12) — ' +
+        'запись под мирским ключом контаминирует dungeonMemory');
+      return null;
+    }
+    const d = ds.dg;
+    const depth = Number.isInteger(d.depth) && d.depth >= 1
+      ? d.depth : 1;
+    const parts = String(ds.worldKey).split(',');
+    const wx = Number(parts[0]), wy = Number(parts[1]);
+    const targetDepth = depth + levels;
+    writeFloorMemory(ds, { day: ctx.day, memory: ctx.memory });
+    return buildFloor({
+      wx, wy,
+      terrain: ctx.map.tileAt(ctx.player.x, ctx.player.y).terrain,
+      depth: targetDepth,
+      worldKey: ds.worldKey,
+      ctx,
+      logLine: 'Декаданс: глубина ' + targetDepth + '.',
+    });
+  }
+
   // 000153.03 (D2/D10): ПОДЪЁМ — [E] на d.exit (depth>1): этаж
   // depth−1. Спавн — на stairs-down этажа depth−1 (клетка
   // детерминирована сидом — без сохранения позиции, 0 rng,
@@ -850,6 +878,7 @@
     // 000153.03: переходы этажей (только подземелье) + единая
     // строка состояния (finding G).
     descendFloor, ascendFloor,
+    deepDescendFloor,
     floorStatusLine,
     // 000157.03: 11-й экспорт — [E] на залежи (доменное событие).
     interactDeposit,

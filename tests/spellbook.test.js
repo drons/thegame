@@ -590,7 +590,7 @@ test('SB8: canDoAction «spellbook» — ok / «заклинаний нет» / 
 // SB9: JSON-каталог — icon + icon_prompt, schema
 // ---------------------------------------------------------------------------
 
-test('SB9: 169 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149; ре-пин 000333: +2 навигации)', () => {
+test('SB9: 170 JSON — непустые icon/icon_prompt; оба поля в schema.required (000149; ре-пин 000333: +2 навигации; ре-пин 000348: +1 Декаданс)', () => {
   const JR = require('../scripts/lib/json-ref.js');
   const files = fs.readdirSync(SPELLS_DIR)
     .filter((f) => f !== 'schema.json'
@@ -604,8 +604,8 @@ test('SB9: 169 JSON — непустые icon/icon_prompt; оба поля в sc
   // Ре-пин 000235.11: +25 заклинаний волны Защита — 117 → 142.
   // Ре-пин 000235.12: +25 заклинаний волны Природа — 142 → 167.
   // Ре-пин 000333: +2 заклинания навигации — 167 → 169.
-  assert.equal(files.length, 169,
-    'каталог: 169 файлов (RED: 142 — файлов волны Природа нет)');
+  assert.equal(files.length, 170,
+    'каталог: 170 файлов (RED: 142 — файлов волны Природа нет)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(SPELLS_DIR, 'schema.json'), 'utf8'));
   assert.ok(schema.required.includes('icon'),
@@ -662,7 +662,7 @@ test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; 
 // SB11: все новые SVG проходят checkSvg (000120) ДО каталога
 // ---------------------------------------------------------------------------
 
-test('SB11: 170 SVG (169 иконок + кнопка) существуют и проходят checkSvg (000149; ре-пин 000333: +2 иконки навигации)', () => {
+test('SB11: 171 SVG (170 иконок + кнопка) существуют и проходят checkSvg (000149; ре-пин 000333: +2 иконки навигации; ре-пин 000348: +1 Декаданс)', () => {
   const checkSvg = loadCheckSvg();
   const { SPELLS } = require('../src/spells-data.js');
   const rels = SPELLS.map((s) => 'assets/spell-icons/' + s.id + '.svg');
@@ -675,8 +675,9 @@ test('SB11: 170 SVG (169 иконок + кнопка) существуют и п
   // Ре-пин 000235.11: +25 иконок волны Защита — 118 → 143.
   // Ре-пин 000235.12: +25 иконок волны Природа — 143 → 168.
   // Ре-пин 000333: +2 иконки навигации — 168 → 170.
-  assert.equal(rels.length, 170,
-    '169 иконок заклинаний + иконка кнопки (RED: 143 — 142 иконки + '
+  // Ре-пин 000348: +1 иконка Декаданс — 170 → 171.
+  assert.equal(rels.length, 171,
+    '170 иконок заклинаний + иконка кнопки (RED: 143 — 142 иконки + '
     + 'кнопка)');
   for (const rel of rels) {
     const abs = path.join(ROOT, rel);

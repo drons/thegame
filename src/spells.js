@@ -964,6 +964,10 @@
     return days;
   }
 
+  function decadanceLevels(intelligence) {
+    return 5 + Math.floor((intelligence || 0) / 10);
+  }
+
   // castOutOfCombat(p, spellId, day, ctx) → {ok, spell, expiresDay}
   // или {ok:false, reason}. Проверки ПО ПОРЯДКУ: каталог → книга →
   // мана → флаг вне_боя → days (1..3). day — день каста (clock.day).
@@ -1039,6 +1043,21 @@
           return { ok: false, reason: r.reason || 'пути нет' };
         }
       }
+    }
+    if (spellId === 'decadance') {
+      if (ctx !== undefined) {
+        const cb = ctx && typeof ctx.decadance === 'function'
+          ? ctx.decadance : null;
+        if (!cb) {
+          return { ok: false, reason: 'не здесь' };
+        }
+        const r = cb();
+        if (r && r.ok === false) {
+          return { ok: false, reason: r.reason || 'не здесь' };
+        }
+      }
+      if (!free) p.mp -= spell['мани'] || 0;
+      return { ok: true, spell, expiresDay: null };
     }
     // Мутации — ПОСЛЕ всех проверок (мана проверена вверху).
     if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
@@ -1567,5 +1586,6 @@
     sanitizePortalMarker, PORTAL_SEARCH_RADIUS,
     isHeroFrostWalk, coldBreathRadius, frozenStillnessRadius,
     shroudOfNightRadius, darkPresenceRadius,
+    decadanceLevels,
   };
 });

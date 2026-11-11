@@ -1799,7 +1799,10 @@ const SHOP_GOLDEN = {
     forge_hardy: 5,     diamond_file: 3,     silver_alembic: 5,
     glass_athanor: 1,     silver_retort: 4,     cinder_lamp: 2,
     magma_hammer: 1,     golden_athanor: 2,     phoenix_still: 5,
-    worldforge_hammer: 2,     prima_vessel: 1
+    worldforge_hammer: 2,     prima_vessel: 1,
+    // Ре-пин 000348: свиток Декаданс — rng-хвост allItems
+    // (seed byte-identical, стоки не сдвинулись) → decadance_scroll: 4
+    decadance_scroll: 4,
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,

@@ -170,7 +170,7 @@ const SKILL_META = (() => {
 // deserializeEfir по каталогам-параметрам, D2): массивы записей каталога
 // (объекты со строковым .id — не только id-набор). Зеркала assets:
 // skills — 44 записи (ре-пин 000324: 37→43, +6 школ; ре-пин 000337:
-// 43→44, +1 secondary «staff»), spells — 169 (ре-пин 000235.12: 142→167; ре-пин 000333: 167→169).
+// 43→44, +1 secondary «staff»), spells — 170 (ре-пин 000235.12: 142→167; ре-пин 000333: 167→169; ре-пин 000348: 169→170).
 const SKILL_CATALOG = SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
@@ -843,8 +843,9 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   // Ре-пин 000235.11: +25 заклинаний волны Защита — 117 → 142.
   // Ре-пин 000235.12: +25 заклинаний волны Природа — 142 → 167.
   // Ре-пин 000333: +2 заклинания навигации — 167 → 169.
-  assert.equal(SPELL_CATALOG.length, 169,
-    'каталог spells: 169 записей (RED: 142 — файлов волны Природа нет)');
+  // Ре-пин 000348: +1 Декаданс — 169 → 170.
+  assert.equal(SPELL_CATALOG.length, 170,
+    'каталог spells: 170 записей (RED: 142 — файлов волны Природа нет)');
 
   // Чужой id (вне ЛЮБОГО каталога) → null — сброс ЗАПИСИ (000029).
   const base = { level: 1, xp: 0, skillXp: {}, skills: {}, spells: ['spark', 'mend'] };

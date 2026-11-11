@@ -2276,6 +2276,25 @@
     ds.navPaths[spellId] = cells;
     return { ok: true };
   }
+  function performDecadance() {
+    if (!dungeonState || dungeonState.kind !== 'dungeon') {
+      return { ok: false, reason: 'не здесь' };
+    }
+    if (!G.locations || typeof G.locations.deepDescendFloor !== 'function'
+        || !G.Spells || typeof G.Spells.decadanceLevels !== 'function') {
+      return { ok: false, reason: 'не здесь' };
+    }
+    const ds = dungeonState;
+    const levels = G.Spells.decadanceLevels(
+      (hero.primary && hero.primary.intelligence) || 0);
+    transitionFloor(ds, { type: 'deepdescend', levels });
+    if (dungeonState && dungeonState !== ds) {
+      hudFlash = 'Декаданс: глубина ' + dungeonState.dg.depth + '.';
+      hudFlashUntil = performance.now() + 5000;
+      return { ok: true };
+    }
+    return { ok: false, reason: 'не здесь' };
+  }
   function performFlameStep() {
     const r = resolveTeleportStep(flameStepPassable);
     if (!r.ok) return { ok: false, reason: r.reason };
@@ -2327,6 +2346,7 @@
         passable: (tx, ty) => tileLandingPassable(tx, ty, false),
         teleport: (tx, ty) => { moveHero(tx, ty); saveNow(); },
         navPath: performNavPath,
+        decadance: performDecadance,
       }),
     });
     if (typeof document.createElement === 'function'
@@ -3169,7 +3189,9 @@
     try {
       next = ev.type === 'descend'
         ? L.descendFloor(ds, ctx)
-        : L.ascendFloor(ds, ctx);
+        : ev.type === 'ascend'
+          ? L.ascendFloor(ds, ctx)
+          : L.deepDescendFloor(ds, ctx, ev.levels);
     } catch (err) {
       if (!transErrLogged) {
         transErrLogged = true;

@@ -19,7 +19,7 @@
   }
 })(typeof globalThis !== "undefined" ? globalThis : self, function () {
 
-  // Предметы (assets/items/000001.json … 000763.json);
+  // Предметы (assets/items/000001.json … 000764.json);
   // порядок массива = нумерация файлов.
   const ITEMS = [
     // 000001.json
@@ -10305,6 +10305,18 @@
       slot: "right_hand",
       rarity: "impossible",
       affixes: [{ type: "skill", skill: "alchemy", amount: 0.38 }],
+    },
+    // 000764.json
+    {
+      id: "decadance_scroll",
+      name: "Свиток: Декаданс",
+      kind: "spell_scroll",
+      weight: 0.2,
+      value: 115,
+      tier: 3,
+      desc: "Свиток: изучает «Декаданс» (нужен ранг школы.)",
+      effect: { kind: "spell", spell: "decadance" },
+      icon: "assets/sprites/items/decadance_scroll.svg",
     },
   ];
 
