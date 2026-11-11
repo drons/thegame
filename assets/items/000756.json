@@ -1,0 +1,18 @@
+{
+  "id": "moon_balance",
+  "name": "Равновесие",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 250,
+  "desc": "Равновесие: ни одна чаша не льстит.",
+  "icon": "assets/sprites/items/moon_balance.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.11
+    }
+  ]
+}

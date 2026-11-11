@@ -1,0 +1,18 @@
+{
+  "id": "prima_vessel",
+  "name": "Сосуд Первоматерии",
+  "kind": "tool",
+  "weight": 2.7,
+  "value": 1400,
+  "desc": "Сосуд Первоматерии: в нём ещё всё возможно.",
+  "icon": "assets/sprites/items/prima_vessel.svg",
+  "slot": "right_hand",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.38
+    }
+  ]
+}

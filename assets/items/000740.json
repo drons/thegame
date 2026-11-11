@@ -1,0 +1,18 @@
+{
+  "id": "fuller",
+  "name": "Валок",
+  "kind": "tool",
+  "weight": 1.4,
+  "value": 66,
+  "desc": "Валок: борозда ложится сама.",
+  "icon": "assets/sprites/items/fuller.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.07
+    }
+  ]
+}

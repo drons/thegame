@@ -1,0 +1,18 @@
+{
+  "id": "wax_jar",
+  "name": "Восковка",
+  "kind": "tool",
+  "weight": 1,
+  "value": 20,
+  "desc": "Восковка: воск хранит то, что рука не удержит.",
+  "icon": "assets/sprites/items/wax_jar.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.04
+    }
+  ]
+}

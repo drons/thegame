@@ -1,0 +1,28 @@
+{
+  "id": "damascus_hammer",
+  "name": "Дамасский молот",
+  "kind": "tool",
+  "weight": 2.2,
+  "value": 260,
+  "desc": "Дамасский молот: в его узорах спрятаны все удары.",
+  "icon": "assets/sprites/items/damascus_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "set": "forger",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.16
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "forge",
+        "amount": 0.05
+      }
+    ]
+  }
+}

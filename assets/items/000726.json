@@ -1,0 +1,18 @@
+{
+  "id": "reed_sieve",
+  "name": "Тростниковое сито",
+  "kind": "tool",
+  "weight": 1,
+  "value": 19,
+  "desc": "Тростниковое сито: крупное остаётся — нужное проходит.",
+  "icon": "assets/sprites/items/reed_sieve.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.04
+    }
+  ]
+}

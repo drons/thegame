@@ -1,0 +1,18 @@
+{
+  "id": "cross_file",
+  "name": "Надфиль-крестовка",
+  "kind": "tool",
+  "weight": 1,
+  "value": 21,
+  "desc": "Надфиль-крестовка: лишнее снимается не молотом.",
+  "icon": "assets/sprites/items/cross_file.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.04
+    }
+  ]
+}

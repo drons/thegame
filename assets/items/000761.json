@@ -1,0 +1,18 @@
+{
+  "id": "phoenix_still",
+  "name": "Феникс-перегон",
+  "kind": "tool",
+  "weight": 2.2,
+  "value": 760,
+  "desc": "Феникс-перегон: то, что сгорело, возвращается дистиллятом.",
+  "icon": "assets/sprites/items/phoenix_still.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.33
+    }
+  ]
+}

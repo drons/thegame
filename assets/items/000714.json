@@ -1,0 +1,18 @@
+{
+  "id": "ash_mallet",
+  "name": "Пепельная колотушка",
+  "kind": "tool",
+  "weight": 1.2,
+  "value": 18,
+  "desc": "Пепельная колотушка: бьёт тихо, но вдолгую.",
+  "icon": "assets/sprites/items/ash_mallet.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.03
+    }
+  ]
+}

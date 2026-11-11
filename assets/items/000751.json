@@ -1,0 +1,18 @@
+{
+  "id": "blacksteel_tongs",
+  "name": "Черностальные клещи",
+  "kind": "tool",
+  "weight": 1.8,
+  "value": 230,
+  "desc": "Черностальные клещи: чернёная сталь хватает намертво.",
+  "icon": "assets/sprites/items/blacksteel_tongs.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.13
+    }
+  ]
+}

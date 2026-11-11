@@ -1,0 +1,18 @@
+{
+  "id": "silver_alembic",
+  "name": "Серебряный алембик",
+  "kind": "tool",
+  "weight": 1.8,
+  "value": 220,
+  "desc": "Серебряный алембик: серебро гонит пар холодно и честно.",
+  "icon": "assets/sprites/items/silver_alembic.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.12
+    }
+  ]
+}

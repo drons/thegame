@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <ellipse cx="32" cy="57" rx="17" ry="3.4" fill="rgba(0,0,0,0.22)"/>
+  <polygon points="27,10 37,10 38,14 26,14" fill="#6b7480"/>
+  <polygon points="29,14 35,14 33.6,44 30.4,44" fill="#8f9aa8"/>
+  <polygon points="29.5,44 34.5,44 36,53 28,53" fill="#b8c0cc"/>
+  <rect x="29" y="22" width="6" height="2.5" fill="#6b7480"/>
+</svg>

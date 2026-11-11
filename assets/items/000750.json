@@ -1,0 +1,18 @@
+{
+  "id": "forge_hardy",
+  "name": "Харди",
+  "kind": "tool",
+  "weight": 2,
+  "value": 210,
+  "desc": "Харди: работает там, где у наковальни дыра.",
+  "icon": "assets/sprites/items/forge_hardy.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.14
+    }
+  ]
+}

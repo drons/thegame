@@ -1,0 +1,18 @@
+{
+  "id": "magma_hammer",
+  "name": "Магмовая кувалда",
+  "kind": "tool",
+  "weight": 2.5,
+  "value": 680,
+  "desc": "Магмовая кувалда: в ней ещё тёплая середина мира.",
+  "icon": "assets/sprites/items/magma_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.26
+    }
+  ]
+}

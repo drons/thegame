@@ -1,0 +1,18 @@
+{
+  "id": "glass_athanor",
+  "name": "Стеклянный афанор",
+  "kind": "tool",
+  "weight": 2.4,
+  "value": 215,
+  "desc": "Стеклянный афанор: огонь, которому показывают через стекло.",
+  "icon": "assets/sprites/items/glass_athanor.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.13
+    }
+  ]
+}

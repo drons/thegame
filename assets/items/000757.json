@@ -1,0 +1,18 @@
+{
+  "id": "cinder_lamp",
+  "name": "Жар-лампада",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 225,
+  "desc": "Жар-лампада: её пламя не знает слова «ночь».",
+  "icon": "assets/sprites/items/cinder_lamp.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.17
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "linen_filter",
+  "name": "Льняной фильтр",
+  "kind": "tool",
+  "weight": 1,
+  "value": 19,
+  "desc": "Льняной фильтр: муть льну не товарищ.",
+  "icon": "assets/sprites/items/linen_filter.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.04
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "glass_retort",
+  "name": "Стеклянная реторта",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 70,
+  "desc": "Стеклянная реторта: прозрачность — тоже честность.",
+  "icon": "assets/sprites/items/glass_retort.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.06
+    }
+  ]
+}

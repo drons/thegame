@@ -1,0 +1,28 @@
+{
+  "id": "meteor_hammer",
+  "name": "Метеорный молот",
+  "kind": "tool",
+  "weight": 2.4,
+  "value": 700,
+  "desc": "Метеорный молот: этим молотом били по звёздам — звёзды не выдержали.",
+  "icon": "assets/sprites/items/meteor_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "set": "forger",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.3
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "forge",
+        "amount": 0.05
+      }
+    ]
+  }
+}

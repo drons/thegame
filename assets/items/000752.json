@@ -1,0 +1,18 @@
+{
+  "id": "diamond_file",
+  "name": "Алмазный надфиль",
+  "kind": "tool",
+  "weight": 1.2,
+  "value": 240,
+  "desc": "Алмазный надфиль: алмаз снимает даже то, что не берут напильники.",
+  "icon": "assets/sprites/items/diamond_file.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.15
+    }
+  ]
+}

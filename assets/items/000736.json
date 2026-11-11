@@ -1,0 +1,18 @@
+{
+  "id": "bronze_bellows",
+  "name": "Бронзовые мехи",
+  "kind": "tool",
+  "weight": 1.8,
+  "value": 62,
+  "desc": "Бронзовые мехи: бронзовый голос угля слышен во дворе.",
+  "icon": "assets/sprites/items/bronze_bellows.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.07
+    }
+  ]
+}

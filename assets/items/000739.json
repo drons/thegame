@@ -1,0 +1,18 @@
+{
+  "id": "forge_stake",
+  "name": "Рогач",
+  "kind": "tool",
+  "weight": 1.6,
+  "value": 64,
+  "desc": "Рогач: всё изогнутое ему должно.",
+  "icon": "assets/sprites/items/forge_stake.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.05
+    }
+  ]
+}

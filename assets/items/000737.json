@@ -1,0 +1,18 @@
+{
+  "id": "swage_block",
+  "name": "Штамп-подкладка",
+  "kind": "tool",
+  "weight": 1.8,
+  "value": 65,
+  "desc": "Штамп-подкладка: форма рождается из повторяемости.",
+  "icon": "assets/sprites/items/swage_block.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.06
+    }
+  ]
+}

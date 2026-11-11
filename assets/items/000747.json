@@ -1,0 +1,18 @@
+{
+  "id": "glass_measure",
+  "name": "Мерное стекло",
+  "kind": "tool",
+  "weight": 1.2,
+  "value": 80,
+  "desc": "Мерное стекло: мера честнее памяти.",
+  "icon": "assets/sprites/items/glass_measure.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.1
+    }
+  ]
+}

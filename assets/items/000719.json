@@ -1,0 +1,18 @@
+{
+  "id": "slag_rake",
+  "name": "Шлаковая грабелька",
+  "kind": "tool",
+  "weight": 1.2,
+  "value": 18,
+  "desc": "Шлаковая грабелька: лишнее уберёшь — останется кузнечное.",
+  "icon": "assets/sprites/items/slag_rake.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "clay_anvil",
+  "name": "Глиняная наковальня",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 19,
+  "desc": "Глиняная наковальня: глина принимает форму раньше металла.",
+  "icon": "assets/sprites/items/clay_anvil.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.04
+    }
+  ]
+}

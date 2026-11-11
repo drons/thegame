@@ -1,0 +1,18 @@
+{
+  "id": "dew_measure",
+  "name": "Росная мерка",
+  "kind": "tool",
+  "weight": 1.1,
+  "value": 23,
+  "desc": "Росная мерка: росу тоже надо мерить.",
+  "icon": "assets/sprites/items/dew_measure.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.05
+    }
+  ]
+}

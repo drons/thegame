@@ -1,0 +1,18 @@
+{
+  "id": "silver_retort",
+  "name": "Серебряная реторта",
+  "kind": "tool",
+  "weight": 1.6,
+  "value": 235,
+  "desc": "Серебряная реторта: в серебре реакция идёт на почтении.",
+  "icon": "assets/sprites/items/silver_retort.svg",
+  "slot": "right_hand",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.14
+    }
+  ]
+}

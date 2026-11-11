@@ -1,0 +1,18 @@
+{
+  "id": "quench_pail",
+  "name": "Закалочное ведро",
+  "kind": "tool",
+  "weight": 1.3,
+  "value": 19,
+  "desc": "Закалочное ведро: секунда в воде решает, чем будет сталь.",
+  "icon": "assets/sprites/items/quench_pail.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.05
+    }
+  ]
+}

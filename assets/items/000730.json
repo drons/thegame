@@ -1,0 +1,18 @@
+{
+  "id": "salt_scales",
+  "name": "Соляные весы",
+  "kind": "tool",
+  "weight": 1.4,
+  "value": 21,
+  "desc": "Соляные весы: ни граммом больше, ни граммом меньше.",
+  "icon": "assets/sprites/items/salt_scales.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.05
+    }
+  ]
+}

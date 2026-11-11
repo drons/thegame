@@ -1,0 +1,18 @@
+{
+  "id": "clay_funnel",
+  "name": "Глиняная воронка",
+  "kind": "tool",
+  "weight": 1,
+  "value": 18,
+  "desc": "Глиняная воронка: капля идёт одна, но идёт.",
+  "icon": "assets/sprites/items/clay_funnel.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.04
+    }
+  ]
+}

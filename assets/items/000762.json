@@ -1,0 +1,28 @@
+{
+  "id": "worldforge_hammer",
+  "name": "Молот Мировой Кузни",
+  "kind": "tool",
+  "weight": 2.8,
+  "value": 1300,
+  "desc": "Молот Мировой Кузни: им куют не предметы, а следствия.",
+  "icon": "assets/sprites/items/worldforge_hammer.svg",
+  "slot": "right_hand",
+  "rarity": "impossible",
+  "set": "forger",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.42
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "forge",
+        "amount": 0.05
+      }
+    ]
+  }
+}

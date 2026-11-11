@@ -1,0 +1,18 @@
+{
+  "id": "forge_bellows",
+  "name": "Кузнечные мехи",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 21,
+  "desc": "Кузнечные мехи: уголь помнит, кто его кормил воздухом.",
+  "icon": "assets/sprites/items/forge_bellows.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.03
+    }
+  ]
+}

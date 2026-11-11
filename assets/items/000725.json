@@ -1,0 +1,18 @@
+{
+  "id": "wood_pestle",
+  "name": "Деревянный пест",
+  "kind": "tool",
+  "weight": 1,
+  "value": 18,
+  "desc": "Деревянный пест: дерево не перебивает вкус трав.",
+  "icon": "assets/sprites/items/wood_pestle.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.03
+    }
+  ]
+}

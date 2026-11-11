@@ -1,0 +1,18 @@
+{
+  "id": "shell_spoon",
+  "name": "Ложка из раковины",
+  "kind": "tool",
+  "weight": 1,
+  "value": 18,
+  "desc": "Ложка из раковины: черпает ровно, не жадничая.",
+  "icon": "assets/sprites/items/shell_spoon.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.03
+    }
+  ]
+}

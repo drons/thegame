@@ -1,0 +1,18 @@
+{
+  "id": "rawhide_mallet",
+  "name": "Сыромятная колотушка",
+  "kind": "tool",
+  "weight": 1.1,
+  "value": 18,
+  "desc": "Сыромятная колотушка: кожа не оставляет вмятин на готовом.",
+  "icon": "assets/sprites/items/rawhide_mallet.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "oil_lamp",
+  "name": "Жаровня-лампада",
+  "kind": "tool",
+  "weight": 1.4,
+  "value": 78,
+  "desc": "Жаровня-лампада: тепло по расписанию.",
+  "icon": "assets/sprites/items/oil_lamp.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.09
+    }
+  ]
+}

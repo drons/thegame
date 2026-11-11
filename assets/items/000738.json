@@ -1,0 +1,18 @@
+{
+  "id": "iron_drill",
+  "name": "Железное сверло",
+  "kind": "tool",
+  "weight": 1.5,
+  "value": 60,
+  "desc": "Железное сверло: путь внутрь тоже работа.",
+  "icon": "assets/sprites/items/iron_drill.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.08
+    }
+  ]
+}

@@ -1778,7 +1778,28 @@ const SHOP_GOLDEN = {
     watch_stone: 2,     spark_totem: 1,     chill_totem: 2,     glass_eye: 2,     runeglass: 1,
     prism_focus: 1,     ward_prism: 2,     seer_monocle: 3,     ember_core: 2,     mind_lattice: 3,
     flame_sigil: 1,     ice_sigil: 1,     rune_tablet: 2,     archmage_eye: 2,     arcane_diadem: 5,
-    star_compass: 2,     sun_reliquary: 3,     arcane_nexus: 2,     crown_of_ages: 3
+    star_compass: 2,     sun_reliquary: 3,     arcane_nexus: 2,
+    crown_of_ages: 3,
+    // Ре-пин 000321.05: инструменты 000714–000763 — КОНЕЦ каталога,
+    // rng-хвост allItems-пула (universam w3) → += 44 инструмента
+    // (6 не выпали); остальные ключи стока не сдвинулись (seed
+    // byte-identical, 598 → 642 ключа; node-симуляция: старые ключи
+    // value-identical).
+    clay_anvil: 2,     copper_tongs: 2,     iron_punch: 2,
+    forge_bellows: 3,     slag_rake: 3,     quench_pail: 5,
+    cross_file: 2,     rawhide_mallet: 4,     tin_solder: 5,
+    wood_pestle: 2,     reed_sieve: 1,     bark_tray: 3,
+    wax_jar: 5,     linen_filter: 2,     salt_scales: 2,
+    shell_spoon: 3,     flint_burner: 2,     steel_chisel: 3,
+    forge_hook: 1,     bronze_bellows: 3,     swage_block: 3,
+    iron_drill: 3,     forge_stake: 4,     fuller: 5,
+    glass_retort: 5,     bronze_alembic: 4,     quartz_muller: 2,
+    silver_spatula: 1,     brass_tongs: 3,     oil_lamp: 1,
+    glass_measure: 4,     damascus_hammer: 5,     great_bellows: 5,
+    forge_hardy: 5,     diamond_file: 3,     silver_alembic: 5,
+    glass_athanor: 1,     silver_retort: 4,     cinder_lamp: 2,
+    magma_hammer: 1,     golden_athanor: 2,     phoenix_still: 5,
+    worldforge_hammer: 2,     prima_vessel: 1
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,

@@ -1,0 +1,18 @@
+{
+  "id": "bronze_alembic",
+  "name": "Бронзовый алембик",
+  "kind": "tool",
+  "weight": 1.8,
+  "value": 72,
+  "desc": "Бронзовый алембик: пар помнит дорогу обратно.",
+  "icon": "assets/sprites/items/bronze_alembic.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.07
+    }
+  ]
+}

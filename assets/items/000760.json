@@ -1,0 +1,18 @@
+{
+  "id": "golden_athanor",
+  "name": "Золотой афанор",
+  "kind": "tool",
+  "weight": 2.3,
+  "value": 720,
+  "desc": "Золотой афанор: золото не обесценит ни одно пламя.",
+  "icon": "assets/sprites/items/golden_athanor.svg",
+  "slot": "right_hand",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.24
+    }
+  ]
+}

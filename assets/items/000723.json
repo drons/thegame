@@ -1,0 +1,18 @@
+{
+  "id": "tin_solder",
+  "name": "Оловянная паялка",
+  "kind": "tool",
+  "weight": 1,
+  "value": 22,
+  "desc": "Оловянная паялка: шов там, где два металла договорились.",
+  "icon": "assets/sprites/items/tin_solder.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.05
+    }
+  ]
+}

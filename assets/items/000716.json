@@ -1,0 +1,18 @@
+{
+  "id": "copper_tongs",
+  "name": "Медные клещи",
+  "kind": "tool",
+  "weight": 1.2,
+  "value": 20,
+  "desc": "Медные клещи: медь не искрит — и не предаёт.",
+  "icon": "assets/sprites/items/copper_tongs.svg",
+  "slot": "right_hand",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.03
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "forge_hook",
+  "name": "Кузнечный крюк",
+  "kind": "tool",
+  "weight": 1.2,
+  "value": 56,
+  "desc": "Кузнечный крюк: то, что не ухватишь, можно подцепить.",
+  "icon": "assets/sprites/items/forge_hook.svg",
+  "slot": "right_hand",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "forge",
+      "amount": 0.05
+    }
+  ]
+}
