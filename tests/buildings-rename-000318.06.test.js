@@ -474,7 +474,7 @@ test('000318.06 T8: sync-npc-data.js buildRefMap — shape-aware (buildings-кл
   assert.equal(run.status, 0,
     'sync-npc на реальных данных: ' + (run.stderr || run.stdout));
   const { NPCS } = require(path.join(ROOT, 'src', 'npc-data.js'));
-  assert.equal(NPCS.length, 36, 'зеркало NPCS — 36 записей (ре-пин 000320.15: Пергамент; 000320.16: Пробник; 000320.17: Переписчик; 000320.18: Странствующий торговец)');
+  assert.equal(NPCS.length, 37, 'зеркало NPCS — 37 записей (ре-пин 000320.15: Пергамент; 000320.16: Пробник; 000320.17: Переписчик; 000320.18: Странствующий торговец; 000320.19: Торговец специями)');
   for (const n of NPCS) {
     for (const b of n.постройки) {
       assert.ok(Number.isInteger(b),

@@ -64,10 +64,11 @@
 //     порядке каталога: 'dialog' (Хольд) → 'dialog:wanderer_trader'
 //     (Хомут); хоткеи Digit1..2 — общий механизм src/building-ui.js
 //     /^Digit([1-9])$/ по индексу строки. ПРЕЖНИХ пинов ростера/
-//     оверлея дома 5 в tests/ не было — закреплено здесь; ТРЕТИЙ NPC
-//     этого дома (.19 «торговец специями» по плейсхолдеру) поднимет
-//     оверлей до 3 и обязан ре-пинить T7/T8 дальше (прецеденты
-//     .12–.17 для дома 4).
+//     оверлея дома 5 в tests/ не было — закреплено здесь; РЕ-ПИН
+//     000320.19: ТРЕТИЙ NPC дома 5 (spice_trader «Шафран», 000037)
+//     поднял оверлей до ТРЁХ — T7/T8 заре-пинуты вместе с
+//     tests/npc-000320.19.test.js; ЧЕТВЁРТЫЙ поднимет до 4
+//     (прецеденты .12–.17 для дома 4).
 //
 // КРАСНЫЕ (TDD): T1..T8 красные до зелёной стадии (000036.json нет,
 // каталог 35, ростер дома 5 — ОДИН NPC, оверлей 1 строка), без краха
@@ -106,19 +107,19 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 36 файла 000001..000036 подряд; зеркало NPCS 36 записей с wanderer_trader', () => {
+test('T1: каталог — ровно 37 файла 000001..000037 подряд; зеркало NPCS 37 записей с wanderer_trader', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 36,
-    'в каталоге NPC 36 файла (000320.15: +Торговец свитками; 000320.16: '
+  assert.equal(files.length, 37,
+    'в каталоге NPC 37 файла (000320.15: +Торговец свитками; 000320.16: '
     + '+Маг-наставник; 000320.17: +Переписчик; 000320.18: +Странствующий '
-    + 'торговец), факт: ' + files.length);
+    + 'торговец; 000320.19: +Торговец специями), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 36,
-    'зеркало src/npc-data.js — 36 записей (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 37,
+    'зеркало src/npc-data.js — 37 записей (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[35];
   assert.ok(last, '36-я запись зеркала существует');
@@ -379,11 +380,13 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
 
 // --- T7: ростер дома 5 — ДВЕ записи, Хольд первый ----------------------------
 
-test('T7: npcsForBuilding(NPCS, 5) — ДВЕ записи Лавки странника в порядке каталога [wanderer_merchant, wanderer_trader]; npcForBuilding(5) — по-прежнему Хольд; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 5) — ТРИ записи Лавки странника в порядке каталога [wanderer_merchant, wanderer_trader, spice_trader]; npcForBuilding(5) — по-прежнему Хольд; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 5);
-  assert.deepEqual(list.map((n) => n.id), ['wanderer_merchant', ID],
+  assert.deepEqual(list.map((n) => n.id),
+    ['wanderer_merchant', ID, 'spice_trader'],
     'Лавка странника (5): Хольд (000011) + Странствующий торговец '
-    + '(000036), порядок = нумерация файлов; факт: '
+    + '(000036) + Торговец специями (000037), порядок = нумерация '
+    + 'файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 5).id, 'wanderer_merchant',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Хольд; HUD/«Здесь:» '
@@ -415,20 +418,20 @@ test('T7: npcsForBuilding(NPCS, 5) — ДВЕ записи Лавки стран
 
 // --- T8: оверлей дома 5 — ровно 2 dialog-строки ------------------------------
 
-test('T8: [E]-оверлей Лавки странника — ровно 2 строки: dialog (Хольд), dialog:wanderer_trader (Хомут) — пин СОЗДАН здесь; хоткеи Digit1..2; ТРЕТИЙ NPC дома 5 (.19 «торговец специями») поднимет оверлей до 3 и заре-пинит T7/T8 дальше', () => {
+test('T8: [E]-оверлей Лавки странника — ровно 3 строки: dialog (Хольд), dialog:wanderer_trader (Хомут), dialog:spice_trader (Шафран) — ре-пин 000320.19 (ДВЕ→ТРИ); хоткеи Digit1..3; ЧЕТВЁРТЫЙ NPC дома 5 (.20 по сводной таблице) поднимет оверлей до 4 и заре-пинит T7/T8 обоих файлов дальше', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', 'wanderer_shop.json'));
   const list = N.npcsForBuilding(NPCS, 5);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:' + ID],
+    ['dialog', 'dialog:' + ID, 'dialog:spice_trader'],
     'у здания 5 эффектов нет — список = dialog-строки по каждому NPC; '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Хольд', 'Диалог: ' + NAME],
+    ['Диалог: Хольд', 'Диалог: ' + NAME, 'Диалог: Шафран'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['wanderer_merchant', ID],
+    ['wanderer_merchant', ID, 'spice_trader'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
-    + 'Digit1..2 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'Digit1..3 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');
 });
