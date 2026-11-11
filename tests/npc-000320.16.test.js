@@ -51,6 +51,12 @@
 //     механизм src/building-ui.js /^Digit([1-9])$/ по индексу строки;
 //     ре-пин T7/T8 tests/npc-000320.15.test.js (прецедент .12/.13/.14).
 //
+// РЕ-ПИН 000320.17 (Переписчик/scribe «Грифель» — ЧЕТВЁРТЫЙ NPC
+// дома 4, 000035.json): T1 каталог/зеркало 34→35; T7 ростер дома 4
+// ТРИ→ЧЕТЫРЕ [magic_merchant, scroll_merchant, magic_instructor,
+// scribe]; T8 оверлей РОВНО ТРИ→ЧЕТЫРЕ dialog-строки (хоткеи
+// Digit1..4); этот же ре-пин идёт дальше в .15 T7/T8.
+//
 // КРАСНЫЕ (TDD): T1..T8 красные до зелёной стадии (000034.json нет,
 // каталог 33, ростер дома 4 — ДВА NPC, оверлей 2 строки), без краха
 // загрузки.
@@ -87,19 +93,19 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 34 файла 000001..000034 подряд; зеркало NPCS 34 записи с magic_instructor', () => {
+test('T1: каталог — ровно 35 файла 000001..000035 подряд; зеркало NPCS 35 записей с magic_instructor', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 34,
-    'в каталоге NPC 34 файла (000320.13: +Алхимик-наставник; 000320.14: '
+  assert.equal(files.length, 35,
+    'в каталоге NPC 35 файла (000320.13: +Алхимик-наставник; 000320.14: '
     + '+Фельдшер; 000320.15: +Торговец свитками; 000320.16: +Маг-'
-    + 'наставник), факт: ' + files.length);
+    + 'наставник; 000320.17: +Переписчик), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 34,
-    'зеркало src/npc-data.js — 34 записи (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 35,
+    'зеркало src/npc-data.js — 35 записей (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[33];
   assert.ok(last, '34-я запись зеркала существует');
@@ -340,12 +346,13 @@ test('T6: блок «обучение» — форма 000005 (ключи нав
 
 // --- T7: ростер дома 4 — ТРИ записи, Зира первая -----------------------------
 
-test('T7: npcsForBuilding(NPCS, 4) — ТРИ записи Магазина магии в порядке каталога [magic_merchant, scroll_merchant, magic_instructor]; npcForBuilding(4) — по-прежнему Зира; Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 4) — ЧЕТЫРЕ записи Магазина магии в порядке каталога [magic_merchant, scroll_merchant, magic_instructor, scribe]; npcForBuilding(4) — по-прежнему Зира; Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 4);
   assert.deepEqual(list.map((n) => n.id),
-    ['magic_merchant', 'scroll_merchant', ID],
+    ['magic_merchant', 'scroll_merchant', ID, 'scribe'],
     'Магазин магии (4): Зира (000004) + Торговец свитками (000033) + '
-    + 'Маг-наставник (000034), порядок = нумерация файлов; факт: '
+    + 'Маг-наставник (000034) + Переписчик (000035, ре-пин 000320.17), '
+    + 'порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 4).id, 'magic_merchant',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Зира; HUD/«Здесь:» не тронуты)');
@@ -371,20 +378,20 @@ test('T7: npcsForBuilding(NPCS, 4) — ТРИ записи Магазина ма
 
 // --- T8: оверлей дома 4 — ровно 3 dialog-строки ------------------------------
 
-test('T8: [E]-оверлей Магазина магии — ровно 3 строки: dialog (Зира), dialog:scroll_merchant (Пергамент), dialog:magic_instructor (Пробник) — ре-пин 000320.15 T8 с третьим NPC дома 4', () => {
+test('T8: [E]-оверлей Магазина магии — ровно 4 строки: dialog (Зира), dialog:scroll_merchant (Пергамент), dialog:magic_instructor (Пробник), dialog:scribe (Грифель) — ре-пины 000320.15 T8 (ТРИ, был пин ДВЕ) и 000320.17 (ЧЕТЫРЕ)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', 'magic_shop.json'));
   const list = N.npcsForBuilding(NPCS, 4);
   const rows = BE.buildingActions(b, list, { day: 5 });
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:scroll_merchant', 'dialog:' + ID],
+    ['dialog', 'dialog:scroll_merchant', 'dialog:' + ID, 'dialog:scribe'],
     'у здания 4 эффектов нет — список = dialog-строки по каждому NPC; '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Зира', 'Диалог: Пергамент', 'Диалог: ' + NAME],
+    ['Диалог: Зира', 'Диалог: Пергамент', 'Диалог: ' + NAME, 'Диалог: Грифель'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['magic_merchant', 'scroll_merchant', ID],
+    ['magic_merchant', 'scroll_merchant', ID, 'scribe'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
-    + 'Digit1..3 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'Digit1..4 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');
 });
