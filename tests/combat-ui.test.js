@@ -78,6 +78,48 @@ function makeContext2d(el) {
   });
 }
 
+// Браузерно-верный CSSStyleDeclaration-стаб (000355): custom properties
+// живут ТОЛЬКО в setProperty/getPropertyValue; bracket '--x' — expando.
+function camelNameCu000355(name) {
+  return String(name).replace(/-+([a-z0-9])/g, (_, ch) => ch.toUpperCase());
+}
+
+function makeStyleCu000355() {
+  const custom = new Map();
+  const style = {};
+  const def = (name, fn) => Object.defineProperty(style, name, {
+    value: fn, enumerable: false, writable: true, configurable: true,
+  });
+  def('setProperty', (name, value) => {
+    const n = String(name);
+    const v = value === undefined || value === null ? '' : String(value);
+    if (n.startsWith('--')) custom.set(n, v);
+    else style[camelNameCu000355(n)] = v;
+  });
+  def('getPropertyValue', (name) => {
+    const n = String(name);
+    if (n.startsWith('--')) {
+      const v = custom.get(n);
+      return v === undefined ? '' : v;
+    }
+    const v = style[camelNameCu000355(n)];
+    return v === undefined || v === null ? '' : String(v);
+  });
+  def('removeProperty', (name) => {
+    const n = String(name);
+    if (n.startsWith('--')) {
+      const v = custom.get(n);
+      custom.delete(n);
+      return v === undefined ? '' : v;
+    }
+    const key = camelNameCu000355(n);
+    const v = style[key];
+    delete style[key];
+    return v === undefined || v === null ? '' : String(v);
+  });
+  return style;
+}
+
 function makeEl(tag, buttons, rect) {
   const el = {
     tagName: tag,
@@ -85,7 +127,7 @@ function makeEl(tag, buttons, rect) {
     textContent: '',
     title: '',
     disabled: false,
-    style: {},
+    style: makeStyleCu000355(),
     dataset: {},
     children: [],
     onclick: null,

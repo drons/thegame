@@ -1135,6 +1135,52 @@ function makeContext2d000246(el) {
   });
 }
 
+// Браузерно-верный CSSStyleDeclaration-стаб (000355: фикс ложной D11 из
+// memory/000248-combat-attack-fx.md). В реальном CSSOM custom properties
+// НЕ имеют именованных свойств: bracket `style['--x']=v` — только
+// JS-expando, в cascade НЕ попадает; единственный путь — setProperty.
+// Semantics: getPropertyValue('--x') === '' если var задавали bracket'ом;
+// реальные свойства видны обоими способами; методы не перечислимы.
+function camelName000246(name) {
+  return String(name).replace(/-+([a-z0-9])/g, (_, ch) => ch.toUpperCase());
+}
+
+function makeStyle000246() {
+  const custom = new Map();
+  const style = {};
+  const def = (name, fn) => Object.defineProperty(style, name, {
+    value: fn, enumerable: false, writable: true, configurable: true,
+  });
+  def('setProperty', (name, value) => {
+    const n = String(name);
+    const v = value === undefined || value === null ? '' : String(value);
+    if (n.startsWith('--')) custom.set(n, v);
+    else style[camelName000246(n)] = v;
+  });
+  def('getPropertyValue', (name) => {
+    const n = String(name);
+    if (n.startsWith('--')) {
+      const v = custom.get(n);
+      return v === undefined ? '' : v;
+    }
+    const v = style[camelName000246(n)];
+    return v === undefined || v === null ? '' : String(v);
+  });
+  def('removeProperty', (name) => {
+    const n = String(name);
+    if (n.startsWith('--')) {
+      const v = custom.get(n);
+      custom.delete(n);
+      return v === undefined ? '' : v;
+    }
+    const key = camelName000246(n);
+    const v = style[key];
+    delete style[key];
+    return v === undefined || v === null ? '' : String(v);
+  });
+  return style;
+}
+
 function makeEl000246(tag) {
   const target = {
     tagName: tag,
@@ -1142,7 +1188,7 @@ function makeEl000246(tag) {
     _text: '',
     title: '',
     disabled: false,
-    style: {},
+    style: makeStyle000246(),
     dataset: {},
     children: [],
     parent: null,
@@ -1712,7 +1758,10 @@ function atkLayer000248(env) {
 // Геометрия-пин: style[prop] — строка, значение ≈ expected (±0.01);
 // %-суффикс обязателен, кроме нуля (формат нуля реализации не пинует).
 function pinPct000248(el, prop, expected, label) {
-  const raw = el.style[prop];
+  // '--*' — только через getPropertyValue (000355: cascade видит лишь
+  // setProperty; bracket-чтение expando было вакуумным пином на HEAD).
+  const raw = prop.startsWith('--')
+    ? el.style.getPropertyValue(prop) : el.style[prop];
   assert.equal(typeof raw, 'string',
     label + ' style[' + prop + '] — строка; факт: ' + String(raw));
   if (expected !== 0) {
@@ -1947,10 +1996,10 @@ test('000248-MOBR: ranged-моб (имп, d=3) — стрела и вспышк�
   assert.equal(arrows.length, 1,
     'ровно ОДНА .combat-atk-arrow (моб → игрок); факт: '
     + arrows.length);
-  assert.equal(arrows[0].style['--fx-arrow-dur'], '300ms',
+  assert.equal(arrows[0].style.getPropertyValue('--fx-arrow-dur'), '300ms',
     'полёт стрелы влезает в 300-мс окно моба (ревью: 400ms '
     + 'героя обрезалось маркером на 75% полёта); факт: '
-    + String(arrows[0].style['--fx-arrow-dur']));
+    + String(arrows[0].style.getPropertyValue('--fx-arrow-dur')));
   const hits = atkEls000248(env, 'combat-atk-hit');
   assert.equal(hits.length, 1,
     'ровно ОДИН .combat-atk-hit на тайле игрока (вспышка удара '
@@ -1958,12 +2007,13 @@ test('000248-MOBR: ranged-моб (имп, d=3) — стрела и вспышк�
     + 'стартовать в 300-мс окне); факт: ' + hits.length);
   pinPct000248(hits[0], 'left', c.px / c.width * 100, 'mob-hit.left');
   pinPct000248(hits[0], 'top', c.py / c.height * 100, 'mob-hit.top');
-  assert.equal(hits[0].style['--fx-hit-delay'], '100ms',
+  assert.equal(hits[0].style.getPropertyValue('--fx-hit-delay'), '100ms',
     'старт hit — melee-вариант (380ms героя не стартует в '
-    + '300-мс окне); факт: ' + String(hits[0].style['--fx-hit-delay']));
-  assert.equal(hits[0].style['--fx-hit-dur'], '200ms',
+    + '300-мс окне); факт: '
+    + String(hits[0].style.getPropertyValue('--fx-hit-delay')));
+  assert.equal(hits[0].style.getPropertyValue('--fx-hit-dur'), '200ms',
     'hit заканчивается ровно на 300ms (100+200, не 380+220=600); '
-    + 'факт: ' + String(hits[0].style['--fx-hit-dur']));
+    + 'факт: ' + String(hits[0].style.getPropertyValue('--fx-hit-dur')));
 });
 
 // --- 000248-ALLY (КРАСНЫЙ) ---
@@ -2095,13 +2145,13 @@ test('000248-SC: адаптация под масштаб — %-пины гео�
     ['--fx-y1', (m0.y + 0.5) / H * 100],
   ];
   for (const [prop, v] of arrowPts) {
-    assert.equal(typeof arrows[0].style[prop], 'string',
-      'arrow ' + prop + ' — строка; факт: ' + String(arrows[0].style[prop]));
-    assert.ok(/%$/.test(String(arrows[0].style[prop])),
-      'arrow ' + prop + ' — %-строка (% слоя, D3); факт: '
-      + arrows[0].style[prop]);
-    assert.ok(Math.abs(Number.parseFloat(arrows[0].style[prop]) - v) < 0.01,
-      'arrow ' + prop + ' ≈ ' + v + '%; факт: ' + arrows[0].style[prop]);
+    const raw = arrows[0].style.getPropertyValue(prop);
+    assert.equal(typeof raw, 'string',
+      'arrow ' + prop + ' — строка; факт: ' + String(raw));
+    assert.ok(/%$/.test(String(raw)),
+      'arrow ' + prop + ' — %-строка (% слоя, D3); факт: ' + raw);
+    assert.ok(Math.abs(Number.parseFloat(raw) - v) < 0.01,
+      'arrow ' + prop + ' ≈ ' + v + '%; факт: ' + raw);
   }
   const html = page();
   const layer = cssDecl000246(

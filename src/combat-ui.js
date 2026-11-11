@@ -2178,10 +2178,10 @@
           ? 'combat-atk combat-atk-lunge'
           : 'combat-atk combat-atk-draw';
         atkRect(el, fc, c);
-        el.style['--fx-lx'] =
-          ((dir ? dir.ux * LUNGE_CELLS : 0) / fc.w * 100) + '%';
-        el.style['--fx-ly'] =
-          ((dir ? dir.uy * LUNGE_CELLS : 0) / fc.h * 100) + '%';
+        el.style.setProperty('--fx-lx',
+          ((dir ? dir.ux * LUNGE_CELLS : 0) / fc.w * 100) + '%');
+        el.style.setProperty('--fx-ly',
+          ((dir ? dir.uy * LUNGE_CELLS : 0) / fc.h * 100) + '%');
         atkLayer.appendChild(el);
         atkKids[dkey] = el;
       }
@@ -2197,13 +2197,13 @@
           const ty = (tc.y + tc.h / 2) / c.height * 100;
           el.style.left = fx + '%';
           el.style.top = fy + '%';
-          el.style['--fx-x0'] = fx + '%';
-          el.style['--fx-y0'] = fy + '%';
-          el.style['--fx-x1'] = tx + '%';
-          el.style['--fx-y1'] = ty + '%';
-          el.style['--fx-angle'] =
-            (Math.atan2(ty - fy, tx - fx) * 180 / Math.PI) + 'deg';
-          if (s.mob) el.style['--fx-arrow-dur'] = '300ms';
+          el.style.setProperty('--fx-x0', fx + '%');
+          el.style.setProperty('--fx-y0', fy + '%');
+          el.style.setProperty('--fx-x1', tx + '%');
+          el.style.setProperty('--fx-y1', ty + '%');
+          el.style.setProperty('--fx-angle',
+            (Math.atan2(ty - fy, tx - fx) * 180 / Math.PI) + 'deg');
+          if (s.mob) el.style.setProperty('--fx-arrow-dur', '300ms');
           atkLayer.appendChild(el);
           atkKids[akey] = el;
         }
@@ -2216,8 +2216,10 @@
           el.className = 'combat-atk combat-atk-hit';
           atkRect(el, tc, c);
           const tightHit = s.kind === 'melee' || s.mob;
-          el.style['--fx-hit-delay'] = (tightHit ? 100 : 380) + 'ms';
-          el.style['--fx-hit-dur'] = (tightHit ? 200 : 220) + 'ms';
+          el.style.setProperty('--fx-hit-delay',
+            (tightHit ? 100 : 380) + 'ms');
+          el.style.setProperty('--fx-hit-dur',
+            (tightHit ? 200 : 220) + 'ms');
           atkLayer.appendChild(el);
           atkKids[hkey] = el;
         }
