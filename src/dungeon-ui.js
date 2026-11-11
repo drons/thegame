@@ -243,6 +243,14 @@
   let chunkCache = null;
   let chunkErrLogged = false;
 
+  // Затемнение тумана (000344, RENDER-OPTIMIZE §5G/G2): экранная
+  // bake-маска вьюпорта — ТОТ ЖЕ цикл fillRect(FOG_DIM_FILL) по
+  // cellRect, пересборка по ключу (d, cam, zoom, w, h, pos, R,
+  // explored.size), в кадр — один drawImage(bake, 0, 0). ЛЕНИВОЕ
+  // создание: канвас появляется только при первом непустом dim
+  // (пин CC-6 «16 чанков»). Контракты — memory/000344-dungeon-fog-mask.md.
+  let fogBake = null;
+
   function chunkRectsEqual(entry, rect) {
     const a = entry.ex, b = rect.ex;
     const c = entry.ey, d = rect.ey;
@@ -651,6 +659,7 @@
     // Город — без тумана: mask === null (guard'ы слоёв — !isCity).
     const pos = playerPos(s, nowT);
     let mask = null;
+    let fogR = 0; // радиус кадра — в ключ пересборки bake (000344)
     if (!isCity) {
       if (explored === null) explored = new Set();
       const vmRaw = ctx.visionMult;
@@ -681,8 +690,8 @@
           || bonusR < 0) {
         bonusR = 0;
       }
-      mask = maskFor(d.width, d.height, pos.x, pos.y,
-        radiusFor(mult) + floorR + Math.floor(bonusR), explored);
+      fogR = radiusFor(mult) + floorR + Math.floor(bonusR);
+      mask = maskFor(d.width, d.height, pos.x, pos.y, fogR, explored);
       for (let i = 0; i < mask.length; i++) {
         if (mask[i] === 2) {
           explored.add((i % d.width) + ',' + Math.floor(i / d.width));
@@ -1196,22 +1205,67 @@
       }
     }
 
-    // Затемнение исследованных клеток вне радиуса (000136): ОДИН проход
-    // с ОДНИМ fillStyle FOG_DIM_FILL по viewport-диапазону (x0..x1,
-    // y0..y1) для клеток mask == 1 — поверх всего контента затемнённых
-    // клеток («полупрозрачный слой, не скрыты» ТЗ). ПОСЛЕ всех контурных
-    // слоёв и ПЕРЕД игроком — игрок никогда не затемняется (его клетка
-    // всегда mask == 2). Подземелье только; город — без прохода.
+    // Затемнение исследованных клеток вне радиуса (000136; квад —
+    // 000344): клетки mask == 1 viewport-диапазона (x0..x1, y0..y1)
+    // печатаются fillStyle FOG_DIM_FILL по cellRect в ЭКРАННУЮ
+    // bake-маску вьюпорта (offscreen), в кадр — РОВНО ОДИН
+    // drawImage(bake, 0, 0): бит-в-бит прежнему per-cell циклу на main
+    // (тот же цикл/ Ря / порядок; source-over 1:1 целое смещение ==
+    // прямой blend; снап-края соседних ря общие → двойного смешивания
+    // нет — memory/000344-dungeon-fog-mask.md). Пересборка маски —
+    // только по изменению ключа (d, cam, zoom, w, h, pos, R,
+    // explored.size), НЕ каждый кадр. ПОСЛЕ всех контурных слоёв и
+    // ПЕРЕД игроком — игрок никогда не затемняется (его клетка всегда
+    // mask == 2). Подземелье только; город — без прохода. dim == 0 —
+    // ни создания канваса, ни drawImage (ленивое создание, CC-6).
     if (!isCity) {
-      g2.fillStyle = FOG_DIM_FILL;
+      let fogDim = 0;
       for (let y = y0; y <= y1; y++) {
+        const row = y * d.width;
         for (let x = x0; x <= x1; x++) {
-          if (mask[y * d.width + x] === 1) {
-            const p = proj(x, y);
-            const cr = cellRect(x, y, p);
-            g2.fillRect(cr.x, cr.y, cr.w, cr.h);
-          }
+          if (mask[row + x] === 1) fogDim += 1;
         }
+      }
+      if (fogDim > 0) {
+        if (!fogBake || fogBake.canvas.width !== w
+            || fogBake.canvas.height !== h) {
+          fogBake = {
+            canvas: document.createElement('canvas'), b2: null,
+            dRef: null, camX: NaN, camY: NaN, zoom: NaN,
+            w: 0, h: 0, posX: NaN, posY: NaN, R: NaN, expSize: -1,
+          };
+          fogBake.canvas.width = w;
+          fogBake.canvas.height = h;
+        }
+        const bk = fogBake;
+        if (bk.dRef !== d || bk.camX !== cam.x || bk.camY !== cam.y
+            || Math.abs(bk.zoom - zoom) > 1e-6 || bk.w !== w
+            || bk.h !== h || bk.posX !== pos.x || bk.posY !== pos.y
+            || bk.R !== fogR || bk.expSize !== explored.size) {
+          if (!bk.b2) bk.b2 = bk.canvas.getContext('2d');
+          bk.b2.clearRect(0, 0, w, h);
+          bk.b2.fillStyle = FOG_DIM_FILL;
+          for (let y = y0; y <= y1; y++) {
+            for (let x = x0; x <= x1; x++) {
+              if (mask[y * d.width + x] === 1) {
+                const p = proj(x, y);
+                const cr = cellRect(x, y, p);
+                bk.b2.fillRect(cr.x, cr.y, cr.w, cr.h);
+              }
+            }
+          }
+          bk.dRef = d;
+          bk.camX = cam.x;
+          bk.camY = cam.y;
+          bk.zoom = zoom;
+          bk.w = w;
+          bk.h = h;
+          bk.posX = pos.x;
+          bk.posY = pos.y;
+          bk.R = fogR;
+          bk.expSize = explored.size;
+        }
+        g2.drawImage(bk.canvas, 0, 0);
       }
     }
 
@@ -1335,8 +1389,11 @@
       touchHoldDir = null;
       lastTouchHoldStepAt = 0;
       // Туман войны (000136): вход = новый визит — explored сброшен
-      // (визит-состояние, D4; повторный вход — с нуля).
+      // (визит-состояние, D4; повторный вход — с нуля). Bake-маска
+      // затемнения (000344) — сброс вместе с визитом (защита от
+      // протекания маски между подземельями даже без close()).
       explored = new Set();
+      fogBake = null;
       chunkErrLogged = false;
       const liveC = liveGame();
       chunkCache = (typeof liveC.ChunkCache === 'object'
@@ -1362,8 +1419,9 @@
       touchHoldDir = null;
       lastTouchHoldStepAt = 0;
       // Туман войны (000136): визит завершён — explored в null (D4:
-      // утечек между подземельями нет).
+      // утечек между подземельями нет); bake-маска 000344 — туда же.
       explored = null;
+      fogBake = null;
       chunkCache = null;
     },
     // Туман войны (000136): чистое ядро видимости — контракты

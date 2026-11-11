@@ -464,7 +464,7 @@ test('туман FOG-B2: шаг — радиус следует за герое�
   assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
 });
 
-test('туман FOG-B3: возврат на исследованную — затемнение (FOG_DIM_FILL), а не «слепота»', () => {
+test('туман FOG-B3: возврат на исследованную — затемнение (FOG_DIM_FILL), а не «слепота»; маска в bake, в кадр — один drawImage (ре-пин 000344)', () => {
   const { body, errors, s, rafStubs, T, P } = loadFogDungeon();
   T.t += 16;
   tick(rafStubs); // кадр 1: (1,1) и окрестности — explored
@@ -476,24 +476,38 @@ test('туман FOG-B3: возврат на исследованную — за
   const p11 = P(1, 1);
   assert.ok(floorRectAt(calls, p11.x, p11.y, 40),
     '(1,1) — explored вне радиуса — пол РИСУЕТСЯ (не «слепота»)');
-  assert.ok(fillRectAt(calls, FOG_DIM_FILL, p11.x, p11.y, 40, 40),
-    'слой затемнения ' + FOG_DIM_FILL + ' поверх (1,1): та же проекция, '
-    + 'zoom×zoom (полупрозрачный — пол просвечивает)');
-  // Видимая клетка (клетка героя) — НЕ затемнена (mask == 2).
+  // РЕ-ПИН 000344 (RENDER-OPTIMIZE §5G/G2): затемнение больше НЕ
+  // идёт на main циклом fillRect — печатается в offscreen bake-маску
+  // вьюпорта, в кадр — РОВНО ОДИН drawImage(bake, 0, 0). Пиксельная
+  // эквивалентность прежнему циклу (premul/source-over 1:1 —
+  // memory/000344-dungeon-fog-mask.md); Assertions ниже — тот же
+  // fillRect(FOG_DIM_FILL, P(1,1), 40×40), но ВНУТРИ bake.
+  const fogBlit = calls.filter((c) => c[0] === 'drawImage');
+  assert.equal(fogBlit.length, 1,
+    'кадр 2: ровно ОДИН fog-drawImage вместо цикла fillRect '
+    + '(факт: ' + fogBlit.length + ')');
+  const bake = fogBlit[0][1][0];
+  assert.ok(fillRectAt(bake.drawCalls, FOG_DIM_FILL, p11.x, p11.y,
+      40, 40),
+    'слой затемнения ' + FOG_DIM_FILL + ' поверх (1,1) В BAKE: та же '
+    + 'проекция, zoom×zoom (полупрозрачный — пол просвечивает)');
+  // Видимая клетка (клетка героя) — НЕ затемнена (mask == 2) — и в
+  // bake.
   const p81 = P(8, 1);
-  assert.ok(!fillRectAt(calls, FOG_DIM_FILL, p81.x, p81.y, 40, 40),
-    '(8,1) — видимая клетка — не затемнена');
-  // Порядок слоёв: затемнение — ДО игрока (игрок никогда не затемнён).
+  assert.ok(!fillRectAt(bake.drawCalls, FOG_DIM_FILL, p81.x, p81.y,
+      40, 40),
+    '(8,1) — видимая клетка — не затемнена (ря нет в bake-маске)');
+  // Порядок слоёв: fog-квад — ДО игрока (игрок никогда не затемнён).
   let dimIdx = -1;
   let playerIdx = -1;
   for (let i = calls.length - 1; i >= 0; i--) {
     if (playerIdx < 0 && calls[i][0] === 'moveTo') playerIdx = i;
-    if (dimIdx < 0 && calls[i][0] === 'fillRect'
-        && calls[i][2] === FOG_DIM_FILL) dimIdx = i;
+    if (dimIdx < 0 && calls[i][0] === 'drawImage') dimIdx = i;
   }
   assert.ok(playerIdx >= 0, 'ромб игрока в кадре');
   assert.ok(dimIdx >= 0 && dimIdx < playerIdx,
-    'затемнение — до игрока в порядке кадра: ' + dimIdx + ' < ' + playerIdx);
+    'fog-drawImage — до игрока в порядке кадра: ' + dimIdx + ' < '
+    + playerIdx);
   assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
 });
 
@@ -1054,7 +1068,7 @@ function allMobFramePaths(G) {
   return out;
 }
 
-test('мобы MOBV-1: legacy-группа (без mobIds) — explored вне радиуса: не показывается', () => {
+test('мобы MOBV-1: legacy-группа (без mobIds) — explored вне радиуса: не показывается (ре-пин 000344: затемнение в bake)', () => {
   const { body, errors, s, rafStubs, T, P } = loadFogDungeon({
     stateOpts: {
       px: 4, py: 1,
@@ -1074,8 +1088,16 @@ test('мобы MOBV-1: legacy-группа (без mobIds) — explored вне �
   const calls2 = findCanvas(body).drawCalls.slice(f1End);
   assert.ok(floorRectAt(calls2, p81.x, p81.y, 40),
     'кадр 2: (8,1) — explored вне радиуса — пол РИСУЕТСЯ (не «слепота»)');
-  assert.ok(fillRectAt(calls2, FOG_DIM_FILL, p81.x, p81.y, 40, 40),
-    'кадр 2: (8,1) — затемнение ' + FOG_DIM_FILL + ' (explored)');
+  // РЕ-ПИН 000344: затемнение печатается в offscreen bake-маску,
+  // в кадр — ровно один drawImage (сцена без лоадера — другой
+  // drawImage в кадре нет).
+  const fogBlit2 = calls2.filter((c) => c[0] === 'drawImage');
+  assert.equal(fogBlit2.length, 1,
+    'кадр 2: fog — РОВНО ОДИН drawImage вместо цикла fillRect (000344)');
+  assert.ok(fillRectAt(fogBlit2[0][1][0].drawCalls, FOG_DIM_FILL,
+      p81.x, p81.y, 40, 40),
+    'кадр 2: (8,1) — затемнение ' + FOG_DIM_FILL + ' ВНУТРИ bake '
+    + '(explored)');
   assert.ok(!fillRectAt(calls2, '#d9483b', p81.x + 3, p81.y + 3, 34, 34),
     'кадр 2: группа за пределами зрения (cheb 7) — НЕ показывается (000225)');
   assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
@@ -1096,7 +1118,7 @@ test('мобы MOBV-2: видимая legacy-группа — рисуется (
   assert.equal(errors.length, 0, 'нет console.error: ' + JSON.stringify(errors));
 });
 
-test('мобы MOBV-3: босс (footprint 3×3 + спрайты юнитов) — explored вне радиуса: не показывается (ре-пин 000330)', () => {
+test('мобы MOBV-3: босс (footprint 3×3 + спрайты юнитов) — explored вне радиуса: не показывается (ре-пин 000330; затемнение в bake — 000344)', () => {
   const pre = loadDungeonUi({ withSprites: true });
   const loader = makeSpriteLoader(allMobFramePaths(pre.G));
   const boss = {
@@ -1156,8 +1178,16 @@ test('мобы MOBV-3: босс (footprint 3×3 + спрайты юнитов) �
   const p81 = P(8, 1);
   assert.ok(floorRectAt(calls2, p81.x, p81.y, 40),
     'кадр 2: (8,1) — explored вне радиуса — пол РИСУЕТСЯ');
-  assert.ok(fillRectAt(calls2, FOG_DIM_FILL, p81.x, p81.y, 40, 40),
-    'кадр 2: (8,1) — затемнение (explored)');
+  // РЕ-ПИН 000344: затемнение — в bake-маске (fog-drawImage —
+  // единственный 3-аргументный drawImage; спрайт-блиты — 5-арг.).
+  const fogBlit3 = calls2.filter((c) => c[0] === 'drawImage'
+    && c[1].length === 3);
+  assert.equal(fogBlit3.length, 1,
+    'кадр 2: fog — ровно ОДИН drawImage вместо цикла fillRect '
+    + '(факт: ' + fogBlit3.length + ', 000344)');
+  assert.ok(fillRectAt(fogBlit3[0][1][0].drawCalls, FOG_DIM_FILL,
+      p81.x, p81.y, 40, 40),
+    'кадр 2: (8,1) — затемнение ВНУТРИ bake (explored)');
   assert.ok(!calls2.some((c) => c[0] === 'fillRect' && c[2] === '#b06ad4'),
     'кадр 2: босс за пределами зрения (cheb 7) — bbox НЕ рисуется (000225)');
   for (let i = 0; i < units.length; i++) {
@@ -1221,7 +1251,7 @@ function pressKey(h, code) {
   return e;
 }
 
-test('мобы MOBV-5: полная цепочка — за пределами зрения (approach + retreat) — моб не показывается', async () => {
+test('мобы MOBV-5: полная цепочка — за пределами зрения (approach + retreat) — моб не показывается (ре-пин 000344: затемнение в bake)', async () => {
   const h = await bootFull();
   assert.equal(h.errors.length, 0,
     'ошибок загрузки нет: ' + h.errors.join('; '));
@@ -1320,9 +1350,16 @@ test('мобы MOBV-5: полная цепочка — за пределами �
   assert.ok(floorCellDrawn(last.calls, cell, zoom),
     'финал: клетка (' + last.g0.x + ',' + last.g0.y
     + ') — explored — пол рисуется (не «слепота»)');
-  assert.ok(fillRectAt(last.calls, FOG_DIM_FILL,
+  // РЕ-ПИН 000344: затемнение — внутри bake (fog-drawImage —
+  // единственный 3-аргументный drawImage кадра).
+  const fogLast = last.calls.filter((c) => c[0] === 'drawImage'
+    && c[1].length === 3);
+  assert.equal(fogLast.length, 1,
+    'финал: fog — ровно ОДИН drawImage (факт: ' + fogLast.length
+    + ', 000344)');
+  assert.ok(fillRectAt(fogLast[0][1][0].drawCalls, FOG_DIM_FILL,
       cell.x, cell.y, cell.w, cell.h, 1e-6),
-    'финал: клетка g0 — затемнение (explored вне радиуса)');
+    'финал: клетка g0 — затемнение ВНУТРИ bake (explored вне радиуса)');
   // КРАСНОЕ: за пределами зрения — не показывается.
   for (let i = 0; i < g0.mobIds.length; i++) {
     const u = {

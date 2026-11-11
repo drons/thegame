@@ -939,7 +939,7 @@ function assertSamePoints(actual, expected, label) {
 
 // --- CC-6: подземелье 63×63 @ z=4 — чанки, fog, targeted re-bake ---
 
-test('CC-6: подземелье 63×63 @ z=4 — 16 чанков/блитов (4×4), 0 per-cell floor/wall на основном канвасе, origin блита и локальные rect-ы клеток == snappedTileRect попиксельно; шаг (31,31)→(32,31) — re-bake ТОЛЬКО чанков (2,1)/(2,2) (fog 0→2), FOG_DIM = mask==1 (11), остальные 14 чанков переиспользуются (000263)', () => {
+test('CC-6: подземелье 63×63 @ z=4 — 16 чанков/блитов (4×4), 0 per-cell floor/wall на основном канвасе, origin блита и локальные rect-ы клеток == snappedTileRect попиксельно; шаг (31,31)→(32,31) — re-bake ТОЛЬКО чанков (2,1)/(2,2) (fog 0→2), FOG_DIM = mask==1 (11) ВНУТРИ bake (на main — 1 drawImage, bake ленив: в кадре 1 его нет), остальные 14 чанков переиспользуются (000263; ре-пин 000344)', () => {
   const W = 63, H = 63, PX = 31, PY = 31, ZOOM = 4;
   const loaded = loadDungeonUiD({ withSprites: true });
   const G = loaded.G;
@@ -1008,6 +1008,14 @@ test('CC-6: подземелье 63×63 @ z=4 — 16 чанков/блитов (
   const FOG = 'rgba(10, 13, 18, 0.65)';
   assert.equal(f1.filter((c) => c[0] === 'fillRect' && c[2] === FOG)
     .length, 0, 'кадр 1: 0 FOG_DIM (explored пусто)');
+  // РЕ-ПИН 000344: bake-канвас тумана ЛЕНИВЫЙ — при пустом explored
+  // (кадр 1) он не создаётся и fog-drawImage (3-аргументный
+  // drawImage(bake, 0, 0); чанк-блиты — 5-аргументные) в кадре нет —
+  // иначе пин «16 чанков/блитов» ниже был бы красен с первого кадра.
+  assert.equal(f1.filter((c) => c[0] === 'drawImage'
+    && c[1].length === 3).length, 0,
+    'кадр 1: fog-drawImage нет — bake не создан (ленивое создание, '
+    + '000344)');
   // (c) контент: ВСЕ видимые клетки (11×11 = 121) запеклись в свои
   // чанки: локальный rect == snappedTileRect(x, y) − origin
   // (попиксельно, TS-10/11/12 по смыслу), кадр == dungeonFloorFrame.
@@ -1063,10 +1071,24 @@ test('CC-6: подземелье 63×63 @ z=4 — 16 чанков/блитов (
   s.x = 32;
   G.dungeonUI.render(NOW_D + 200);
   const f2 = canvas.drawCalls.slice(n1);
+  // РЕ-ПИН 000344: туман — экранная bake-маска (создана в ЭТОМ кадре —
+  // explored в кадре 1 был пуст; тоже попадает в createdCanvases).
+  // Её 3-аргументный drawImage(bake, 0, 0) — не чанк-блит; чанковые
+  // blits2 считаются без него (16), fog проверяется отдельно в (e).
+  const fogBlits2 = f2.filter((c) => c[0] === 'drawImage'
+    && c[1].length === 3 && loaded.createdCanvases.has(c[1][0]));
+  assert.equal(fogBlits2.length, 1,
+    'кадр 2: fog — ровно ОДИН drawImage вместо цикла fillRect '
+    + '(факт: ' + fogBlits2.length + ', 000344)');
+  const fogBakeCanvas = fogBlits2[0][1][0];
+  assert.deepEqual(fogBlits2[0][1], [fogBakeCanvas, 0, 0],
+    'fog-блит — bake в (0,0) экрана (000344)');
   const blits2 = f2.filter((c) => c[0] === 'drawImage'
+    && c[1].length !== 3
     && (chunkCanvases.has(c[1][0])
       || loaded.createdCanvases.has(c[1][0])));
-  assert.equal(blits2.length, 16, 'кадр 2: blit-ов 16');
+  assert.equal(blits2.length, 16, 'кадр 2: чанк blit-ов 16 (ре-пин '
+    + '000344: fog-drawImage отделён)');
   // Какие чанки пере-запеклись: новый canvas ИЛИ новые записи.
   const rebaked = new Set();
   for (const c of blits2) {
@@ -1088,9 +1110,15 @@ test('CC-6: подземелье 63×63 @ z=4 — 16 чанков/блитов (
     + [...rebaked].sort() + ' === [' + [...reBake].sort() + ']); '
     + 'остальные 14 переиспользуются (0 новых записей)');
   // (e) FOG_DIM — динамический pass интактен: ровно mask==1 клетки.
+  // РЕ-ПИН 000344: те же ря — внутри bake (на main — 0 fillRect FOG,
+  // вместо них один drawImage выше).
   assert.equal(f2.filter((c) => c[0] === 'fillRect' && c[2] === FOG)
-    .length, dimCount,
-    'кадр 2: FOG_DIM == mask==1 (' + dimCount + ') — explored-затемнение');
+    .length, 0,
+    'кадр 2: на main FOG_DIM fillRect === 0 (маска запечена, 000344)');
+  assert.equal(fogBakeCanvas.drawCalls.filter(
+    (c) => c[0] === 'fillRect' && c[2] === FOG).length, dimCount,
+    'кадр 2: FOG_DIM в bake == mask==1 (' + dimCount
+    + ') — explored-затемнение');
   // (f) игрок в кадре (ромб-фолбэк: phlogiston в loader'е нет).
   assert.ok(f2.some((c) => c[0] === 'moveTo'),
     'игрок нарисован в кадре 2 (moveTo ромба)');

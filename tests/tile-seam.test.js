@@ -1107,7 +1107,7 @@ test('TS-11: город: дробный зум (57.6) — клетки пола/
 // TS-9 — identity (zoom 40 — снап тривиален).
 const FOG_DIM_FILL = 'rgba(10, 13, 18, 0.65)'; // dungeon-ui.js L162
 
-test('TS-12: подземелье 9×9: дробный зум (57.6) + дробная камера (4.5, 4.5) — FOG_DIM_FILL (mask==1) на снап-сетке пола #182029: frame 1 dim 0 (explored-union ПОСЛЕ mask), frame 2 dim 24 (13 стен + 11 пола), объединённая сетка 60 клеток (47 пол + 13 dim-стен); анти-вакуум 140.8 (000215)', () => {
+test('TS-12: подземелье 9×9: дробный зум (57.6) + дробная камера (4.5, 4.5) — FOG_DIM_FILL (mask==1) на снап-сетке пола #182029: frame 1 dim 0 (explored-union ПОСЛЕ mask), frame 2 dim 24 (13 стен + 11 пола ВНУТРИ bake, на main — 1 drawImage), объединённая сетка 60 клеток (47 пол + 13 dim-стен); анти-вакуум 140.8 (000215; ре-пин 000344)', () => {
   const rafStubs = dMakeRafStubs();
   const T = { t: 1000 };
   const { G, body } = dLoadDungeonUi({
@@ -1140,7 +1140,21 @@ test('TS-12: подземелье 9×9: дробный зум (57.6) + дроб�
   dTick(rafStubs);
   const frame2 = canvas.drawCalls.slice(lenAfterStart);
   assert.ok(frame2.length > 0, 'frame 2: кадр отрисован (dTick)');
-  const dimRects = frame2.filter(
+  // РЕ-ПИН 000344 (RENDER-OPTIMIZE §5G/G2): mask==1 больше не льется
+  // на main — печатается в offscreen bake-маску (тот же proj/cellRect,
+  // тот же порядок обхода), в кадр — РОВНО ОДИН drawImage(bake, 0, 0).
+  // Счет 24 и ассерты целых краев переезжают внутрь bake — снап-сетка
+  // dim-клеток относительно пола НЕ изменится (bake того же размера и
+  // с той же проекцией, блендинг source-over 1:1).
+  const fogBlits = frame2.filter((c) => c[0] === 'drawImage');
+  assert.equal(fogBlits.length, 1,
+    'frame 2: fog — ровно ОДИН drawImage на main (факт: '
+    + fogBlits.length + ', ре-пин 000344)');
+  const bake = fogBlits[0][1][0];
+  assert.equal(frame2.filter(
+    (c) => c[0] === 'fillRect' && c[2] === FOG_DIM_FILL).length, 0,
+    'frame 2: на main fillRect(FOG_DIM_FILL) === 0 (маска в bake)');
+  const dimRects = bake.drawCalls.filter(
     (c) => c[0] === 'fillRect' && c[2] === FOG_DIM_FILL);
   // explored (union frame 1+2) = (0..6)² ∪ (2..8)² (73 клетки);
   // visible frame 2 = (2..8)² (49); mask==1 = explored \ visible =
@@ -1156,7 +1170,11 @@ test('TS-12: подземелье 9×9: дробный зум (57.6) + дроб�
   // 11 dim-полов в обоих — одна сетка, общие края пол↔dim-стена).
   // 47 = 49 − 2: интерьерные полы (7,1) и (1,7) НЕ исследованы
   // (mask 0 — чистый фон, пол-пасс их не рисует).
-  const { grid, count } = cellGrid(canvas.drawCalls, { x: camX, y: camY },
+  // РЕ-ПИН 000344: объединённая сетка = полы main + dim-ря из bake.
+  const { grid, count } = cellGrid(
+    canvas.drawCalls.filter((c) => c[0] === 'fillRect'
+      && c[2] === '#182029').concat(dimRects),
+    { x: camX, y: camY },
     zoom, (c) => c[2] === '#182029' || c[2] === FOG_DIM_FILL);
   assert.equal(grid.size, 60,
     'объединённая сетка: 60 уникальных клеток (47 пол + 13 dim-стен; '
