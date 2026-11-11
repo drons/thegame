@@ -3506,6 +3506,57 @@
   let frameTilesHits = 0;
   let worldVersion = 0;
 
+  let frameSubsets = null;
+  let frameSubsetsBuilds = 0;
+
+  function frameSubsetPackage(keyRef) {
+    const vis = typeof G.tileVisuals === 'function'
+      && zoom >= (G.VISUALS_MIN_ZOOM || 0);
+    return {
+      keyRef, vis,
+      lootN: collectedLoot.size, mobN: defeatedAt.size,
+      water: [], decor: [], loot: [], anchors: [], mobs: [], p1: [],
+      anchorSeen: new Set(),
+    };
+  }
+
+  function frameSubsetAdd(pkg, t) {
+    const TERR = G.TERRAIN;
+    let isWater = false;
+    if (TERR && (t.terrain === TERR.WATER || t.terrain === TERR.DEEP_WATER)) {
+      isWater = true;
+      pkg.water.push(t);
+    }
+    let hasDecor = false;
+    if (pkg.vis && !(t.inBuilding && !t.isEntrance)
+        && G.tileVisuals(t.x, t.y, t.terrain).length > 0) {
+      hasDecor = true;
+      pkg.decor.push(t);
+    }
+    let hasLoot = false;
+    if (t.loot && !(t.inBuilding && !t.isEntrance)) {
+      hasLoot = true;
+      pkg.loot.push(t);
+    }
+    if (isWater || hasDecor || hasLoot) pkg.p1.push(t);
+    if (t.inBuilding && t.buildingAnchor) {
+      const key = t.buildingAnchor[0] + ',' + t.buildingAnchor[1];
+      if (!pkg.anchorSeen.has(key)) {
+        pkg.anchorSeen.add(key);
+        pkg.anchors.push(key);
+      }
+    }
+    if (t.hasMobGroup) pkg.mobs.push(t);
+  }
+
+  function frameSubsetsCollect(keyRef) {
+    const pkg = frameSubsetPackage(keyRef);
+    for (const t of frameTiles) frameSubsetAdd(pkg, t);
+    pkg.anchorSeen = null;
+    frameSubsets = pkg;
+    frameSubsetsBuilds += 1;
+  }
+
   function exploredSize() {
     let n = 0;
     for (const s of explored.values()) n += s.size;
@@ -3764,10 +3815,12 @@
       }
     } else {
       frameTiles.length = 0;
+      const subPkg = frameSubsetPackage(null);
       for (let ty = range.y0; ty <= range.y1; ty++) {
         for (let tx = range.x0; tx <= range.x1; tx++) {
           const t = tileCache.tile(tx, ty);
           frameTiles.push(t); // {x, y, terrain, passable, hasBuilding, building, hasMobGroup, mobGroup}
+          frameSubsetAdd(subPkg, t);
           legacyTileVerts(t, tx, ty, now, verts, gateSkip);
         }
       }
@@ -3775,6 +3828,10 @@
         x0: range.x0, y0: range.y0, x1: range.x1, y1: range.y1,
         worldVersion, exploredVersion,
       };
+      subPkg.keyRef = frameTilesKey;
+      subPkg.anchorSeen = null;
+      frameSubsets = subPkg;
+      frameSubsetsBuilds += 1;
       frameTilesRebuilds += 1;
     }
 
@@ -3915,6 +3972,14 @@
     if (useChunks && !worldChunkCache) {
       useChunks = false;
     }
+    if (frameSubsets === null
+        || frameSubsets.keyRef !== frameTilesKey
+        || frameSubsets.lootN !== collectedLoot.size
+        || frameSubsets.mobN !== defeatedAt.size
+        || frameSubsets.vis !== showVisuals) {
+      frameSubsetsCollect(frameTilesKey);
+    }
+    const subs = frameSubsets;
     if (useChunks) {
       const CC = G.ChunkCache;
       const cr = CC.chunkRange(tileRange.x0, tileRange.y0,
@@ -3951,7 +4016,7 @@
     // иначе травинки вырастают «на стене» (задача 000042); вход
     // декорации сохраняет (там игрок взаимодействует). Не загрузившийся
     // спрайт — элемент пропускается (isReady false), слой не падает.
-    for (const t of frameTiles) {
+    for (const t of (useChunks ? subs.p1 : frameTiles)) {
       const p = toPt(t.x, t.y);
       const sx = p.x, sy = p.y;
       // 000176: селектор кадра — общий с гейтом legacy-тайла
@@ -4004,13 +4069,7 @@
     // 3), поэтому рисуем по якорям ВИДИМЫХ тайлов, а не только по
     // якорным тайлам. Прямой вызов drawImage: w×h ОТ ЯКОРЯ
     // (worldToScreen(ax, ay), размер w*zoom × h*zoom).
-    const anchors = new Set();
-    for (const t of frameTiles) {
-      if (t.inBuilding && t.buildingAnchor) {
-        anchors.add(t.buildingAnchor[0] + ',' + t.buildingAnchor[1]);
-      }
-    }
-    for (const key of anchors) {
+    for (const key of subs.anchors) {
       const sep = key.indexOf(',');
       const ax = Number(key.slice(0, sep));
       const ay = Number(key.slice(sep + 1));
@@ -4053,7 +4112,7 @@
         && typeof G.Spells.darkPresenceRadius === 'function')
         ? G.Spells.darkPresenceRadius(hero, clock.day) : 0;
       const cbR = Math.max(cbR0, dpR);
-      for (const t of frameTiles) {
+      for (const t of subs.mobs) {
         if (!t.hasMobGroup) continue;
         if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
         const info = G.groupZoneInfo(t.mobGroup);
@@ -4083,7 +4142,7 @@
     // дня (dueForRespawn), спрайт возвращается ровно тогда же, без
     // доп. состояния. Фильтр здесь, в слое отрисовки: hasMobGroup в
     // map.js детерминирован (hash координат) и о defeatedAt не знает.
-    for (const t of frameTiles) {
+    for (const t of subs.mobs) {
       if (!t.hasMobGroup) continue;
       if (G.groupVisible && !G.groupVisible(defeatedAt, t.x, t.y)) continue;
       // 000173: заряжающаяся группа — ДРОБНАЯ точка глейда (принцип
@@ -4385,6 +4444,8 @@
           rebuilds: frameTilesRebuilds,
           key: frameTilesKey,
           tiles: frameTiles,
+          subsets: frameSubsets,
+          subsetBuilds: frameSubsetsBuilds,
         },
         day: clock.day,
         stepsToday: clock.steps,
