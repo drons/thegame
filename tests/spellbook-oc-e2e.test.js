@@ -1956,7 +1956,8 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
   assert.equal(saveHero(h).mp, 44, 'фикстура: герой mp 44 (maxMP 70)');
   // deadMercs после загрузки (порядок сид-массива): string → backfill
   // (каталог volk: str 3/con 2, swordsman 2, spells []), record →
-  // sanitize (11 ключей, 000300: +trainPoints; свежая копия).
+  // sanitize (000300: +trainPoints; 000359.01: обе ветки LOAD —
+  // +craft/craftXp/craftTypes материализованные; свежая копия).
   assert.deepEqual(host(g.state.deadMercs), [
     {
       npcId: 'merc_volk',
@@ -1966,6 +1967,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
         primary: { strength: 3, dexterity: 1, constitution: 2,
           intelligence: 1, wisdom: 1, charisma: 1 },
         secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+        craft: {}, craftXp: {}, craftTypes: {},
       },
       loyalty: 50, hiredDay: 0,
     },
@@ -1978,6 +1980,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
           intelligence: 3, wisdom: 2, charisma: 1 },
         secondary: { meditation: 2 }, skillXp: {},
         spells: ['mend', 'light_heal'],
+        craft: {}, craftXp: {}, craftTypes: {},
       },
       loyalty: 70, hiredDay: 5,
     },
@@ -1997,6 +2000,9 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
   const saved = JSON.parse(savedRaw);
   assert.deepEqual(saved.data.dead_mercs, [],
     'сейв: dead_mercs [] (все воскрешены)');
+  // 000359.01: оба листа пришли ИЗ LOAD (deadMercs→воскрешение), т.е.
+  // несут материализованные craft/craftXp/craftTypes — сериализация
+  // условно переносит их (ключи есть на листе).
   assert.deepEqual(saved.data.companions, [
     {
       npcId: 'merc_mira',
@@ -2007,6 +2013,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
           intelligence: 3, wisdom: 2, charisma: 1 },
         secondary: { meditation: 2 }, skillXp: {},
         spells: ['mend', 'light_heal'],
+        craft: {}, craftXp: {}, craftTypes: {},
       },
       loyalty: 70, hiredDay: 5,
     },
@@ -2018,6 +2025,7 @@ test('000235.10 W-10b: e2e miracle (книга) — seed deadMercs (string-legac
         primary: { strength: 3, dexterity: 1, constitution: 2,
           intelligence: 1, wisdom: 1, charisma: 1 },
         secondary: { swordsman: 2 }, skillXp: {}, spells: [],
+        craft: {}, craftXp: {}, craftTypes: {},
       },
       loyalty: 50, hiredDay: 0,
     },

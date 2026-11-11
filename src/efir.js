@@ -698,7 +698,7 @@
    */
   function serializeEfir(state) {
     if (!isEfirSheet(state)) return null;
-    return {
+    const out = {
       kind: 'efir',
       level: state.level,
       xp: state.xp,
@@ -711,6 +711,16 @@
       skills: Object.assign({}, state.skills),
       spells: Array.isArray(state.spells) ? state.spells.slice() : [],
     };
+    if (isPlainObject(state.craft)) {
+      out.craft = Object.assign({}, state.craft);
+    }
+    if (isPlainObject(state.craftXp)) {
+      out.craftXp = Object.assign({}, state.craftXp);
+    }
+    if (isPlainObject(state.craftTypes)) {
+      out.craftTypes = Object.assign({}, state.craftTypes);
+    }
+    return out;
   }
 
   /**
@@ -861,6 +871,7 @@
     // зеркало skills + skillXp); level/xp/totalXp/points/spells — не
     // трогает; идемпотентен (неподвижная точка на канонической
     // форме).
+    const GC = lazyGame();
     const state = {
       kind: 'efir',
       level: raw.level,
@@ -873,6 +884,12 @@
       skillXp: skillXp,
       skills: mirror,
       spells: spells,
+      craft: (GC && typeof GC.sanitizeCraftLevels === 'function')
+        ? GC.sanitizeCraftLevels(raw.craft) : {},
+      craftXp: (GC && typeof GC.sanitizeCraftXp === 'function')
+        ? GC.sanitizeCraftXp(raw.craftXp) : {},
+      craftTypes: (GC && typeof GC.sanitizeCraftTypes === 'function')
+        ? GC.sanitizeCraftTypes(raw.craftTypes) : {},
     };
     reprocessEfirSkills(state);
     return state;

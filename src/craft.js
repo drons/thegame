@@ -317,7 +317,7 @@
         amount < 0) {
       return fail('неверный опыт');
     }
-    if (!c.alive) return fail('персонаж погиб');
+    if (c.alive === false) return fail('персонаж погиб');
     craftOf(c);
     const level0 = craftLevel(c, type);
     const limit = ignoreCap
@@ -548,14 +548,14 @@
   // влезает по СЛОТАМ — «нет свободных слотов инвентаря» (приоритет:
   // checkAdd проверяет слоты ДО веса), иначе по весу —
   // «слишком тяжело (лимит веса)». Чисто: c не мутирует.
-  function capacityCheck(c, recipe, spell, building) {
+  function capacityCheck(c, perf, recipe, spell, building) {
     const res = recipe.результат;
-    const qPossible = qualityChance(c, recipe.id, building) > 0;
-    const yPossible = yieldChance(c, recipe.id, building) > 0;
+    const qPossible = qualityChance(perf, recipe.id, building) > 0;
+    const yPossible = yieldChance(perf, recipe.id, building) > 0;
     const bonuses = qPossible
-      ? [craftBonus(c, recipe, spell, true),
-         craftBonus(c, recipe, spell, false)]
-      : [craftBonus(c, recipe, spell, false)];
+      ? [craftBonus(perf, recipe, spell, true),
+         craftBonus(perf, recipe, spell, false)]
+      : [craftBonus(perf, recipe, spell, false)];
     let slotFail = false;
     let weightFail = false;
     for (const b of bonuses) {
@@ -577,6 +577,8 @@
   // Возврат: { fail: {ok:false, reason} } | { ok, recipe, spell }.
   function evalCraft(c, recipeId, opts) {
     const o = opts || {};
+    const perf = (o.performer && typeof o.performer === 'object' &&
+        !Array.isArray(o.performer)) ? o.performer : c;
     const recipe = CRAFT_BY_ID[recipeId];
     if (!recipe) return { fail: { ok: false, reason: 'неизвестный рецепт' } };
     // Мёртвый персонаж (правки ревью, раунд 2): pre-check ДО всех
@@ -589,12 +591,12 @@
     // Вид должен быть изучен (задача 000232): ОДНА точка гейта —
     // canCraft/craft дают одну причину (зеркало 000037); после alive-
     // пре-чека, ДО проверки уровня.
-    if (!isTypeLearned(c, recipe.тип)) {
+    if (!isTypeLearned(perf, recipe.тип)) {
       return { fail: { ok: false, reason: 'вид не изучен' } };
     }
     // Уровень вида.
     const need = recipe.уровень;
-    if (craftLevel(c, recipe.тип) < need) {
+    if (craftLevel(perf, recipe.тип) < need) {
       return {
         fail: { ok: false, reason: `недостаточный уровень (нужно ${need})` },
       };
@@ -643,11 +645,11 @@
       }
       // Изученность — БЕЗ побочных эффектов (p.spells не создаётся —
       // зеркало canCastSpell, 000045).
-      const book = Array.isArray(c.spells) ? c.spells : null;
+      const book = Array.isArray(perf.spells) ? perf.spells : null;
       if (!book || !book.includes(spellId)) {
         return { fail: { ok: false, reason: 'заклинание не изучено' } };
       }
-      if (c.mp < spell.мани) {
+      if (typeof perf.mp !== 'number' || perf.mp < spell.мани) {
         return {
           fail: { ok: false, reason: `не хватает маны (${spell.мани})` },
         };
@@ -659,9 +661,9 @@
     // качества — отдельный слот — и без) + 1 выходной (см. шапку
     // модуля): если он влез, craft не может ни отказать на слотах/весе,
     // ни «раздать» основной результат без выхода.
-    const cap = capacityCheck(c, recipe, spell, o.building);
+    const cap = capacityCheck(c, perf, recipe, spell, o.building);
     if (!cap.ok) return { fail: cap };
-    return { ok: true, recipe, spell };
+    return { ok: true, recipe, spell, perf };
   }
 
   /**
@@ -692,18 +694,18 @@
     const o = opts || {};
     const ev = evalCraft(c, recipeId, o);
     if (ev.fail) return ev.fail;
-    const { recipe, spell } = ev;
+    const { recipe, spell, perf } = ev;
     const rng = typeof o.rng === 'function' ? o.rng : Math.random;
     // Роллы: СНАЧАЛА качество, затем выход (порядок закреплён).
     const qRoll = rng();
     const yRoll = rng();
-    const quality = qRoll < qualityChance(c, recipeId, o.building);
-    const extra = yRoll < yieldChance(c, recipeId, o.building);
+    const quality = qRoll < qualityChance(perf, recipeId, o.building);
+    const extra = yRoll < yieldChance(perf, recipeId, o.building);
 
     // Бонус результата: качество (множитель навыка вида) + заклинание
     // (степень по spell.действие) складываются в один слот.
     const res = recipe.результат;
-    const bonus = craftBonus(c, recipe, spell, quality);
+    const bonus = craftBonus(perf, recipe, spell, quality);
 
     // --- Мутации (все проверки прошли) ---
     // Отказ на этом этапе НЕДОСТИЖИМ: evalCraft/capacityCheck прошла
@@ -747,9 +749,9 @@
       }
     }
     // Мана (зачарование).
-    if (spell) c.mp -= spell.мани;
+    if (spell) perf.mp -= spell.мани;
     // Опыт виду: 10 + уровень рецепта (практика, с потолком).
-    const xp = addCraftXp(c, recipe.тип, 10 + recipe.уровень, false);
+    const xp = addCraftXp(perf, recipe.тип, 10 + recipe.уровень, false);
 
     const out = {
       ok: true, item: res.предмет, qty: res.количество,

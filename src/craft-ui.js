@@ -76,6 +76,13 @@ function (G0, _unused1, _unused2, rootRef) {
     return (r && r.Game && typeof r.Game === 'object') ? r.Game : null;
   }
 
+  function resolvePerformer(h) {
+    const G = curGame();
+    const BE = G && G.buildingEffects;
+    return (BE && typeof BE.craftExecutor === 'function')
+      ? BE.craftExecutor(h) : h;
+  }
+
   // --- Состояние (DOM-операции ТОЛЬКО внутри open()/close()) ---
 
   let overlay = null;
@@ -83,6 +90,7 @@ function (G0, _unused1, _unused2, rootRef) {
   let logEl = null;
   let building = null;
   let hero = null;
+  let performer = null;
   let onChange = null;
   let active = false;
   let keyHandler = null;
@@ -170,8 +178,8 @@ function (G0, _unused1, _unused2, rootRef) {
     row.appendChild(el('div', 'craft-recipe-inputs',
       'Исходники: ' + (inputs.length ? inputs.join(', ') : '—')));
     // Шансы: у постройки качество > 0 (в поле — 0, SPEC «Рецепты»).
-    const q = C.qualityChance(hero, r.id, building.id);
-    const y = C.yieldChance(hero, r.id, building.id);
+    const q = C.qualityChance(performer, r.id, building.id);
+    const y = C.yieldChance(performer, r.id, building.id);
     row.appendChild(el('div', 'craft-recipe-chance',
       'Качество: ' + Math.round(q * 100) + '%'
       + ' · Выход: ' + Math.round(y * 100) + '%'));
@@ -187,8 +195,8 @@ function (G0, _unused1, _unused2, rootRef) {
     let spellId = null;
     if (r.тип === 'зачарование') {
       const learned = (Array.isArray(r.заклинания) ? r.заклинания : [])
-        .filter((s) => Array.isArray(hero.spells)
-          && hero.spells.includes(s));
+        .filter((s) => Array.isArray(performer.spells)
+          && performer.spells.includes(s));
       if (learned.length) {
         const pick = el('div', 'craft-spell');
         pick.appendChild(el('span', 'craft-spell-label', 'Заклинание: '));
@@ -217,7 +225,7 @@ function (G0, _unused1, _unused2, rootRef) {
     const btn = el('button', 'cp-btn', 'изготовить');
     btn.dataset.craftact = 'craft';
     btn.dataset.recipe = r.id;
-    const opts = { building: building.id };
+    const opts = { building: building.id, performer: performer };
     if (r.тип === 'зачарование' && spellId != null) opts.spellId = spellId;
     const chk = C.canCraft(hero, r.id, opts);
     if (!chk.ok) {
@@ -240,7 +248,7 @@ function (G0, _unused1, _unused2, rootRef) {
     // Задача 000232: неизученные виды НЕ показываются (фильтр
     // здания ∩ изученность; fallback true — деградация без API).
     const learned = (r) => (C.isTypeLearned
-      ? C.isTypeLearned(hero, r.тип)
+      ? C.isTypeLearned(performer, r.тип)
       : true);
     const recipes = (Array.isArray(C.CRAFT) ? C.CRAFT : []).filter(
       (r) => r && Array.isArray(r.здания)
@@ -250,7 +258,7 @@ function (G0, _unused1, _unused2, rootRef) {
       const rs = recipes.filter((r) => r.тип === type);
       if (!rs.length) continue;
       const sec = el('section', 'craft-type');
-      const L = C.craftLevel ? C.craftLevel(hero, type) : 1;
+      const L = C.craftLevel ? C.craftLevel(performer, type) : 1;
       sec.appendChild(el('div', 'craft-type-name',
         type + ' — уровень ' + L));
       for (const r of rs) sec.appendChild(recipeEl(G, C, r, L));
@@ -258,7 +266,7 @@ function (G0, _unused1, _unused2, rootRef) {
     }
     if (!recipes.length) {
       const hint = (C.isTypeLearned &&
-        types.some((t) => C.isTypeLearned(hero, t)))
+        types.some((t) => C.isTypeLearned(performer, t)))
         ? 'В этом здании нет изученных видов крафта.'
         : 'Виды крафта не изучены. Свитки и чертежи (торговцы, сундуки, '
           + 'лут мобов) открывают целый вид.';
@@ -293,7 +301,7 @@ function (G0, _unused1, _unused2, rootRef) {
       const id = src.dataset.recipe;
       const recipe = C.CRAFT_BY_ID ? C.CRAFT_BY_ID[id] : null;
       if (!recipe) return;
-      const opts = { building: building.id };
+      const opts = { building: building.id, performer: performer };
       //spellId — ТОЛЬКО для зачарования и ТОЛЬКО изученный (контракт
       // §5/подводный камень 6: дефолт ядра spells[0] может быть НЕ
       // изучен — нельзя полагаться; не-зачарование — БЕЗ spellId,
@@ -353,6 +361,7 @@ function (G0, _unused1, _unused2, rootRef) {
     closeDom();
     building = null;
     hero = null;
+    performer = null;
     onChange = null;
     for (const k of Object.keys(spellPick)) delete spellPick[k];
     log.length = 0;
@@ -416,6 +425,7 @@ function (G0, _unused1, _unused2, rootRef) {
     close();
     building = b;
     hero = h;
+    performer = resolvePerformer(h);
     onChange = (typeof o.onChange === 'function') ? o.onChange : null;
     active = true;
     buildDom();

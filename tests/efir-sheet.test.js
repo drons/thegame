@@ -118,6 +118,11 @@ const SPELL_CATALOG = SPELL_FILES()
 // 000300: +trainPoints): отсортирован (пины — Object.keys().sort()).
 const SHEET_KEYS = ['kind', 'level', 'points', 'primary', 'secondary',
   'skillXp', 'skills', 'spells', 'totalXp', 'trainPoints', 'xp'];
+// 000359.01: LOAD (deserializeEfir) ВСЕГДА материализует craft-секции —
+// выход = лист + craft/craftXp/craftTypes; serialize — условная копия
+// (absent → absent: чистый лист остаётся 11-ключевым, пин ES-6/new T8).
+const LOAD_KEYS = SHEET_KEYS.concat(['craft', 'craftXp', 'craftTypes'])
+  .sort();
 // Старт-формула (решение аудита; SPEC «Дух Эфира» — тройка 3,
 // остальные 1): эквивалентно старой таблице a = 3 при L1.
 const START_PRIMARY = { strength: 1, dexterity: 1, constitution: 3,
@@ -381,8 +386,9 @@ test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 11
   // (reprocess: 3 → 6, банк 999 − (60+75+90) = 774); points/totalXp 0.
   const s = E.deserializeEfir(OLD, SKILL_CATALOG, SPELL_CATALOG);
   assert.ok(s !== null, 'старый 5-полевой лейаут — принят (backfill)');
-  assert.deepEqual(Object.keys(s).sort(), SHEET_KEYS,
-    'выход — sheet-лейаут (11 ключей, без npcId)');
+  assert.deepEqual(Object.keys(s).sort(), LOAD_KEYS,
+    'выход — sheet-лейаут + craft-секции backfill (без npcId; '
+    + '000359.01)');
   assert.equal(s.kind, 'efir');
   assert.equal(s.level, 5, 'level — перенесён 1:1');
   assert.equal(s.xp, 20, 'xp — перенесён 1:1');
@@ -403,8 +409,9 @@ test('000144 ES-6: serde — serializeEfir → sheet-лейаут (ровно 11
   // serializeEfir — sheet-лейаут (ровно 11 ключей; копия по значениям).
   const snap = E.serializeEfir(s);
   assert.ok(snap !== null, 'serializeEfir(sheet) — не null');
-  assert.deepEqual(Object.keys(snap).sort(), SHEET_KEYS,
-    'serialize — ровно 11 ключей (C3: раздел сейва = sheet-лейаут)');
+  assert.deepEqual(Object.keys(snap).sort(), LOAD_KEYS,
+    'serialize загруженного листа — лейаут + наличные craft-секции '
+    + '(000359.01; чистый лист — 11 ключей: absent → absent)');
   assert.deepEqual(snap, s, 'снимок — идентичен по значениям');
   // Round-trip на sheet-форме — идентично (неподвижная точка
   // reprocess: firelord уже = cap 6 → while (level < cap) не крутится,

@@ -376,6 +376,8 @@ function backfilledEntry(c) {
       trainPoints: 10,
       primary: h.базовые_характеристики, secondary,
       skillXp: {}, spells: (h.spells || []).slice(), npcId: c.npcId,
+      // 000359.01: LOAD-путь материализует craft-секции (backfill).
+      craft: {}, craftXp: {}, craftTypes: {},
     },
     level: c.level, xp: c.xp, loyalty: c.loyalty, hiredDay: c.hiredDay,
   };
@@ -712,8 +714,10 @@ test('V4: победа — xp 25 в запись, 2-й бой — level 2 + ст
         primary: NPC_VOLK.найм.базовые_характеристики,
         secondary: NPC_VOLK.найм.начальные_навыки,
         skillXp: {}, spells: (NPC_VOLK.найм.spells || []).slice(),
-        npcId: 'merc_volk' } }],
-    'roster: level_up (while-цикл, 000082; 000143 — sheet + points 2)');
+        npcId: 'merc_volk',
+        craft: {}, craftXp: {}, craftTypes: {} } }],
+    'roster: level_up (while-цикл, 000082; 000143 — sheet + points 2; '
+    + '000359.01 — LOAD backfill craft-секций)');
   assert.equal(g.state.hero.xp, heroXp0, 'hero.xp — по-прежнему не тронут');
   // Эфир: 0 + 50 < 141 (xpForNext(2)) → level 2, xp 50 — ровно 1×
   // result.efirXp (000205; при 2× было бы level 3, xp 9 — порог 141

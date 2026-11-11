@@ -564,6 +564,17 @@ function (settings, G) {
     if (typeof s.trainPoints === 'number') {
       out.trainPoints = s.trainPoints;
     }
+    if (s.craft && typeof s.craft === 'object' && !Array.isArray(s.craft)) {
+      out.craft = Object.assign({}, s.craft);
+    }
+    if (s.craftXp && typeof s.craftXp === 'object' &&
+        !Array.isArray(s.craftXp)) {
+      out.craftXp = Object.assign({}, s.craftXp);
+    }
+    if (s.craftTypes && typeof s.craftTypes === 'object' &&
+        !Array.isArray(s.craftTypes)) {
+      out.craftTypes = Object.assign({}, s.craftTypes);
+    }
     const eq = s.equipment;
     if (eq && typeof eq === 'object' && !Array.isArray(eq)) {
       out.equipment = Object.assign({}, eq);
@@ -637,6 +648,14 @@ function (settings, G) {
     const trainPoints = (Number.isInteger(s.trainPoints)
       && s.trainPoints >= 0 && s.trainPoints <= 10)
       ? s.trainPoints : 10;
+    const GC = (typeof globalThis !== 'undefined' && globalThis.Game)
+      ? globalThis.Game : null;
+    const craft = (GC && typeof GC.sanitizeCraftLevels === 'function')
+      ? GC.sanitizeCraftLevels(s.craft) : {};
+    const craftXp = (GC && typeof GC.sanitizeCraftXp === 'function')
+      ? GC.sanitizeCraftXp(s.craftXp) : {};
+    const craftTypes = (GC && typeof GC.sanitizeCraftTypes === 'function')
+      ? GC.sanitizeCraftTypes(s.craftTypes) : {};
     const out = {
       kind: 'merc',
       level: s.level,
@@ -649,6 +668,9 @@ function (settings, G) {
       skillXp,
       spells,
       npcId: s.npcId,
+      craft,
+      craftXp,
+      craftTypes,
     };
     const eq = s.equipment;
     if (eq && typeof eq === 'object' && !Array.isArray(eq) &&
@@ -964,6 +986,9 @@ function (settings, G) {
         sheet.xp = e.xp;
         sheet.totalXp = e.xp; // инвариант totalXp ≥ xp
         sheet.points = 0;
+        sheet.craft = {};
+        sheet.craftXp = {};
+        sheet.craftTypes = {};
       } else {
         sheet = sanitizeMercSheet(e.sheet, e.npcId);
         if (sheet === null) { dropped.push(e.npcId); continue; }
@@ -1028,6 +1053,9 @@ function (settings, G) {
     if (typeof raw === 'string') {
       // Legacy: данные утрачены до воскрешения — тихий сброс (000029).
       sheet = createMercSheet(npc);
+      sheet.craft = {};
+      sheet.craftXp = {};
+      sheet.craftTypes = {};
       loyalty = 50;
       hiredDay = 0;
     } else {

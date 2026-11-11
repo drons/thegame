@@ -330,6 +330,15 @@ test('000143 CS-5: round-trip — найм → +50 xp → serialize: ровно 
 
   const back = C.deserializeRoster(NPCS, snap);
   assert.deepEqual(back.dropped, [], 'новая форма — валидная, ничего не drop\'ится');
+  // 000359.01: load ВСЕГДА материализует craft/craftXp/craftTypes
+  // (backfill старых сейвов, прецедент sanitizeSavedHero 000298) —
+  // восстановленная запись приобретает пустые секции; снапшот найма
+  // выше — по-прежнему без них (serialize: absent → absent).
+  for (const e of before) {
+    e.sheet.craft = {};
+    e.sheet.craftXp = {};
+    e.sheet.craftTypes = {};
+  }
   assert.deepEqual(back.roster, before,
     'round-trip: runtime-запись после сейва/восстановления — идентична');
 });

@@ -315,6 +315,11 @@ test('000161 DM-5: round-trip entry → record → entry — без потерь
     ['hiredDay', 'loyalty', 'npcId', 'sheet'],
     'record — ровно 4 поля');
   const back = C.reviveEntryFromRecord(NPCS, rec);
+  // 000359.01: load (sanitizeMercSheet) материализует craft-секции —
+  // воскресшая запись приобретает пустые секции (backfill).
+  e.sheet.craft = {};
+  e.sheet.craftXp = {};
+  e.sheet.craftTypes = {};
   assert.deepEqual(back, e,
     'round-trip БЕЗ ПОТЕРЬ: level/xp — внутри sheet, loyalty/hiredDay — скаляры (D1)');
 });

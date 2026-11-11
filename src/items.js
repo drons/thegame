@@ -1203,7 +1203,9 @@
           reason: 'неизвестный рецепт: ' + it.effect.recipe,
         };
       }
-      const chk = C.learnCraftType(c, r.тип);
+      const LT = (learnTarget && typeof learnTarget === 'object' &&
+                  !Array.isArray(learnTarget)) ? learnTarget : c;
+      const chk = C.learnCraftType(LT, r.тип);
       if (!chk.ok) return { ok: false, reason: chk.reason };
       removeItem(c, it.id, 1, true);
       return {
@@ -1320,7 +1322,9 @@
           reason: 'неизвестный рецепт: ' + it.effect.recipe,
         };
       }
-      const chk = C.learnCraftType(c, r.тип);
+      const LT = (learnTarget && typeof learnTarget === 'object' &&
+                  !Array.isArray(learnTarget)) ? learnTarget : c;
+      const chk = C.learnCraftType(LT, r.тип);
       if (!chk.ok) return { ok: false, reason: chk.reason };
       return {
         ok: true, name: it.name, craft: r.тип,

@@ -732,6 +732,8 @@ function backfilledEntry(c) {
       trainPoints: 10,
       primary: h.базовые_характеристики, secondary,
       skillXp: {}, spells: (h.spells || []).slice(), npcId: c.npcId,
+      // 000359.01: LOAD-путь материализует craft-секции (backfill).
+      craft: {}, craftXp: {}, craftTypes: {},
     },
     level: c.level,
     xp: c.xp,
@@ -892,6 +894,7 @@ test('000085 T3: serializeEfir/deserializeEfir — round-trip 11 полей (л�
     skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
+    craft: {}, craftXp: {}, craftTypes: {},
   };
   const fresh = E.createEfir();
   assert.deepEqual(E.deserializeEfir(E.serializeEfir(fresh)), {
@@ -901,8 +904,9 @@ test('000085 T3: serializeEfir/deserializeEfir — round-trip 11 полей (л�
     skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
     skills: EFIR_INIT_LIST,
     spells: ['spark', 'mend'],
+    craft: {}, craftXp: {}, craftTypes: {},
   }, 'round-trip: свежий createEfir() (000139: лист; reprocess → '
-    + 'плотный skillXp 4×0)');
+    + 'плотный skillXp 4×0; 000359.01: LOAD backfill craft-секций)');
   assert.equal(E.serializeEfir(afterBattle), null,
     'serialize: «голый» 5-полевой (без primary) → null (000139: '
     + 'runtime — ВСЕГДА лист)');
@@ -921,18 +925,20 @@ test('000085 T3: serializeEfir/deserializeEfir — round-trip 11 полей (л�
       secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
-      spells: ['spark', 'mend'] },
+      spells: ['spark', 'mend'],
+      craft: {}, craftXp: {}, craftTypes: {} },
     '3-полевая legacy → лист (000111 §9; reprocess → плотный 4×0) '
-    + '(000139)');
+    + '(000139; 000359.01: craft-секции)');
   assert.deepEqual(E.deserializeEfir({ level: 1, xp: 0, spells: [] }),
     { kind: 'efir', level: 1, xp: 0, totalXp: 0, points: 0, trainPoints: 10,
       primary: EFIR_START_PRIMARY,
       secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
-      spells: ['spark', 'mend'] },
+      spells: ['spark', 'mend'],
+      craft: {}, craftXp: {}, craftTypes: {} },
     'пустые spells → EFIR_SPELL_START (НЕ выводить из уровня, 000115; '
-    + 'reprocess → плотный 4×0) (000139)');
+    + 'reprocess → плотный 4×0) (000139; 000359.01: craft-секции)');
 
   // Сломанные → null (main.js: warn + тихий сброс на createEfir()).
   const broken = [
@@ -1012,9 +1018,11 @@ test('000085 T4: e2e round-trip — отряд/Эфир/dead_mercs пережи�
     skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
+    craft: {}, craftXp: {}, craftTypes: {},
   };
   assert.deepEqual(host(state.efir), EXPECT_EFIR,
-    'Эфир восстановлен (000139: backfill старого формата в лист)');
+    'Эфир восстановлен (000139: backfill старого формата в лист; '
+    + '000359.01: +craft-секции LOAD)');
   // Round-trip: beforeunload → saveNow → те же разделы в сейве,
   // CURRENT_VERSION НЕ бампится (000031).
   h.winListeners['beforeunload'][0]();
@@ -1618,8 +1626,9 @@ test('000115 N1: deserializeEfir — id-валидация по каталога
     skillXp: { firelord: 2.5, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 1, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
+    craft: {}, craftXp: {}, craftTypes: {},
   }, 'валидные id → лист (плотная форма после reprocess, неподвижная '
-    + 'точка) (000139: backfill)');
+    + 'точка) (000139: backfill; 000359.01: +craft-секции LOAD)');
 
   // Каталогический id ВНЕ пула (strength / flame_burst) — ПРОХОДИТ и
   // персистит (D2-последствие: ИНЕРТЕН — reprocess пишет только 4 id
@@ -1664,9 +1673,10 @@ test('000115 N2: deserializeEfir — ОБЯЗАТЕЛЬНЫЙ reprocess при �
       secondary: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 684, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
-      spells: ['spark', 'mend'] },
+      spells: ['spark', 'mend'],
+      craft: {}, craftXp: {}, craftTypes: {} },
     'банк-оверфлоу → cap + overflow, материализованы ВСЕ 4 id пула '
-    + '(000139: лист)');
+    + '(000139: лист; 000359.01: +craft-секции)');
 
   // Round-trip на КАНОНИЧЕСКОЙ (post-backfill) форме — идентично
   // (дроби skillXp 2.5, порядок spells [spark, mend, light_heal] — ТЗ).
@@ -1695,8 +1705,10 @@ test('000115 N2: deserializeEfir — ОБЯЗАТЕЛЬНЫЙ reprocess при �
       secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
-      spells: ['spark', 'mend'] },
-    '3-полевая legacy → плотная 4×0 + [spark, mend] (000139: лист)');
+      spells: ['spark', 'mend'],
+      craft: {}, craftXp: {}, craftTypes: {} },
+    '3-полевая legacy → плотная 4×0 + [spark, mend] (000139: лист; '
+    + '000359.01: +craft-секции)');
 
   // Идемпотентность: повторный deserialize того же raw → идентично.
   const raw = { level: 1, xp: 0, skillXp: { firelord: 999 }, skills: {}, spells: ['spark', 'mend'] };
@@ -1730,9 +1742,10 @@ test('000115 N4: D5 level-guard — level > 1e6 → null (сброс ЗАПИС�
       secondary: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skillXp: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
       skills: { firelord: 0, icelord: 0, perception: 0, precog: 0 },
-      spells: ['spark', 'mend'] },
+      spells: ['spark', 'mend'],
+      craft: {}, craftXp: {}, craftTypes: {} },
     'level = 1e6 → состояние (граница включена; кэп не введён; плотный 4×0; '
-    + '000139: лист)');
+    + '000139: лист; 000359.01: +craft-секции)');
 });
 
 test('000115 N3: версия НЕ поднята — CURRENT_VERSION = 1, MIGRATIONS пуст (re-pin 000072, ТЗ явно в списке «Тесты»)', () => {
@@ -1787,6 +1800,7 @@ test('000115 V2: e2e — reprocess при загрузке (банк-оверф�
     skillXp: { firelord: 684, icelord: 0, perception: 0, precog: 0 },
     skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend'],
+    craft: {}, craftXp: {}, craftTypes: {},
   };
   const st = makeStorage();
   const h = bootWithSave(st, null, {
@@ -2015,6 +2029,7 @@ test('ES-7. 000144: e2e — старое 5-полевое seed → backfill → 
     skills: { firelord: 6, icelord: 0, perception: 0, precog: 0 },
     skillXp: { firelord: 774, icelord: 0, perception: 0, precog: 0 },
     spells: ['spark', 'mend', 'light_heal'],
+    craft: {}, craftXp: {}, craftTypes: {},
   };
   const st = makeStorage();
   const h = bootWithSave(st, null, {

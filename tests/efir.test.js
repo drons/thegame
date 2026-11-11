@@ -868,10 +868,12 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   }, SKILL_CATALOG, SPELL_CATALOG);
   assert.ok(res !== null, 'каталогически-валидные id — приняты');
   assert.deepEqual(Object.keys(res).sort(),
-    ['kind', 'level', 'points', 'primary', 'secondary', 'skillXp',
-     'skills', 'spells', 'totalXp', 'trainPoints', 'xp'],
-    'ровно 11 полей — лист (000139: осознанный пере-пин 000085→000115; '
-    + '000300: trainPoints)');
+    ['craft', 'craftTypes', 'craftXp', 'kind', 'level', 'points', 'primary',
+     'secondary', 'skillXp', 'skills', 'spells', 'totalXp', 'trainPoints',
+     'xp'],
+    'лист + craft-секции LOAD-backfill (000139: осознанный пере-пин '
+    + '000085→000115; 000300: trainPoints; 000359.01: craft/craftXp/'
+    + 'craftTypes)');
   assert.equal(res.kind, 'efir', "kind — 'efir' (000139)");
   assert.equal(res.totalXp, 0, 'totalXp — 0 (backfill: истории нет) (000139)');
   assert.equal(res.points, 0, 'points — 0 (backfill) (000139)');

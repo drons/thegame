@@ -3217,5 +3217,6 @@
     // memory/000162-temple-resurrection.md §3–4).
     resurrectPrice, resurrectList, resurrectAvailable, applyResurrect,
     fullRestPrice, applyFullRest,
+    craftExecutor,
   };
 });
