@@ -1477,7 +1477,7 @@ test('000313-S6d. node transfer: take при ПОЛНОМ инвентаре —
 //     + [E]-регресс (делегирование put-строк спец-у)
 // ============================================================
 
-test('000313-S7. node: payload «Хранилище» — title/actions бит-в-бит + ADDITIVE layout:"storage", capacity:{n,m}, icon/rarity/meta у строк (формат [I]); onAction put-0 — одна мутация: flash «Сложено: Соломенная шляпа ×1», storage live, reopen (новый payload); [E]-инлайн put-строка — делегирование спец-у (тот же flash)', () => {
+test('000313-S7. node: payload «Хранилище» — title/actions бит-в-бит + ADDITIVE layout:"storage", capacity:{n,m}, icon/rarity/meta у строк (формат [I]); onAction put-0 — одна мутация: flash «Сложено: Соломенная шляпа ×1», storage live, reopen (новый payload); [E]-меню БЕЗ put/take-ленты (000354), прямой put через pipeline — делегирование спец-у (тот же flash)', () => {
   const S = loadStorageMod();
   assert.equal(typeof S.storageHandler, 'function',
     'RED: node-экспорт {storageHandler}');
@@ -1500,9 +1500,9 @@ test('000313-S7. node: payload «Хранилище» — title/actions бит-�
   assert.equal(t.o.calls.buildingOpen.length, 1, '[E] — меню 55');
   const menu = lastOverlay(t);
   assert.deepEqual(menu.actions.map((a) => a.id),
-    ['storage', 'upgrade', 'put-0', 'put-1', 'take-0', 'demolish'],
-    'RED: [E]-меню — строки хранилища (put/take) на месте: '
-    + JSON.stringify(menu.actions.map((a) => a.id)));
+    ['storage', 'upgrade', 'demolish'],
+    'RED (000354): [E]-лента put/take ВЫРЕЗАНА — меню компактно, '
+    + 'лента живёт в панели: ' + JSON.stringify(menu.actions.map((a) => a.id)));
   // (a) «Хранилище» → payload.
   menu.onAction({ id: 'storage' });
   assert.equal(saves, 0, 'pipeline — без saveNow');
@@ -1553,12 +1553,15 @@ test('000313-S7. node: payload «Хранилище» — title/actions бит-�
   const ov2 = lastOverlay(t);
   assert.notEqual(ov2, ov, 'RED: reopen после переноса (новый payload)');
   assert.equal(ov2.capacity.n, 2, 'capacity обновлён (2/40)');
-  // (c) [E]-инлайн put-строка — делегирование спец-у (тот же путь).
+  // (c) 000354: put-строк в [E]-меню НЕТ, но прямой put через
+  //     pipeline — делегирование спец-у (тот же путь, ОДНА
+  //     мутация — контракт S7c/000221).
   t.o.buildingUI.close();
   t.BA.interactCity();
   const menu2 = lastOverlay(t);
-  const inlinePut = menu2.actions.find((a) => a.id === 'put-0');
-  assert.ok(inlinePut, '[E]-инлайн put-0 (Бревно)');
+  assert.ok(!menu2.actions.some((a) => typeof a.id === 'string'
+    && (a.id.indexOf('put-') === 0 || a.id.indexOf('take-') === 0)),
+    'RED (000354): [E]-меню без ленты put/take');
   const pre2 = { saves, n: flashes.length };
   menu2.onAction({ id: 'put-0' });
   assert.equal(saves, pre2.saves + 1,

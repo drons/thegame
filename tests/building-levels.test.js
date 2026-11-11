@@ -62,6 +62,14 @@ const BA = require('../src/building-actions.js');
 const IT = require('../src/items.js');
 const PLR = require('../src/player.js');
 const { SAVE_KEY } = require('../src/save.js');
+// 000354: лента «Сложить/Вынуть» вырезана из [E]-меню
+// (storageMenuRows удалена) — строки живут в ПАНЕЛИ спец-а
+// «storage»; R5 читает панель ⇒ спец регистрируется явно
+// (паттерн tests/storage-panels-000313.test.js).
+const STOR = require('../src/building-effect-storage.js');
+if (STOR && typeof STOR.storageHandler === 'function') {
+  BA.registerSpecial('storage', STOR.storageHandler);
+}
 
 // 40 РАЗНЫХ предметов (паттерн tests/city-storage.test.js) — заполнение
 // хранилища; +3 — 43-й набор для vm-сценария (R14: 42 × put + 1 остаток).
@@ -404,7 +412,8 @@ test('000222-R4. storageCapacity(55, L): 40/60/80/100/120/140/160 (L1..7); 1-а�
 });
 
 // ============================================================
-// R5. [E]-меню player-55 (level 2): «Сложить» до 60
+// R5. панель «Хранилище» player-55 (level 2): «Сложить» до 60
+//     (000354: лента вырезана из [E]-меню — строки в панели спец-а)
 // ============================================================
 
 test('000222-R5. [E] player-55 (level:2): «Сложить» доступно при 40 записях (reason НЕТ); 60 записей → «хранилище полное (60/60)»; контраст БЕЗ level: 40 записей → «хранилище полное (40/40)»', () => {
@@ -426,8 +435,9 @@ test('000222-R5. [E] player-55 (level:2): «Сложить» доступно п
   IT.addItem(t1.hero, 'bread', 1);
   const p1 = openMenu(t1);
   assert.ok(p1, 'RED: [E] — buildingUI открыт');
-  const r1 = p1.actions.find((a) => a.id === 'put-0');
-  assert.ok(r1, 'строка «Сложить» (put-0)');
+  p1.onAction({ id: 'storage' });
+  const r1 = lastOverlay(t1).actions.find((a) => a.id === 'put-0');
+  assert.ok(r1, 'строка «Сложить» (put-0) в ПАНЕЛИ (000354)');
   assert.equal(r1.доступен, true,
     'RED: level 2 — 40/60 доступно (текущий: capacity 40)');
   assert.equal(r1.reason, undefined, 'RED: reason отсутствует');
@@ -440,8 +450,10 @@ test('000222-R5. [E] player-55 (level:2): «Сложить» доступно п
   t2.deps.cityStates = new Map([['100,-40',
     { lastVisitDay: 5, stock: {}, built: mk(2, 60) }]]);
   IT.addItem(t2.hero, 'bread', 1);
-  const r2 = openMenu(t2).actions.find((a) => a.id === 'put-0');
-  assert.ok(r2, 'строка «Сложить» (put-0)');
+  const m2 = openMenu(t2);
+  m2.onAction({ id: 'storage' });
+  const r2 = lastOverlay(t2).actions.find((a) => a.id === 'put-0');
+  assert.ok(r2, 'строка «Сложить» (put-0) в ПАНЕЛИ (000354)');
   assert.equal(r2.доступен, false, '60/60 — недоступно');
   assert.equal(r2.reason, 'хранилище полное (60/60)',
     'RED: «(60/60)» — capacity по level 2');
@@ -454,7 +466,9 @@ test('000222-R5. [E] player-55 (level:2): «Сложить» доступно п
   t3.deps.cityStates = new Map([['100,-40',
     { lastVisitDay: 5, stock: {}, built: mk(undefined, 40) }]]);
   IT.addItem(t3.hero, 'bread', 1);
-  const r3 = openMenu(t3).actions.find((a) => a.id === 'put-0');
+  const m3 = openMenu(t3);
+  m3.onAction({ id: 'storage' });
+  const r3 = lastOverlay(t3).actions.find((a) => a.id === 'put-0');
   assert.equal(r3.доступен, false);
   assert.equal(r3.reason, 'хранилище полное (40/40)',
     'без level — 40/40 (бит-в-бит 000221)');
@@ -739,7 +753,7 @@ test('000222-R10. персист: built level:3 → канон-копия с lev
 // R11. [E]-меню: строка «Улучшить…»
 // ============================================================
 
-test("000222-R11. [E]: player-55 (пустой инвентарь) → ids ['storage','upgrade','demolish']; с материалами gold 1000 → строка «Улучшить до уровня 2 — 100 з. (Бревно ×2, Каменный обломок ×2)» доступен (ПОЗИЦИЯ: до «Сложить»); level 2 → «уровня 3 — 200 з. (Бревно ×4, Каменный обломок ×4)»; level 7 → «Улучшить: Хранилище» disabled «максимальный уровень (7)»; player-48 → ['48','demolish'] (строк upgrade НЕТ, эффект «48» — как у базовых); базовое 55 / без cityStates → строки НЕТ; нехватка → «Не хватает …»", () => {
+test("000222-R11. [E]: player-55 (пустой инвентарь) → ids ['storage','upgrade','demolish']; с материалами gold 1000 → строка «Улучшить до уровня 2 — 100 з. (Бревно ×2, Каменный обломок ×2)» доступен (ПОЗИЦИЯ: сразу после «Хранилище»; 000354: put-строк в меню нет); level 2 → «уровня 3 — 200 з. (Бревно ×4, Каменный обломок ×4)»; level 7 → «Улучшить: Хранилище» disabled «максимальный уровень (7)»; player-48 → ['48','demolish'] (строк upgrade НЕТ, эффект «48» — как у базовых); базовое 55 / без cityStates → строки НЕТ; нехватка → «Не хватает …»", () => {
   const mk = (over, built) => {
     const t = initBLFixture(over);
     wireCityAnchor(t, 100, -40);
@@ -758,8 +772,9 @@ test("000222-R11. [E]: player-55 (пустой инвентарь) → ids ['sto
   const tA = mk(over55, [{ x: 1, y: 1, buildingId: 55, player: true }]);
   assert.deepEqual(idsOf(tA), ['storage', 'upgrade', 'demolish'],
     'RED: ids — строка upgrade между эффектом и «Разобрать»');
-  // (b) с материалами + gold 1000 — строка доступна, позиция до
-  //     «Сложить»; имя дословно.
+  // (b) с материалами + gold 1000 — строка доступна, позиция сразу
+  //     после «Хранилище»; имя дословно. 000354: put-строк в меню
+  //     больше нет — лента живёт в панели.
   const tB = mk(over55, [{ x: 1, y: 1, buildingId: 55, player: true }]);
   tB.hero.gold = 1000;
   IT.addItem(tB.hero, 'wood_log', 2);
@@ -767,8 +782,9 @@ test("000222-R11. [E]: player-55 (пустой инвентарь) → ids ['sto
   const pB = openMenu(tB);
   const idsB = pB.actions.map((a) => a.id);
   assert.deepEqual(idsB,
-    ['storage', 'upgrade', 'put-0', 'put-1', 'demolish'],
-    'RED: upgrade ПЕРВАЯ в extraActions (до «Сложить»)');
+    ['storage', 'upgrade', 'demolish'],
+    'RED: upgrade ПЕРВАЯ в extraActions (000354: ленты put/take в '
+    + 'меню нет): ' + JSON.stringify(idsB));
   const rB = pB.actions.find((a) => a.id === 'upgrade');
   assert.equal(rB.имя,
     'Улучшить до уровня 2 — 100 з. (Бревно ×2, Каменный обломок ×2)',
@@ -863,7 +879,7 @@ test("000222-R12. onAction({id:'upgrade}'): L1 55 — gold 1000→900, wood 3→
   t.BA.interactCity();
   const p2 = lastOverlay(t);
   assert.deepEqual(p2.actions.map((a) => a.id),
-    ['storage', 'upgrade', 'put-0', 'put-1', 'demolish']);
+    ['storage', 'upgrade', 'demolish']);
   const r2 = p2.actions.find((a) => a.id === 'upgrade');
   assert.equal(r2.имя,
     'Улучшить до уровня 3 — 200 з. (Бревно ×4, Каменный обломок ×4)');
@@ -1763,15 +1779,22 @@ test('000222-R14. vm e2e: build-55 (−100 з., −Бревно ×2, −Каме
   assert.equal(b0.storage.length, 42,
     'RED: storage 42 (ёмкость 60)');
   assert.equal(qtyOf(g, STORE43[42]), 1, 'остаток — 1 предмет');
-  // [E]: «Сложить» доступно (42/60).
+  // [E] → «Хранилище»: «Сложить» доступно (42/60) — в ПАНЕЛИ
+  // (000354: ленты «Сложить» в [E]-меню больше нет).
   key(h, 'Escape');
   key(h, 'KeyE');
   const ovF = buildingOverlayOf(h);
-  const rowF = findRow(ovF, 'put-0');
-  assert.ok(rowF, 'RED: строка «Сложить» в [E] (после 42 × put)');
+  assert.equal(findRow(ovF, 'put-0'), null,
+    'RED (000354): put-строка в [E]-меню не создаётся');
+  const rowStF = findRow(ovF, 'storage');
+  assert.ok(rowStF, 'строка «Хранилище» (эффект)');
+  ovF.listeners.click[0]({ target: rowStF });
+  const ovPF = buildingOverlayOf(h);
+  const rowF = findRow(ovPF, 'put-0');
+  assert.ok(rowF, 'RED: строка «Сложить» в панели (после 42 × put)');
   assert.ok(!rowF.disabled,
     'RED: «Сложить» доступно (42 < 60): '
-    + textOf(ovF).slice(0, 300));
+    + textOf(ovPF).slice(0, 300));
   // Выход + сейв + double boot.
   key(h, 'Escape');
   walkCity(h, cityStepsTo({ x: g.dungeon.x, y: g.dungeon.y },
@@ -1802,9 +1825,14 @@ test('000222-R14. vm e2e: build-55 (−100 з., −Бревно ×2, −Каме
   assert.ok(textOf(ovR).includes(
     'Улучшить до уровня 3 — 200 з. (Бревно ×4, Каменный обломок ×4)'),
     'boot 2: строка «уровня 3»');
-  const rowR = findRow(ovR, 'put-0');
+  const rowStR = findRow(ovR, 'storage');
+  assert.ok(rowStR, 'boot 2: строка «Хранилище»');
+  ovR.listeners.click[0]({ target: rowStR });
+  const ovPR = buildingOverlayOf(h2);
+  const rowR = findRow(ovPR, 'put-0');
   assert.ok(rowR && !rowR.disabled,
-    'RED: boot 2 — «Сложить» доступно (ёмкость 60 после restore)');
+    'RED: boot 2 — «Сложить» доступно в ПАНЕЛИ (ёмкость 60 после '
+    + 'restore; 000354: в [E]-меню ленты нет)');
 });
 
 // ============================================================

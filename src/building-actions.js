@@ -735,7 +735,7 @@
   }
 
   // Строка «Улучшить…» (задача 000222) — [E]-меню постройки
-  // игрока: ПЕРВАЯ в extraActions (до строк хранилища). null (тихо,
+  // игрока: ПЕРВАЯ в extraActions. null (тихо,
   // без строки): Cities-API нет / каталога нет / player ≠ true /
   // не levelable (D-H: нет level-эффекта) / record не найден.
   // level ≥ 7 — строка ЕСТЬ, недоступна («максимальный уровень
@@ -780,72 +780,6 @@
     row.доступен = reason === null;
     if (reason !== null) row.reason = reason;
     return row;
-  }
-
-  // Строки «Сложить/Вынуть» (задача 000221) — [E]-меню постройки
-  // игрока-хранилища (КНИГА строки — building-effect-storage.js,
-  // здесь — только СТРОКИ [E]: put-*/take-* — делегирование
-  // пайплайном спец-у «storage»). Строки ТОЛЬКО для каталожного
-  // хранилища (особые_параметры.хранилище) + LIVE record/storage
-  // (cityStates) + capacity > 0; иначе [] (строки эффектов +
-  // «Разобрать» — как без хранилища). Форма строки = оверлей 1:1
-  // (id/itemId/bonus/qty/имя/доступен/reason).
-  function storageMenuRows(cell, cityAnchor) {
-    const g = deps.game;
-    const C = g && g.Cities;
-    if (!C || typeof C.storageAt !== 'function'
-        || typeof C.storageCapacity !== 'function') return [];
-    const cs = deps.cityStates;
-    if (!cs || typeof cs.get !== 'function' || !cityAnchor) return [];
-    const b = g.getBuilding ? g.getBuilding(cell.buildingId) : null;
-    const pp = b && b.особые_параметры;
-    if (!pp || typeof pp !== 'object' || Array.isArray(pp)
-        || !pp.хранилище) return [];
-    const record = cs.get(cityAnchor);
-    const storage = C.storageAt(record, cell.x, cell.y);
-    if (!storage) return [];
-    // 000222: ёмкость по УРОВНЮ записи (buildingLevelAt — absent/
-    // мусор → 1; без функции — 1-аргументный бит-в-бит 000221).
-    const level = typeof C.buildingLevelAt === 'function'
-      ? C.buildingLevelAt(record, cell.x, cell.y) : null;
-    const capacity = C.storageCapacity(cell.buildingId, level);
-    if (!Number.isFinite(capacity) || capacity <= 0) return [];
-    const hero = deps.hero;
-    const inv = hero && hero.inventory;
-    const slots = inv && Array.isArray(inv.slots) ? inv.slots : [];
-    const rows = [];
-    for (let i = 0; i < slots.length; i++) {
-      const e = slots[i];
-      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
-      const row = { id: 'put-' + i, itemId: e.id,
-        bonus: e.bonus === undefined ? null : e.bonus,
-        qty: e.qty,
-        имя: 'Сложить: ' + reagentName(g, e.id) + ' ×' + e.qty
-          + (e.bonus ? ' (улучш.)' : ''),
-        доступен: storage.length < capacity };
-      if (!row.доступен) {
-        row.reason = 'хранилище полное (' + storage.length + '/'
-          + capacity + ')';
-      }
-      rows.push(row);
-    }
-    for (let j = 0; j < storage.length; j++) {
-      const e = storage[j];
-      if (!e || typeof e !== 'object' || Array.isArray(e)) continue;
-      const bns = e.bonus === undefined ? null : e.bonus;
-      const chk = typeof g.canAddItem === 'function'
-        ? g.canAddItem(hero, e.id, e.qty, bns) : { ok: true };
-      const row = { id: 'take-' + j, itemId: e.id, bonus: bns,
-        qty: e.qty,
-        имя: 'Вынуть: ' + reagentName(g, e.id) + ' ×' + e.qty
-          + (e.bonus ? ' (улучш.)' : ''),
-        доступен: !!(chk && chk.ok) };
-      if (!row.доступен) {
-        row.reason = chk && chk.reason ? chk.reason : 'недоступно';
-      }
-      rows.push(row);
-    }
-    return rows;
   }
 
   // Меню «Строительство» (000148.03, pre-check 000202): пустая
@@ -1969,14 +1903,11 @@
     // 000148.03: постройка игрока (per-cell player:true) — строка
     // «Разобрать» (возврат 30% floor) ПОСЛЕ строк эффектов; базовая
     // — без строки (затрачено = 0).
-    // 000221: строки хранилища (put-*/take-*) ПЕРЕД «Разобрать» —
-    // конец списка extraActions (эффекты — первой частью all).
-    // 000222: строка «Улучшить…» — ПЕРВАЯ в extraActions (до
-    // хранилища); null (не levelable/нет record) — тихо отброшена.
+    // 000222: строка «Улучшить…» — ПЕРВАЯ в extraActions; null
+    // (не levelable/нет record) — тихо отброшена.
     const extraActions = cell.player === true
       ? [upgradeActionRow(cell, cityAnchor)]
         .filter((r) => r !== null)
-        .concat(storageMenuRows(cell, cityAnchor))
         .concat([demolishActionRow(cell)])
       : [];
     // СУЩЕСТВУЮЩАЯ точка: buildingUI.open + actions (городские

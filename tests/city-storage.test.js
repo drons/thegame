@@ -849,6 +849,7 @@ test('000221-R8. e2e: строка build-55 в меню (23 строки) → п
   assert.ok(IT.setQuick(t.hero, 1, 'hide').ok, 'quick[1] = hide');
   t.o.buildingUI.close();
   t.BA.interactCity();
+  lastOverlay(t).onAction({ id: 'storage' }); // 000354: лента в панели
   const ov1 = lastOverlay(t);
   const putSulfur = ov1.actions.find((a) => a.id === 'put-0');
   assert.equal(putSulfur.имя, 'Сложить: Сера ×9',
@@ -898,6 +899,7 @@ test('000221-R8. e2e: строка build-55 в меню (23 строки) → п
     assert.ok(IT.addItem(t.hero, rid, 1).ok, 'сид батч B: ' + rid);
   t.o.buildingUI.close();
   t.BA.interactCity();
+  lastOverlay(t).onAction({ id: 'storage' }); // 000354: лента в панели
   guard = 0;
   while (guard++ < 25) {
     const ov = lastOverlay(t);
@@ -922,6 +924,7 @@ test('000221-R8. e2e: строка build-55 в меню (23 строки) → п
     'сид fruit_quince');
   t.o.buildingUI.close();
   t.BA.interactCity();
+  lastOverlay(t).onAction({ id: 'storage' }); // 000354: лента в панели
   const ovFull = lastOverlay(t);
   const putFull = ovFull.actions.find((a) => a.id === 'put-0');
   assert.ok(putFull, 'RED: строка put-0 (fruit_quince)');
@@ -983,6 +986,7 @@ test('000221-R9. double boot: save (serializeCityStates) → restore (restoreCit
     + 'разные bonusState)');
   t.o.buildingUI.close();
   t.BA.interactCity();
+  lastOverlay(t).onAction({ id: 'storage' }); // 000354: лента в панели
   ov = lastOverlay(t);
   const putBonus = ov.actions.find((a) =>
     a.имя === 'Сложить: Зелье маны ×3 (улучш.)');
@@ -1002,6 +1006,7 @@ test('000221-R9. double boot: save (serializeCityStates) → restore (restoreCit
   // (3) Бревно ×1 (обычный остаток после постройки):
   t.o.buildingUI.close();
   t.BA.interactCity();
+  lastOverlay(t).onAction({ id: 'storage' }); // 000354: лента в панели
   ov = lastOverlay(t);
   const putPlain = ov.actions.find((a) => a.имя === 'Сложить: Бревно ×1');
   assert.ok(putPlain,
@@ -1045,6 +1050,7 @@ test('000221-R9. double boot: save (serializeCityStates) → restore (restoreCit
   t2.BA.interactCity();
   assert.equal(t2.o.calls.buildingOpen.length, 1,
     'RED: [E] — меню построенного 55 (boot B)');
+  lastOverlay(t2).onAction({ id: 'storage' }); // 000354: лента в панели
   const pb = lastOverlay(t2);
   const takeRow = pb.actions.find((a) => a.id === 'take-0');
   assert.ok(takeRow, 'RED: строка take-0 после restore (storage жив)');
@@ -1072,6 +1078,7 @@ test('000221-R9. double boot: save (serializeCityStates) → restore (restoreCit
     'сид hero Зелье маны ×5 (улучш.) — для merge');
   t2.o.buildingUI.close();
   t2.BA.interactCity();
+  lastOverlay(t2).onAction({ id: 'storage' }); // 000354: лента в панели
   let ovb = lastOverlay(t2);
   const takeSulfur = ovb.actions.find((a) => a.имя === 'Вынуть: Сера ×10');
   assert.ok(takeSulfur,
@@ -1087,6 +1094,7 @@ test('000221-R9. double boot: save (serializeCityStates) → restore (restoreCit
   // merge: bonus-стак 5 + 3 = 8 — ОДНА стопка (тот же bonusState):
   t2.o.buildingUI.close();
   t2.BA.interactCity();
+  lastOverlay(t2).onAction({ id: 'storage' }); // 000354: лента в панели
   ovb = lastOverlay(t2);
   const takeBonus = ovb.actions.find((a) =>
     a.имя === 'Вынуть: Зелье маны ×3 (улучш.)');
@@ -1105,6 +1113,7 @@ test('000221-R9. double boot: save (serializeCityStates) → restore (restoreCit
   // изоляция: обычный Бревно — ОТСЕЛЬНАЯ стопка (bonusState ≠):
   t2.o.buildingUI.close();
   t2.BA.interactCity();
+  lastOverlay(t2).onAction({ id: 'storage' }); // 000354: лента в панели
   ovb = lastOverlay(t2);
   const takePlain = ovb.actions.find((a) => a.имя === 'Вынуть: Бревно ×1');
   assert.ok(takePlain,
