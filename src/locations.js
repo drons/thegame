@@ -869,6 +869,64 @@
     return ds;
   }
 
+  function worldLootTargets(map, sx, sy, radius, isVisible) {
+    const out = [];
+    if (!map || typeof map.tileAt !== 'function') return out;
+    if (typeof radius !== 'number' || !Number.isFinite(radius)
+        || radius < 0) return out;
+    const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    const startKey = sx + ',' + sy;
+    const seen = new Set([startKey]);
+    const queue = [[sx, sy]];
+    while (queue.length) {
+      const cell = queue.shift();
+      const x = cell[0], y = cell[1];
+      const t = map.tileAt(x, y);
+      if (t && t.loot != null
+          && (typeof isVisible !== 'function' || isVisible(x, y))) {
+        out.push({ x, y, item: t.loot.item });
+      }
+      for (const [dx, dy] of DIRS) {
+        const nx = x + dx, ny = y + dy;
+        if (Math.max(Math.abs(nx - sx), Math.abs(ny - sy)) > radius) {
+          continue;
+        }
+        const k = nx + ',' + ny;
+        if (seen.has(k)) continue;
+        const nt = map.tileAt(nx, ny);
+        if (!nt || !nt.passable) continue;
+        seen.add(k);
+        queue.push([nx, ny]);
+      }
+    }
+    return out;
+  }
+
+  function dungeonLootTargets(ds, radius) {
+    const out = { chests: [], deposits: [] };
+    if (!ds || !ds.dg || !ds.contents || !Number.isFinite(radius)) {
+      return out;
+    }
+    const G = lazyGame();
+    if (!G || typeof G.reachableFrom !== 'function') return out;
+    const reach = G.reachableFrom(ds.dg, ds.x, ds.y);
+    const pick = (list, flag) => {
+      const res = [];
+      if (!Array.isArray(list)) return res;
+      for (const e of list) {
+        if (!e || e[flag]) continue;
+        if (Math.max(Math.abs(e.x - ds.x), Math.abs(e.y - ds.y))
+            > radius) continue;
+        if (!reach.has(e.x + ',' + e.y)) continue;
+        res.push(e);
+      }
+      return res;
+    };
+    out.chests = pick(ds.contents.chests, 'opened');
+    out.deposits = pick(ds.contents.deposits, 'gathered');
+    return out;
+  }
+
   return {
     makeDungeonState, makeCityState,
     maybeEnterDungeon, maybeEnterCity,
@@ -883,5 +941,7 @@
     // 000157.03: 11-й экспорт — [E] на залежи (доменное событие).
     interactDeposit,
     debugEnterDungeon,
+    worldLootTargets,
+    dungeonLootTargets,
   };
 });

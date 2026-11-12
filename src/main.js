@@ -2295,6 +2295,76 @@
     }
     return { ok: false, reason: 'не здесь' };
   }
+  function attractionSummary(n) {
+    hudFlash = 'Притяжение: собрано ' + n + '.';
+    hudFlashUntil = performance.now() + 5000;
+    G.playerUI && G.playerUI.render();
+    saveNow();
+    return { ok: true, collected: n };
+  }
+  function performAttraction() {
+    if (!G.locations || !G.Spells
+        || typeof G.Spells.attractionRadius !== 'function'
+        || typeof G.locations.worldLootTargets !== 'function'
+        || typeof G.locations.dungeonLootTargets !== 'function') {
+      return { ok: false, reason: 'не здесь' };
+    }
+    const radius = G.Spells.attractionRadius(
+      (hero.primary && hero.primary.intelligence) || 0);
+    if (dungeonState) {
+      if (dungeonState.kind !== 'dungeon') {
+        return { ok: false, reason: 'не здесь' };
+      }
+      return attractionCollectDungeon(dungeonState, radius);
+    }
+    if (!map) return { ok: false, reason: 'не здесь' };
+    return attractionCollectWorld(radius);
+  }
+  function attractionCollectWorld(radius) {
+    const targets = G.locations.worldLootTargets(
+      map, player.x, player.y, radius,
+      (x, y) => G.lootVisible(collectedLoot, x, y));
+    if (targets.length === 0) {
+      return { ok: false, reason: 'нечего собирать' };
+    }
+    let n = 0;
+    for (const t of targets) {
+      const r = G.addItem(hero, t.item);
+      if (!r || !r.ok) continue;
+      collectedLoot.set(t.x + ',' + t.y, clock.day);
+      n += 1;
+    }
+    if (n === 0) {
+      return { ok: false, reason: 'не влезает в инвентарь' };
+    }
+    return attractionSummary(n);
+  }
+  function attractionCollectDungeon(ds, radius) {
+    const t = G.locations.dungeonLootTargets(ds, radius);
+    if (t.chests.length === 0 && t.deposits.length === 0) {
+      return { ok: false, reason: 'нечего собирать' };
+    }
+    let n = 0;
+    for (const ch of t.chests) {
+      const r = G.openChest(ds.contents, ch.id);
+      if (!r || !r.ok) continue;
+      applyDungeonChest(ds, r, clock.day);
+      n += 1;
+    }
+    for (const dp of t.deposits) {
+      const r = G.gatherDeposit(ds.contents, dp.id,
+        (it, amount) => G.canAddItem(hero, it, amount).ok);
+      if (!r || !r.ok) continue;
+      const it = G.getItem(r.item);
+      if (it) G.addItem(hero, r.item, r.amount);
+      ds.log.push('Залежь: +' + r.amount + ' ' + (it ? it.name : r.item));
+      n += 1;
+    }
+    if (n === 0) {
+      return { ok: false, reason: 'не влезает в инвентарь' };
+    }
+    return attractionSummary(n);
+  }
   function performFlameStep() {
     const r = resolveTeleportStep(flameStepPassable);
     if (!r.ok) return { ok: false, reason: r.reason };
@@ -2346,6 +2416,7 @@
         teleport: (tx, ty) => { moveHero(tx, ty); saveNow(); },
         navPath: performNavPath,
         decadance: performDecadance,
+        attraction: performAttraction,
       }),
     });
   } else {

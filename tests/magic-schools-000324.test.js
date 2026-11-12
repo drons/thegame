@@ -2,7 +2,7 @@
 // навыков [I]; ТЗ tasks/pending/000324.md; контракт
 // memory/000324-magic-schools.md) — RED-тесты.
 //
-// 6 школ по факту диска (поле «школа» assets/spells — 170 заклинаний,
+// 6 школ по факту диска (поле «школа» assets/spells — 171 заклинание,
 // 28/29/27/29/29/28; enum — 000301): защита, исцеление, лёд, огонь,
 // природа, тень. Имена/иконки — байт-в-байт SCHOOLS src/spellbook-oc.js
 // (000301): assets/school-icons/<id>.svg (иконки уже на диске).
@@ -94,7 +94,7 @@ test('A2: id ровно {protection,healing,ice,fire,nature_school,shadow} в п
     ['protection', 'healing', 'ice', 'fire', 'nature_school', 'shadow']);
 });
 
-test('A3: каждое различное «школа» 170 spells совпадает ровно одной школой каталога (name.toLowerCase())', () => {
+test('A3: каждое различное «школа» 171 spells совпадает ровно одной школой каталога (name.toLowerCase())', () => {
   const present = [];
   for (const [file] of SCHOOLS_EXPECTED) {
     const p = path.join(SKILLS_DIR, file);
@@ -106,7 +106,7 @@ test('A3: каждое различное «школа» 170 spells совпад
   const spellFiles = fs.readdirSync(SPELLS_DIR)
     .filter((f) => f !== 'schema.json'
       && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
-  assert.equal(spellFiles.length, 170, '170 заклинаний (факт диска; ре-пин 000333: +2 навигации; ре-пин 000348: +1 Декаданс)');
+  assert.equal(spellFiles.length, 171, '171 заклинание (факт диска; ре-пин 000333: +2 навигации; ре-пин 000348: +1 Декаданс; ре-пин 000349: +1 Притяжение)');
   const values = new Set();
   for (const f of spellFiles) {
     const d = JSON.parse(

@@ -968,6 +968,10 @@
     return 5 + Math.floor((intelligence || 0) / 10);
   }
 
+  function attractionRadius(intelligence) {
+    return 5 + Math.floor((intelligence || 0) / 10);
+  }
+
   // castOutOfCombat(p, spellId, day, ctx) → {ok, spell, expiresDay}
   // или {ok:false, reason}. Проверки ПО ПОРЯДКУ: каталог → книга →
   // мана → флаг вне_боя → days (1..3). day — день каста (clock.day).
@@ -1048,6 +1052,21 @@
       if (ctx !== undefined) {
         const cb = ctx && typeof ctx.decadance === 'function'
           ? ctx.decadance : null;
+        if (!cb) {
+          return { ok: false, reason: 'не здесь' };
+        }
+        const r = cb();
+        if (r && r.ok === false) {
+          return { ok: false, reason: r.reason || 'не здесь' };
+        }
+      }
+      if (!free) p.mp -= spell['мани'] || 0;
+      return { ok: true, spell, expiresDay: null };
+    }
+    if (spellId === 'attraction') {
+      if (ctx !== undefined) {
+        const cb = ctx && typeof ctx.attraction === 'function'
+          ? ctx.attraction : null;
         if (!cb) {
           return { ok: false, reason: 'не здесь' };
         }
@@ -1587,5 +1606,6 @@
     isHeroFrostWalk, coldBreathRadius, frozenStillnessRadius,
     shroudOfNightRadius, darkPresenceRadius,
     decadanceLevels,
+    attractionRadius,
   };
 });

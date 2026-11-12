@@ -71,7 +71,7 @@ const JR = require('../scripts/lib/json-ref.js');
 // visuals .03 / mobs .04).
 const SPELLS_SLUGS_000318 = [
   "absolute_zero", "acid_splash", "aegis", "arctic_touch",
-  "ashen_debilitation", "aura_of_protection", "barkskin", "beast_friend",
+  "ashen_debilitation", "attraction", "aura_of_protection", "barkskin", "beast_friend",
   "blazing_speed", "blessing", "blizzard", "blizzard_field", "bulwark_ward",
   "burning_cage", "burning_ground", "burning_haze", "chill", "cinder",
   "circle_of_light", "cold_breath", "corrode", "dark_ensnare", "dark_nova",
@@ -134,7 +134,7 @@ function resolveSpell(data) {
   };
 }
 
-test('000318.05 T1: ростер — шейп slug, 170 файлов ≡ пин-множеству, 0 numeric, basename == id + \'.json\', id уникальны; schema.json ∈ slug-regex (исключение обязательно)', () => {
+test('000318.05 T1: ростер — шейп slug, 171 файл ≡ пин-множеству, 0 numeric, basename == id + \'.json\', id уникальны; schema.json ∈ slug-regex (исключение обязательно)', () => {
   assert.equal(JR.ASSET_NAME_SHAPES.spells, 'slug',
     'spells: шейп в реестре — slug (000318.05)');
   const all = fs.readdirSync(SPELLS_DIR);
@@ -142,7 +142,7 @@ test('000318.05 T1: ростер — шейп slug, 170 файлов ≡ пин-
   assert.deepEqual(numeric, [],
     'spells: остались numeric-файлы после rename: ' + numeric.join(', '));
   assert.deepEqual(shapeFiles(SPELLS_DIR), SPELLS_SLUGS_000318,
-    'spells: 170 файлов ≡ пин-множеству slug-имён (ре-пин 000348: +decadance)');
+    'spells: 171 файл ≡ пин-множеству slug-имён (ре-пин 000348: +decadance; ре-пин 000349: +attraction)');
   assert.ok(JR.SHAPE_BASENAME_RES.slug.test('schema.json'),
     'guard: schema.json обязан матчиться slug-regex (иначе фильтр-исключение '
     + 'ничего не сторожит и анти-вакуум T6 протухает)');
@@ -155,7 +155,7 @@ test('000318.05 T1: ростер — шейп slug, 170 файлов ≡ пин-
       `spells: id «${data.id}» — не slug-форма (схема пинит её же)`);
     ids.push(data.id);
   }
-  assert.equal(new Set(ids).size, 170, 'spells: 170 id уникальны');
+  assert.equal(new Set(ids).size, 171, 'spells: 171 id уникальны');
 });
 
 test('000318.05 T2: зеркало — SPELLS в строгом id-порядку, записи ≡ каталогу (резолв в id); шапка-диапазон absolute_zero … winter_haste; построчные «// <slug>.json», numeric-имён нет', () => {
@@ -167,7 +167,7 @@ test('000318.05 T2: зеркало — SPELLS в строгом id-порядк�
   for (let i = 1; i < ids.length; i++) {
     assert.ok(ids[i - 1] < ids[i], `дубль/непорядок на позиции ${i}`);
   }
-  assert.equal(SPELLS.length, 170, 'SPELLS — 170 записей');
+  assert.equal(SPELLS.length, 171, 'SPELLS — 171 запись');
   for (const f of shapeFiles(SPELLS_DIR)) {
     const data = readJson(f);
     assert.deepEqual(SPELLS[ids.indexOf(data.id)], resolveSpell(data),
@@ -400,11 +400,11 @@ test('000318.05 T6: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.05 T7: иконки — биекция каталога assets/spell-icons/<id>.svg (basename json === basename svg, 170 — ре-пин 000348: +decadance)', () => {
+test('000318.05 T7: иконки — биекция каталога assets/spell-icons/<id>.svg (basename json === basename svg, 171 — ре-пин 000348: +decadance; ре-пин 000349: +attraction)', () => {
   const iconsDir = path.join(ROOT, 'assets', 'spell-icons');
   const svgs = new Set(fs.readdirSync(iconsDir).filter((f) => f.endsWith('.svg')));
   const files = shapeFiles(SPELLS_DIR);
-  assert.equal(files.length, svgs.size, 'иконка на каждое заклинание (170)');
+  assert.equal(files.length, svgs.size, 'иконка на каждое заклинание (171)');
   for (const f of files) {
     const data = readJson(f);
     assert.equal(data.icon, 'assets/spell-icons/' + f.replace(/\.json$/, '.svg'),
