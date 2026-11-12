@@ -89,6 +89,15 @@
     COMMON: 'common', RARE: 'rare', EPIC: 'epic',
     LEGENDARY: 'legendary', IMPOSSIBLE: 'impossible',
   };
+  const RARITY_PRICE_STEPS = {
+    common: 0, rare: 1, epic: 2, legendary: 3, impossible: 4,
+  };
+  function rarityPriceMult(rarity) {
+    const step = Object.prototype.hasOwnProperty
+      .call(RARITY_PRICE_STEPS, rarity)
+      ? RARITY_PRICE_STEPS[rarity] : 0;
+    return Math.pow(8, step);
+  }
   const AFFIX_TYPES = { SKILL: 'skill', FREE_CAST: 'free_cast' };
   const EQUIP_KINDS = new Set([
     ITEM_KINDS.WEAPON, ITEM_KINDS.ARMOR, ITEM_KINDS.SHIELD,
@@ -1775,7 +1784,7 @@
     const it = getItem(itemId);
     if (!it) return null;
     const d = P.derived(c);
-    return Math.max(1, Math.round(it.value * (1 - BUY_WEALTH_MULT * shop.wealth) * d.buyPriceMult));
+    return Math.max(1, Math.round(it.value * rarityPriceMult(it.rarity) * (1 - BUY_WEALTH_MULT * shop.wealth) * d.buyPriceMult));
   }
 
   /** Цена продажи (за 1 шт.) в магазине. */
@@ -1783,9 +1792,9 @@
     const it = getItem(itemId);
     if (!it) return null;
     const d = P.derived(c);
-    const base = Number.isFinite(it.value) ? it.value
+    const base = (Number.isFinite(it.value) ? it.value
       : (SELL_BASE_VALUE[it.kind] === undefined ? 1
-        : SELL_BASE_VALUE[it.kind]);
+        : SELL_BASE_VALUE[it.kind])) * rarityPriceMult(it.rarity);
     return Math.max(1, Math.round(base * (1 + SELL_WEALTH_MULT * shop.wealth) * d.sellPriceMult));
   }
 
@@ -2169,6 +2178,7 @@
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
     // 000230.01: поля экипировки — единый источник для .02/.03/.05.
     EQUIP_SLOTS, ITEM_RARITIES, AFFIX_TYPES, EQUIP_KINDS,
+    RARITY_PRICE_STEPS, rarityPriceMult,
     // 000230.02: физ. слоты c.equipment (18) + кольца (8).
     RING_SLOTS, EQUIP_PHYS_SLOTS,
     // 000230.04: наборы — пороги set-бонусов.

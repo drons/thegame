@@ -398,16 +398,21 @@ function findNonShopTile(G) {
   throw new Error('нет тайла без «картового» магазина');
 }
 
-// Самый дешёвый предмет стока (по value — множитель единый для
-// всех предметов, порядок цен от него не зависит).
-function cheapestStockItem(G, stock) {
+// Самый дешёвый предмет стока по фактической цене покупки. РЕ-ПИН
+// 000346: цена включает множитель редкости ×8^шаг (value-порядок
+// больше не эквивалентен ценовому), сортировка — по G.buyPrice.
+function cheapestStockItem(G, shop) {
+  const c = G.createCharacter();
   let best = null;
-  for (const id of Object.keys(stock)) {
-    if (!(stock[id] >= 1)) continue;
-    const it = G.getItem(id);
-    if (!it) continue;
-    if (best === null || it.value < G.getItem(best).value
-        || (it.value === G.getItem(best).value && id < best)) best = id;
+  let bestPrice = Infinity;
+  for (const id of Object.keys(shop.stock)) {
+    if (!(shop.stock[id] >= 1)) continue;
+    if (!G.getItem(id)) continue;
+    const price = G.buyPrice(shop, id, c);
+    if (price < bestPrice
+        || (price === bestPrice && id < best)) {
+      best = id; bestPrice = price;
+    }
   }
   return best;
 }
@@ -540,7 +545,7 @@ test('T2. worldShops: wrap бит-в-бит makeShop (РЕГРЕСС одино�
   assert.ok(e && Number.isInteger(e.day) && e.day >= 1,
     'хранилище: запись «x,y» с днём генерации: ' + JSON.stringify(e));
   assert.equal(e.seed, golden.seed);
-  const itemId = cheapestStockItem(G, golden.stock);
+  const itemId = cheapestStockItem(G, golden);
   assert.ok(itemId, 'в стоке есть предмет для выкупа');
   const init = golden.stock[itemId];
   const clicks = panelBuyOut(G, h, w, itemId, init + 1);
@@ -565,8 +570,8 @@ test('T3. refresh per-точка: протухшая точка — refill би�
     && gs.city_respawn_days >= 1) ? gs.city_respawn_days : 3;
   const gA = G0.makeShop(tA.x, tA.y, tA.building, tA.buildingWealth);
   const gB = G0.makeShop(tB.x, tB.y, tB.building, tB.buildingWealth);
-  const X = cheapestStockItem(G0, gA.stock);
-  const Y = cheapestStockItem(G0, gB.stock);
+  const X = cheapestStockItem(G0, gA);
+  const Y = cheapestStockItem(G0, gB);
   const keyA = tA.x + ',' + tA.y;
   const keyB = tB.x + ',' + tB.y;
   const D = 2 + N; // мир «на N+1 день старше» записи A; запись B — ровно у границы окна
@@ -619,8 +624,8 @@ test('T4. save/restore: раздельные остатки картовых т�
   const wB = g.worldShopFor(tB.x, tB.y, tB);
   const gA = G.makeShop(tA.x, tA.y, tA.building, tA.buildingWealth);
   const gB = G.makeShop(tB.x, tB.y, tB.building, tB.buildingWealth);
-  const X = cheapestStockItem(G, gA.stock);
-  const Y = cheapestStockItem(G, gB.stock);
+  const X = cheapestStockItem(G, gA);
+  const Y = cheapestStockItem(G, gB);
   const aBefore = cl(g.worldShops[keyA].stock);
   const bBefore = cl(g.worldShops[keyB].stock);
   // По ОДНОЙ покупке в каждой точке — остатки РАЗДЕЛЬНЫ: после обеих

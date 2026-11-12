@@ -255,7 +255,17 @@ test('000317-T3. стабильность: двойной вызов бит-в-�
 // T4. Цены: улучшением вне существующих множителей НЕ меняются
 // ============================================================
 
-test('000317-T4. цены: пары уровней с равным effWealth — карты buy/sell идентичны по всему стоку; формула it.value×(1∓wealth-множитель) без новых множителей; расширение membership на цену не влияет', () => {
+// РЕ-ПИН 000346: в базу цены вошёл множитель редкости ×8^шаг
+// (common..impossible = 1/8/64/512/4096, без rarity — ×1) — формула
+// пересчитана по всему стоку; пара уровней с равным effWealth остаётся
+// идентичной (один предмет — один множитель редкости).
+const RARITY_STEP_000346 = { common: 0, rare: 1, epic: 2,
+  legendary: 3, impossible: 4 };
+const rarityMult000346 = (rarity) => Math.pow(8,
+  Object.prototype.hasOwnProperty.call(RARITY_STEP_000346, rarity)
+    ? RARITY_STEP_000346[rarity] : 0);
+
+test('000317-T4. цены: пары уровней с равным effWealth — карты buy/sell идентичны по всему стоку; формула it.value×8^шаг_редкости(000346)×(1∓wealth-множитель) без иных новых множителей; расширение membership на цену не влияет', () => {
   const c = createCharacter();
   const priceMap = (shop) => {
     const m = {};
@@ -277,17 +287,20 @@ test('000317-T4. цены: пары уровней с равным effWealth —
         'цена ' + id + ' на L' + la + ' = L' + lb + ' (богатство равно)');
     }
   }
-  // Формула (000322 канон): buy = value×(1−0.10·wealth), sell =
-  // value×(1+0.15·wealth) — «Торговец» 0 (createCharacter).
+  // Формула (000322 канон + 000346): buy = value×8^шаг×(1−0.10·wealth),
+  // sell = value×8^шаг×(1+0.15·wealth) — «Торговец» 0 (createCharacter).
   const shop = C.makeCityShop(CITY.cx, CITY.cy, CITY.tx, CITY.ty, CITY.bid, 1, 3);
   for (const id of Object.keys(shop.stock)) {
     const it = I.getItem(id);
+    const base = it.value * rarityMult000346(it.rarity);
     assert.equal(I.buyPrice(shop, id, c),
-      Math.max(1, Math.round(it.value * (1 - 0.10 * shop.wealth))),
-      'buy ' + id + ' — формула без новых множителей');
+      Math.max(1, Math.round(base * (1 - 0.10 * shop.wealth))),
+      'buy ' + id + ' — формула без иных новых множителей ' +
+      '(кроме редкости 000346)');
     assert.equal(I.sellPrice(shop, id, c),
-      Math.max(1, Math.round(it.value * (1 + 0.15 * shop.wealth))),
-      'sell ' + id + ' — формула без новых множителей');
+      Math.max(1, Math.round(base * (1 + 0.15 * shop.wealth))),
+      'sell ' + id + ' — формула без иных новых множителей ' +
+      '(кроме редкости 000346)');
   }
 });
 
