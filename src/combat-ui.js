@@ -337,6 +337,14 @@
 
   // --- Оверлей ---
 
+  function keyHint(btn, code) {
+    const hint = document.createElement('span');
+    hint.className = 'tc-key-hint';
+    hint.textContent = '['
+      + (code === 'Space' ? ' ' : G.CombatKeys.keyLabel(code)) + ']';
+    btn.appendChild(hint);
+  }
+
   function build() {
     countEls = {}; // 000199: пересборка — карта бейджей свежая
     lastSpells = {}; // 000227: пересборка — выбор не живёт между боями
@@ -468,6 +476,7 @@
         b.appendChild(cnt);
         countEls[item.action] = cnt;
       }
+      keyHint(b, item.primaryKey);
       actions.appendChild(b);
     }
     // «Каст» (задача 000178): тач-путь для клавиши K (каст Эфира,
@@ -501,6 +510,7 @@
       cbCnt.textContent = '';
       cb.appendChild(cbCnt);
       countEls['cast'] = cbCnt;
+      keyHint(cb, 'KeyK');
       // 000227.01: точка (a) — иконка сидованного выбора (до первого
       // хода unitOf НЕ владелец кнопки: Эфир — id 'efir').
       lastSpellIcons['cast'] = { img: icon };
@@ -536,6 +546,7 @@
       hbCnt.textContent = '';
       hb.appendChild(hbCnt);
       countEls['heal'] = hbCnt;
+      keyHint(hb, 'KeyH');
       // 000227.01: точка (a) — иконка сидованного выбора (первый
       // merc/summon с книгой; тот же предикат, что гейт выше).
       lastSpellIcons['heal'] = { img: icon };

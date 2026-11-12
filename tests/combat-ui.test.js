@@ -1244,8 +1244,10 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
       'кнопка ' + b.dataset.act + ': aria-label = «'
       + (isLastSpell ? 'Последнее заклинание' : item.label)
       + '», факт: ' + b.ariaLabel);
-    // Текстовой (СЛОВЕСНОЙ) подписи (и клавиши-подсказки [J] и т.п.)
-    // НЕТ. Ре-пин 000199 (ТЗ: количество действий — ЧИСЛОМ на
+    // Текстовой (СЛОВЕСНОЙ) подписи НЕТ. Подсказка клавиши
+    // span.tc-key-hint «[J]» — отдельный span-ребёнок (000357), НЕ
+    // словесная подпись 000124; в стабе textContent кнопки её не
+    // агрегирует (см. ниже). Ре-пин 000199 (ТЗ: количество действий — ЧИСЛОМ на
     // соотв. кнопке); ре-пин 000199.01: «Конец хода» — остаток
     // шагов (одно число, без «/»). Единственное допущенное
     // текстовое содержимое «Удара»/«Книги заклинаний»/«Конец хода»
@@ -5224,8 +5226,10 @@ test('боевой UI: 000178 — тап «Каст» на ходу Эфира =
   assert.equal(byAct.cast.title, '', 'без причины — title пусто');
   assert.equal(byAct.cast.ariaLabel, 'Каст', 'aria-label «Каст»');
   assert.equal(byAct.cast.textContent, '', 'текстовой подписи нет (000124)');
-  assert.equal(byAct.cast.children.length, 2,
-    'ровно ДВА дочерних элемента (000227: +бейдж остатка пула)');
+  // РЕ-ПИН 000357: +span.tc-key-hint «[K]» последним ребёнком.
+  assert.equal(byAct.cast.children.length, 3,
+    'ровно ТРИ дочерних элемента (000227: +бейдж; 000357: +подсказка '
+    + 'клавиши [K])');
   const img = byAct.cast.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
   assert.equal(img.src, 'assets/ui/combat_cast.svg',
@@ -5341,8 +5345,10 @@ test('боевой UI: 000178 — тап «Лечение» на ходу suppor
   assert.equal(byAct.heal.title, '', 'без причины — title пусто');
   assert.equal(byAct.heal.ariaLabel, 'Лечение', 'aria-label «Лечение»');
   assert.equal(byAct.heal.textContent, '', 'текстовой подписи нет (000124)');
-  assert.equal(byAct.heal.children.length, 2,
-    'ровно ДВА дочерних элемента (000227: +бейдж остатка пула)');
+  // РЕ-ПИН 000357: +span.tc-key-hint «[H]» последним ребёнком.
+  assert.equal(byAct.heal.children.length, 3,
+    'ровно ТРИ дочерних элемента (000227: +бейдж; 000357: +подсказка '
+    + 'клавиши [H])');
   const img = byAct.heal.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
   assert.equal(img.src, 'assets/ui/combat_heal.svg',
@@ -7664,7 +7670,7 @@ test('боевой UI: 000227 — «Лечение»: без выбора — le
   }
 });
 
-test('боевой UI: 000227 — бейджи: value = остаток пула ВЫБРАННОГО по атрибуту (spark → spellInt «3», mend → spellWis «2»); «0» виден (000199 Д3/Д4 — паритет с «Удар»); бейджи на всех ТРЕХ кнопках (children [img, span]); кнопка скрыта (чужой ход) — бейдж display none + текст "" (CU227-BADGE)', () => {
+test('боевой UI: 000227 — бейджи: value = остаток пула ВЫБРАННОГО по атрибуту (spark → spellInt «3», mend → spellWis «2»); «0» виден (000199 Д3/Д4 — паритет с «Удар»); бейдж .combat-actcount на каждой из ТРЕХ кнопок; кнопка скрыта (чужой ход) — бейдж display none + текст "" (CU227-BADGE)', () => {
   {
     const S = scene227({ spells: true });
     const c = S.c;
@@ -7729,8 +7735,14 @@ test('боевой UI: 000227 — бейджи: value = остаток пула 
     const byAct = byActOf178(S);
     for (const act of ['cast', 'heal', 'lastSpell']) {
       assert.ok(byAct[act], 'кнопка ' + act + ' построена (полная панель)');
-      assert.equal(byAct[act].children.length, 2,
-        act + ': children — [img, span]');
+      // РЕ-ПИН 000357: у cast/heal —hotkey-кнопки, +span.tc-key-hint
+      // последним ребёнком ([img, span, span]); lastSpell — без
+      // клавиши, остаётся [img, span].
+      assert.equal(byAct[act].children.length,
+        act === 'lastSpell' ? 2 : 3,
+        act + ': children — '
+        + (act === 'lastSpell' ? '[img, span]'
+          : '[img, span, span.tc-key-hint]'));
       assert.equal(byAct[act].children[0].tagName, 'img',
         act + ': иконка <img>');
       assert.ok(badgeOf199(byAct[act]),
