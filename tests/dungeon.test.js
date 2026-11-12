@@ -1120,7 +1120,9 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       // (+20 артефактов концом) → floor(r2·192) = 155 — c1 =
       // pine_shield (node-пересимуляция). РЕ-ПИН 000321.05: common-пул
       // 192 → 212 (+20 инструментов концом) → floor(r2·212) = 171 —
-      // c1 = hidefaced_shield (node-пересимуляция).
+      // c1 = hidefaced_shield (node-пересимуляция). РЕ-ПИН 000321.06:
+      // common-пул 212 → 232 (+20 колец концом) → floor(r2·232) = 187
+      // — c1 = moss_eye (node-пересимуляция).
       // РЕ-ПИН 000330: footprint босса 3×3 (13..15, 5..7) занял
       // старый g3 (13,7) → коллизия takeSpot → сдвиг rng-потока:
       // g3 (mobIds/level/позиция) и ВСЕ сундуки (nChests 4→3,
@@ -1139,7 +1141,7 @@ test('D-BOSS-2: ABYSS — post-fix контент: репин 3 подземел
       ],
       chests: [
         { id: 'c0', x: 21, y: 18, opened: false, gold: 18, item: 'phoenix_feather' },
-        { id: 'c1', x: 9, y: 7, opened: false, gold: 21, item: 'hidefaced_shield' },
+        { id: 'c1', x: 9, y: 7, opened: false, gold: 21, item: 'moss_eye' },
         { id: 'c2', x: 7, y: 24, opened: false, gold: 13, item: null },
       ],
     },
@@ -1884,13 +1886,15 @@ test('G2-1: golden: CAVE (37,−12) depth=2 — полный детермини�
   // (+20 артефактов концом) → floor(r2·192) = 86 — c3 = wood_ring
   // (node-пересимуляция). Ре-пин 000321.05: common-пул 192 → 212
   // (+20 инструментов концом) → floor(r2·212) = 95 — c3 =
-  // traveler_breeches (node-пересимуляция).
+  // traveler_breeches (node-пересимуляция). Ре-пин 000321.06:
+  // common-пул 212 → 232 (+20 колец концом) → floor(r2·232) = 104
+  // — c3 = felt_boots (node-пересимуляция).
   // seed/mobs/gold/позиции — bit-in-bit.
   assert.deepEqual(c.chests, [
     { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
     { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
     { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'slow_scroll' },
-    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'traveler_breeches' },
+    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'felt_boots' },
   ], 'depth2 chests (по-полевой пин)');
 });
 
@@ -3345,7 +3349,9 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
 // rare-пул 119 → 133 (+14 артефактов концом) — RUINS c3 →
 // quiver_gloves (floor(0.2789345800410956·133)=37). Ре-пин 000321.05:
 // rare-пул 133 → 147 (+14 rare инструментов концом) — RUINS c3 →
-// wind_gloves (floor(0.2789345800410956·147)=41). Ре-пин 000251: фантомы удалены
+// wind_gloves (floor(0.2789345800410956·147)=41). Ре-пин 000321.06:
+// rare-пул 147 → 161 (+14 rare колец концом) — RUINS c3 →
+// ember_staff (floor(0.2789345800410956·161)=44). Ре-пин 000251: фантомы удалены
 // из реального пула (000251) — сценарий фикстурный (in-place,
 // паттерн D7/CH1: CRYPT pool[0] = chainmail (позиция
 // alchemy_manual), RUINS pool[1] = knight_plate (позиция
@@ -3370,8 +3376,10 @@ const CH5_CRYPT_CHESTS = [
   // 000321.04: common-пул 172 → 192 (+20 артефактов концом) →
   // kopis_curved (floor(0.6040003078524023·192)=115). Ре-пин
   // 000321.05: common-пул 192 → 212 (+20 инструментов концом) →
-  // flanged_mace (floor(0.6040003078524023·212)=128).
-  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'flanged_mace' },
+  // flanged_mace (floor(0.6040003078524023·212)=128). Ре-пин
+  // 000321.06: common-пул 212 → 232 (+20 колец концом) →
+  // copper_beads (floor(0.6040003078524023·232)=140).
+  { id: 'c0', x: 8, y: 22, opened: false, gold: 30, item: 'copper_beads' },
   { id: 'c1', x: 13, y: 19, opened: false, gold: 14, item: 'dark_presence_scroll' },
 ];
 const CH5_RUINS_CHESTS = [
@@ -3385,14 +3393,15 @@ const CH5_RUINS_CHESTS = [
   // 91 → 105, было leather_gown; ре-пин 000321.03: rare-пул
   // 105 → 119, было copper_brace; ре-пин 000321.04: rare-пул
   // 119 → 133, было iron_elbow; ре-пин 000321.05: 133 → 147 →
-// wind_gloves), rare — те же r1/r2
+// wind_gloves; ре-пин 000321.06: 147 → 161 → ember_staff), rare
+// — те же r1/r2
   // потока rng_eq: ЕДИНСТВЕННЫЙ триггернутый сундук).
   // Фикстура — ПОЗИЦИЯ 2 (бывш. iron_hide_tome, без slot), см.
   // idx ниже.
   { id: 'c0', x: 16, y: 15, opened: false, gold: 18, item: 'heart_of_forest_scroll' },
   { id: 'c1', x: 24, y: 16, opened: false, gold: 25, item: 'blazing_speed_scroll' },
   { id: 'c2', x: 14, y: 13, opened: false, gold: 16, item: null },
-  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'wind_gloves' },
+  { id: 'c3', x: 18, y: 15, opened: false, gold: 10, item: 'ember_staff' },
   { id: 'c4', x: 22, y: 19, opened: false, gold: 10, item: 'firelight_scroll' },
 ];
 
@@ -3407,13 +3416,13 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сун�
       w: 9, h: 11, xp: 1, trigger: 'chainmail', seed: 2983680956,
       hash: 0x47b239cb, r1: 0.022784294560551643,
       r2: 0.6040003078524023, tier: 'common',
-      replaced: 'flanged_mace', chests: CH5_CRYPT_CHESTS },
+      replaced: 'copper_beads', chests: CH5_CRYPT_CHESTS },
     { name: 'RUINS', type: 2, terrain: M.TERRAIN.MOUNTAIN,
       px: CH5_PX, trig: 'c3',
       w: 9, h: 9, xp: 3, trigger: 'knight_plate', seed: 801567646,
       hash: 0x2fb95446, r1: 0.6180662265978754,
       r2: 0.2789345800410956, tier: 'rare',
-      replaced: 'wind_gloves', chests: CH5_RUINS_CHESTS },
+      replaced: 'ember_staff', chests: CH5_RUINS_CHESTS },
   ];
   for (const cs of cases) {
     const pool = D.DUNGEON_ITEMS[cs.type];
@@ -3522,7 +3531,8 @@ test('000230.10-CH5: remap legacy-броней (D-12) — chest-replace: сун�
 // (+20 артефактов концом) → floor(r2·192) = 86 — wood_ring
 // (node-пересимуляция). РЕ-ПИН 000321.05: common-пул 192 → 212
 // (+20 инструментов концом) → floor(r2·212) = 95 —
-// traveler_breeches. БЕЗ slot
+// traveler_breeches. РЕ-ПИН 000321.06: common-пул 212 → 232 (+20
+// колец концом) → floor(r2·232) = 104 — felt_boots. БЕЗ slot
 // (in-place delete в ITEMS-синглтоне, restore finally) — iron_sword
 // остаётся в сундуке (до-волновое поведение). ВСЁ остальное
 // (seed/mobs/deposits/позиции/gold) — бит-в-бит.
@@ -3536,8 +3546,8 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
     { id: 'c0', x: 17, y: 11, opened: false, gold: 51, item: null },
     { id: 'c1', x: 20, y: 13, opened: false, gold: 28, item: null },
     { id: 'c2', x: 14, y: 13, opened: false, gold: 12, item: 'slow_scroll' },
-    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'traveler_breeches' },
-  ], 'golden — c3 «iron_sword» ЗАМЕНЁН на «traveler_breeches» (common-пул, ре-пин 000321.01: fine_gloves, ре-пин 000321.02: stone_mortar, ре-пин 000321.03: palm_shield; ре-пин 000321.04: wood_ring; ре-пин 000321.05: traveler_breeches)');
+    { id: 'c3', x: 16, y: 12, opened: false, gold: 63, item: 'felt_boots' },
+  ], 'golden — c3 «iron_sword» ЗАМЕНЁН на «felt_boots» (common-пул, ре-пин 000321.01: fine_gloves, ре-пин 000321.02: stone_mortar, ре-пин 000321.03: palm_shield; ре-пин 000321.04: wood_ring; ре-пин 000321.05: traveler_breeches; ре-пин 000321.06: felt_boots)');
   assert.equal(hash2(A.seed, 1, D.CHEST_EQ_SALT) >>> 0, 0x9cefd4f1,
     'hash2(seed, 1, CHEST_EQ_SALT) — закреплён');
   const rng_eq = mulberry32(0x9cefd4f1);
@@ -3547,7 +3557,7 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
   assert.equal(L.pickRarityTier(function () { return 0.014351648511365056; }), 'common',
     'r1 → тир «common»');
   assert.equal(
-    Math.floor(0.4499427538830787 * L.EQUIP_POOLS.common.length), 95,
+    Math.floor(0.4499427538830787 * L.EQUIP_POOLS.common.length), 104,
     'floor(r2·112) = 50 (common-пул 112: post-merge 000230.15 '
     + '110, ре-пин 000230.19 +traveler_cloak 111, ре-пин 000277 '
     + '+traveler_bracer 112 — узкая граница, node-пересимуляция); '
@@ -3557,7 +3567,9 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
     + 'common-пул 152 → 172 (+20 щитов концом) → floor(r2·172) = 77; '
     + 'ре-пин 000321.04: common-пул 172 → 192 (+20 артефактов '
     + 'концом) → floor(r2·192) = 86; ре-пин 000321.05: common-пул '
-    + '192 → 212 (+20 инструментов концом) → floor(r2·212) = 95');
+    + '192 → 212 (+20 инструментов концом) → floor(r2·212) = 95; '
+    + 'ре-пин 000321.06: common-пул 212 → 232 (+20 колец концом) → '
+    + 'floor(r2·232) = 104');
   assert.equal(L.EQUIP_POOLS.common[95], 'traveler_breeches',
     'common[95] = traveler_breeches (ре-пин 000321.01: common[59] = '
     + 'fine_gloves; ре-пин 000321.02: common[68] = stone_mortar; '
@@ -3586,13 +3598,14 @@ test('000230.12-CH: remap оружий (slot: right_hand) — chest-replace ак
         { x: a.x, y: a.y, gold: a.gold, opened: a.opened },
         ch.id + ' — позиция/gold без изменений');
       if (ch.id === swordChest.id) {
-        assert.equal(a.item, 'traveler_breeches',
-          'c3 — со slot: «traveler_breeches» (оружие заменено; '
+        assert.equal(a.item, 'felt_boots',
+          'c3 — со slot: «felt_boots» (оружие заменено; '
           + 'ре-пин 000321.01: common-пул 112 → 132; '
           + 'ре-пин 000321.02: 132 → 152; '
           + 'ре-пин 000321.03: 152 → 172; '
           + 'ре-пин 000321.04: 172 → 192; '
-          + 'ре-пин 000321.05: 192 → 212)');
+          + 'ре-пин 000321.05: 192 → 212; '
+          + 'ре-пин 000321.06: 212 → 232)');
       } else {
         assert.equal(ch.item, a.item,
           ch.id + ' — предмет без изменений (в пуле нет других предметов со slot)');

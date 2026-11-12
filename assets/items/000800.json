@@ -1,0 +1,21 @@
+{
+  "id": "ash_band",
+  "name": "Пепельный обод",
+  "kind": "ring",
+  "weight": 0.12,
+  "value": 210,
+  "desc": "Пепельный обод: уголь, что помнит жар.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/ash_band.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.14
+    }
+  ]
+}

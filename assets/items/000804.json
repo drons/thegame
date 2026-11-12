@@ -1,0 +1,21 @@
+{
+  "id": "ink_signet",
+  "name": "Чернильный перстень",
+  "kind": "ring",
+  "weight": 0.12,
+  "value": 290,
+  "desc": "Чернильный перстень: пишет ответы до вопросов.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/ink_signet.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.15
+    }
+  ]
+}

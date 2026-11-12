@@ -1,0 +1,21 @@
+{
+  "id": "bronze_loop",
+  "name": "Бронзовый ободок",
+  "kind": "ring",
+  "weight": 0.06,
+  "value": 30,
+  "desc": "Бронзовый ободок: служил монетой, стал кольцом.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/bronze_loop.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fists",
+      "amount": 0.05
+    }
+  ]
+}

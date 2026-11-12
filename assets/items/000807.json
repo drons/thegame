@@ -1,0 +1,34 @@
+{
+  "id": "selenite_ring",
+  "name": "Лунный селенит",
+  "kind": "ring",
+  "weight": 0.13,
+  "value": 370,
+  "desc": "Лунный селенит: селенит светит без луны.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/selenite_ring.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "set": "moonlight",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "meditation",
+      "amount": 0.16
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    },
+    "4": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.1
+      }
+    ]
+  }
+}

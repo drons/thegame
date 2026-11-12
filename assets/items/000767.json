@@ -1,0 +1,21 @@
+{
+  "id": "woven_ring",
+  "name": "Плетёное кольцо",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 14,
+  "desc": "Плетёное кольцо: сплетено из сухой травы на удачу.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/woven_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.03
+    }
+  ]
+}

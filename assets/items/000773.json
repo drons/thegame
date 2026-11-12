@@ -1,0 +1,21 @@
+{
+  "id": "pumice_ring",
+  "name": "Пемзовое кольцо",
+  "kind": "ring",
+  "weight": 0.07,
+  "value": 23,
+  "desc": "Пемзовое кольцо: дырчатый камень из жерла.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/pumice_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "perception",
+      "amount": 0.05
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "antler_band",
+  "name": "Олений ободок",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 13,
+  "desc": "Олений ободок: рог, снятый с охотничьей добычи.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/antler_band.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "back",
+      "amount": 0.03
+    }
+  ]
+}

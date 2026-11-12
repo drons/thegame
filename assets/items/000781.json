@@ -1,0 +1,21 @@
+{
+  "id": "blackened_band",
+  "name": "Воронёный ободок",
+  "kind": "ring",
+  "weight": 0.06,
+  "value": 33,
+  "desc": "Воронёный ободок: воронение бережёт от ржавчины.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/blackened_band.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "accuracy",
+      "amount": 0.05
+    }
+  ]
+}

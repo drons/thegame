@@ -1,0 +1,21 @@
+{
+  "id": "caldera_core",
+  "name": "Сердце кальдеры",
+  "kind": "ring",
+  "weight": 0.2,
+  "value": 1500,
+  "desc": "Сердце кальдеры: осколок спящего огня.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/caldera_core.svg",
+  "slot": "ring",
+  "rarity": "impossible",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "firelord",
+      "amount": 0.4
+    }
+  ]
+}

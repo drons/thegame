@@ -1,0 +1,21 @@
+{
+  "id": "hawk_eye_ring",
+  "name": "Кольцо ястреба",
+  "kind": "ring",
+  "weight": 0.08,
+  "value": 92,
+  "desc": "Кольцо ястреба: видит мышь за тремя холмами.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/hawk_eye_ring.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "catseye",
+      "amount": 0.08
+    }
+  ]
+}

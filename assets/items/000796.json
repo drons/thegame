@@ -1,0 +1,21 @@
+{
+  "id": "umbral_band",
+  "name": "Тенистый обруч",
+  "kind": "ring",
+  "weight": 0.09,
+  "value": 104,
+  "desc": "Тенистый обруч: тень носит его вместо себя.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/umbral_band.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "hide",
+      "amount": 0.08
+    }
+  ]
+}

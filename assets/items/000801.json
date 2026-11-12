@@ -1,0 +1,21 @@
+{
+  "id": "silver_frost",
+  "name": "Иней на серебре",
+  "kind": "ring",
+  "weight": 0.12,
+  "value": 230,
+  "desc": "Иней на серебре: серебро, одетое в изморозь.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/silver_frost.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "icelord",
+      "amount": 0.13
+    }
+  ]
+}

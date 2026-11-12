@@ -1,0 +1,21 @@
+{
+  "id": "forewarning",
+  "name": "Предвещание",
+  "kind": "ring",
+  "weight": 0.16,
+  "value": 660,
+  "desc": "Предвещание: приходит раньше беды.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/forewarning.svg",
+  "slot": "ring",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "precog",
+      "amount": 0.3
+    }
+  ]
+}

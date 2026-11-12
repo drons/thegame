@@ -1,0 +1,21 @@
+{
+  "id": "cast_iron_ring",
+  "name": "Чугунное кольцо",
+  "kind": "ring",
+  "weight": 0.07,
+  "value": 31,
+  "desc": "Чугунное кольцо: тяжелее выглядит, чем есть.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/cast_iron_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "heavy",
+      "amount": 0.05
+    }
+  ]
+}

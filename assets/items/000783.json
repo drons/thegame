@@ -1,0 +1,21 @@
+{
+  "id": "etched_seal",
+  "name": "Травлёная печать",
+  "kind": "ring",
+  "weight": 0.06,
+  "value": 37,
+  "desc": "Травлёная печать: узор выеден кислотой.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/etched_seal.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "alchemy",
+      "amount": 0.05
+    }
+  ]
+}

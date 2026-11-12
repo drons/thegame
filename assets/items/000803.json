@@ -1,0 +1,25 @@
+{
+  "id": "clay_warden",
+  "name": "Глиняный страж",
+  "kind": "ring",
+  "weight": 0.13,
+  "value": 270,
+  "desc": "Глиняный страж: маленький страж больших ворот.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/clay_warden.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.14
+    },
+    {
+      "type": "free_cast",
+      "spell": "aegis"
+    }
+  ]
+}

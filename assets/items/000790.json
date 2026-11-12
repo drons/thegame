@@ -1,0 +1,21 @@
+{
+  "id": "dread_seal",
+  "name": "Ворожбина печать",
+  "kind": "ring",
+  "weight": 0.1,
+  "value": 80,
+  "desc": "Ворожбина печать: печать для чужого страха.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/dread_seal.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fright",
+      "amount": 0.07
+    }
+  ]
+}

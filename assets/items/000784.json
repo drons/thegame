@@ -1,0 +1,21 @@
+{
+  "id": "chief_signet",
+  "name": "Начальственный перстень",
+  "kind": "ring",
+  "weight": 0.07,
+  "value": 40,
+  "desc": "Начальственный перстень: им выдавали наряды.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/chief_signet.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "leader",
+      "amount": 0.05
+    }
+  ]
+}

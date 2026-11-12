@@ -1,0 +1,38 @@
+{
+  "id": "tidebreath",
+  "name": "Дыхание прилива",
+  "kind": "ring",
+  "weight": 0.12,
+  "value": 400,
+  "desc": "Дыхание прилива: дышит морем в штиль.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/tidebreath.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "set": "tide",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.15
+    }
+  ],
+  "set_bonus": {
+    "2": [
+      {
+        "type": "skill",
+        "skill": "breath",
+        "amount": 0.05
+      }
+    ],
+    "3": [
+      {
+        "type": "skill",
+        "skill": "icelord",
+        "amount": 0.08
+      }
+    ]
+  }
+}

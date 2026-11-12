@@ -1,0 +1,25 @@
+{
+  "id": "icewalker",
+  "name": "Ледоход",
+  "kind": "ring",
+  "weight": 0.13,
+  "value": 250,
+  "desc": "Ледоход: идёт по воде, как по мосту.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/icewalker.svg",
+  "slot": "ring",
+  "rarity": "epic",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "endurance",
+      "amount": 0.12
+    },
+    {
+      "type": "free_cast",
+      "spell": "frost_walk"
+    }
+  ]
+}

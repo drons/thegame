@@ -1,0 +1,21 @@
+{
+  "id": "smoky_signet",
+  "name": "Дымчатый перстень",
+  "kind": "ring",
+  "weight": 0.06,
+  "value": 26,
+  "desc": "Дымчатый перстень: внутри застыл серый смерч.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/smoky_signet.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "breath",
+      "amount": 0.05
+    }
+  ]
+}

@@ -1803,6 +1803,20 @@ const SHOP_GOLDEN = {
     // Ре-пин 000348: свиток Декаданс — rng-хвост allItems
     // (seed byte-identical, стоки не сдвинулись) → decadance_scroll: 4
     decadance_scroll: 4,
+    // Ре-пин 000321.06: кольца 000765–000814 — КОНЕЦ каталога,
+    // rng-хвост allItems-пула (universam w3) → += 42 кольца
+    // (8 не выпали); остальные ключи стока не сдвинулись (seed
+    // byte-identical, 643 → 685 ключа; node-симуляция: старые ключи
+    // value-identical).
+    tin_band: 2,     antler_band: 2,     woven_ring: 4,     amber_disc: 2,     resin_ring: 3,
+    pumice_ring: 2,     fluorite_seal: 4,     smoky_signet: 5,     pebble_ring: 1,     bronze_loop: 1,
+    cast_iron_ring: 3,     brass_signet: 2,     blackened_band: 2,     forge_washer: 3,     etched_seal: 4,
+    chief_signet: 5,     garnet_band: 3,     moon_setting: 4,     serpent_signet: 3,     thorn_band: 5,
+    windwalker_ring: 4,     hawk_eye_ring: 4,     blade_braid: 3,     whetstone_ring: 2,     umbral_band: 2,
+    marksman_loop: 4,     trade_seal: 3,     rune_alloy: 5,     ash_band: 3,     silver_frost: 2,
+    icewalker: 5,     clay_warden: 2,     ink_signet: 3,     root_braid: 4,     augur_band: 3,
+    selenite_ring: 4,     tidebreath: 1,     moon_crown: 2,     frost_squall: 2,     undying_bough: 4,
+    eclipse_band: 1,     caldera_core: 4,
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,

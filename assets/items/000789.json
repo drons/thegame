@@ -1,0 +1,21 @@
+{
+  "id": "serpent_signet",
+  "name": "Змеиный перстень",
+  "kind": "ring",
+  "weight": 0.09,
+  "value": 76,
+  "desc": "Змеиный перстень: змея, свернувшись, читает свитки.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/serpent_signet.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "scholar",
+      "amount": 0.07
+    }
+  ]
+}

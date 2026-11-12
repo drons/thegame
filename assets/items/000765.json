@@ -1,0 +1,21 @@
+{
+  "id": "tin_band",
+  "name": "Оловянный ободок",
+  "kind": "ring",
+  "weight": 0.05,
+  "value": 12,
+  "desc": "Оловянный ободок: тёплый от руки, холодный по утру.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/tin_band.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "step",
+      "amount": 0.03
+    }
+  ]
+}

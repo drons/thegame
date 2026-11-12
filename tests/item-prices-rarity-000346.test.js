@@ -388,14 +388,14 @@ test('T6. vm округление на value=1: common buy(w3)=max(1,round(0.7))
 // в stock-rng (seed/состав — базовые литералы)
 // ============================================================
 
-test('T7. golden-стоки: makeShop(30,40,W=3) seed 3346526313 / 646 ключей / 1999 шт и makeCampShop(40,40,день1,w0) seed 1223027174 / 176 / 257 — множитель цены НЕ в сид-формуле', () => {
+test('T7. golden-стоки: makeShop(30,40,W=3) seed 3346526313 / 688 ключей / 2124 шт (ре-пин 000321.06: 646 → 688 / 1999 → 2124 — +42 кольца в хвост allItems-пула, переснято ЖИВЫМ кодом; camp без изменений) и makeCampShop(40,40,день1,w0) seed 1223027174 / 176 / 257 — множитель цены НЕ в сид-формуле', () => {
   const s = I.makeShop(30, 40, B.WEAPONS_SHOP, 3);
   assert.equal(s.seed, 3346526313, 'universam seed (живой код базы)');
   const keys = Object.keys(s.stock);
-  assert.equal(keys.length, 646, 'universam: ключей стока');
+  assert.equal(keys.length, 688, 'universam: ключей стока (ре-пин 000321.06: 646 → 688)');
   let tot = 0;
   for (const k of keys) tot += s.stock[k];
-  assert.equal(tot, 1999, 'universam: суммарное количество');
+  assert.equal(tot, 2124, 'universam: суммарное количество (ре-пин 000321.06: 1999 → 2124)');
   const campRec = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', 'camp.json'), 'utf8'));
   const cs = I.makeCampShop(40, 40, 1, 0, campRec);

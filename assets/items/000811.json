@@ -1,0 +1,21 @@
+{
+  "id": "undying_bough",
+  "name": "Бессмертный сук",
+  "kind": "ring",
+  "weight": 0.15,
+  "value": 610,
+  "desc": "Бессмертный сук: сук, что не узнал зимы.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/undying_bough.svg",
+  "slot": "ring",
+  "rarity": "legendary",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "unkill",
+      "amount": 0.28
+    }
+  ]
+}

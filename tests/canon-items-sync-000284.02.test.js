@@ -280,11 +280,13 @@ test('T7: sets + affixes: c5+c10 (диск == канон §2)', () => {
   m = anchor(/(\d+) skill-аффиксов на (\d+) РАЗНЫЙ навык/, 'c10a');
   assert.equal(D(m[1]), it.affixes.skillCount, 'c10a: skillCount canon=' + m[1] + ' disk=' + it.affixes.skillCount);
   assert.equal(D(m[2]), it.affixes.skillDistinct, 'c10a: skillDistinct canon=' + m[2] + ' disk=' + it.affixes.skillDistinct);
-  m = anchor(/(\d+) навыков — ровно по 1 предмету \(([^)]*)\)/, 'c10b');
+  // Ре-пин 000321.06: волна колец обнулила count-1 — все 8 прежних
+  // уников (back/merchant/catseye/acro/leader/accuracy/unkill/fright)
+  // получили вторые (третьи) предметы — упор волны на редкие навыки
+  // (000230.14). Канон §2 записан «пустым списком» — игла имён снята
+  // (список на диске пуст); счётчик остаётся disk-кросс-чеком.
+  m = anchor(/(\d+) навыков — ровно по 1 предмету/, 'c10b');
   assert.equal(D(m[1]), it.affixes.count1.length, 'c10b: count-1 canon=' + m[1] + ' disk=' + it.affixes.count1.length);
-  const canonNames = new Set(m[2].split(',').map((s) => s.trim()));
-  const diskNames = new Set(it.affixes.count1);
-  assert.ok(canonNames.size === diskNames.size && [...canonNames].every((n) => diskNames.has(n)), 'c10b: имена canon=' + JSON.stringify([...canonNames]) + ' disk=' + JSON.stringify([...diskNames]));
   assert.equal(it.affixes.noAffix, 0, 'c10: предметы без аффиксов: ' + it.affixes.noAffix);
   assert.equal(it.affixes.base6, 0, 'c10: base6 skill-аффиксов != 0: ' + it.affixes.base6);
   assert.equal(it.affixes.staffAffix, 0, 'c10: staff skill-аффиксов != 0: ' + it.affixes.staffAffix);

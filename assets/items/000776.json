@@ -1,0 +1,21 @@
+{
+  "id": "pebble_ring",
+  "name": "Галечное кольцо",
+  "kind": "ring",
+  "weight": 0.07,
+  "value": 28,
+  "desc": "Галечное кольцо: река отшлифовала его за век.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/pebble_ring.svg",
+  "slot": "ring",
+  "rarity": "common",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "artist",
+      "amount": 0.05
+    }
+  ]
+}

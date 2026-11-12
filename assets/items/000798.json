@@ -1,0 +1,21 @@
+{
+  "id": "trade_seal",
+  "name": "Товарная печать",
+  "kind": "ring",
+  "weight": 0.1,
+  "value": 120,
+  "desc": "Товарная печать: складывает счёт сама.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/trade_seal.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "merchant",
+      "amount": 0.09
+    }
+  ]
+}

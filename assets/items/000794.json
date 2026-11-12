@@ -1,0 +1,21 @@
+{
+  "id": "blade_braid",
+  "name": "Клинковая лента",
+  "kind": "ring",
+  "weight": 0.09,
+  "value": 96,
+  "desc": "Клинковая лента: косичка из лезвийной стали.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/blade_braid.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "swordsman",
+      "amount": 0.08
+    }
+  ]
+}

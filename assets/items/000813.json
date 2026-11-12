@@ -1,0 +1,34 @@
+{
+  "id": "eclipse_band",
+  "name": "Затмение",
+  "kind": "ring",
+  "weight": 0.2,
+  "value": 1200,
+  "desc": "Затмение: тень, съевшая луну.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/eclipse_band.svg",
+  "slot": "ring",
+  "rarity": "impossible",
+  "set": "moonlight",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "fright",
+      "amount": 0.35
+    }
+  ],
+  "set_bonus": {
+    "2": {
+      "armor": 1
+    },
+    "4": [
+      {
+        "type": "skill",
+        "skill": "meditation",
+        "amount": 0.1
+      }
+    ]
+  }
+}

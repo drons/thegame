@@ -1,0 +1,21 @@
+{
+  "id": "jade_signet",
+  "name": "Нефритовый перстень",
+  "kind": "ring",
+  "weight": 0.08,
+  "value": 64,
+  "desc": "Нефритовый перстень: нефрит знает терпение камня.",
+  "stats": {
+    "armor": 0
+  },
+  "icon": "assets/sprites/items/jade_signet.svg",
+  "slot": "ring",
+  "rarity": "rare",
+  "affixes": [
+    {
+      "type": "skill",
+      "skill": "golem",
+      "amount": 0.06
+    }
+  ]
+}
