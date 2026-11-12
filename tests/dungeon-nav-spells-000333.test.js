@@ -262,7 +262,7 @@ test('N-SAVE-1: activeRec С navPaths → serializeDungeonMemory теряет na
 
 function readJson(f) { return JSON.parse(fs.readFileSync(f, 'utf8')); }
 
-test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,000513 — схема-валидны, roundtrip-канон (000327 S5), поля: природа/wisdom/внебой/days 1/мани 6/здания [21,38]; свитки spell_scroll value 60 tier 2, effect.spell = ID, base_price НЕТ', () => {
+test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,000513 — схема-валидны, roundtrip-канон (000327 S5), поля: природа/wisdom/внебой/days 1/мани 6/здания [21,38]; свитки spell_scroll value 60 tier 2, effect.spell = ID, base_price = value (ре-пин 000347.02)', () => {
   for (const f of [SPELL_UP_FILE, SPELL_DOWN_FILE,
     SCROLL_UP_FILE, SCROLL_DOWN_FILE]) {
     assert.ok(fs.existsSync(f),
@@ -338,8 +338,10 @@ test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,
     assert.ok(dataMod.SPELLS_BY_ID[spell],
       `${id}: effect.spell «${spell}» ∈ SPELLS_BY_ID (контракт 000326/000327)`);
     assert.equal(it.icon, `assets/sprites/items/${id}.svg`, `${id}: icon`);
-    assert.equal(it.base_price, undefined,
-      `${id}: base_price НЕ фабрикуем (000322 — у свитков его нет)`);
+    assert.equal(it.base_price, 60,
+      `${id}: base_price = value=60 (ре-пин 000347.02: E1 — у ВСЕХ `
+      + `spell_scroll base_price=value; до задачи — не фабрикуем, `
+      + `000322)`);
   }
 });
 

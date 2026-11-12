@@ -231,13 +231,12 @@ test('T3. vm округление на value=1: свиток ур2 buy(w3)=round
 // прочие 70 входов торговли бит-в-бит старая формула (RED)
 // ============================================================
 
-test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); light_heal 560/280, 420/350; frost_bolt 45/23, 34/28 (ур1 ×1); прочие входы торговли — бит-в-бит max(1,round((base_price??value)×mult×derived))', () => {
+test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); frost_bolt 45/23, 34/28 (ур1 ×1) — РЕ-ПИН 000347.02: light_heal ПЕРЕНЕСЁН к жрецу солнца (пины 560/280/420/350 живут в scroll-trade-temples-000347.02 T5), ассортимент = огонь+лёд (54); прочие входы торговли — бит-в-бит max(1,round((base_price??value)×scroll-член×mult×derived)) по таблице 4 свитковых продавцов', () => {
   const scroll = ND.NPCS.find((n) => n.id === 'scroll_merchant');
   assert.ok(scroll && scroll.торговля, 'Пергамент в зеркале NPC');
   const shop = N.createNpcShop(scroll);
   const lit = {
     fireball_scroll: [480, 240, 360, 300],
-    light_heal_scroll: [560, 280, 420, 350],
     frost_bolt_scroll: [45, 23, 34, 28],
   };
   const c0 = charWithMerchant(0);
@@ -252,13 +251,33 @@ test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); light_heal 56
     assert.equal(N.npcSellPrice(shop, id, c5), s5,
       id + ': sell Торговец 5 === ' + s5);
   }
-  assert.deepEqual(
-    scroll.торговля.предметы.map((e) => e.предмет).sort(),
-    ['fireball_scroll', 'frost_bolt_scroll', 'light_heal_scroll'],
-    'ассортимент Пергамента не тронут (000347.02)');
+  const ids = scroll.торговля.предметы.map((e) => e.предмет);
+  assert.equal(ids.length, 54,
+    'ассортимент Пергамента — 54 (огонь+лёд; ре-пин 000347.02); '
+    + 'факт: ' + ids.length);
+  assert.ok(ids.includes('fireball_scroll')
+      && ids.includes('frost_bolt_scroll'),
+    '000043/000045 ОСТАЛИСЬ у Пергамента (переносились не они)');
+  assert.ok(!ids.includes('light_heal_scroll'),
+    'light_heal 000048 УБРАН из Пергамента (перенос к жрецу солнца, '
+    + '000347.02 — строго один продавец на свиток)');
+  const SCROLL_SELLERS = {
+    scroll_merchant: 54,
+    sun_priest: 26,
+    moon_priestess: 27,
+    mountain_priest: 54,
+  };
   let other = 0;
+  let scrolled = 0;
   for (const npc of ND.NPCS) {
-    if (!npc.торговля || npc.id === 'scroll_merchant') continue;
+    if (!npc.торговля) continue;
+    const isSeller = Object.prototype.hasOwnProperty
+      .call(SCROLL_SELLERS, npc.id);
+    if (isSeller) {
+      assert.equal(npc.торговля.предметы.length, SCROLL_SELLERS[npc.id],
+        npc.id + ': витрина — ровно ' + SCROLL_SELLERS[npc.id]
+        + ' свитковый вход (таблица 000347.02)');
+    }
     const npcShop = N.createNpcShop(npc);
     for (const lvl of [0, 5]) {
       const c = charWithMerchant(lvl);
@@ -266,27 +285,34 @@ test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); light_heal 56
       for (const e of npc.торговля.предметы) {
         const it = I.getItem(e.предмет);
         assert.ok(it, npc.id + ': предмет в каталоге: ' + e.предмет);
-        assert.notEqual(it.kind, 'spell_scroll',
-          npc.id + ': вне Пергамента свитков не торгуют (иначе формула ' +
-          'ниже не покрыта): ' + e.предмет);
-        const base = typeof it.base_price === 'number'
-          ? it.base_price : it.value;
+        if (!isSeller) {
+          assert.notEqual(it.kind, 'spell_scroll',
+            npc.id + ': вне таблицы 4 свитковых продавцов свитков не '
+            + 'торгуют (иначе формула ниже не покрыта): ' + e.предмет);
+        }
+        const base = (typeof it.base_price === 'number'
+          ? it.base_price : it.value) * scrollMultOf(it);
         assert.equal(N.npcBuyPrice(npcShop, e.предмет, c),
           Math.max(1, Math.round(
             base * (e.mult_покупки || 1) * d.buyPriceMult)),
-          npc.id + '/' + e.предмет + ': buy Торговец ' + lvl +
-          ' бит-в-бит (не свиток)');
+          npc.id + '/' + e.предмет + ': buy Торговец ' + lvl
+          + ' бит-в-бит (scroll-член из локальной таблицы)');
         assert.equal(N.npcSellPrice(npcShop, e.предмет, c),
           Math.max(1, Math.round(
             base * e.mult_продажи * d.sellPriceMult)),
-          npc.id + '/' + e.предмет + ': sell Торговец ' + lvl +
-          ' бит-в-бит (не свиток)');
-        other++;
+          npc.id + '/' + e.предмет + ': sell Торговец ' + lvl
+          + ' бит-в-бит (scroll-член из локальной таблицы)');
+        if (isSeller) scrolled++;
+        else other++;
       }
     }
   }
-  assert.ok(other >= 130, 'регресс-свип прочих входов (прогонов ' +
-    other + ')');
+  assert.equal(other, 146,
+    'регресс-свип прочих входов — РОВНО 146 прогонов (73 не-свитковых '
+    + 'входа × {Т0, Т5}); факт: ' + other);
+  assert.equal(scrolled, 322,
+    'свитковый свип таблицы 4 продавцов — РОВНО 322 (161 вход × {Т0, '
+    + 'Т5}; покрытие 54+26+27+54 — T8 000347.02); факт: ' + scrolled);
 });
 
 // ============================================================

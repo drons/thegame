@@ -257,7 +257,7 @@ test('T3. vm: пять проб value=10 всех редкостей — buy/sel
 // base_price×8^шаг внутри npcBuyPrice/npcSellPrice (RED)
 // ============================================================
 
-test('T4. NPC: свип всех входов торговли — npcBuyPrice/npcSellPrice бит-в-бит max(1,round((base_price??value)×8^(ур−1)×mult×derived)) (44 предмета без rarity → ×1 по редкости; свитки Пергамента — scroll-член 000347.01); vm-проба: rarity rare → база×8, epic без base_price → value×64', () => {
+test('T4. NPC: свип всех входов торговли — npcBuyPrice/npcSellPrice бит-в-бит max(1,round((base_price??value)×8^(ур−1)×mult×derived)) (202 предмета без rarity → ×1 по редкости; свитки Пергамента и жрецов 000347.02 — scroll-член 000347.01); vm-проба: rarity rare → база×8, epic без base_price → value×64', () => {
   const npcFiles = fs.readdirSync(NPC_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f));
   let entries = 0;
@@ -290,13 +290,17 @@ test('T4. NPC: свип всех входов торговли — npcBuyPrice/n
       traded.add(e.предмет);
       assert.equal(itemById(e.предмет).rarity, undefined,
         'реальная торговля ×1-регресс по РЕДКОСТИ: ' + e.предмет +
-        ' не должен иметь rarity (свитки Пергамента дорожены членом ' +
-        'уровня 000347.01, не редкостью)');
+        ' не должен иметь rarity (свитки Пергамента и сети ' +
+        'жрецов 000347.02 дорожены членом уровня 000347.01, ' +
+        'не редкостью)');
     }
   }
-  assert.ok(entries >= 70 && traded.size >= 40,
-    'свип覆盖 торговлю (входов ' + entries + ', предметов ' +
-    traded.size + ')');
+  assert.equal(entries, 234,
+    'свип покрывает ВСЮ торговлю — 234 входа (76 + 158 свитковых '
+    + 'входов сети жрецов 000347.02); факт: ' + entries);
+  assert.equal(traded.size, 202,
+    'уникальных торгуемых — 202 (44 + 158 новых свитков 000347.02); '
+    + 'факт: ' + traded.size);
   const probes = [
     RING('probe_npc_rare', 'rare', 50, { base_price: 100 }),
     RING('probe_npc_common', 'common', 50, { base_price: 100 }),

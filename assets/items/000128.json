@@ -4,6 +4,7 @@
   "kind": "spell_scroll",
   "weight": 0.2,
   "value": 60,
+  "base_price": 60,
   "tier": 2,
   "desc": "Свиток: изучает «Огненный имп» (нужен ранг школы.)",
   "effect": {

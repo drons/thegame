@@ -149,7 +149,7 @@ test('D-SWEEP-2: в каталоге spells ровно один decadance; id/и
 
 // --- D-SCROLL-3: свиток-спутник 000764 ---
 
-test('D-SCROLL-3: assets/items/000764.json — spell_scroll decadance_scroll, effect.spell=«decadance» (ID), value 115 / tier 3, desc-канон, base_price нет; связан со спеллом; иконки на месте', () => {
+test('D-SCROLL-3: assets/items/000764.json — spell_scroll decadance_scroll, effect.spell=«decadance» (ID), value 115 / tier 3, desc-канон, base_price=115 (ре-пин 000347.02: E1 — base_price=value у всех spell_scroll); связан со спеллом; иконки на месте', () => {
   assert.ok(fs.existsSync(SCROLL_FILE),
     'RED: файл assets/items/000764.json отсутствует');
   const it = readJson(SCROLL_FILE);
@@ -164,8 +164,11 @@ test('D-SCROLL-3: assets/items/000764.json — spell_scroll decadance_scroll, ef
   assert.equal(it.value, 115, 'lvl3-свитки тень: night_strike/nightmare/shroud_of_night = 115');
   assert.equal(it.tier, 3);
   assert.equal(it.weight, 0.2);
-  assert.ok(!('base_price' in it),
-    'не продаётся (навигационные прецеденты way_up/way_down)');
+  assert.equal(it.base_price, 115,
+    'base_price = value=115 (ре-пин 000347.02: E1 — у ВСЕХ spell_scroll '
+    + 'base_price=value; и сам свиток теперь продаётся — жрица луны, '
+    + 'школа тень; навигационный прецедент way_up/way_down тоже '
+    + 'перепинен dungeon-nav-spells-000333)');
   assert.equal(it.desc,
     'Свиток: изучает «Декаданс» (нужен ранг школы.)',
     'desc-канон каталога свитков (точка ВНУТРИ скобки)');

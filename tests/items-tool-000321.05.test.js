@@ -733,7 +733,7 @@ test('000321.05 T9: зеркала — src/items-data.js содержит 50 н�
 
 // --- T10: счётчики/канарейки -----------------------------------------
 
-test('000321.05 T10: регресс-канарейки — каталог 764 ≡ items-data; tool 60 (10 + 50), artifact 63, shield 62, armor 257, weapon 72 (не выросли), spell_scroll 161 (ре-пин 000348: +1 Декаданс); slot — у 539, «прочих» без slot — 225 (свиток Декаданс без slot); base_price РОВНО у 44 (у инструментов цены вычисляемые, НЕ вырос); free_cast — 26 без смены (факт волн: в wave .05 добавлено 0); наборы 18 / 60 предметов (forger 2→5, новых сетов нет); craft — 593 с типами зачарование 219 / кузнечное 173 / столярное 114 / резьба 61 / алхимия 24 / рунопись 2; иконки 731; stroke= — ровно 46 legacy (краснота: каталог 713)', () => {
+test('000321.05 T10: регресс-канарейки — каталог 764 ≡ items-data; tool 60 (10 + 50), artifact 63, shield 62, armor 257, weapon 72 (не выросли), spell_scroll 161 (ре-пин 000348: +1 Декаданс); slot — у 539, «прочих» без slot — 225 (свиток Декаданс без slot); base_price РОВНО у 202 (ре-пин 000347.02) (у инструментов цены вычисляемые, НЕ вырос); free_cast — 26 без смены (факт волн: в wave .05 добавлено 0); наборы 18 / 60 предметов (forger 2→5, новых сетов нет); craft — 593 с типами зачарование 219 / кузнечное 173 / столярное 114 / резьба 61 / алхимия 24 / рунопись 2; иконки 731; stroke= — ровно 46 legacy (краснота: каталог 713)', () => {
   assert.equal(I.allItems().length, 764);
   assert.equal(ITD.ITEMS.length, 764, 'items-data ≡ каталог (764)');
   const all = I.allItems();
@@ -751,9 +751,10 @@ test('000321.05 T10: регресс-канарейки — каталог 764 �
   assert.equal(all.filter((it) => it.kind === 'spell_scroll').length, 161,
     'spell_scroll — 161 (ре-пин 000348: +1 Декаданс)');
   const withBase = all.filter((it) => 'base_price' in it);
-  assert.equal(withBase.length, 44,
-    'base_price — ровно у 44 (инструменты не торгуют, base_price нет); '
-    + 'факт: ' + withBase.length);
+  assert.equal(withBase.length, 202,
+    'base_price — ровно у 202 (инструменты не торгуют — не они '
+    + 'добавили; ре-пин 000347.02: E1, base_price=value у всех '
+    + 'spell_scroll); факт: ' + withBase.length);
   const withSlot = all.filter((it) => 'slot' in it);
   assert.equal(withSlot.length, 539,
     'slot — у 539 (489 + 50); факт: ' + withSlot.length);

@@ -110,19 +110,19 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 38 файла 000001..000038 подряд; зеркало NPCS 38 записей с scroll_merchant', () => {
+test('T1: каталог — ровно 41 файла 000001..000041 подряд; зеркало NPCS 41 записей с scroll_merchant', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 38,
-    'в каталоге NPC 38 файла (000320.12: +Торговка травами; 000320.13: '
+  assert.equal(files.length, 41,
+    'в каталоге NPC 41 файла (000320.12: +Торговка травами; 000320.13: '
     + '+Алхимик-наставник; 000320.14: +Фельдшер; 000320.15: +Торговец '
-    + 'свитками; 000320.16: +Маг-наставник; 000320.17: +Переписчик; 000320.18: +Странствующий торговец; 000320.19: +Торговец специями; 000320.20: +Торговец каравана), факт: ' + files.length);
+    + 'свитками; 000320.16: +Маг-наставник; 000320.17: +Переписчик; 000320.18: +Странствующий торговец; 000320.19: +Торговец специями; 000320.20: +Торговец каравана; 000347.02: +жрец солнца, жрица луны, горный жрец), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 38,
-    'зеркало src/npc-data.js — 38 записей (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 41,
+    'зеркало src/npc-data.js — 41 записей (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[32];
   assert.ok(last, '33-я запись зеркала существует');
@@ -280,7 +280,7 @@ test('T5: диалог валиден по схеме, РОВНО 3 опции �
 
 // --- T6: профиль-гарант + торговля — 3 свитка, формат 000322, тон дома -------
 
-test('T6: блоков квесты/обучение/найм НЕТ (ни в JSON, ни в зеркале), торговля ЕСТЬ там и там; РОВНО 3 входа свитков (kind spell_scroll) с base_price в JSON предмета ПОСЛЕ value; mult ∈ (0,1] и НЕ выше 0.5 (тон свиткового товара дома 4 — blueprint_runecraft Зиры); mult_покупки отсутствует; количество 1..99; зеркало: постройки [4], торговля резолвится в id, диалог/описание deepEqual; ассортимент = {fireball_scroll, frost_bolt_scroll, light_heal_scroll}', () => {
+test('T6: блоков квесты/обучение/найм НЕТ (ни в JSON, ни в зеркале), торговля ЕСТЬ там и там; РОВНО 54 входа свитков (kind spell_scroll; ре-пин 000347.02: Пергамент = ВСЕ огонь+лёд) с base_price в JSON предмета ПОСЛЕ value; mult ∈ (0,1] и НЕ выше 0.5 (тон свиткового товара дома 4 — blueprint_runecraft Зиры); mult_покупки отсутствует; количество 1..99; зеркало: постройки [4], торговля резолвится в id, диалог/описание deepEqual; ассортимент = покрытие всех свитков школ огонь+лёд (light_heal — у жреца солнца)', () => {
   assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000033.json отсутствует');
   const data = readJson(NEW);
   for (const block of ['квесты', 'обучение', 'найм']) {
@@ -289,12 +289,14 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
       + 'счётчики npc-refs goal 2 / reward 5 не растут');
   }
   assert.ok(data.торговля && Array.isArray(data.торговля.предметы),
-    'в JSON есть блок «торговля» с предметами (trade 64 → 67)');
+    'в JSON есть блок «торговля» с предметами (trade 64 → 67; '
+    + 'после 000347.02 — Пергамент несёт школы огонь+лёд)');
   assert.deepEqual(Object.keys(data.торговля), ['предметы'],
     'блок торговли — единственный ключ «предметы» (формат 000322)');
   const items = data.торговля.предметы;
-  assert.equal(items.length, 3,
-    'витрина — ровно 3 позиции (свитки Магазина магии), факт: '
+  assert.equal(items.length, 54,
+    'витрина — ровно 54 позиции (свитки школ огонь+лёд; ре-пин 000347.02 '
+    + '— ассортимент расширен с 3, school-покрытие ниже); факт: '
     + items.length);
   const mirror = NPCS[32];
   assert.ok(mirror && mirror.id === ID, 'зеркало: 33-я запись scroll_merchant');
@@ -317,6 +319,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
     + '0.5 — единственный свитковый товар постройки; факт: '
     + JSON.stringify(ziraScrollMult));
   const ids = new Set();
+  const schools = new Set();
   items.forEach((p, j) => {
     assert.match(p.предмет, /^assets\/items\/\d{6}\.json$/,
       'путь предмета — якорная ссылка: ' + p.предмет);
@@ -340,6 +343,8 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
       p.предмет + ': base_price ПОСЛЕ value (канон KEYS sync-items-data); '
       + 'факт: ' + JSON.stringify(keys));
     ids.add(it.id);
+    schools.add(readJson(path.join(ROOT, 'assets/spells',
+      it.effect.spell + '.json'))['школа']);
     assert.equal(mirror.торговля.предметы[j].предмет, it.id,
       'зеркало резолвит путь в id: ' + p.предмет);
     assert.ok(p.mult_продажи > 0 && p.mult_продажи <= 1,
@@ -354,10 +359,23 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
       && p.количество <= 99,
       p.предмет + ': количество int 1..99, факт: ' + p.количество);
   });
-  assert.deepEqual([...ids].sort(),
-    ['fireball_scroll', 'frost_bolt_scroll', 'light_heal_scroll'],
-    'ассортимент — три школы свитков (000043 огонь / 000045 мороз / '
-    + '000048 исцеление) из исходного блока 000043–000050');
+  assert.deepEqual([...schools].sort(), ['лёд', 'огонь'],
+    'ассортимент — ТОЛЬКО школы огонь+лёд (ре-пин 000347.02; школа — с '
+    + 'assets/spells локально, не через резолвер); факт: '
+    + JSON.stringify([...schools].sort()));
+  const expectedFi = [];
+  for (const f of fs.readdirSync(path.join(ROOT, 'assets/items'))) {
+    if (!/^\d{6}\.json$/.test(f)) continue;
+    const it = readJson(path.join(ROOT, 'assets/items', f));
+    if (it.kind !== 'spell_scroll') continue;
+    const sp = readJson(path.join(ROOT, 'assets/spells',
+      it.effect.spell + '.json'));
+    if (sp['школа'] === 'огонь' || sp['школа'] === 'лёд') expectedFi.push(it.id);
+  }
+  assert.deepEqual([...ids].sort(), expectedFi.sort(),
+    'ассортимент — ПОЛНОЕ покрытие свитков огонь+лёд с диска '
+    + '(54; ре-пин 000347.02; light_heal 000048 — больше НЕ у Пергамента, '
+    + 'он у жреца солнца: scroll-trade-temples-000347.02)');
   assert.deepEqual(mirror.диалог, data.диалог,
     'зеркало NPCS[32].диалог ≡ JSON-диалог бит-в-бит');
   assert.deepEqual(mirror.описание, data.описание,

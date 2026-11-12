@@ -781,7 +781,7 @@ test('000321.02 T9: зеркала — src/items-data.js содержит 50 н�
 
 // --- T10: счётчики/канарейки -----------------------------------------
 
-test('000321.02 T10: регресс-канарейки — каталог 764 ≡ items-data; armor 257, weapon 72 (не выросли), spell_scroll 161 (ре-пин 000348: +1 Декаданс); slot — у 539, «прочих» без slot — 225; base_price РОВНО у 44 (броня волны не продаётся фиксированно; ре-пин 000320.15: +3 свитка Торговца свитками — base_price=value); free_cast — 26 (23 epic + 2 legendary + 1 impossible; ре-пин 000321.03: +2 epic щиты; ре-пин 000321.04: +2 epic +1 legendary +1 impossible); наборы 18 / 60 предмета (ре-пин 000321.03: bulwark +3; ре-пин 000321.04: arcane_focus +3; ре-пин 000321.05: forger +3); craft — 593 с типами зачарование 219 / кузнечное 173 / столярное 114 / резьба 61 / алхимия 24 / рунопись 2 (ре-пин 000321.05: +50 рецептов инструментов); stroke= в assets/sprites/items — ровно 46 legacy (краснота: каталог 563)', () => {
+test('000321.02 T10: регресс-канарейки — каталог 764 ≡ items-data; armor 257, weapon 72 (не выросли), spell_scroll 161 (ре-пин 000348: +1 Декаданс); slot — у 539, «прочих» без slot — 225; base_price РОВНО у 202 (ре-пин 000347.02) (броня волны не продаётся фиксированно; ре-пин 000320.15: +3 свитка Торговца свитками — base_price=value); free_cast — 26 (23 epic + 2 legendary + 1 impossible; ре-пин 000321.03: +2 epic щиты; ре-пин 000321.04: +2 epic +1 legendary +1 impossible); наборы 18 / 60 предмета (ре-пин 000321.03: bulwark +3; ре-пин 000321.04: arcane_focus +3; ре-пин 000321.05: forger +3); craft — 593 с типами зачарование 219 / кузнечное 173 / столярное 114 / резьба 61 / алхимия 24 / рунопись 2 (ре-пин 000321.05: +50 рецептов инструментов); stroke= в assets/sprites/items — ровно 46 legacy (краснота: каталог 563)', () => {
   assert.equal(I.allItems().length, 764);
   assert.equal(ITD.ITEMS.length, 764, 'items-data ≡ каталог (764)');
   const all = I.allItems();
@@ -793,8 +793,10 @@ test('000321.02 T10: регресс-канарейки — каталог 764 �
   assert.equal(all.filter((it) => it.kind === 'spell_scroll').length, 161,
     'spell_scroll — 161 (ре-пин 000348: +1 Декаданс)');
   const withBase = all.filter((it) => 'base_price' in it);
-  assert.equal(withBase.length, 44,
-    'base_price — ровно у 44 (ре-пин 000320.15); факт: ' + withBase.length);
+  assert.equal(withBase.length, 202,
+    'base_price — ровно у 202 (ре-пин 000320.15; ре-пин 000347.02: '
+    + '+158 свитков — E1: base_price=value у всех spell_scroll); '
+    + 'факт: ' + withBase.length);
   const withSlot = all.filter((it) => 'slot' in it);
   assert.equal(withSlot.length, 539,
     'slot — у 539 (339 + 50 брони + 50 щитов 000321.03 + 50 артефактов '

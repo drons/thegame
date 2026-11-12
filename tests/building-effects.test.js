@@ -4005,7 +4005,7 @@ test('A59. serialize/restoreCampStocks: roundtrip, независимость «
     'saved массив — {}');
 });
 
-test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 38 записей, npcForBuilding(47) (задача 000095)', () => {
+test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зеркало 41 запись (ре-пин 000347.02), npcForBuilding(47) (задача 000095)', () => {
   const NDIR = path.join(ROOT, 'assets', 'npc');
   // Файл — по нумерации (npc-data.test.js: ровно N файлов
   // 000001..N.json подряд, N = NPCS.length): 17 + Кочевник = 18;
@@ -4071,9 +4071,11 @@ test('A60. NPC «Кочевник» camp_wanderer: assets/npc/000018.json, зе�
   // 000320.18: 35 → 36 (Странствующий торговец);
   // 000320.19: 36 → 37 (Торговец специями);
   // 000320.20: 37 → 38 (Торговец каравана).
+  // 000347.02: 38 → 39 (жрец солнца Яровит), 39 → 40 (жрица
+  // луны Велена), 40 → 41 (горный жрец Утёс).
   const ND = require('../src/npc-data.js');
-  assert.equal(ND.NPCS.length, 38,
-    'зеркало: 38 NPC (17 + Кочевник + Корд + Родар + Скарн + Ветеран + Коллекционер + Оружейник + Отставной наёмник + Подмастерье + Специалист по броне + Наставник-големовед + Торговец зельями + Торговка травами + Алхимик-наставник + Фельдшер + Торговец свитками + Маг-наставник + Переписчик + Странствующий торговец + Торговец специями + Торговец каравана)');
+  assert.equal(ND.NPCS.length, 41,
+    'зеркало: 41 NPC (17 + Кочевник + Корд + Родар + Скарн + Ветеран + Коллекционер + Оружейник + Отставной наёмник + Подмастерье + Специалист по броне + Наставник-големовед + Торговец зельями + Торговка травами + Алхимик-наставник + Фельдшер + Торговец свитками + Маг-наставник + Переписчик + Странствующий торговец + Торговец специями + Торговец каравана + жрец солнца + жрица луны + горный жрец)');
   const inMirror = ND.NPCS.find((n) => n.id === 'camp_wanderer');
   assert.ok(inMirror, 'зеркало: camp_wanderer на месте');
   assert.deepEqual(inMirror.постройки, [47],
@@ -6271,7 +6273,7 @@ test('B16. телепорт «нет проходимого» E2E (pre-seed pair
 // действия не появятся (переключение на t.buildingId — часть задачи),
 // c.buffMods в бое нет, data.buffs не пишется действием.
 
-test('B17. «Благословение» e2e: храм солнца (36) — «Диалог» (Элдира) ПЕРВЫМ, затем «Благословение»: buffs в сейве, маркировка раз-в-день, buffMods в бою', async () => {
+test('B17. «Благословение» e2e: храм солнца (36) — РЕ-ПИН 000347.02: «Диалог» (Элдира) ПЕРВЫМ, «Диалог: Яровит» второй, «Благословение» — Digit3: buffs в сейве, маркировка раз-в-день, buffMods в бою', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -6298,19 +6300,25 @@ test('B17. «Благословение» e2e: храм солнца (36) — «
   assert.equal(G.npcUI.isActive(), false, 'npcUI НЕ открывается сразу');
   const ov = findOverlay(h);
   assert.ok(ov, 'оверлей подвешен к body');
+  const rowsB17 = findAll(ov, '[data-buid]');
   assert.deepEqual(
-    findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['dialog', '36', 'resurrect'],
+    rowsB17.map((r) => r.dataset.buid),
+    ['dialog', 'dialog:sun_priest', '36', 'resurrect'],
     // 000162: порядок каталога — диалог, благословение, «Воскрешение».
-    'строки: «Диалог» (Элдира) ПЕРВЫМ, затем «Благословение» (36), ' +
-    'затем «Воскрешение» (000162)');
+    // Ре-пин 000347.02: у 36 ДВА NPC (Элдира 000010, жрец солнца
+    // 000039 — порядок каталога) → вторая строка 'dialog:sun_priest'.
+    'строки: «Диалог» (Элдира) ПЕРВЫМ, «Диалог: Яровит» (жрец солнца, ' +
+    '000347.02), затем «Благословение» (36), затем «Воскрешение» (000162)');
+  assert.ok(textOf(rowsB17[1]).includes('Яровит'),
+    'вторая строка подписана именем жреца: ' + textOf(rowsB17[1]));
   // До действия — благословений в сейве нет.
   const saveBefore = readSave(h);
   assert.ok(saveBefore.data.buffs == null
     || saveBefore.data.buffs.length === 0,
     'до действия в data.buffs пусто');
-  // Digit2 — «Благословение» (первая строка — диалог, B20).
-  key(h, 'Digit2');
+  // Digit3 — «Благословение» (впереди ДВЕ диалог-строки: Элдира,
+  // Яровит — ре-пин 000347.02; B20).
+  key(h, 'Digit3');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   assert.ok(String(h.hud.textContent).match(/благословение/i),
@@ -6345,7 +6353,7 @@ test('B17. «Благословение» e2e: храм солнца (36) — «
     'бой получил buffMods (солнце: ×1.05 урона, броня 0)');
 });
 
-test('B18. «Благословение» e2e: храм горы (38) — NPC нет («Диалог» отсутствует), kind armor: buffMods {1, 1}', async () => {
+test('B18. «Благословение» e2e: храм горы (38) — РЕ-ПИН 000347.02: NPC есть (горный жрец Утёс), «Диалог» ПЕРВОЙ, «Благословение» — Digit2, kind armor: buffMods {1, 1}', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -6357,37 +6365,48 @@ test('B18. «Благословение» e2e: храм горы (38) — NPC н
   const t = myMap.tileAt(st.player.x, st.player.y);
   assert.equal(t.buildingId, 38, 'игрок на храме горы');
   const key1 = st.player.x + ',' + st.player.y + ':38';
-  // HUD: жреца у 38 в каталоге NPC нет — «[E] действия»,
-  // НЕ «[E] диалог» (без переключения роутера на buildingId здесь
-  // показался бы «[E] диалог» Элдиры — запись базовой 36).
+  // Ре-пин 000347.02: горный жрец Утёс (000041) поселился у 38 —
+  // топ-строка «[E] диалог», «Здесь:» — «([E] Утёс, действия)»;
+  // голая форма «([E] действия)» уходит (eHint с NPC — парная).
   frameAt(h, NOW + 200);
   const hudLine = String(h.hud.textContent);
-  assert.ok(hudLine.includes('[E] действия'),
-    'топ-строка «  |  [E] действия»: ' + hudLine);
-  assert.ok(!hudLine.includes('[E] диалог'),
-    'NPC нет — «[E] диалог» нет: ' + hudLine);
+  assert.ok(hudLine.includes('[E] диалог'),
+    'топ-строка «  |  [E] диалог»: ' + hudLine);
+  assert.ok(hudLine.includes('([E] Утёс, действия)'),
+    '«Здесь:» — диалог + действия: ' + hudLine);
+  assert.ok(!hudLine.includes('([E] действия)'),
+    'NPC есть — голой «([E] действия)» нет: ' + hudLine);
   key(h, 'KeyE');
   assert.equal(G.buildingUI.isActive(), true, '[E] открывает buildingUI');
   assert.equal(G.npcUI.isActive(), false, 'npcUI не открывается');
   const ov = findOverlay(h);
   assert.ok(ov, 'оверлей подвешен к body');
-  // Ре-пин 000147 (2026-10-07): каталог 38 по ТЗ —
-  // эффекты ["38", "38_mentor"] → оверлей рисует строки по
-  // эффектам (технический ре-пин; e2e-контракт «Благословение»
-  // (kind armor, маркировка, buffMods) — без изменений, Digit1
-  // всё ещё первая строка '38').
-  // Ребейз на мастер (2026-10-07, 000162): +услуга «Воскрешение»
-  // → ТРИ строки ['38','38_mentor','resurrect'] (порядок каталога).
+  // Ре-пин 000347.02: горный жрец даёт «Диалог» первой строкой
+  // (порядок buildingActions: NPC-строки, затем эффекты) → ЧЕТЫРЕ
+  // строки ['dialog','38','38_mentor','resurrect']; исторические
+  // ре-пины 000147/000162 (три эффект-строки каталога) живы в
+  // хвосте списка; «Благословение» сдвигается на Digit2.
+  const rowsB18 = findAll(ov, '[data-buid]');
   assert.deepEqual(
-    findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['38', '38_mentor', 'resurrect'],
-    // Ребейз 000147 на мастер (2026-10-07): union каталога 38 —
-    // ТРИ строки: «Благословение» (38) + «Обучение (наставник)»
-    // (38_mentor, 000147) + «Воскрешение» (000162, порядок каталога);
-    // «Диалога» нет.
-    'ТРИ строки: «Благословение» (38), «Обучение (наставник)» '
-    + '(38_mentor), «Воскрешение» (000162), «Диалога» нет');
+    rowsB18.map((r) => r.dataset.buid),
+    ['dialog', '38', '38_mentor', 'resurrect'],
+    'ЧЕТЫРЕ строки: «Диалог» (Утёс, 000347.02), «Благословение» (38), '
+    + '«Обучение (наставник)» (38_mentor), «Воскрешение» (000162)');
+  assert.ok(textOf(rowsB18[0]).includes('Утёс'),
+    'первая строка подписана именем жреца: ' + textOf(rowsB18[0]));
+  // Digit1 — «Диалог» (Утёс): npcUI,buildingUI закрывается (паттерн B20).
   key(h, 'Digit1');
+  assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
+  assert.equal(G.npcUI.isActive(), true, 'Digit1 открыл диалог жреца');
+  const novB18 = findAll(h.body, '.npc-overlay')[0];
+  assert.ok(novB18 && textOf(novB18).includes('Утёс'),
+    'диалог — Утёс (горный жрец 000347.02)');
+  key(h, 'KeyE');
+  assert.equal(G.npcUI.isActive(), false, 'повторный [E] закрыл диалог');
+  key(h, 'KeyE');
+  assert.equal(G.buildingUI.isActive(), true, 'оверлей открылся снова');
+  // Digit2 — «Благословение» (диалог-строка впереди).
+  key(h, 'Digit2');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   const save = readSave(h);
@@ -6410,7 +6429,7 @@ test('B18. «Благословение» e2e: храм горы (38) — NPC н
     'бой получил buffMods (гора: +1 броня)');
 });
 
-test('B19. «Сон» e2e: храм луны (37) — подсказка: ближайший вход (не развалины) + тип подземелья; лимита раз-в-день НЕТ', async () => {
+test('B19. «Сон» e2e: храм луны (37) — РЕ-ПИН 000347.02: «Диалог» (Велена) первой, «Сон» — Digit2: подсказка: ближайший вход (не развалины) + тип подземелья; лимита раз-в-день НЕТ', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -6427,10 +6446,14 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.ok(ov, 'оверлей подвешен к body');
   assert.deepEqual(
     findAll(ov, '[data-buid]').map((r) => r.dataset.buid),
-    ['37', 'resurrect'],
+    ['dialog', '37', 'resurrect'],
     // 000162: +услуга «Воскрешение» (порядок каталога).
-    'строки: «Сон» (37), «Воскрешение» (000162)');
-  key(h, 'Digit1');
+    // Ре-пин 000347.02: жрица луны Велена (000040) → «Диалог»
+    // первой строкой, «Сон» сдвигается на Digit2.
+    'строки: «Диалог» (Велена, 000347.02), «Сон» (37), '
+    + '«Воскрешение» (000162)');
+  // Digit2 — «Сон» (диалог-строка впереди — ре-пин 000347.02).
+  key(h, 'Digit2');
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');
   frameAt(h, NOW + 400);
   const hudLine = String(h.hud.textContent);
@@ -6453,7 +6476,9 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.equal(G.buildingUI.isActive(), true, 'оверлей открывается снова');
   const row = findRow(findOverlay(h), '37');
   assert.equal(row.disabled, false, 'в тот же день — ДОСТУПНО (без лимита)');
-  key(h, 'Digit1');
+  // Digit2 — повторный «Сон» (ре-пин 000347.02: индекс 2 из-за
+  // «Диалога» Велены).
+  key(h, 'Digit2');
   assert.equal(G.buildingUI.isActive(), false,
     'повторный «Сон» в тот же день — выполняется');
   frameAt(h, NOW + 600);
@@ -6463,7 +6488,7 @@ test('B19. «Сон» e2e: храм луны (37) — подсказка: бли
   assert.equal(G.buildingUI.isActive(), false);
 });
 
-test('B20. регрессия храма солнца: «Диалог» с Элдирой — ПЕРВАЯ строка (npcUI), «Благословение» — независимое действие', async () => {
+test('B20. регрессия храма солнца: «Диалог» с Элдирой — ПЕРВАЯ строка (npcUI), «Диалог: Яровит» второй (ре-пин 000347.02), «Благословение» — независимое действие', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -6477,8 +6502,13 @@ test('B20. регрессия храма солнца: «Диалог» с Эл�
   const rows = findAll(ov, '[data-buid]');
   assert.deepEqual(rows.map((r) => r.dataset.buid),
     // 000162: +«Воскрешение» (порядок каталога).
-    ['dialog', '36', 'resurrect'],
-    '«Диалог» — ПЕРВАЯ строка');
+    // Ре-пин 000347.02: второй NPC храма — жрец солнца →
+    // 'dialog:sun_priest' второй строкой (Элдира — ПЕРВАЯ, порядок
+    // каталога: 000010 раньше 000039).
+    ['dialog', 'dialog:sun_priest', '36', 'resurrect'],
+    '«Диалог» (Элдира) — ПЕРВАЯ строка, «Диалог: Яровит» — вторая');
+  assert.ok(textOf(rows[1]).includes('Яровит'),
+    'вторая строка подписана именем жреца: ' + textOf(rows[1]));
   assert.equal(rows[0].disabled, false, '«Диалог» доступен');
   key(h, 'Digit1'); // «Диалог»
   assert.equal(G.buildingUI.isActive(), false, 'оверлей закрылся');

@@ -4,6 +4,7 @@
   "kind": "spell_scroll",
   "weight": 0.2,
   "value": 45,
+  "base_price": 45,
   "tier": 1,
   "desc": "Свиток: изучает «Щит веры» (нужен ранг школы.)",
   "effect": {
