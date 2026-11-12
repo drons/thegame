@@ -37,6 +37,15 @@
 // тесты master (combat-ui SB1, spellbook-oc-tabs, spells, portal-
 // mechanic-e2e, invisibility-e2e) — 0 новых.
 //
+// 000351 РЕ-ПИН (осознанная смена контракта контейнер/размер/слушатель):
+// кнопка переехала из body в общий блок #touch-controls — 4-я
+// button.tc-action (стопка E,I,C,B, общий класс/размер с [E]/[I]/[C]);
+// слушатель — pointerdown (как сиблинги), click-а нет; правило
+// .spellbook-oc-btn и frame-lift z-25 УДАЛЕНЫ — над оверлеями кнопка
+// за счёт контейнера #touch-controls z-30 (прецедент 000121), в бою —
+// display:none единицей buttons + blocked() внутри toggle(). B1/B2/B4
+// пересняты под новый контракт, B3 — тот же сценарий (тап = pointerdown).
+//
 // Харнес: per-file дубль tests/spellbook-oc-e2e.test.js (конвенция
 // проекта): CHAIN из index.html (динамический), Proxy-DOM makeEl
 // (данные-свойства, listeners, setAttribute только data-*; в
@@ -54,6 +63,7 @@ const ROOT = path.join(__dirname, '..');
 
 // Цепочка скриптов — из index.html (не хардкод, паттерн main-visuals).
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+const uiCode = fs.readFileSync(path.join(ROOT, 'src', 'ui.js'), 'utf8');
 const CHAIN = Array.from(html.matchAll(/<script\s+src="([^"]+)"/g), (m) => m[1])
   .map((p) => p.replace(/^src\//, ''));
 const NOW = 1000; // performance.now() в песочнице заморожен на NOW
@@ -523,78 +533,85 @@ function learn(h, ids) {
   for (const id of ids) spells.push(id);
 }
 
-// --- Кнопка (000332) ---
+// --- Кнопка (000332; 000351 ре-пин: в общем блоке #touch-controls) ---
 //
-// Кнопка создаётся JS main.js (не статичным HTML) — она в body во
-// ВСЕХ vm-песочницах; в стаб-нодах НЕТ id (makeEl) — поиск только
-// сканом body.children по className.
-function findButton(h) {
-  for (const c of h.body.children) {
-    if (String(c.className || '').includes('spellbook-oc-btn')) {
-      return c;
-    }
-  }
-  return null;
+// Кнопка создаётся ui.js в #touch-controls (4-я .tc-action, схема
+// 'keyboard' в этой песочнице — D-pad не строится); в стаб-нодах НЕТ
+// aria-атрибутов (setAttribute роняет их — прецедент squad-panel
+// «идентификация по иконке») — поиск сканом детей корня по img.src.
+function tcBlock(h) {
+  const root = h.body.children.find((c) => c.id === 'touch-controls');
+  assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
+  return root.children.filter((c) =>
+    String(c.className).includes('tc-action'));
 }
 
-// Клик по кнопке (свой click-listener, makeEl-совместимо).
+function findButton(h) {
+  return tcBlock(h).find((b) => b.children.some(
+    (ch) => String(ch.src || '') === 'assets/ui/combat_spellbook.svg'))
+    || null;
+}
+
+// Тап по кнопке — pointerdown-слушатель (click-а нет; тот же
+// конвейер, что у [E]/[I]/«Отряд»).
 function clickButton(h) {
   const btn = findButton(h);
   assert.ok(btn,
-    'RED: кнопка .spellbook-oc-btn в body.children (master: кнопки '
-    + 'нет — только текстовый хинт «  |  [B] книга» в #hud, П10)');
-  const l = btn.listeners && btn.listeners.click;
+    'кнопка книги (иконка combat_spellbook.svg) — в #touch-controls '
+    + '(000351: общий блок .tc-action, не отдельный body-элемент)');
+  const l = btn.listeners && btn.listeners.pointerdown;
   assert.ok(l && l.length > 0,
-    'кнопка — свой click-listener (makeEl)');
-  l[l.length - 1]();
+    'кнопка — pointerdown-слушатель (makeEl)');
+  l[l.length - 1]({ pointerId: 1, preventDefault() {} });
 }
 
-test('000332 B1: DOM-кнопка .spellbook-oc-btn — child body (создаётся JS main.js): button type=button, title/aria-label, ОДИН дочерний img (assets/ui/combat_spellbook.svg + alt); load-clean', async () => {
+test('000332 B1 (000351 ре-пин): кнопка книги — 4-я button.tc-action в #touch-controls (общий блок с [E]/[I]/«Отряд»), ОДИН дочерний img (assets/ui/combat_spellbook.svg, alt=""), aria-label — src-сканом ui.js; load-clean', async () => {
   const h = await boot();
   dismissStartWindow(h);
   assert.equal(h.errors.length, 0,
     'load-clean — кнопка создаётся тихо (0 console.*): '
     + h.errors.join('; '));
+  const btns = tcBlock(h);
+  assert.equal(btns.length, 4,
+    'блок #touch-controls — 4 кнопки .tc-action (E, I, «Отряд», книга): '
+    + btns.length);
   const btn = findButton(h);
-  assert.ok(btn,
-    'RED: кнопка .spellbook-oc-btn в body.children (master: нет)');
+  assert.ok(btn, 'кнопка книги — в #touch-controls');
+  assert.equal(btn, btns[3],
+    'кнопка книги — 4-я (конечная) в блоке (стопка снизу вверх E,I,C,B)');
   assert.equal(String(btn.tagName).toLowerCase(), 'button',
-    'RED: элемент — button');
-  assert.equal(btn.type, 'button', 'RED: type="button"');
-  assert.equal(btn.title, 'Книга заклинаний (вне боя) [B]',
-    'RED: title — «Книга заклинаний (вне боя) [B]»: ' + btn.title);
-  assert.ok(String(btn.ariaLabel).length > 0,
-    'RED: aria-label задан: ' + btn.ariaLabel);
+    'элемент — button');
+  assert.equal(btn.className, 'tc-action',
+    'общий класс .tc-action — тот же, что [E]/[I]/«Отряд» (000351: '
+    + 'одного размера и в одном блоке)');
   const imgs = (btn.children || []).filter(
     (c) => String(c.tagName).toLowerCase() === 'img');
-  assert.equal(imgs.length, 1,
-    'RED: ОДИН дочерний img (иконка): ' + imgs.length);
+  assert.equal(imgs.length, 1, 'ОДИН дочерний img (иконка): ' + imgs.length);
   assert.equal(imgs[0].src, 'assets/ui/combat_spellbook.svg',
-    'RED: иконка — переиспользование существующей UI-иконки '
+    'иконка — переиспользование существующей UI-иконки '
     + '(000302-каталог assets/ui): ' + imgs[0].src);
-  assert.equal(imgs[0].alt, 'Книга заклинаний',
-    'RED: alt иконки — «Книга заклинаний»');
+  assert.equal(imgs[0].alt, '',
+    "alt='' — презентационная иконка (паттерн E/I/C, 000124)");
+  // makeEl-стаб роняет aria-* (setAttribute — только data-*), имя —
+  // src-сканом ui.js (прецедент squad-panel: идентификация по иконке).
+  assert.ok(uiCode.includes("setAttribute('aria-label', 'Книга заклинаний')"),
+    "ui.js задаёт кнопке книги setAttribute('aria-label', «Книга "
+    + 'заклинаний») (паттерн сиблингов)');
   assert.ok(
     fs.existsSync(path.join(ROOT, 'assets', 'ui', 'combat_spellbook.svg')),
     'иконка assets/ui/combat_spellbook.svg — на диске');
 });
 
-test('000332 B2: CSS — правило .spellbook-oc-btn (position: fixed; top: 12px; right: 12px; z-index: 15 — свободная зона: правый верхний угол) + лестничный коммент включает кнопку', () => {
-  const m = html.match(/^[\t ]*\.spellbook-oc-btn[\t ]*\{([^}]*)\}/m);
-  assert.ok(m,
-    'RED: CSS-правило .spellbook-oc-btn { … } не найдено в index.html');
-  const body = m[1];
-  for (const prop of ['position: fixed', 'top: 12px', 'right: 12px',
-    'z-index: 15']) {
-    assert.ok(body.includes(prop),
-      'RED: свойство «' + prop + '» отсутствует в правиле: '
-      + JSON.stringify(body));
-  }
+test('000332 B2 (000351 ре-пин — инверсия): CSS-правило .spellbook-oc-btn УДАЛЕНО из index.html; лестничный коммент кнопку не упоминает', () => {
+  assert.ok(!html.includes('.spellbook-oc-btn'),
+    'CSS-правило/упоминания .spellbook-oc-btn должны отсутствовать '
+    + '(000351: кнопка живёт в #touch-controls как .tc-action)');
   const flat = html.replace(/\s+/g, ' ');
   assert.ok(flat.includes(
-    'Лестница: .char-panel 10 < .fs-btn 15 < .spellbook-oc-btn 15 '
-    + '< .combat-overlay/.dungeon-overlay 20'),
-    'RED: лестничный коммент z не включает .spellbook-oc-btn');
+    'Лестница: .char-panel 10 < .fs-btn 15 < .combat-overlay/'
+    + '.dungeon-overlay 20'),
+    'лестничный коммент z цел без сегмента кнопки: ' + JSON.stringify(
+      flat.slice(flat.indexOf('Лестница'), flat.indexOf('Лестница') + 140)));
 });
 
 test('000332 B3: клик по кнопке открывает книгу на ВСЕХ 3 экранах — мир → подземелье → город (тот же роут, что [B]: G.spellbookOC.toggle)', async () => {
@@ -647,40 +664,55 @@ test('000332 B3: клик по кнопке открывает книгу на �
     + h.errors.slice(errBefore).join('; '));
 });
 
-test('000332 B4: z-gating — мир: базовый z (CSS-15, inline «»); подземелье: frame-lift «25» (поверх dungeon-overlay z-20); бой: базовый z (под оверлеем z-20) + клик = no-op (blocked: combatUI.isActive)', async () => {
+test('000332 B4 (000351 ре-пин): frame-lift снят — inline zIndex НЕ задаётся никогда; над оверлеями — контейнер #touch-controls z-30 (CSS-пин, > dungeon/combat 20); бой: display:none единицей buttons + тап = no-op (blocked)', async () => {
   const h = await boot();
   dismissStartWindow(h);
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
   const btn = findButton(h);
-  assert.ok(btn, 'RED: кнопка (общая фикстура B4)');
-  learn(h, ['invisibility']);
-  // Мир: подъёма нет — inline z'' (CSS-база z-15).
+  assert.ok(btn, 'кнопка (общая фикстура B4)');
+  // CSS: контейнер над оверлеями сам — лифт больше не нужен (000121).
+  const tcc = html.match(/#touch-controls\s*\{([^}]*)\}/);
+  assert.ok(tcc && /z-index:\s*30/.test(tcc[1]),
+    'гард: #touch-controls z-index 30');
+  // dungeon-overlay несёт z-20 тем же правилом: overlay-элемент —
+  // 'combat-overlay dungeon-overlay' (src/dungeon-ui.js).
+  const cov = html.match(/\.combat-overlay\s*\{([^}]*)\}/);
+  assert.ok(cov && /z-index:\s*20/.test(cov[1]),
+    'гард: .combat-overlay z-index 20 (ниже контейнера 30; dungeon-'
+    + 'overlay элемент несёт оба класса)');
+  const noLift = (label) => {
+    const z = btn.style.zIndex;
+    assert.ok(z === undefined || z === '',
+      label + ': frame-lift снят — inline zIndex не задаётся: '
+      + JSON.stringify(z));
+  };
+  // Мир: лифта нет никогда.
   h.frameFn(NOW + 16);
-  assert.equal(btn.style.zIndex, '',
-    'RED: мир — базовый z (inline «» — CSS z-15): '
-    + JSON.stringify(btn.style.zIndex));
-  // Подземелье: lift 25 (оверлей локации z-20).
+  noLift('мир');
+  // Подземелье: frame-lift (000256-слот для #hud/.fs-btn) кнопки больше
+  // НЕ касается — контейнер #touch-controls (30) уже над оверлеем (20).
   g.actions.enterDungeon();
   h.frameFn(NOW + 32);
-  assert.equal(btn.style.zIndex, '25',
-    'RED: подземелье — frame-lift до 25 (поверх dungeon-overlay '
-    + 'z-20): ' + JSON.stringify(btn.style.zIndex));
+  noLift('подземелье');
+  assert.notEqual(btn.style.display, 'none',
+    'подземелье — кнопка видима (юнит buttons не скрыт, 000150)');
   press(h, 'KeyE');
   release(h, 'KeyE');
   assert.equal(g.dungeon, null, '[E] — выход из локации');
-  // Бой: подъём снят (конъюнкт !inCombat) — кнопка под боевым
-  // оверлеем (z-15 < z-20) и клик заблокирован blocked().
+  // Бой: кнопка СКРЫТА единицей buttons (ui.js applyVisibility), а не
+  // «под оверлеем»; тап (если бы дошёл) — no-op: blocked() внутри
+  // toggle() (combatUI.isActive).
   const c0 = g.actions.startCombat();
   assert.ok(c0, 'startCombat — бой начат (отладочный)');
   assert.equal(G.combatUI.isActive(), true, 'боевой оверлей активен');
   h.frameFn(NOW + 64);
-  assert.equal(btn.style.zIndex, '',
-    'RED: бой — базовый z (под боевым оверлеем z-20): '
-    + JSON.stringify(btn.style.zIndex));
+  assert.equal(btn.style.display, 'none',
+    'бой: кнопка скрыта (display:none, одна единица buttons)');
+  noLift('бой');
   clickButton(h);
   assert.equal(G.spellbookOC.isOpen(), false,
-    'бой: клик = no-op (blocked: combatUI.isActive — isOpen остаётся '
+    'бой: тап = no-op (blocked: combatUI.isActive — isOpen остаётся '
     + 'false)');
   assert.ok(!h.body.querySelector('.spellbook-oc'),
     'бой: книга НЕ открылась');

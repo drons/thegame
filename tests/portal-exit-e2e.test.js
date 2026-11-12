@@ -1001,14 +1001,15 @@ test('PE-8: тач-кнопка [E]: подземелье — шаг в стор
   const myMap = G.createMap(G.generateSeedPixels());
   // #touch-controls — на document.body при INIT (ui.js: build →
   // document.body.appendChild(root); main.js — init при загрузке,
-  // схема 'keyboard' в vm-среде: D-pad не строится, 3 кнопки).
+  // схема 'keyboard' в vm-среде: D-pad не строится, 4 кнопки (000351:
+  // в блок вошла книга [B]).
   const body = h.sandbox.document.body;
   const root = (body.children || []).find((ch) => ch.id === 'touch-controls');
   assert.ok(root, 'сценарий: #touch-controls на document.body');
   const btns = root.children.filter((ch) =>
     String(ch.className).includes('tc-action'));
-  assert.equal(btns.length, 3,
-    'кнопки [E], [I] и «Отряд» (tc-action): 3');
+  assert.equal(btns.length, 4,
+    'кнопки [E], [I], «Отряд» и книга (tc-action): 4 (000351 ре-пин)');
   // Тап = pointerdown-слушатель кнопки: e.preventDefault();
   // onInteract(); blur() (ui.js L1529-1534) — тот же onInteract,
   // что и клавиша [E] (main.js: routeTouchScreen → dungeon →

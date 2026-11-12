@@ -118,8 +118,10 @@ test('keydown/keyup дают одинаковый id при смене реги�
 // ---------------------------------------------------------------------------
 
 test('touch: набор действий и мёртвая зона', () => {
+  // 000351 ре-пин: += 'spellbook' (кнопка книги — в блоке контролов).
   assert.deepEqual(TOUCH_ACTIONS,
-    ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad']);
+    ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad',
+      'spellbook']);
   assert.ok(TOUCH_DEADZONE > 0 && TOUCH_DEADZONE < 0.5);
 });
 
@@ -448,8 +450,10 @@ test('touch: controls.js в чужом realm — роутер и маппинг 
 // ---------------------------------------------------------------------------
 
 test('touch: TOUCH_ACTIONS содержит squad (000295)', () => {
+  // 000351 ре-пин: += 'spellbook'.
   assert.deepEqual(TOUCH_ACTIONS,
-    ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad']);
+    ['up', 'down', 'left', 'right', 'interact', 'inventory', 'squad',
+      'spellbook']);
 });
 
 test('touch: layoutTouchControls — squad: над inventory, тройка, тот же размер (000295)', () => {
@@ -471,22 +475,25 @@ test('touch: layoutTouchControls — squad: над inventory, тройка, то
 });
 
 test('touch: layoutTouchControls — squad на низком/узком вьюпорте, невалидные → нули (000295)', () => {
-  // Низкий вьюпорт: тройка (3×B + 2×зазор) влезает — B может быть < 56.
+  // Низкий вьюпорт: 000351 ре-пин — четверка (4×B + 3×зазор) влезает:
+  // availH=108 → B = floor((108−36)/4) = 18 (было 28 у тройки).
   const low = layoutTouchControls(800, 140);
-  assert.deepEqual(low.squad, { x: 756, y: 16, w: 28, h: 28 });
+  assert.deepEqual(low.squad, { x: 766, y: 46, w: 18, h: 18 });
   assert.ok(low.squad.y >= 0 && low.squad.y + low.squad.h <= 140);
   assert.ok(low.action.y - (low.inventory.y + low.inventory.h) >= 8);
   assert.ok(low.inventory.y - (low.squad.y + low.squad.h) >= 8);
   assert.equal(low.squad.w, low.action.w);
   assert.equal(low.squad.h, low.action.h);
-  // Узкий вьюпорт: все три кнопки в пределах 100×120.
+  // Узкий вьюпорт: все четыре кнопки в пределах 100×120
+  // (000351: B = floor((88−36)/4) = 13, было 21).
   const narrow = layoutTouchControls(100, 120);
-  assert.deepEqual(narrow.squad, { x: 63, y: 17, w: 21, h: 21 });
+  assert.deepEqual(narrow.squad, { x: 71, y: 41, w: 13, h: 13 });
   assert.ok(narrow.squad.x >= 0
     && narrow.squad.x + narrow.squad.w <= 100);
   assert.ok(narrow.squad.y >= 0
     && narrow.squad.y + narrow.squad.h <= 120);
-  // Невалидные размеры → ВСЕ ЧЕТЫРЕ прямоугольника нулевые.
+  // Невалидные размеры → ВСЕ ПЯТЬ прямоугольников нулевые (000351:
+  // += spellbook).
   for (const [w, h] of [[0, 600], [-5, 600], [NaN, 600], [800, 0]]) {
     const bad = layoutTouchControls(w, h);
     assert.equal(bad.dpad.w, 0);
@@ -494,12 +501,16 @@ test('touch: layoutTouchControls — squad на низком/узком вьюп
     assert.equal(bad.inventory.w, 0);
     assert.equal(bad.squad.w, 0);
     assert.equal(bad.squad.h, 0);
+    assert.equal(bad.spellbook.w, 0);
+    assert.equal(bad.spellbook.h, 0);
   }
-  // Гигантский bottomInset — тройка не влезает → B = 0.
+  // Гигантский bottomInset — четверка не влезает → B = 0.
   const over = layoutTouchControls(800, 600, { bottomInset: 1e6 });
   assert.equal(over.action.w, 0);
   assert.equal(over.squad.w, 0);
   assert.equal(over.squad.h, 0);
+  assert.equal(over.spellbook.w, 0);
+  assert.equal(over.spellbook.h, 0);
 });
 
 test('touch: touchActionAt — точка в squad → squad, без регрессий (000295)', () => {

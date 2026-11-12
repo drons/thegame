@@ -196,37 +196,6 @@
       cursor: pointer;
     }
     .fs-btn:hover { background: rgba(0, 0, 0, 0.65); }
-    /* Кнопка книги заклинаний вне боя (задача 000332): правый ВЕРХНИЙ
-       угол — свободная зона (#hud — левый верх, .fs-btn/[E]/[I] —
-       правый низ, D-pad — левый низ). Базовый z-15 (ступень .fs-btn);
-       в локациях (подземелье/город) — frame-подъём до 25 (слот 000256,
-       как у #hud/.fs-btn); в бою — под оверлеем (20), клик — no-op
-       (blocked, тот же роут, что [B]: G.spellbookOC.toggle). Круглая
-       форма + иконка — паттерн .tc-action; иконка — ПЕРЕИСПОЛЬЗОВАНИЕ
-       assets/ui/combat_spellbook.svg (0 новых ассетов). */
-    .spellbook-oc-btn {
-      position: fixed;
-      top: 12px;
-      right: 12px;
-      z-index: 15;
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      color: #e8dcc0;
-      background: rgba(0, 0, 0, 0.45);
-      border: 1px solid #6b6248;
-      border-radius: 50%;
-      cursor: pointer;
-    }
-    .spellbook-oc-btn:hover { background: rgba(0, 0, 0, 0.65); }
-    .spellbook-oc-btn img {
-      width: 24px;
-      height: 24px;
-      display: block;
-    }
     /* On-screen-контролы (задачи 000018, 000123, 000121): D-pad внизу
        слева (только схема 'touch'), кнопки [E] (действие) и [I]
        (инвентарь) — внизу справа, пара [I] над [E]; В ОБОИХ схемах
@@ -235,9 +204,8 @@
        ловят только сами контролы (.tc-dpad/.tc-action).
        z-index 30 — ВЫШЕ оверлеев боя/подземелья (20): оверлеи не
        перекрывают контролы (000121). Лестница: .char-panel 10 <
-       .fs-btn 15 < .spellbook-oc-btn 15 <
-       .combat-overlay/.dungeon-overlay 20 < #touch-controls 30 <
-       .spellbook-oc 35. */
+       .fs-btn 15 < .combat-overlay/.dungeon-overlay 20 <
+       #touch-controls 30 < .spellbook-oc 35. */
     #touch-controls {
       position: fixed;
       inset: 0;

@@ -2257,7 +2257,7 @@
       return;
     }
     let root = null, dpadEl = null, actionEl = null, inventoryEl = null,
-        squadEl = null;
+        squadEl = null, spellbookEl = null;
     const arrows = {}; // dir -> span (пусто, если D-pad не строится)
     let shown = false;
     // 000150: последнее применённое per-control состояние видимости
@@ -2267,7 +2267,7 @@
     let heldPointer = null; // pointerId, удерживающий D-pad (один)
     let heldDir = null;
     let onHold = null, onRelease = null, onInteract = null,
-        onInventory = null, onSquad = null;
+        onInventory = null, onSquad = null, onSpellbook = null;
 
     // Под кнопку полноэкранного режима (внизу справа, если она есть)
     // оставляем место: action-кнопку раскладка поднимет вверх.
@@ -2293,6 +2293,7 @@
       place(actionEl, layout.action);
       place(inventoryEl, layout.inventory);
       place(squadEl, layout.squad);
+      place(spellbookEl, layout.spellbook);
       if (dpadEl) {
         place(dpadEl, layout.dpad);
         // Стрелки — в центре «лучей» D-pad (координаты внутри dpadEl).
@@ -2418,9 +2419,22 @@
         squadEl.blur();
       });
 
+      spellbookEl = el('button', 'tc-action');
+      const sbIcon = el('img');
+      sbIcon.src = 'assets/ui/combat_spellbook.svg';
+      sbIcon.alt = '';
+      spellbookEl.appendChild(sbIcon);
+      spellbookEl.setAttribute('aria-label', 'Книга заклинаний');
+      spellbookEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (onSpellbook) onSpellbook();
+        spellbookEl.blur();
+      });
+
       root.appendChild(actionEl);
       root.appendChild(inventoryEl);
       root.appendChild(squadEl);
+      root.appendChild(spellbookEl);
       document.body.appendChild(root);
       window.addEventListener('resize', applyLayout);
       // Вкладка в фоне / системный жест — палец «срезан»: отпускаем.
@@ -2437,12 +2451,14 @@
        *          onInteract?: () => void,
        *          onInventory?: () => void,
        *          onSquad?: () => void,
+       *          onSpellbook?: () => void,
        *          dpad?: boolean}} h
        *   onHold/onRelease — 'up'|'down'|'left'|'right' (направление
        *   удерживается / отпущено), onInteract — действие (диалог /
        *   постройка, аналог [E]), onInventory — панель инвентаря
        *   (аналог [I]; задача 000123), onSquad — панель «Отряд»
-       *   (аналог [C]; задача 000295). dpad — собирать ли D-pad:
+       *   (аналог [C]; задача 000295), onSpellbook — книга заклинаний
+       *   вне боя (аналог [B]; задача 000351). dpad — собирать ли D-pad:
        *   true — схема 'touch' (D-pad + обе кнопки), false/не задано —
        *   схема 'keyboard' (только кнопки, D-pad не строится, задача
        *   000123).
@@ -2455,6 +2471,7 @@
         onInteract = h.onInteract;
         onInventory = h.onInventory;
         onSquad = h.onSquad;
+        onSpellbook = h.onSpellbook;
         build(h.dpad === true);
       },
       show() {
@@ -2503,6 +2520,7 @@
         actionEl.style.display = buttons ? '' : 'none';
         inventoryEl.style.display = buttons ? '' : 'none';
         squadEl.style.display = buttons ? '' : 'none';
+        spellbookEl.style.display = buttons ? '' : 'none';
         // Схема 'keyboard': dpadEl === null — dpad-часть no-op, НЕ крах
         // (кнопки работают в ОБЕИХ схемах — 000123).
         if (dpadEl) dpadEl.style.display = dpad ? '' : 'none';

@@ -878,16 +878,17 @@ test('000217 SQ-7 (конец боя, пин, ТЗ п.2): resolveCombat → lift
 // ============================================================
 
 // #touch-controls (в vm — схема 'keyboard': D-pad НЕ строится) —
-// кнопки [E]/[I]/«Отряд» (button.tc-action). Идентификация — по
-// img.src (стаб setAttribute роняет aria-label).
+// кнопки [E]/[I]/«Отряд»/книга (button.tc-action; 000351: книга [B]
+// встала в общий блок). Идентификация — по img.src (стаб setAttribute
+// роняет aria-label).
 function touchButtons(h) {
   const root = (h.body.children || []).find(
     (ch) => ch.id === 'touch-controls');
   assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
   const btns = root.children.filter((ch) =>
     String(ch.className).includes('tc-action'));
-  assert.equal(btns.length, 3,
-    'RED: кнопки [E], [I] и «Отряд» (tc-action): 3');
+  assert.equal(btns.length, 4,
+    'кнопки [E], [I], «Отряд» и книга (tc-action): 4 (000351 ре-пин)');
   const byIcon = (name) => btns.find((b) => b.children.some(
     (ch) => ch.src === 'assets/ui/' + name));
   const action = byIcon('icon_action.svg');

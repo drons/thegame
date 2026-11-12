@@ -206,28 +206,33 @@ test('TV3: touchControls.applyVisibility — style.display пер-контрол
     'ошибок загрузки нет: ' + m.errors.join('; '));
   assert.ok(m.tc, 'Game.touchControls существует (controls.js + ui.js)');
   assert.ok(m.root, 'корень #touch-controls в body');
-  assert.equal(m.root.children.length, 4,
-    'dpad:true — children [dpad, action, inventory, squad] (порядок build)');
-  const [dpad, action, inventory, squad] = m.root.children;
+  // 000351 ре-пин: 5 детей — книга [B] в общем блоке (стопка
+  // E,I,C,B; 4-я кнопка .tc-action).
+  assert.equal(m.root.children.length, 5,
+    'dpad:true — children [dpad, action, inventory, squad, spellbook] '
+    + '(порядок build)');
+  const [dpad, action, inventory, squad, spellbook] = m.root.children;
   assert.equal(dpad.className, 'tc-dpad', 'child 0 — D-pad');
   assert.equal(action.className, 'tc-action', 'child 1 — кнопка [E]');
   assert.equal(inventory.className, 'tc-action', 'child 2 — кнопка [I]');
   assert.equal(squad.className, 'tc-action', 'child 3 — кнопка «Отряд»');
+  assert.equal(spellbook.className, 'tc-action',
+    'child 4 — кнопка книги [B] (000351)');
   // До applyVisibility — всё видимо.
-  for (const e of [dpad, action, inventory]) {
+  for (const e of [dpad, action, inventory, spellbook]) {
     assert.notEqual(e.style.display, 'none',
       'до applyVisibility — видимо: ' + e.className);
   }
   // Инвентарь/вход: ВСЁ скрыто (кнопки + D-pad).
   m.tc.applyVisibility({ buttons: false, dpad: false });
-  for (const e of [dpad, action, inventory]) {
+  for (const e of [dpad, action, inventory, spellbook]) {
     assert.equal(e.style.display, 'none',
       'после applyVisibility(false) — скрыт: ' + e.className);
   }
   // Рестор: инлайн-display обратно '' (каскад: .tc-action —
   // display:flex, поэтому restore — НЕ 'block').
   m.tc.applyVisibility({ buttons: true, dpad: true });
-  for (const e of [dpad, action, inventory]) {
+  for (const e of [dpad, action, inventory, spellbook]) {
     assert.notEqual(e.style.display, 'none',
       'после restore — видимо: ' + e.className);
   }
@@ -256,20 +261,26 @@ test('TV3: touchControls.applyVisibility — style.display пер-контрол
   assert.equal(m2.errors.length, 0,
     'ошибок загрузки нет (dpad:false): ' + m2.errors.join('; '));
   assert.ok(m2.root, 'корень существует (dpad:false)');
-  assert.equal(m2.root.children.length, 3,
-    'dpad:false — children [action, inventory, squad]');
-  const [action2, inventory2, squad2] = m2.root.children;
+  assert.equal(m2.root.children.length, 4,
+    'dpad:false — children [action, inventory, squad, spellbook] (000351)');
+  const [action2, inventory2, squad2, spellbook2] = m2.root.children;
   assert.equal(action2.className, 'tc-action', 'child 0 — кнопка [E]');
   assert.equal(inventory2.className, 'tc-action', 'child 1 — кнопка [I]');
   assert.equal(squad2.className, 'tc-action', 'child 2 — кнопка «Отряд»');
+  assert.equal(spellbook2.className, 'tc-action',
+    'child 3 — кнопка книги [B] (000351)');
   m2.tc.applyVisibility({ buttons: false, dpad: false }); // без исключений
   assert.equal(action2.style.display, 'none',
     'keyboard: [E] скрыта (dpad-часть — no-op)');
   assert.equal(inventory2.style.display, 'none',
     'keyboard: [I] скрыта');
+  assert.equal(spellbook2.style.display, 'none',
+    'keyboard: книга скрыта (000351)');
   m2.tc.applyVisibility({ buttons: true, dpad: true });
   assert.notEqual(action2.style.display, 'none', 'keyboard: [E] — restore');
   assert.notEqual(inventory2.style.display, 'none', 'keyboard: [I] — restore');
+  assert.notEqual(spellbook2.style.display, 'none',
+    'keyboard: книга — restore (000351)');
 });
 
 // ---------------------------------------------------------------------------
@@ -288,7 +299,8 @@ test('TV3: touchControls.applyVisibility — style.display пер-контрол
 //     замыкатель (L2484/L2701).
 //
 // Идентификация DOM: document.body.children → id 'touch-controls' →
-// children [0]=.tc-dpad, [1]=.tc-action ([E]), [2]=.tc-action ([I])
+// children [0]=.tc-dpad, [1]=.tc-action ([E]), [2]=.tc-action ([I]),
+// [3]=.tc-action («Отряд»), [4]=.tc-action (книга, 000351)
 // (порядок appendChild в build, ui.js). Ассерты — ТОЛЬКО
 // style.display (classList/setAttribute в стабах no-op).
 // ---------------------------------------------------------------------------
@@ -491,19 +503,22 @@ function frameMain(h) {
   h.raf[0](NOW);
 }
 
-// DOM: #touch-controls в body; children [dpad, action, inventory, squad].
+// DOM: #touch-controls в body; children [dpad, action, inventory,
+// squad, spellbook] (000351 ре-пин: книга — 5-й ребёнок).
 function touchDom(documentStub) {
   const root = documentStub.body.children
     .find((c) => c.id === 'touch-controls');
   assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
-  assert.equal(root.children.length, 4,
-    'touch-схема — children [dpad, action, inventory, squad]');
-  const [dpad, action, inventory, squad] = root.children;
+  assert.equal(root.children.length, 5,
+    'touch-схема — children [dpad, action, inventory, squad, spellbook]');
+  const [dpad, action, inventory, squad, spellbook] = root.children;
   assert.equal(dpad.className, 'tc-dpad', 'child 0 — D-pad');
   assert.equal(action.className, 'tc-action', 'child 1 — кнопка [E]');
   assert.equal(inventory.className, 'tc-action', 'child 2 — кнопка [I]');
   assert.equal(squad.className, 'tc-action', 'child 3 — кнопка «Отряд»');
-  return { root, dpad, action, inventory, squad };
+  assert.equal(spellbook.className, 'tc-action',
+    'child 4 — кнопка книги [B] (000351)');
+  return { root, dpad, action, inventory, squad, spellbook };
 }
 
 // Победа в бою (паттерн resolveCombatVictory
@@ -678,10 +693,11 @@ test('TV7: e2e — нет Game.touchControlsVisibility (mixed-версии) → 
 });
 
 // ---------------------------------------------------------------------------
-// TV8: кнопка «Отряд» (задача 000295) — 4-й (конечный) ребёнок
-// #touch-controls в touch-схеме; в бою скрыта ОДНОЙ единицей
-// buttons вместе с [E]/[I]; после конца боя — восстановлено.
-// Идентификация — по img.src (стаб setAttribute роняет aria-label).
+// TV8: кнопка «Отряд» (задача 000295) — 4-й ребёнок #touch-controls в
+// touch-схеме (000351 ре-пин: за ним — книга [B], конечный); в бою
+// скрыта ОДНОЙ единицей buttons вместе с [E]/[I]; после конца боя —
+// восстановлено. Идентификация — по img.src (стаб setAttribute роняет
+// aria-label).
 // ---------------------------------------------------------------------------
 
 test('TV8: e2e — кнопка «Отряд» в DOM (touch-схема); бой: скрыта с [E]/[I]; после боя — восстановлено', async () => {
@@ -701,21 +717,33 @@ test('TV8: e2e — кнопка «Отряд» в DOM (touch-схема); бой
     && c.children.some((ch) => ch.src === 'assets/ui/icon_squad.svg'));
   assert.ok(squad,
     'RED: кнопка «Отряд» (icon_squad.svg) — в #touch-controls');
-  assert.equal(root.children.length, 4,
-    'touch-схема — children [dpad, action, inventory, squad]');
+  assert.equal(root.children.length, 5,
+    'touch-схема — children [dpad, action, inventory, squad, spellbook] '
+    + '(000351)');
   assert.equal(squad, root.children[3],
-    'кнопка «Отряд» — КОНЕЧНЫЙ ребёнок (порядок build)');
+    'кнопка «Отряд» — индекс 3 (после неё — книга, 000351)');
+  const spellbook = root.children[4];
+  assert.ok(spellbook.children.some((ch) =>
+    String(ch.src).includes('combat_spellbook.svg')),
+    'RED: ребёнок 4 — кнопка книги (иконка combat_spellbook.svg)');
   const { action, inventory } = touchDom(h.sandbox.document);
   // Геометрия: applyLayout при show() (1280×720, bottomInset 0:
-  // B = 96; action {1168,608}, inventory {1168,500}, squad {1168,392}).
+  // B = 96; action {1168,608}, inventory {1168,500}, squad {1168,392},
+  // spellbook {1168,284} (000351)).
   assert.equal(squad.style.left, '1168px', 'squad: x = 1168 px');
   assert.equal(squad.style.top, '392px', 'squad: y = 392 px');
   assert.equal(squad.style.width, '96px', 'squad: w = 96 px');
   assert.equal(squad.style.height, '96px', 'squad: h = 96 px');
+  assert.equal(spellbook.style.left, '1168px', 'книга: x = 1168 px');
+  assert.equal(spellbook.style.top, '284px', 'книга: y = 284 px');
+  assert.equal(spellbook.style.width, '96px', 'книга: w = 96 px');
+  assert.equal(spellbook.style.height, '96px', 'книга: h = 96 px');
   // Пре-состояние: всё видимо (кнопка как [E]/[I]).
   frameMain(h);
   assert.notEqual(squad.style.display, 'none',
     'до боя — кнопка «Отряд» видима');
+  assert.notEqual(spellbook.style.display, 'none',
+    'до боя — кнопка книги видима (000351)');
   // Бой (отладочный, паттерн TV4).
   const c = g.actions.startCombat(0);
   assert.ok(c, 'отладочный бой создан');
@@ -725,9 +753,13 @@ test('TV8: e2e — кнопка «Отряд» в DOM (touch-схема); бой
   assert.equal(inventory.style.display, 'none', 'бой: [I] скрыта');
   assert.equal(squad.style.display, 'none',
     'бой: кнопка «Отряд» скрыта (одна единица buttons, 000150)');
+  assert.equal(spellbook.style.display, 'none',
+    'бой: книга скрыта (та же единица buttons, 000351)');
   // Конец боя (victory → Space) — всё восстановлено.
   resolveCombatVictory(G, c, 'TV8');
   frameMain(h);
   assert.notEqual(squad.style.display, 'none',
     'после конца боя — кнопка «Отряд» видима снова');
+  assert.notEqual(spellbook.style.display, 'none',
+    'после конца боя — книга видима снова (000351)');
 });

@@ -22,8 +22,9 @@
 //   T2 (guard, зелёный и до, и после): фикс не имел права сломать
 //     pointer-конвейер (preventDefault на pointerdown D-pad, onHold/
 //     onRelease, скольжение) и разметку (4 span.tc-arrow с глифами —
-//     «лечить» вырезанием текста нельзя; 3 .tc-action с
-//     pointerdown+preventDefault+blur). Механизм — CSS-каскад: на D-pad
+//     «лечить» вырезанием текста нельзя; .tc-action с
+//     pointerdown+preventDefault+blur — 000351 ре-пин: 4 кнопки, книга
+//     [B] в общем блоке). Механизм — CSS-каскад: на D-pad
 //     НЕ висит mousedown-слушателя (обработчик-дубль отвергнут).
 //   T3 (скоуп-регистр, зелёный): прецедент .combat-placebar-btn цел;
 //     house-style index.html — без -webkit-префиксов; у .tc-action
@@ -109,7 +110,8 @@ function stubEl(tag) {
 function bootControls() {
   const errors = [];
   const holds = [], releases = [];
-  const fired = { interact: 0, inventory: 0, squad: 0 };
+  // 000351 ре-пин: fired += spellbook (4-я кнопка .tc-action).
+  const fired = { interact: 0, inventory: 0, squad: 0, spellbook: 0 };
   const body = stubEl('body');
   const sandbox = {
     console: { error: (m) => errors.push(String(m)), log() {} },
@@ -140,6 +142,7 @@ function bootControls() {
     onInteract: () => { fired.interact++; },
     onInventory: () => { fired.inventory++; },
     onSquad: () => { fired.squad++; },
+    onSpellbook: () => { fired.spellbook++; },
   });
   tc.show();
   const root = body.children.find((c) => c.id === 'touch-controls');
@@ -201,9 +204,10 @@ test('T2: pointer-конвейер и разметка D-pad целы — фик
   env.dpad.listeners.pointerup[0]({ pointerId: 1 });
   assert.deepEqual(env.releases, ['right', 'up'], 'pointerup: up отпущен');
 
-  // Кнопки [E]/[I]/«Отряд» (вне скоупа ТЗ — скоуп-страховка): тот же
-  // конвейер pointerdown → preventDefault → callback → blur.
-  assert.equal(env.actions.length, 3, 'три кнопки .tc-action');
+  // Кнопки [E]/[I]/«Отряд»/книга (вне скоупа ТЗ — скоуп-страховка):
+  // тот же конвейер pointerdown → preventDefault → callback → blur.
+  // 000351 ре-пин: 4 кнопки (книга [B] встала в общий блок).
+  assert.equal(env.actions.length, 4, 'четыре кнопки .tc-action');
   const perButton = [];
   for (const btn of env.actions) {
     let btnPd = 0;
@@ -211,9 +215,11 @@ test('T2: pointer-конвейер и разметка D-pad целы — фик
       { pointerId: 2, preventDefault: () => { btnPd++; } });
     perButton.push([btnPd, btn.blurCalls || 0]);
   }
-  assert.deepEqual(perButton, [[1, 1], [1, 1], [1, 1]],
+  assert.deepEqual(perButton, [[1, 1], [1, 1], [1, 1], [1, 1]],
     'каждая .tc-action: preventDefault и blur ровно по одному разу');
-  assert.deepEqual(env.fired, { interact: 1, inventory: 1, squad: 1 },
+  assert.deepEqual(
+    env.fired,
+    { interact: 1, inventory: 1, squad: 1, spellbook: 1 },
     'колбэки кнопок вызваны по одному разу');
 });
 
