@@ -568,6 +568,10 @@ async function scene() {
     'ошибок загрузки нет (порядок цепочки): ' + h.errors.join('; '));
   const g = h.sandbox.__game;
   const st = g.state;
+  // 000350: сид эффекта «Показать врагов» — круги рисуются только при
+  // активном эффекте (live-массив outOfCombatEffects, общий со снапшотом).
+  st.hero.outOfCombatEffects.push(
+    { spellId: 'show_enemies', expiresDay: 999 });
   assert.ok(st.map, 'карта сгенерирована');
   assert.equal(st.map.fromPng, false,
     'map.png в стабе провалился → фолбэк G.generateSeedPixels');

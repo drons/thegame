@@ -331,6 +331,11 @@ async function boot(viewW = VIEW_W, viewH = VIEW_H) {
   assert.ok(g, 'globalThis.__game выставлен (main.js выполнен)');
   assert.equal(h.errors.length, 0,
     'ошибок загрузки нет (порядок цепочки): ' + h.errors.join('; '));
+  // 000350: ожидаемая секвенция строит агро-проход безусловно — сид
+  // «Показать врагов» в общий live-массив (гейт Прохода 2.5 по умолчанию
+  // выключен; state.hero.outOfCombatEffects — та же ссылка, main.js:4551).
+  g.state.hero.outOfCombatEffects.push(
+    { spellId: 'show_enemies', expiresDay: 999 });
   h.frameFn = h.raf[h.raf.length - 1];
   return h;
 }

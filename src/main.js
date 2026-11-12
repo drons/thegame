@@ -4182,7 +4182,10 @@
     // < мобы < Флогистон — под спрайтами, не заслоняет карту и героя.
     // Тихий гард: экспорта нет (регрессия порядка загрузки) — прохода
     // нет (load-time console.error уже есть, L1790-1795 — не дублируем).
-    if (typeof G.groupZoneInfo === 'function') {
+    const seOn = (G.Spells
+      && typeof G.Spells.isHeroEnemiesShown === 'function')
+      ? G.Spells.isHeroEnemiesShown(hero, clock.day) : false;
+    if (seOn && typeof G.groupZoneInfo === 'function') {
       // 000235.08: cold_breath — сужение радиуса триггера в отрисовке
       // (UI не врёт про радиус; локальная переменная, info НЕ
       // мутируется; 0 → без сужения, как до). 000235.09:

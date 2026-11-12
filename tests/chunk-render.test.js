@@ -543,6 +543,11 @@ test('CC-2: мир z=4 — offscreen-чанки с записями, blit-ов =
   const VIEW_W = 1280, VIEW_H = 720;
   const h = await boot(VIEW_W, VIEW_H);
   assertReady(h);
+  // 000350: агро-слой включён только эффектом «Показать врагов» — сид в
+  // общий live-массив (иначе z-порядку «агро-окружности» не из чего
+  // существовать: Math.min(...[]) === Infinity).
+  h.sandbox.__game.state.hero.outOfCombatEffects.push(
+    { spellId: 'show_enemies', expiresDay: 999 });
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   // 22 wheel-outs: ZOOM_START → ZOOM_MIN (4) — последние шаги

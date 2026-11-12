@@ -386,6 +386,11 @@ async function scenarioZoneAttack() {
     'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
+  // 000350: агро-окружность в кадре атаки рисуется только при активном
+  // эффекте «Показать врагов» — сид в общий live-массив (аттак-кадр
+  // ассертит окружность (2,3)).
+  g.state.hero.outOfCombatEffects.push(
+    { spellId: 'show_enemies', expiresDay: 999 });
   const myMap = G.createMap(G.generateSeedPixels());
   assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
     'сценарий: спавн (0,0)');

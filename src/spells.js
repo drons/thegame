@@ -951,9 +951,12 @@
   // fail-closed {ok, reason} (000037), ОДНА причина, мутации —
   // ПОСЛЕ всех проверок.
 
+  const DYNAMIC_DAYS = new Set(['show_enemies']);
+
   // Нужны ли заклинанию дни (длительность): по ДЕЙСТВИЮ (невидимость/
   // внебой) или если каталог сам декларативно несёт параметры.days.
   function outOfCombatDays(spell) {
+    if (spell && DYNAMIC_DAYS.has(spell.id)) return null;
     const needs = DURATION_ACTIONS.has(spell.действие)
       || (spell.параметры && typeof spell.параметры === 'object'
           && 'days' in spell.параметры);
@@ -970,6 +973,13 @@
 
   function attractionRadius(intelligence) {
     return 5 + Math.floor((intelligence || 0) / 10);
+  }
+
+  function showEnemiesDays(intelligence) {
+    const v = (typeof intelligence === 'number'
+      && Number.isFinite(intelligence) && intelligence > 0)
+      ? intelligence : 0;
+    return 1 + Math.floor(v / 10);
   }
 
   // castOutOfCombat(p, spellId, day, ctx) → {ok, spell, expiresDay}
@@ -1077,6 +1087,19 @@
       }
       if (!free) p.mp -= spell['мани'] || 0;
       return { ok: true, spell, expiresDay: null };
+    }
+    if (spellId === 'show_enemies') {
+      const dynDays = showEnemiesDays(
+        p.primary && p.primary.intelligence);
+      if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
+      const sePrior = p.outOfCombatEffects.findIndex(
+        (e) => e && e.spellId === spellId);
+      if (!free) p.mp -= spell['мани'] || 0;
+      const seExpiresDay = day + dynDays;
+      if (sePrior >= 0) p.outOfCombatEffects[sePrior].expiresDay = seExpiresDay;
+      else p.outOfCombatEffects.push({ spellId: spellId,
+        expiresDay: seExpiresDay });
+      return { ok: true, spell, expiresDay: seExpiresDay };
     }
     // Мутации — ПОСЛЕ всех проверок (мана проверена вверху).
     if (!Array.isArray(p.outOfCombatEffects)) p.outOfCombatEffects = [];
@@ -1458,6 +1481,19 @@
     return false;
   }
 
+  function isHeroEnemiesShown(p, day) {
+    if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
+    for (const e of p.outOfCombatEffects) {
+      if (!e || typeof e !== 'object' || e.spellId !== 'show_enemies') {
+        continue;
+      }
+      if (typeof e.expiresDay === 'number' && e.expiresDay > day) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function isHeroLit(p, day) {
     if (!p || !Array.isArray(p.outOfCombatEffects)) return false;
     for (const e of p.outOfCombatEffects) {
@@ -1607,5 +1643,7 @@
     shroudOfNightRadius, darkPresenceRadius,
     decadanceLevels,
     attractionRadius,
+    showEnemiesDays,
+    isHeroEnemiesShown,
   };
 });

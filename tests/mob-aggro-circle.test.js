@@ -401,6 +401,11 @@ async function scene() {
     'ошибок загрузки нет (порядок цепочки): ' + h.errors.join('; '));
   const g = h.sandbox.__game;
   const st = g.state;
+  // 000350: Проход 2.5 включается длительным эффектом «Показать врагов»
+  // (по умолчанию круги скрыты — ТЗ 000350). Сид в общий live-массив
+  // (state.hero.outOfCombatEffects — та же ссылка, main.js:4551).
+  st.hero.outOfCombatEffects.push(
+    { spellId: 'show_enemies', expiresDay: 999 });
   assert.ok(st.map, 'карта сгенерирована');
   assert.equal(st.map.fromPng, false,
     'map.png в стабе провалился → фолбэк G.generateSeedPixels');
