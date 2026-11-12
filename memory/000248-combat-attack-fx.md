@@ -166,11 +166,17 @@ D10. **Слой — ленивый** (НЕ персистентный): созд
    пины DOM никогда не найдут слой; прецедента insertBefore в кодовой
    базе нет.
 
-D11. **Кастом-свойства — инлайн, ТОЛЬКО bracket-присвоение:**
-   `el.style['--fx-x0'] = '12.5%'` (работает и на реальном CSSOM, и на
-   пустом объекте style стаба; `el.style.setProperty` в стабе БРОСИТ
-   TypeError — НЕ используется). Свойства: --fx-lx/--fx-ly (% собственного
-   размера маркера), --fx-x0/--fx-y0/--fx-x1/--fx-y1 (% слоя),
+D11. **Кастом-свойства — инлайн, через `style.setProperty`** (errata 000360;
+   исходная редакция «ТОЛЬКО bracket-присвоение, setProperty БРОСИТ
+   TypeError» была ЛОЖНОЙ и исправлена 000355): на реальном CSSOM у
+   custom properties нет именованных свойств — `el.style['--fx-x0'] = v`
+   создаёт лишь JS-expando на объекте style и в cascade НЕ попадает
+   (production-баг: все 10 --fx-* vars были expando-записаны, CSS их не
+   видел; старый стаб делал тот же вакуум). Правильный путь —
+   `el.style.setProperty('--fx-x0', v)`, так и делает syncAttackFx
+   (src/combat-ui.js, 10× setProperty); см. memory/000355-arrow-flight.md.
+   Свойства: --fx-lx/--fx-ly (% собственного размера маркера),
+   --fx-x0/--fx-y0/--fx-x1/--fx-y1 (% слоя),
    --fx-angle (deg), --fx-hit-delay/--fx-hit-dur (ms).
 
 D12. **Имена (NEW, grep-проверены свободны):** .combat-atk-layer,
@@ -299,7 +305,9 @@ D12. **Имена (NEW, grep-проверены свободны):** .combat-atk
 ## Подводные камни
 
 - makeEl000246 (tests/ui.test.js): insertBefore — NO-OP (Proxy);
-  style — ПУСТОЙ объект (bracket только, setProperty бросит); remove() —
+  style — браузерно-верный стаб makeStyle000246 (000355): setProperty
+  реализован (custom-`--*` в Map), bracket-запись `--*` — expando и через
+  getPropertyValue НЕ видна; remove() —
   РЕАЛЬНЫЙ splice (пин истечения работает). makeEl (tests/combat-ui.
   test.js): remove() — NO-OP (слой в children доживёт до finish — пинов
   box.children там нет).

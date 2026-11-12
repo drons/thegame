@@ -168,5 +168,6 @@ buildings-rename-000318.06/assets-renames-000318); numeric-путь
 `assets/buildings/000NNN.json` — НЕ ref (REF_RE/sync-резолюции/schema-
 паттерны его не принимают; AR8/AR9 его НЕ видят — guard'ы только
 перевёрнутые pattern'ы схем + zero-sweep T5 в buildings-rename-тесте).
-spec/runes.md:47 остаётся устаревшим (числовой naming руны) — 0-diff по
-решению 000318.02, не «чинить» попутно.
+spec/runes.md:47 оставался устаревшим (числовой naming руны) — 0-diff по
+решению 000318.02, не «чинить» попутно. ИСПРАВЛЕНО 000360 (errata): путь →
+`assets/buildings/rune_stone.json`, line-neutral, SPEC_FILE_LINES=68 не двигался.

@@ -183,16 +183,16 @@
    4 РАЗНЫХ слотах (palms/legs/torso/head) — пороги {2,3,4}
    достижимы чистыми четырьмя. bulwark (000321.03) — += 3 щита
    (bulwark_shield epic, ironbulwark_shield legendary, aegis_shield
-   impossible) — 6 членов, set_bonus новых deepEqual существующим
-   (SB13). arcane_focus (000321.04) — += 3 артефакта (prism_focus
-   epic, arcane_diadem legendary, arcane_nexus impossible) — 5
-   членов, set_bonus новых deepEqual существующим (SB13); все 5 —
-   в left_hand, порог «2» DORMANT (000230.13 D-07 — лестница
-   тиров, не регресс). forger (000321.05) — += 3 инструмента
-   (damascus_hammer epic, meteor_hammer legendary,
-   worldforge_hammer impossible) — 5 членов, set_bonus новых
-   deepEqual существующим (SB13); все 5 — в right_hand, порог
-   «2» DORMANT (000230.13 D-07 — лестница тиров, не регресс).
+   impossible) — 6 членов, set_bonus новых deepEqual существующим (SB13);
+   все 6 — в left_hand, порог «2» DORMANT (000230.13 D-07 — лестница тиров,
+   не регресс). arcane_focus (000321.04) — += 3 артефакта (prism_focus epic,
+   arcane_diadem legendary, arcane_nexus impossible) — 5 членов, set_bonus
+   новых deepEqual существующим (SB13); все 5 — в left_hand, порог «2»
+   DORMANT (000230.13 D-07 — лестница тиров, не регресс). forger (000321.05)
+   — += 3 инструмента (damascus_hammer epic, meteor_hammer legendary,
+   worldforge_hammer impossible) — 5 членов, set_bonus новых deepEqual
+   существующим (SB13); все 5 — в right_hand, порог «2» DORMANT (000230.13
+   D-07 — лестница тиров, не регресс).
 
 ## Каталог новых предметов экипировки
  * 529 предметов с rarity = 275 волн 000230.08–.15 (25 на часть)

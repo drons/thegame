@@ -96,7 +96,8 @@ CHANGELOG БЕЗ буллета (rename без смены визуала/гей�
 * spec/buildings-storage.md — Δ0 (45 строк, pin spec-split НЕ двигать):
   naming-буллет → `<slug>.json` + «`id` … уникально в каталоге (не номер
   файла)». spec/buildings.md 0-diff (только номера задач). spec/runes.md:47
-  — устаревший numeric-naming руны, 0-diff по решению 000318.02.
+  — устаревший numeric-naming руны, 0-diff по решению 000318.02
+  (исправлено 000360: slug-путь rune_stone.json).
 * sync:check на грязном дереве транзиентно красен (конвенция W-08) —
   сверять = 0 на чистом ПОСЛЕ коммита.
 
