@@ -12,8 +12,9 @@
 // школы); клик по другой = ПЕРЕКЛЮЧЕНИЕ; повторный клик по
 // АКТИВНОЙ = снять фильтр; close() сбрасывает к «все»; empty-текст
 // с фильтром — динамический «Нет изученных заклинаний школы
-// «<name>»», без фильтра — «Нет изученных заклинаний вне боя» БЕЗ
-// ИЗМЕНЕНИЙ (пин-контекст OC12); CSS-правила .spoc-tabs/.spoc-tab/
+// «<name>»» (ре-пин 000358: без фильтра — «Нет изученных
+// заклинаний», T5 в tests/spell-list-context-000358.test.js);
+// CSS-правила .spoc-tabs/.spoc-tab/
 // .spoc-tab--active/.spoc-tab-icon в index.html (union, палитра
 // блока .spoc-*), .spoc-row НЕ изменён (гард).
 //
@@ -67,6 +68,10 @@ const SCHOOLS = [
   { id: 'тень', name: 'Тень', icon: 'assets/school-icons/shadow.svg', spell: 'shadow_step' },
 ];
 const ALL_SIX = SCHOOLS.map((s) => s.spell);
+// Ре-пин 000358: книга в мире показывает ВСЕ изученные — боевые
+// дефолтного героя (spark/mend) первыми строками (неактивными),
+// порядок = hero.spells (дефолт + push фикстур).
+const ALL_EIGHT = ['spark', 'mend'].concat(ALL_SIX);
 
 // --- WebGL-стаб (main.js: compile/link/буферы) ---
 function makeGl() {
@@ -430,7 +435,7 @@ async function bootBook(h) {
 // T1-T4, T6 — vm (full-chain из index.html); T5 — node (fs-read CSS)
 // =====================================================================
 
-test('000301 T1: книга — 6 вкладок .spoc-tab c иконками в порядке ТЗ; у каждой img.spoc-tab-icon (src = assets/school-icons/*.svg, файл на диске, alt = имя); title = имя; НИ ОДНОЙ .spoc-tab--active (дефолт «все»); строк .spoc-row ровно 6 (поведение книги не изменилось); errors не растут', async () => {
+test('000301/ре-пин 000358 T1: книга — 6 вкладок .spoc-tab c иконками в порядке ТЗ; у каждой img.spoc-tab-icon (src = assets/school-icons/*.svg, файл на диске, alt = имя); title = имя; НИ ОДНОЙ .spoc-tab--active (дефолт «все»); строк .spoc-row ровно 8 = [spark, mend (боевые — неактивными), ...ALL_SIX] (000358: боевые ВИДНЫ в мире); errors не растут', async () => {
   const h = await boot();
   await bootBook(h);
   const errBefore = h.errors.length;
@@ -472,18 +477,20 @@ test('000301 T1: книга — 6 вкладок .spoc-tab c иконками в
   });
   assert.deepEqual(activeSchools(h), [],
     'дефолт «все»: АКТИВНОЙ вкладки нет (0 активных)');
-  assertRows(h, ALL_SIX, 'дефолт «все» — набор строк не изменился');
+  assertRows(h, ALL_EIGHT,
+    '000358: дефолт «все» — 8 строк (боевые — неактивными)');
   assert.equal(h.errors.length, errBefore,
     'чистый путь (вкладки) — без новых console.error: '
     + h.errors.slice(errBefore).join('; '));
 });
 
-test('000301 T2: выбор вкладки = фильтр по школе: клик «огонь» → ровно firelight + «огонь» активна (остальные нет); клик «лёд» → ровно frost_walk (ПЕРЕКЛЮЧЕНИЕ: «лёд» активна, «огонь» нет); повторный клик по АКТИВНОЙ «лёд» → 6 строк, активной вкладки НЕТ (toggle off)', async () => {
+test('000301/ре-пин 000358 T2: выбор вкладки = фильтр по школе (включает неактивные): клик «огонь» → [spark (боевой, неактивный), firelight] + «огонь» активна (остальные нет); клик «лёд» → ровно frost_walk (ПЕРЕКЛЮЧЕНИЕ: «лёд» активна, «огонь» нет); повторный клик по АКТИВНОЙ «лёд» → 8 строк, активной вкладки НЕТ (toggle off)', async () => {
   const h = await boot();
   await bootBook(h);
   // Клик «огонь»: фильтр — ровно заклинание школы «огонь».
   clickTab(h, 'огонь');
-  assertRows(h, ['firelight'], 'клик «огонь»');
+  assertRows(h, ['spark', 'firelight'],
+    '000358: клик «огонь» — spark (боевой, неактивный) + firelight');
   assert.deepEqual(activeSchools(h), ['огонь'],
     '«огонь» — активна, остальные — нет');
   assert.equal(findTab(h, 'защита').className, 'spoc-tab',
@@ -498,29 +505,31 @@ test('000301 T2: выбор вкладки = фильтр по школе: кл�
     '«огонь» больше не активна (переключение, не toggle)');
   // Повторный клик по АКТИВНОЙ — снять фильтр (дефолт «все»).
   clickTab(h, 'лёд');
-  assertRows(h, ALL_SIX, 'повторный клик по активной «лёд» (toggle off)');
+  assertRows(h, ALL_EIGHT,
+    '000358: повторный клик по активной «лёд» (toggle off) — 8');
   assert.deepEqual(activeSchools(h), [],
     'toggle off: активной вкладки НЕТ');
 });
 
-test('000301 T3: сброс к «все» при закрытии: состояние с активной школой → KeyB (close) → KeyB (open) → дефолт: 6 строк, активной вкладки НЕТ (close(): activeSchool=null, tabsEl=null)', async () => {
+test('000301/ре-пин 000358 T3: сброс к «все» при закрытии: состояние с активной школой → KeyB (close) → KeyB (open) → дефолт: 8 строк, активной вкладки НЕТ (close(): activeSchool=null, tabsEl=null)', async () => {
   const h = await boot();
   await bootBook(h);
   clickTab(h, 'огонь');
-  assertRows(h, ['firelight'], 'фикстура: активна «огонь»');
+  assertRows(h, ['spark', 'firelight'],
+    'фикстура: активна «огонь» (000358: + неактивный spark)');
   key(h, 'KeyB');
   assert.ok(!h.body.querySelector('.spellbook-oc'),
     'закрыта (KeyB → close): .spellbook-oc из body');
   key(h, 'KeyB');
   assert.ok(h.body.querySelector('.spellbook-oc'),
     'снова открыта (KeyB)');
-  assertRows(h, ALL_SIX, 'после close/open: 6 строк');
+  assertRows(h, ALL_EIGHT, '000358: после close/open — 8 строк');
   assert.deepEqual(activeSchools(h), [],
     'RED: после close/open — дефолт «все», активной вкладки нет '
     + '(master: состояния activeSchool нет)');
 });
 
-test('000301 T4: свежий герой (только боевые spark/mend, вне_боя нет): «все» → .spoc-empty «Нет изученных заклинаний вне боя» (текст БЕЗ ИЗМЕНЕНИЙ), 0 строк; клик «огонь» → .spoc-empty «Нет изученных заклинаний школы «Огонь»», 0 строк', async () => {
+test('000301/ре-пин 000358 T4: свежий герой (только боевые spark/mend, вне_боя нет): «все» → 2 ВИДИМЫЕ НЕАКТИВНЫЕ строки («spoc-row spoc-row--disabled» + row.disabled + без click-слушателя), .spoc-empty НЕТ; «огонь» → [spark] (неактивный); «защита» → .spoc-empty «Нет изученных заклинаний школы «Защита»» (школьный текст БЕЗ ИЗМЕНЕНИЙ), 0 строк', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -537,21 +546,34 @@ test('000301 T4: свежий герой (только боевые spark/mend, 
   h.frameFn(NOW + 16);
   key(h, 'KeyB');
   assert.ok(h.body.querySelector('.spellbook-oc'), 'книга открыта');
-  let empties = findAll(h.body, '.spoc-empty');
-  assert.equal(empties.length, 1, '«все»: .spoc-empty');
-  assert.equal(String(empties[0].textContent),
-    'Нет изученных заклинаний вне боя',
-    '«все»: текст БЕЗ ИЗМЕНЕНИЙ (пин-контекст OC12)');
-  assert.equal(findAll(h.body, '.spoc-row').length, 0, '«все»: 0 строк');
+  // 000358: боевые строки ВИДНЫ неактивными — пустоты нет.
+  const rows = findAll(h.body, '.spoc-row');
+  assert.deepEqual(rows.map((r) => r.dataset['spell-id']),
+    [...spells], '«все»: боевые строки показаны (не скрыты)');
+  for (const r of rows) {
+    assert.equal(String(r.className), 'spoc-row spoc-row--disabled',
+      r.dataset['spell-id'] + ' — неактивная строка (БЕМ-модификатор)');
+    assert.equal(r.disabled, true,
+      r.dataset['spell-id'] + ' — row.disabled === true');
+    assert.equal((r.listeners && r.listeners.click) || undefined,
+      undefined, r.dataset['spell-id'] + ' — click-слушателя НЕТ');
+  }
+  assert.equal(findAll(h.body, '.spoc-empty').length, 0,
+    '000358: «все»: .spoc-empty НЕТ (боевые не скрыты)');
   clickTab(h, 'огонь');
-  empties = findAll(h.body, '.spoc-empty');
-  assert.equal(empties.length, 1, 'фильтр «огонь»: .spoc-empty');
+  assertRows(h, ['spark'], 'клик «огонь» — spark (огонь), неактивным');
+  assert.equal(findAll(h.body, '.spoc-empty').length, 0,
+    '«огонь»: пустоты нет (spark виден)');
+  clickTab(h, 'огонь');
+  clickTab(h, 'защита');
+  const empties = findAll(h.body, '.spoc-empty');
+  assert.equal(empties.length, 1, 'фильтр «защита»: .spoc-empty');
   assert.equal(String(empties[0].textContent),
-    'Нет изученных заклинаний школы «Огонь»',
-    'RED: динамический empty-текст школы «Огонь» (master: один '
+    'Нет изученных заклинаний школы «Защита»',
+    'RED: динамический empty-текст школы «Защита» (master: один '
     + 'текст для обоих режимов)');
   assert.equal(findAll(h.body, '.spoc-row').length, 0,
-    'фильтр «огонь»: 0 строк');
+    'фильтр «защита»: 0 строк');
 });
 
 test('000301 T5: CSS-пины index.html — правила .spoc-tabs/.spoc-tab/.spoc-tab--active/.spoc-tab-icon (union; .spoc-tab: border + cursor pointer + width 32px; --active: border-color #d8c27a; иконка 24px); гард: .spoc-row НЕ изменён (display flex / border / cursor pointer)', () => {
@@ -616,7 +638,7 @@ function toCollection(arr) {
   return col;
 }
 
-test('000301 T6: refreshTabs — browser-семантика children (.spoc-tabs.children НЕ Array: индекс/length/итератор, как HTMLCollection): клик «огонь» → className «огонь» = «spoc-tab spoc-tab--active», «защита» = «spoc-tab», фильтр = ровно firelight; повторный клик по АКТИВНОЙ «огонь» → 6 строк, активной вкладки НЕТ', async () => {
+test('000301/ре-пин 000358 T6: refreshTabs — browser-семантика children (.spoc-tabs.children НЕ Array: индекс/length/итератор, как HTMLCollection): клик «огонь» → className «огонь» = «spoc-tab spoc-tab--active», «защита» = «spoc-tab», фильтр = [spark (неактивный), firelight]; повторный клик по АКТИВНОЙ «огонь» → 8 строк, активной вкладки НЕТ', async () => {
   const h = await boot();
   await bootBook(h);
   const tabsWrap = h.body.querySelector('.spoc-tabs');
@@ -629,7 +651,9 @@ test('000301 T6: refreshTabs — browser-семантика children (.spoc-tabs
   assert.ok(!Array.isArray(raw.children),
     'browser-вариант: children — НЕ Array (как HTMLCollection)');
   clickTab(h, 'огонь');
-  assertRows(h, ['firelight'], 'фильтр — работает (children не Array)');
+  assertRows(h, ['spark', 'firelight'],
+    '000358: фильтр — работает (children не Array): '
+    + 'spark (неактивный) + firelight');
   assert.equal(findTab(h, 'огонь').className,
     'spoc-tab spoc-tab--active',
     'RED: активный класс ПРИМЕНЁН, когда children — НЕ Array '
@@ -638,7 +662,7 @@ test('000301 T6: refreshTabs — browser-семантика children (.spoc-tabs
   assert.equal(findTab(h, 'защита').className, 'spoc-tab',
     '«защита» НЕ активна (активна только выбранная школа)');
   clickTab(h, 'огонь');
-  assertRows(h, ALL_SIX, 'повторный клик по активной «огонь» '
+  assertRows(h, ALL_EIGHT, 'повторный клик по активной «огонь» '
     + '(toggle off)');
   assert.deepEqual(activeSchools(h), [],
     'toggle off: активной вкладки НЕТ (children не Array)');

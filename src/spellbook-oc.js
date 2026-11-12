@@ -156,10 +156,10 @@ function (G0, rootRef) {
     const day = (clock && typeof clock.day === "number") ? clock.day : 0;
     rowsEl.textContent = "";
     const ids = (hero && Array.isArray(hero.spells)) ? hero.spells : [];
-    const outside = ids.filter((id) => {
+    const shown = ids.filter((id) => {
       if (!g || !g.SpellsData || !g.SpellsData.SPELLS_BY_ID) return false;
       const s = g.SpellsData.SPELLS_BY_ID[id];
-      if (!s || s["вне_боя"] !== true) return false;
+      if (!s) return false;
       if (activeSchool !== null && s["школа"] !== activeSchool) {
         return false;
       }
@@ -169,7 +169,7 @@ function (G0, rootRef) {
     if (g && g.SpellBook && typeof g.SpellBook.entriesFor === "function"
         && g.SpellsData && g.SpellsData.SPELLS_BY_ID) {
       entries = g.SpellBook.entriesFor(
-        { spells: outside }, g.SpellsData.SPELLS_BY_ID) || [];
+        { spells: shown }, g.SpellsData.SPELLS_BY_ID) || [];
     }
     if (!entries.length) {
       const empty = d.createElement("div");
@@ -180,7 +180,7 @@ function (G0, rootRef) {
       const school = (activeSchool === null) ? null
         : schools.find((x) => x.id === activeSchool);
       empty.textContent = (school === null)
-        ? "Нет изученных заклинаний вне боя"
+        ? "Нет изученных заклинаний"
         : "Нет изученных заклинаний школы «"
           + (school ? school.name : activeSchool) + "»";
       rowsEl.appendChild(empty);
@@ -189,9 +189,15 @@ function (G0, rootRef) {
     }
     const effects = (hero && Array.isArray(hero.outOfCombatEffects))
       ? hero.outOfCombatEffects : [];
+    const byId = (g && g.SpellsData && g.SpellsData.SPELLS_BY_ID)
+      ? g.SpellsData.SPELLS_BY_ID : null;
     for (const e of entries) {
+      const cat = byId ? byId[e.id] : null;
+      const castable = !!(cat && cat["вне_боя"] === true);
       const row = d.createElement("div");
-      row.className = "spoc-row";
+      row.className = castable ? "spoc-row"
+        : "spoc-row spoc-row--disabled";
+      if (!castable) row.disabled = true;
       row.setAttribute("data-spell-id", e.id);
       const icon = d.createElement("img");
       icon.className = "spoc-icon";
@@ -212,7 +218,7 @@ function (G0, rootRef) {
         && x.expiresDay > day);
       status.textContent = eff
         ? "активно до дня " + eff.expiresDay : "—";
-      row.addEventListener("click", () => cast(e.id));
+      if (castable) row.addEventListener("click", () => cast(e.id));
       row.appendChild(icon);
       row.appendChild(name);
       row.appendChild(desc);

@@ -18,9 +18,10 @@
 //   * OC11 — полная цепочка: Game.spellbookOC в снапшоте (тег ДО
 //     main.js) + load-clean (h.errors не растут) + аффорданс «  |  [B]
 //     книга» + «МП x/y» в строке героя (world).
-//   * OC12 — книга показывает ТОЛЬКО известные вне_боя: РОВНО строка
-//     известного гостя; боевые spark/mend (дефолтная книга) и
-//     неизученный гость — НЕТ.
+//   * OC12 (ре-пин 000358) — книга в мире показывает ВСЕ известные:
+//     внебоевой гость — обычной строкой, боевые spark/mend —
+//     НЕАКТИВНЫМИ строками («spoc-row--disabled»); неизученный
+//     гость — НЕТ.
 //   * OC13 — каст по клику: mp 16 → 11 (новый герой maxMP 16 —
 //     sheet.js:445; мана — через сейв, g.state.hero.mp НЕТ —
 //     конвенция camp-map-e2e CP-11), запись в state-зеркале, ok →
@@ -642,7 +643,7 @@ test('000235.02 OC11: полная цепочка — Game.spellbookOC в сна
     + h.errors.slice(errBefore).join('; '));
 });
 
-test('000235.02 OC12: книга (KeyB) — ТОЛЬКО известные вне_боя: РОВНО строка известного гостя; боевые spark/mend (дефолтная книга) и неизученный гость — НЕТ', async () => {
+test('000235.02/ре-пин 000358 OC12: книга (KeyB) в мире — ВСЕ известные: строки [spark, mend (боевые — НЕАКТИВНЫМИ: «spoc-row spoc-row--disabled» + disabled + без слушателя), известный гость A]; НЕизученные гости B/C — НЕТ; .spoc-empty НЕТ', async () => {
   const h = await boot();
   dismissStartWindow(h);
   const a = ocGuest('oc_e2e_a');
@@ -657,23 +658,27 @@ test('000235.02 OC12: книга (KeyB) — ТОЛЬКО известные вн
   assert.ok(book,
     'RED: книга открыта (KeyB): .spellbook-oc в body (master: модуля нет)');
   const rows = findAll(h.body, '.spoc-row');
-  assert.equal(rows.length, 1,
-    'РОВНО ОДНА строка (известные вне_боя): ' + rows.length +
-    (rows.length ? ' — ' + rows.map((r) =>
-      JSON.stringify(r.textContent)).join(' ; ') : ''));
-  assert.ok(h.body.querySelector('[data-spell-id="' + a.id + '"]'),
-    'строка известного гостя A (data-spell-id)');
-  assert.ok(!h.body.querySelector('[data-spell-id="spark"]'),
-    'боевого spark (дефолтная книга нового героя) — НЕТ');
-  assert.ok(!h.body.querySelector('[data-spell-id="mend"]'),
-    'боевого mend — НЕТ');
+  assert.deepEqual(rows.map((r) => r.dataset['spell-id']),
+    ['spark', 'mend', a.id],
+    '000358: ВСЕ известные в порядке hero.spells — боевые строками '
+    + 'книги, а не скрытием');
+  const rowA = rows.find((r) => r.dataset['spell-id'] === a.id);
+  assert.equal(String(rowA.className), 'spoc-row',
+    '000358: внебоевой гость A — ОБЫЧНАЯ строка (кастуется)');
+  for (const id of ['spark', 'mend']) {
+    const r = rows.find((x) => x.dataset['spell-id'] === id);
+    assert.equal(String(r.className), 'spoc-row spoc-row--disabled',
+      '000358: боевой ' + id + ' — ВИДЕН неактивной строкой');
+    assert.equal(r.disabled, true, '000358: ' + id + ' — row.disabled');
+    assert.equal((r.listeners && r.listeners.click) || undefined,
+      undefined, '000358: ' + id + ' — click-слушателя НЕТ');
+  }
   assert.ok(!h.body.querySelector('[data-spell-id="' + b.id + '"]'),
     'НЕизученного гостя B — НЕТ');
   assert.ok(!h.body.querySelector('[data-spell-id="' + c.id + '"]'),
     'НЕизученного гостя C — НЕТ');
   assert.equal(findAll(h.body, '.spoc-empty').length, 0,
-    'строки «Нет изученных заклинаний вне боя» (.spoc-empty) НЕТ — '
-    + 'строка есть (книга не пустая)');
+    '.spoc-empty НЕТ — строки есть (книга не пустая)');
 });
 
 test('000235.02 OC13: каст по клику — mp ровно «мани», запись в state, ok → книга закрыта; «не хватает маны» — flash в #hud, mp/эффекты без изменений', async () => {

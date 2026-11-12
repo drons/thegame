@@ -203,117 +203,6 @@ function (G0, rootRef) {
     return { S, haveS };
   }
 
-  // --- 000145: «Книга заклинаний» (read-only, паттерн строк
-  // cp-itemrow/cp-itemname/cp-itemmeta старой вкладки «Эфир»
-  // 000116 — убрана в 000146) ---
-
-  // Имя заклинания — каталог G.SpellsData.SPELLS_BY_ID[id].название;
-  // отсутствует — голый id (тихо, деградация §7).
-  function spellName(id) {
-    const s = (G.SpellsData && G.SpellsData.SPELLS_BY_ID)
-      ? G.SpellsData.SPELLS_BY_ID[id] : null;
-    return (s && s.название) ? s.название : id;
-  }
-
-  // learned-книга (hero/merc): по c.spells; пусто — строка «—».
-  function renderLearnedBook(ctx, c, book) {
-    const spells = Array.isArray(c.spells) ? c.spells : [];
-    if (spells.length === 0) {
-      const row = ctx.el('div', 'cp-itemrow');
-      row.appendChild(ctx.el('span', 'cp-itemname', '—'));
-      book.appendChild(row);
-      return;
-    }
-    for (const id of spells) {
-      if (typeof id !== 'string') continue;
-      const row = ctx.el('div', 'cp-itemrow');
-      row.appendChild(ctx.el('span', 'cp-itemname', spellName(id)));
-      book.appendChild(row);
-    }
-  }
-
-  // «Книга заклинаний» (render, rebuild in place) — ТОЛЬКО изученные
-  // (spec/spells.md «Известные персонажу заклинания»; 000231:
-  // неизученные на странице не показываются — avail-блок 000147
-  // и строки «откроется на N-м уровне» со страницы убраны):
-  //   hero/merc — по c.spells (read-only: кнопок «+» у строк НЕТ);
-  //   efir — каноническая книга learned-only (порядок: старт сперва —
-  //   G.efir.efirSpellsByLevel(1), затем UNLOCKS по возрастанию
-  //   порога — G.efir.EFIR_SPELL_UNLOCKS): строка ТОЛЬКО изученное
-  //   (c.spells) с отметкой «уровень N» (1 — старт / порог UNLOCKS —
-  //   когда авто-разблокировалось); 0 строк — «—» (паттерн
-  //   renderLearnedBook); выученное НЕ-КАНОНИЧЕСКОЕ (через
-  //   обобщённые источники 000147) — строка «изучено» ПОСЛЕ
-  //   каноники (правки по итогам ревью). G.efir/UNLOCKS
-  //   отсутствуют — тихий fallback на learned-only.
-  function renderBook(ctx, active) {
-    const book = ctx.panel._book;
-    if (!book) return;
-    book.textContent = ''; // DOM-стаб: сброс детей (rebuild in place)
-    const c = active.sheet;
-    if (active.kind === 'efir') {
-      const E = G.efir;
-      const start = (E && typeof E.efirSpellsByLevel === 'function')
-        ? E.efirSpellsByLevel(1) : null;
-      const un = (E && Array.isArray(E.EFIR_SPELL_UNLOCKS))
-        ? E.EFIR_SPELL_UNLOCKS : null;
-      if (Array.isArray(start) && un && un.length) {
-        const learned = Array.isArray(c.spells) ? c.spells : [];
-        const canon = [];
-        const entries = [];
-        for (const id of start) {
-          if (typeof id === 'string') {
-            canon.push(id);
-            entries.push({ id, level: 1 });
-          }
-        }
-        for (const u of un) {
-          if (u && typeof u[1] === 'string') {
-            canon.push(u[1]);
-            entries.push({ id: u[1], level: u[0] });
-          }
-        }
-        // 000231: ТОЛЬКО изученные — неизученные канонические
-        // строки на странице не показываются; метка «уровень N» —
-        // когда авто-разблокировалось (D2).
-        for (const en of entries) {
-          if (learned.indexOf(en.id) < 0) continue;
-          const row = ctx.el('div', 'cp-itemrow');
-          row.appendChild(ctx.el('span', 'cp-itemname', spellName(en.id)));
-          row.appendChild(ctx.el('span', 'cp-itemmeta',
-            'уровень ' + en.level));
-          book.appendChild(row);
-        }
-        // 000147 (правки по итогам ревью): выученное НЕ-КАНОНИ-
-        // ЧЕСКОЕ — через обобщённые источники (свиток/руна/
-        // наставник — learn на sheet Эфира, 000147) — строка ПОСЛЕ
-        // каноники, метка «изучено» (уровень авто-разблокировки у
-        // него нет). Без строки такое заклинание было НЕВИДИМО:
-        // каноника его не содержит. learn() дублей не создаёт
-        // (canLearn «уже изучено»).
-        for (const id of learned) {
-          if (typeof id !== 'string' || canon.includes(id)) continue;
-          const row = ctx.el('div', 'cp-itemrow');
-          row.appendChild(ctx.el('span', 'cp-itemname', spellName(id)));
-          row.appendChild(ctx.el('span', 'cp-itemmeta', 'изучено'));
-          book.appendChild(row);
-        }
-        // 000231: 0 строк после фильтра — плейсхолдер «—»
-        // (паттерн renderLearnedBook; в игре недостижимо —
-        // createEfir/restore всегда ⊇ EFIR_SPELL_START).
-        if (book.children.length === 0) {
-          const row = ctx.el('div', 'cp-itemrow');
-          row.appendChild(ctx.el('span', 'cp-itemname', '—'));
-          book.appendChild(row);
-        }
-      } else {
-        renderLearnedBook(ctx, c, book);
-      }
-    } else {
-      renderLearnedBook(ctx, c, book);
-    }
-  }
-
   // --- 000145: «Вдох Эфира» (КОПИЯ паттерна старой вкладки
   // «Эфир» 000116 — источник удалён в 000146): статичный текст
   // (SPEC «Дух Эфира» → «Бой») — ленивый G.efir.EFIR_BREATH
@@ -434,11 +323,6 @@ function (G0, rootRef) {
       // read-only) + «Вдох Эфира» (видна ТОЛЬКО при активном «Эфир»;
       // скрыта по умолчанию — render() переключает). Имена секций и
       // тела _book/_breath/_breathSec — стабильный контракт 000146.
-      const bookSec = ctx.el('div', 'cp-section', 'Книга заклинаний');
-      const book = ctx.el('div', 'cp-items');
-      bookSec.appendChild(book);
-      pane.appendChild(bookSec);
-      ctx.panel._book = book;
 
       const breathSec = ctx.el('div', 'cp-section', 'Вдох Эфира');
       const breath = ctx.el('div', 'cp-stats', '');
@@ -631,7 +515,6 @@ function (G0, rootRef) {
 
       // 000145: «Книга заклинаний» (rebuild in place) + «Вдох
       // Эфира» (видна ТОЛЬКО для «Эфира»).
-      renderBook(ctx, active);
       if (panel._breathSec) {
         panel._breathSec.style.display = active.kind === 'efir' ? '' : 'none';
         if (active.kind === 'efir' && panel._breath) {

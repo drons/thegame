@@ -690,12 +690,11 @@ test('000145 B5: банк практики АКТИВНОГО наёмного: 
 
 // --- B6: Эфир-вид на странице ---
 
-test('000145 B6: Эфир-вид на странице: «Вдох Эфира» (тексты BREATH_INFO) + «Книга заклинаний» 2 строки learned-only (старт: «Искра»/«Заговора» — «уровень 1»), меток «откроется на N-м уровне» НЕТ (Ре-пин 000231: неизученные скрыты); секции СКРЫТЫ для hero; efirMet=false → Эфира нет в ряду (2 иконки)', () => {
+test('000145/ре-пин 000358 B6: Эфир-вид на странице: «Вдох Эфира» (тексты BREATH_INFO) ВИДНА; секции «Книга заклинаний» НЕТ ни у Эфира, ни у hero (списк — только в [B], .cp-itemrow в pane = 0); секция «Вдоха» СКРЫТА для hero; efirMet=false → Эфира нет в ряду (2 иконки)', () => {
   const env = makePartyEnv(true);
   const pane = characterPane(env);
-  const bookSec = sectionOf(pane, 'Книга заклинаний');
-  assert.ok(bookSec,
-    'секция «Книга заклинаний» на странице (для ВСЕХ kinds, ТЗ)');
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» для hero НЕТ');
   const breathSec = sectionOf(pane, 'Вдох Эфира');
   assert.ok(breathSec, 'секция «Вдох Эфира» на странице (ТЗ)');
   assert.equal(breathSec.style.display, 'none',
@@ -715,31 +714,15 @@ test('000145 B6: Эфир-вид на странице: «Вдох Эфира» 
       'round(10 + 0.8 * Мудрость)', '×0.8', '2 хода']) {
     assert.ok(bt.includes(s), '«Вдох Эфира» — строка SPEC: ' + s);
   }
-  // Ре-пин 000231: неизученные канонические строки Эфира СКРЫТЫ —
-  // книга = learned-only (fresh Эфир: старт [spark, mend] —
-  // «уровень 1», D2); меток «откроется на N-м уровне» на странице
-  // НЕТ (ТЗ 000231: не показывать неизученные заклинания).
-  const rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, 2,
-    'книга «Эфира» — 2 строки learned-only (старт; 000231: ' +
-    'неизученная каноника скрыта); RED: 11 канон. строк');
-  const expect = [
-    ['Искра', 'уровень 1'],
-    ['Заговора', 'уровень 1'],
-  ];
-  rows.forEach((r, i) => {
-    assert.equal(r.querySelector('.cp-itemname').textContent,
-      expect[i][0], 'строка ' + i + ' — имя из G.SpellsData');
-    assert.equal(r.querySelector('.cp-itemmeta').textContent,
-      expect[i][1],
-      'строка ' + i + ' — отметка изученного «уровень N» (D2)');
-  });
-  for (const r of rows) {
-    const meta = r.querySelector('.cp-itemmeta');
-    assert.ok(meta && !String(meta.textContent).includes('откроется'),
-      '000231: меток «откроется на N-м уровне» в книге НЕТ; ' +
-      'RED: 9 неизученных строк с этой меткой');
-  }
+  // Ре-пин 000358: книги на странице НЕТ ни у какого kind —
+  // полный список только в [B]; learned-only строки/метки
+  // («уровень 1», «Искра»/«Заговора») не эмитятся.
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» для Эфира НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (книжных строк Эфира нет)');
+  assert.equal(findAll(pane, '.cp-itemmeta').length, 0,
+    '000358/000231: меток («уровень N» / «откроется…») в pane НЕТ');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 
   // (2) efirMet=false → Эфира НЕТ в ряду (только hero + merc)
@@ -752,35 +735,33 @@ test('000145 B6: Эфир-вид на странице: «Вдох Эфира» 
     ['flogiston', 'merc_volk'], 'efirMet=false → 2 иконки (гейт, ТЗ)');
 });
 
-// --- B7: книга заклинаний — для любого kind, read-only ---
+// --- B7 (ре-пин 000358): книги заклинаний на странице НЕТ ---
 
-test('000145 B7: книга заклинаний — для АКТИВНОГО любого kind: hero — hero.spells → имена из SpellsData; наёмный без spells — строка «—»; книга — ЧТЕНИЕ (кнопок «+» у строк НЕТ)', () => {
+test('000145/ре-пин 000358 B7: книга заклинаний со страницы УБРАНА для АКТИВНОГО ЛЮБОГО kind: hero — секции нет, .cp-itemrow = 0; переключение на наёмного (Вольк, spells []) — так же (ни «—», ни имён); переходы/рендера без ошибок (списк — только в [B])', () => {
   const env = makePartyEnv(true);
   const pane = characterPane(env);
-  const bookSec = sectionOf(pane, 'Книга заклинаний');
-  assert.ok(bookSec, 'секция «Книга заклинаний»');
-  // (1) hero: старт [spark, mend] → «Искра»/«Заговора»
-  let rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, 2, 'книга героя — 2 строки (старт)');
-  assert.equal(rows[0].querySelector('.cp-itemname').textContent,
-    'Искра', 'имя из G.SpellsData.SPELLS_BY_ID');
-  assert.equal(rows[1].querySelector('.cp-itemname').textContent,
-    'Заговора');
-  for (const r of rows) {
-    assert.equal(r.querySelector('button'), null,
-      'книга — read-only: кнопок у строк НЕТ');
-  }
-  // (2) наёмный (Вольк, найм.spells: []) — строка «—»
+  // (1) hero: секции книги нет.
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» для hero НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (hero: ни «Искра», ни «Заговора»)');
+  assert.equal(env.errors.length, 0,
+    'render hero: 0 ошибок: ' + env.errors.join('; '));
+  // (2) переключение на наёмного (Вольк, найм.spells: []) — тоже нет.
   const row = portraitsRow(pane);
   assert.ok(row, 'ряд .cp-portraits существует');
   const mercBtn = findAll(row, '.cp-portrait')
     .find((b) => b.dataset.memberid === 'merc_volk');
   assert.ok(mercBtn, 'иконка наёмного');
   clickPanel(env, mercBtn);
-  rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, 1, 'книга наёмного без spells — 1 строка');
-  assert.equal(rows[0].querySelector('.cp-itemname').textContent, '—',
-    'пустая книга — строка «—» (паттерн вкладки «Эфир»)');
+  assert.equal(pane.querySelector('.cp-title').textContent, 'Вольк',
+    'активный переключился (навигация 000145 жива)');
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции НЕТ и у наёмного (ни строки «—»)');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (merc)');
+  assert.equal(env.errors.length, 0,
+    'render merc: 0 ошибок: ' + env.errors.join('; '));
 });
 
 // --- B8: навигация из «Отряда» ---

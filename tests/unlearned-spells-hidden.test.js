@@ -306,7 +306,7 @@ function nameOf(env, id) {
 
 // --- U-1: ГЕРОЙ — неизученные НЕ видны при наличных источниках ---
 
-test('000231 U-1: страница — ГЕРОЙ (свиток fireball_scroll в инвентаре): в секции «Книга заклинаний» НЕТ неизученных — .cp-availrow = 0, .cp-avail-title = 0, текста «Доступно к изучению» в pane НЕТ; learned intact (2 .cp-itemrow «Искра»/«Заговора» — имена из G.SpellsData, БЕЗ .cp-itemmeta, button === null); источники ЕСТЬ (свиток в инвентаре героя + руна 40 в каталоге) — блок НЕ рендерится; RED: renderAvailBook эмитит .cp-availrow + заголовок', () => {
+test('000231/ре-пин 000358 U-1: страница — ГЕРОЙ (свиток fireball_scroll в инвентаре): секции «Книга заклинаний» на странице НЕТ (списк — только в книге [B]); .cp-itemrow в pane = 0, .cp-availrow = 0, .cp-avail-title = 0, текста «Доступно к изучению» в pane НЕТ; имена выученных («Искра»/«Заговора») в pane НЕТ; неизученный «Огненный шар» в pane НЕТ; источники ЕСТЬ (свиток в инвентаре героя + руна 40 в каталоге); 0 ошибок', () => {
   const env = makePartyEnv({ heroScroll: 'fireball_scroll' });
   const pane = characterPane(env);
   assert.equal(pane.querySelector('.cp-title').textContent,
@@ -321,35 +321,35 @@ test('000231 U-1: страница — ГЕРОЙ (свиток fireball_scroll 
       Array.isArray(op.эффект.заклинания) &&
       op.эффект.заклинания.includes('chill');
   }), 'источник: руна-постройка (каталог 40) с «Хлад»');
-  const bookSec = sectionOf(pane, 'Книга заклинаний');
-  assert.ok(bookSec, 'секция «Книга заклинаний» (все kinds, 000145)');
-  // learned — БЕЗ ИЗМЕНЕНИЙ (B7: 2 старт-строки, БЕЗ меток):
-  const rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, 2, 'книга героя — 2 строки (старт)');
-  assert.equal(rows[0].querySelector('.cp-itemname').textContent,
-    nameOf(env, 'spark'), 'имя из G.SpellsData.SPELLS_BY_ID');
-  assert.equal(rows[1].querySelector('.cp-itemname').textContent,
-    nameOf(env, 'mend'), 'имя из G.SpellsData.SPELLS_BY_ID');
-  for (const r of rows) {
-    assert.equal(r.querySelector('.cp-itemmeta'), null,
-      'hero — БЕЗ меток (learned-only, как ДО)');
-    assert.equal(r.querySelector('button'), null,
-      'книга — read-only: кнопок у строк НЕТ');
-  }
-  // 000231: неизученные НЕ видны:
-  assert.equal(findAll(bookSec, '.cp-availrow').length, 0,
-    '000231: .cp-availrow = 0 (блок «Доступно к изучению» убран); ' +
-    'RED: avail-строки ещё эмитятся (свиток/руна/наставник)');
-  assert.equal(findAll(bookSec, '.cp-avail-title').length, 0,
+  // Ре-пин 000358: секция книги убрана со страницы целиком
+  // (000145-эмитент удалён) — «неизученные не видны» (000231)
+  // выполняется тривиально, но пин силы прежний: НИ СПИСКА, НИ
+  // avail-блока, НИ имён в pane.
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» на странице НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в character-pane = 0 (книжных строк нет)');
+  assert.equal(findAll(pane, '.cp-availrow').length, 0,
+    '000231: .cp-availrow = 0 (блок «Доступно к изучению» убран)');
+  assert.equal(findAll(pane, '.cp-avail-title').length, 0,
     '000231: заголовка avail-блока НЕТ');
-  assert.ok(!textOf(pane).includes('Доступно к изучению'),
+  const txt = textOf(pane);
+  assert.ok(!txt.includes('Доступно к изучению'),
     '000231: текста «Доступно к изучению» в pane НЕТ');
+  assert.ok(!txt.includes(nameOf(env, 'spark')),
+    '000358: имя выученного «' + nameOf(env, 'spark') +
+    '» в pane НЕТ (списк — только в [B])');
+  assert.ok(!txt.includes(nameOf(env, 'mend')),
+    '000358: имя выученного «' + nameOf(env, 'mend') +
+    '» в pane НЕТ');
+  assert.ok(!txt.includes('Огненный шар'),
+    '000231: неизученный «Огненный шар» в pane НЕТ');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });
 
 // --- U-2: НАЁМНЫЙ — то же на втором kind (Рунопись 1) ---
 
-test('000231 U-2: страница — НАЁМНЫЙ (Вольк, Рунопись 1, spells []): НЕТ avail-строк (.cp-availrow = 0, заголовка НЕТ, «Доступно к изучению» в pane НЕТ) при наличных источниках («Хлад» = «руна: доступно» — руна 40 каталога); learned «—» (1 .cp-itemrow) intact; RED: avail-строки наёмного («Хлад» — «руна: доступно», и др.)', () => {
+test('000231/ре-пин 000358 U-2: страница — НАЁМНЫЙ (Вольк, Рунопись 1, spells []): секции «Книга заклинаний» НЕТ, .cp-itemrow в pane = 0 (плейсхолдер «—» тоже убран), .cp-availrow = 0, заголовка НЕТ, «Доступно к изучению» в pane НЕТ при наличных источниках («Хлад» = «руна: доступно» — руна 40 каталога); «Хлад» НЕВИДИМ', () => {
   const env = makePartyEnv({});
   const pane = characterPane(env);
   // Активный — наёмный:
@@ -358,29 +358,26 @@ test('000231 U-2: страница — НАЁМНЫЙ (Вольк, Рунопи�
     'переключение активного: 0 ошибок: ' + env.errors.join('; '));
   assert.equal(pane.querySelector('.cp-title').textContent, 'Вольк',
     'активный — наёмный (Вольк)');
-  const bookSec = sectionOf(pane, 'Книга заклинаний');
-  assert.ok(bookSec, 'секция «Книга заклинаний» (все kinds, 000145)');
-  // learned — БЕЗ ИЗМЕНЕНИЙ (B7: пустая книга — «—»):
-  const rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, 1, 'наёмный без spells — 1 строка «—»');
-  assert.equal(rows[0].querySelector('.cp-itemname').textContent, '—',
-    'пустая книга — строка «—» (как ДО)');
-  // 000231: неизученные НЕ видны:
-  assert.equal(findAll(bookSec, '.cp-availrow').length, 0,
-    '000231: .cp-availrow = 0; RED: avail-строки ещё эмитятся ' +
-    '(Рунопись 1 — «Хлад» = «руна: доступно»)');
-  assert.equal(findAll(bookSec, '.cp-avail-title').length, 0,
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» на странице НЕТ (все kinds)');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (и «—» плейсхолдера нет)');
+  assert.equal(findAll(pane, '.cp-availrow').length, 0,
+    '000231: .cp-availrow = 0 (Рунопись 1 — «Хлад» = ' +
+    '«руна: доступно», но блока нет)');
+  assert.equal(findAll(pane, '.cp-avail-title').length, 0,
     '000231: заголовка avail-блока НЕТ');
-  assert.ok(!textOf(pane).includes('Доступно к изучению'),
+  const txt = textOf(pane);
+  assert.ok(!txt.includes('Доступно к изучению'),
     '000231: текста «Доступно к изучению» в pane НЕТ');
-  assert.ok(!textOf(bookSec).includes('Хлад'),
+  assert.ok(!txt.includes('Хлад'),
     '000231: «Хлад» (руна 40, canLearn ok) НЕВИДИМ на странице');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });
 
 // --- U-3: ЭФИР — learned-only каноника + learned-не-каноник ---
 
-test('000231 U-3: страница — ЭФИР: ДО — .cp-itemrow = G.efir.efirSpellsByLevel(1).length (data-driven), ВСЕ метки «уровень 1», текста «откроется» в секции НЕТ, «Теневой сгусток» в секции НЕТ, .cp-availrow = 0; ПОСЛЕ G.Spells.learn(efirSheet, "chill", "scroll") (t1, INT 3 — Ученик — ok) + re-render — .cp-itemrow = start+1: «Хлад» — .cp-itemrow с меткой «изучено» ПОСЛЕ каноники, button === null; «откроется» всё ещё нет; «Теневой сгусток» всё ещё нет; .cp-availrow = 0; RED: 11 канон. строк («откроется…» × 9) + avail', () => {
+test('000231/ре-пин 000358 U-3: страница — ЭФИР: секции «Книга заклинаний» НЕТ (kind efir — тоже), .cp-itemrow в pane = 0, меток «уровень 1» в pane НЕТ, .cp-availrow = 0; ПОСЛЕ G.Spells.learn(efirSheet, "chill", "scroll") (t1, INT 3 — ok: мутация live-листа intact) + re-render — страница НЕ изменилась: 0 строк, «Хлад»/«откроется»/«Теневой сгусток» в pane НЕТ', () => {
   const env = makePartyEnv({});
   const pane = characterPane(env);
   // Активный — Эфир (fresh L1: INT 3 — Ученик, spells = старт):
@@ -389,31 +386,16 @@ test('000231 U-3: страница — ЭФИР: ДО — .cp-itemrow = G.efir.e
     'переключение на Эфир: 0 ошибок: ' + env.errors.join('; '));
   assert.equal(pane.querySelector('.cp-title').textContent, 'Эфир',
     'активный — Эфир (kind \'efir\')');
-  const bookSec = sectionOf(pane, 'Книга заклинаний');
-  assert.ok(bookSec, 'секция «Книга заклинаний»');
-  // (1) ДО изучения: learned-only каноника (fresh Эфир = старт):
-  const start = [...env.G.efir.efirSpellsByLevel(1)];
-  const rows0 = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows0.length, start.length,
-    '000231: книга Эфира — learned-only (fresh = старт ' +
-    'efirSpellsByLevel(1).length — data-driven, хардкода НЕТ); ' +
-    'RED: 11 канон. строк (неизученные с «откроется…»-метками)');
-  rows0.forEach((r, i) => {
-    assert.equal(r.querySelector('.cp-itemname').textContent,
-      nameOf(env, start[i]), 'строка ' + i + ' — имя из G.SpellsData');
-    assert.equal(r.querySelector('.cp-itemmeta').textContent,
-      'уровень 1',
-      'строка ' + i + ' — метка изученного «уровень 1» (старт)');
-  });
-  assert.equal(findAll(bookSec, '.cp-availrow').length, 0,
-    '000231: .cp-availrow = 0 (блока нет); RED: avail-строки ' +
-    '(не-канонические с источниками) ещё эмитятся');
-  assert.ok(!textOf(bookSec).includes('откроется'),
-    '000231: текста «откроется на N-м уровне» в секции НЕТ; ' +
-    'RED: 9 неизученных канон. строк с этой меткой');
-  assert.ok(!textOf(bookSec).includes('Теневой сгусток'),
-    '000231: «Теневой сгусток» (руна 40/наставник 19) НЕВИДИМ ' +
-    'на странице; RED: avail-строка «руна: нужен ранг школы «Знаток»»');
+  // (1) ДО изучения: книги на странице нет ни для какого kind
+  //     (000358; efir-книга 000145/000146 — наследие, снято вместе).
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» для Эфира НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (learned-only строк нет)');
+  assert.equal(findAll(pane, '.cp-availrow').length, 0,
+    '000231: .cp-availrow = 0 (блока нет)');
+  assert.ok(!textOf(pane).includes('уровень 1'),
+    '000358: меток «уровень 1» в pane НЕТ (книги нет)');
   // (2) Изучение НЕ-КАНОНИЧЕСКОГО на live-лист Эфира — ТОТ ЖЕ
   //     мутирующий путь, что у обобщённых источников 000147
   //     (useItem 4-й аргумент / applyMentorSpell → S.learn):
@@ -421,33 +403,23 @@ test('000231 U-3: страница — ЭФИР: ДО — .cp-itemrow = G.efir.e
   assert.equal(lr.ok, true, 'chill: t1 + INT 3 (Ученик) — ok');
   assert.ok([...env.efirSheet.spells].includes('chill'),
     'learn — мутация live-листа Эфира');
-  // (3) Re-render (toggle — renderBook rebuild in place):
+  // (3) Re-render — страница не изменилась (книги нет):
   env.G.playerUI.toggle(true, 'character', 'efir');
   assert.equal(env.errors.length, 0,
     're-render: 0 ошибок: ' + env.errors.join('; '));
-  const rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, start.length + 1,
-    '000231: learned-старт + 1 строка выученного не-каноника ' +
-    '(learned-only); RED: 11 + 1');
-  const byName = (name) => rows.find((r) =>
-    r.querySelector('.cp-itemname').textContent === name);
-  const learnedChill = byName('Хлад');
-  assert.ok(learnedChill,
-    'выученное не-каноническое «Хлад» — ВИДИМО в книге ' +
-    '(контракт §3: learned-не-каноник НЕ затирается фильтром)');
-  assert.equal(rows.indexOf(learnedChill), start.length,
-    '«Хлад» — ПОСЛЕ каноники (контракт AP-6B/§3)');
-  assert.equal(learnedChill.querySelector('.cp-itemmeta').textContent,
-    'изучено', 'метка — «изучено» (уровня авто-разблокировки нет)');
-  assert.equal(learnedChill.querySelector('button'), null,
-    'read-only: кнопок НЕТ (как у learned-строк)');
-  // (4) Отрицания держатся ПОСЛЕ изучения:
-  assert.equal(findAll(bookSec, '.cp-availrow').length, 0,
-    '000231: .cp-availrow = 0 и после learn (блока нет)');
-  assert.ok(!textOf(bookSec).includes('откроется'),
-    '000231: «откроется на N-м уровне» всё ещё нет');
-  assert.ok(!textOf(bookSec).includes('Теневой сгусток'),
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: после learn секции всё равно НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: после learn .cp-itemrow в pane = 0');
+  const txt = textOf(pane);
+  assert.ok(!txt.includes('Хлад'),
+    '000358: выученное «Хлад» на странице НЕТ (списк — только в [B])');
+  assert.ok(!txt.includes('откроется'),
+    '000231: «откроется на N-м уровне» НЕТ');
+  assert.ok(!txt.includes('Теневой сгусток'),
     '000231: «Теневой сгусток» (НЕ изучен) всё ещё НЕВИДИМ');
+  assert.equal(findAll(pane, '.cp-availrow').length, 0,
+    '000231: .cp-availrow = 0 и после learn (блока нет)');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });
 
@@ -458,7 +430,7 @@ test('000231 U-3: страница — ЭФИР: ДО — .cp-itemrow = G.efir.e
 // недостижимо (createEfir/restore всегда ⊇ EFIR_SPELL_START) —
 // покрываем мутацией live-листа в vm.
 
-test('000231 U-4: страница — ЭФИР: live-лист с spells = [] (мутация; в игре недостижимо) + re-render — ровно 1 .cp-itemrow с .cp-itemname «—» БЕЗ .cp-itemmeta, button === null (D3-плейсхолдер, паттерн renderLearnedBook); .cp-availrow = 0, «откроется» нет; восстановление листа + re-render — старт возвращается (rebuild in place)', () => {
+test('000231/ре-пин 000358 U-4: страница — ЭФИР: live-лист с spells = [] (мутация) и восстановление + re-render — БЕЗ краха (0 ошибок на всех прогонах), секции «Книга заклинаний» НЕТ ни в одном состоянии, .cp-itemrow в pane = 0 (D3-плейсхолдер «—» больше не эмитится — книги нет)', () => {
   const env = makePartyEnv({});
   const pane = characterPane(env);
   env.G.playerUI.toggle(true, 'character', 'efir');
@@ -466,42 +438,32 @@ test('000231 U-4: страница — ЭФИР: live-лист с spells = [] (�
     'переключение на Эфир: 0 ошибок: ' + env.errors.join('; '));
   assert.equal(pane.querySelector('.cp-title').textContent, 'Эфир',
     'активный — Эфир (kind \'efir\')');
-  const bookSec = sectionOf(pane, 'Книга заклинаний');
-  assert.ok(bookSec, 'секция «Книга заклинаний»');
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции НЕТ (исходное состояние)');
   const start = [...env.efirSheet.spells];
   assert.ok(start.length > 0, 'fresh Эфир — старт непустой');
   // (1) 0 learned (live-мутация — только здесь, в игре недостижимо):
   env.efirSheet.spells = [];
   env.G.playerUI.toggle(true, 'character', 'efir');
   assert.equal(env.errors.length, 0,
-    're-render (0 learned): 0 ошибок: ' + env.errors.join('; '));
-  const rows = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows.length, 1,
-    'D3: 0 строк после фильтра — ОДНА строка-плейсхолдер ' +
-    '(без ветки секция была бы пуста)');
-  assert.equal(rows[0].querySelector('.cp-itemname').textContent, '—',
-    'D3: плейсхолдер — «—» (паттерн renderLearnedBook)');
-  assert.equal(rows[0].querySelector('.cp-itemmeta'), null,
-    'D3: у плейсхолдера метки НЕТ (как у «—» hero/merc, U-2)');
-  assert.equal(rows[0].querySelector('button'), null,
-    'D3: read-only — кнопок НЕТ');
-  assert.equal(findAll(bookSec, '.cp-availrow').length, 0,
+    '000358: re-render (0 learned) — 0 ошибок (удалённый renderBook ' +
+    'не обязан жить в коде)');
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции НЕТ при spells = []');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: «—» плейсхолдера нет (0 строк, не 1)');
+  assert.equal(findAll(pane, '.cp-availrow').length, 0,
     '000231: .cp-availrow = 0 и при 0 learned');
-  assert.ok(!textOf(bookSec).includes('откроется'),
-    'D3: «откроется на N-м уровне» нет и при 0 learned');
-  // (2) Восстановление live-листа + re-render:
+  assert.ok(!textOf(pane).includes('откроется'),
+    '000231: «откроется на N-м уровне» нет и при 0 learned');
+  // (2) Восстановление live-листа + re-render — так же чисто:
   env.efirSheet.spells = start;
   env.G.playerUI.toggle(true, 'character', 'efir');
   assert.equal(env.errors.length, 0,
     're-render (восстановлено): 0 ошибок: ' + env.errors.join('; '));
-  const rows2 = findAll(bookSec, '.cp-itemrow');
-  assert.equal(rows2.length, start.length,
-    'D3: после восстановления — старт возвращается (rebuild in place)');
-  rows2.forEach((r, i) => {
-    assert.equal(r.querySelector('.cp-itemname').textContent,
-      nameOf(env, start[i]), 'строка ' + i + ' — старт (G.SpellsData)');
-    assert.equal(r.querySelector('.cp-itemmeta').textContent, 'уровень 1',
-      'строка ' + i + ' — метка «уровень 1» (старт)');
-  });
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции НЕТ после восстановления');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 после восстановления');
   assert.equal(env.errors.length, 0, '0 ошибок: ' + env.errors.join('; '));
 });

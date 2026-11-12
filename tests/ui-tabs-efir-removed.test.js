@@ -389,28 +389,20 @@ test('000146 R2: клик по строке «Эфир» в «Отряде» о�
 
 // --- R3: вид kind 'efir' — все бывшие секции, каждый носитель 1 раз ---
 
-test('000146 R3: вид kind \'efir\' на «Персонаж» содержит ВСЕ бывшие секции вкладки, каждый носитель ОДИН РАЗ: книга — learned-only, ровно старт (efirSpellsByLevel(1).length) с метками «уровень 1», «откроется» НЕТ (Ре-пин 000231: неизученные скрыты); live L5 — 3 строки, «Свет исцеления» = «уровень 5» (in place); «Вдох Эфира» ВИДНА, текст SPEC; левый столбец — ровно 3 .cp-tabpane; по ВЕЙ панели ровно ОДИН pane содержит «Вдох Эфира»; секции «Открытия» НЕТ (D1); hero-дефолт: «Флогистон», книга learned-only без .cp-itemmeta, «Вдох Эфира» СКРЫТА; пул EFIR_START_LIST на едином листе (D2); потолок — единый текст (D3), старый хвост нигде', () => {
+test('000146/ре-пин 000358 R3: вид kind \'efir\' на «Персонаж»: книги заклинаний НЕТ ни у hero, ни у Эфира (ни при L5-мутации; .cp-itemrow = 0, «уровень N»/«откроется» НЕТ — список только в [B]); «Вдох Эфира» ВИДНА, текст SPEC; левый столбец — ровно 3 .cp-tabpane; по ВЕЙ панели ровно ОДИН pane содержит «Вдох Эфира»; секции «Открытия» НЕТ (D1); hero-дефолт: «Флогистон», «Вдох Эфира» СКРЫТА; пул EFIR_START_LIST на едином листе (D2); потолок — единый текст (D3), старый хвост нигде; пороги UNLOCKS (пин данных) intact', () => {
   const env = makePartyEnv(true);
   const pane = characterPane(env);
   assert.ok(pane, 'character-pane существует');
   const E = env.G.efir;
   const e = env.efirSheet;
-  const bookOf = () => sectionOf(pane, 'Книга заклинаний');
-
-  // (1) hero-дефолт (2-арг toggle — уже открыт): learned-only книга
-  // БЕЗ отметок, «Вдох Эфира» СКРЫТА.
+  // (1) hero-дефолт (2-арг toggle — уже открыт): книги на странице
+  // НЕТ (ре-пин 000358), «Вдох Эфира» СКРЫТА.
   assert.equal(pane.querySelector('.cp-title').textContent, 'Флогистон',
     'дефолтный активный — герой');
-  let book = bookOf();
-  assert.ok(book, 'секция «Книга заклинаний» на странице (000145)');
-  let rows = findAll(book, '.cp-itemrow');
-  assert.equal(rows.length, 2, 'hero — learned-only книга (старт)');
-  assert.equal(rows[0].querySelector('.cp-itemname').textContent, 'Искра');
-  assert.equal(rows[1].querySelector('.cp-itemname').textContent, 'Заговора');
-  for (const r of rows) {
-    assert.equal(r.querySelector('.cp-itemmeta'), null,
-      'hero — БЕЗ отметок (learned-only, .cp-itemmeta нет)');
-  }
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» для hero НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (hero-старт не эмитится)');
   const breathSec = sectionOf(pane, 'Вдох Эфира');
   assert.ok(breathSec, 'секция «Вдох Эфира» на странице (носитель)');
   assert.equal(breathSec.style.display, 'none',
@@ -429,56 +421,31 @@ test('000146 R3: вид kind \'efir\' на «Персонаж» содержит
       'round(10 + 0.8 * Мудрость)', '×0.8', '2 хода']) {
     assert.ok(bt.includes(s), '«Вдох Эфира» — строка SPEC: ' + s);
   }
-  // Ре-пин 000231: неизученные канонические строки Эфира СКРЫТЫ —
-  // книга = learned-only (fresh Эфир: ровно старт
-  // efirSpellsByLevel(1), data-driven, метки «уровень 1», D2);
-  // меток «откроется на N-м уровне» на странице НЕТ. (До 000231:
-  // ВСЕГДА 11 строк — 2 старт + 9 UNLOCKS, неизученные с меткой
-  // «откроется…» — носитель контента «Открытия», D1.)
-  book = bookOf();
-  rows = findAll(book, '.cp-itemrow');
-  const start = E.efirSpellsByLevel(1);
+  // Ре-пин 000358: книги заклинаний на странице НЕТ ни у какого
+  // kind (полный список — только в [B]) — строки/метки learned-only
+  // («уровень N», «откроется…») не эмитятся и при росте уровня.
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: секции «Книга заклинаний» для Эфира НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: .cp-itemrow в pane = 0 (fresh Эфир)');
   const un = E.EFIR_SPELL_UNLOCKS.slice().sort((a, b) => a[0] - b[0]);
-  const nameOf = (id) => env.G.SpellsData.SPELLS_BY_ID[id].название;
-  assert.equal(rows.length, start.length,
-    'книга «Эфира» — learned-only (000231): ровно старт ' +
-    '(efirSpellsByLevel(1).length — data-driven, хардкода НЕТ); ' +
-    'RED: 11 канон. строк (неизученные ещё видны)');
-  const expect = start.map((id) => [nameOf(id), 'уровень 1']);
-  rows.forEach((r, i) => {
-    assert.equal(r.querySelector('.cp-itemname').textContent,
-      expect[i][0], 'строка ' + i + ' — имя из G.SpellsData');
-    assert.equal(r.querySelector('.cp-itemmeta').textContent,
-      expect[i][1],
-      'строка ' + i + ' — отметка изученного «уровень N» (D2)');
-  });
-  for (const r of rows) {
-    const meta = r.querySelector('.cp-itemmeta');
-    assert.ok(meta && !String(meta.textContent).includes('откроется'),
-      '000231: меток «откроется на N-м уровне» в книге НЕТ; ' +
-      'RED: 9 неизученных строк с этой меткой');
-  }
   assert.deepEqual([...un.map((u) => u[0])],
     [5, 8, 10, 12, 15, 20, 22, 25, 30],
     'пороги UNLOCKS — канонический порядок (пин ДАННЫХ G.efir, не ' +
-    'UI — 000231 не трогает; [...]: массив ЧУЖОГО realm (vm) — ' +
+    'UI — 000231/000358 не трогают; [...]: массив ЧУЖОГО realm (vm) — ' +
     'спред даёт host-массив (правило 000082)');
-  // live: L5 — «Свет исцеления» = «уровень 5» (in place: тело
-  // книги _book — тот же узел; строки пересобираются в нём).
-  const bookBody = book.querySelector('.cp-items');
-  assert.ok(bookBody, 'тело книги (.cp-items — _book)');
+  // live: L5 + spells = efirSpellsByLevel(5) — страница НЕ обзаводится
+  // книгой (in-place rebuild мёртв вместе с секцией).
   e.level = 5;
   e.spells = E.efirSpellsByLevel(5); // [spark, mend, light_heal]
   env.G.playerUI.render();
-  const rows5 = findAll(bookBody, '.cp-itemrow');
-  assert.equal(rows5.length, 3,
-    'после render — 3 строки learned-only (in place; 000231: ' +
-    'старт + light_heal); RED: 11 строк (неизученные ещё видны)');
-  const light = rows5.find((r) =>
-    r.querySelector('.cp-itemname').textContent === 'Свет исцеления');
-  assert.ok(light, '«Свет исцеления» в книге L5');
-  assert.equal(light.querySelector('.cp-itemmeta').textContent,
-    'уровень 5', 'L5 — изучен: отметка «уровень 5» (in place)');
+  assert.equal(sectionOf(pane, 'Книга заклинаний'), null,
+    '000358: после L5-мутации секции всё ещё НЕТ');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: после L5-мутации .cp-itemrow в pane = 0 ' +
+    '(ни строк, ни отметки «уровень 5»)');
+  assert.ok(!textOf(pane).includes('уровень 5'),
+    '000358: отметки «уровень 5» в pane НЕТ');
 
   // (3) ДЕДУПЛИКАЦИЯ (красное ядро R3): левый столбец — ровно 3
   // .cp-tabpane; по ВЕЙ панели — ровно ОДИН pane с «Вдохом Эфира».

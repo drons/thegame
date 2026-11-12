@@ -384,7 +384,7 @@ function characterPane(env) {
   return panes[0];
 }
 
-test('C1: [I] — секция «Школы магии» МЕЖДУ вторичными группами и «Книга заклинаний»: 6 строк (name/«—»/desc), кнопок нет; 0 ошибок', () => {
+test('C1 (ре-пин 000358): [I] — секция «Школы магии» ПОСЛЕ вторичных групп и СРАЗУ ПЕРЕД «Вдох Эфира» («Книга заклинаний» со страницы убрана — список только в [B]): 6 строк (name/«—»/desc), кнопок нет; 0 ошибок', () => {
   const env = loadPlayerUi();
   const c = env.G.createCharacter();
   openPanel(env, c);
@@ -396,10 +396,16 @@ test('C1: [I] — секция «Школы магии» МЕЖДУ вторич
     'секция «Школы магии» в дереве (задача 000324): ' + JSON.stringify(names));
   const idxCharisma = names.indexOf('Харизма');
   const idxBook = names.indexOf('Книга заклинаний');
+  const idxBreath = names.indexOf('Вдох Эфира');
   assert.ok(idxCharisma !== -1 && idxSchools > idxCharisma,
     'секция ПОСЛЕ групп вторичных навыков: ' + JSON.stringify(names));
-  assert.equal(idxSchools, idxBook - 1,
-    'секция СРАЗУ ПЕРЕД «Книга заклинаний»: ' + JSON.stringify(names));
+  assert.equal(idxBook, -1,
+    '000358: «Книга заклинаний» на странице НЕТ: ' + JSON.stringify(names));
+  assert.ok(idxBreath !== -1,
+    '«Вдох Эфира» на месте: ' + JSON.stringify(names));
+  assert.equal(idxSchools, idxBreath - 1,
+    '000358: секция СРАЗУ ПЕРЕД «Вдох Эфира» (последняя секция '
+    + 'списка навыков): ' + JSON.stringify(names));
   const sec = secs[idxSchools];
   const rows = findAll(sec, 'tr');
   assert.equal(rows.length, 6, '6 строк (по школе)');
@@ -422,7 +428,7 @@ test('C1: [I] — секция «Школы магии» МЕЖДУ вторич
     '0 console.error: ' + env.errors.join('; '));
 });
 
-test('C2 (регресс): дерево не задето — .cp-portraits первым, 6 основных строк, 38 .cp-btn (6+32, ре-пин 000337), «Книга заклинаний»/«Вдох Эфира», строки книги = c.spells', () => {
+test('C2 (регресс, ре-пин 000358): дерево не задето — .cp-portraits первым, 6 основных строк, 38 .cp-btn (6+32, ре-пин 000337), «Вдох Эфира»; «Книга заклинаний» УБРАНА (секции нет, .cp-itemrow = 0 — список только в [B])', () => {
   const env = loadPlayerUi();
   const c = env.G.createCharacter();
   openPanel(env, c);
@@ -442,14 +448,15 @@ test('C2 (регресс): дерево не задето — .cp-portraits пе
     '38 .cp-btn: 6 основных + 32 вторичных (ре-пин 000337: +1 secondary '
     + '«staff»; школьные строки кнопок не добавляют)');
   const secs = findAll(pane, '.cp-section');
-  assert.ok(secs.some((s) => s.textContent === 'Книга заклинаний'),
-    '«Книга заклинаний» на месте');
+  assert.ok(!secs.some((s) => s.textContent === 'Книга заклинаний'),
+    '000358: секции «Книга заклинаний» на странице НЕТ (списк — [B])');
   assert.ok(secs.some((s) => s.textContent === 'Вдох Эфира'),
     '«Вдох Эфира» на месте');
-  const book = secs.find((s) => s.textContent === 'Книга заклинаний');
-  const bookRows = findAll(book, '.cp-itemrow');
-  assert.deepEqual(bookRows.map((r) => r.querySelector('.cp-itemname').textContent),
-    [...c.spells], 'строки книги — старт-заклинания героя (c.spells), порядок');
+  assert.equal(findAll(pane, '.cp-itemrow').length, 0,
+    '000358: книжных строк .cp-itemrow в pane = 0');
+  assert.equal(c.spells.length, 2,
+    'данные не задеты: у героя по-прежнему 2 стартовых заклинания ' +
+    '(исчез только их вывод на [I])');
   assert.equal(env.errors.length, 0,
     '0 console.error: ' + env.errors.join('; '));
 });
