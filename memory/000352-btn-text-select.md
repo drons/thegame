@@ -55,7 +55,10 @@ mousedown-слушателя на `.tc-dpad` — соблазн «фикса о�
 - `.tc-action` [E]/[I]/«Отряд» (ui.js): нативные `<button>`, содержимое
   ТОЛЬКО `<img>` — выделять физически нечего; pointerdown
   preventDefault+blur. T3 пинует img-only содержимое.
-- `.spellbook-oc-btn` [книга] (main.js): `<button>+<img>` — нечего выделять.
+- Кнопка [книга] — после 000351 это 4-я `.tc-action` в #touch-controls
+  (ui.js): `<button>+<img>` — нечего выделять; прежняя
+  `.spellbook-oc-btn` (main.js) УДАЛЕНА 000351, актуальный контракт —
+  memory/000351-button-b-block.md (ре-пин 000362).
 - `.fs-btn` (main.js): `<button>` С ТЕКСТОМ «⛶ полный экран», только
   click; на десктопе нативные button-метки не выделяются, long-press
   iOS — ВНЕ scope ТЗ (не кнопка движения).

@@ -8,7 +8,9 @@ tasks/pending/000347.02.md, НЕ сделана: там 3 NPC-жреца + base_
 
 - `spellCatalog()` — ленивый доступ к каталогу заклинаний: в момент
   ВЫЗОВА читается `rootRef.Game.SpellsData.SPELLS_BY_ID` (в браузере
-  spells-data.js грузится ПОСЛЕ items.js — index.html 1327/1349), фолбэк
+  spells-data.js грузится ПОСЛЕ items.js — символьный якорь (000362):
+  в index.html тег `<script src="src/spells-data.js">` идёт НИЖЕ тега
+  `<script src="src/items.js">`; числа не канон), фолбэк
   `require('./spells-data.js')` при `typeof require === 'function'`
   (в node UMD-фабрика вызывается 5 аргументами ⇒ rootRef === undefined —
   require-фолбэк ОБЯЗАТЕЛЕН; в vm-песочницах require нет → null → ×1).
@@ -64,7 +66,8 @@ tasks/pending/000347.02.md, НЕ сделана: там 3 NPC-жреца + base_
   RARITY_STEP_000346); assert «торгуемые без rarity» ОСТАВЛЕН (факт не
   меняется), комментарий уточнён (×1-регресс по РЕДКОСТИ).
 - tests/item-prices-000322.test.js: R2 формула-свип += тот же локальный
-  член; R1/R3/R6 НЕ двигались (base_price 0-diff, счётчики 73/44/44).
+  член; R1/R3/R6 НЕ двигались (base_price 0-diff, счётчики 73/44/44;
+  после 000320.20 — 76/44; см. memory/000346).
 - Spec line-neutral: items.md буллет «Базовая цена предмета» (5→5 строк)
   + «Цена такой продажи» (3→3), npc-storage.md буллет `торговля`
   (10→10, игла W8 «формулы — src/npc.js (NPC), src/items.js (магазины
