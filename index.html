@@ -243,12 +243,24 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
+      overflow: hidden;
+      user-select: none;
     }
     .tc-action:active { background: rgba(0, 0, 0, 0.75); }
     .tc-action img {
       width: 60%;
       height: 60%;
       display: block;
+    }
+    .tc-key-hint {
+      position: absolute;
+      right: 6%;
+      bottom: 4%;
+      font-size: 11px;
+      line-height: 1;
+      color: rgba(232, 220, 192, 0.75);
+      pointer-events: none;
+      user-select: none;
     }
     .combat-overlay {
       position: fixed;

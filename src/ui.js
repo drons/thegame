@@ -2325,6 +2325,10 @@
       heldDir = null;
     }
 
+    function keyHint(btn, letter) {
+      btn.appendChild(el('span', 'tc-key-hint', '[' + letter + ']'));
+    }
+
     function build(withDpad) {
       root = el('div');
       root.id = 'touch-controls';
@@ -2390,6 +2394,7 @@
         if (onInteract) onInteract();
         actionEl.blur();
       });
+      keyHint(actionEl, 'E');
 
       inventoryEl = el('button', 'tc-action');
       const invIcon = el('img');
@@ -2404,6 +2409,7 @@
         if (onInventory) onInventory();
         inventoryEl.blur();
       });
+      keyHint(inventoryEl, 'I');
 
       // Кнопка «Отряд» (задача 000295) — тот же паттерн [E]/[I]:
       // иконка, без текстовой буквы; поведение — callback onSquad.
@@ -2418,6 +2424,7 @@
         if (onSquad) onSquad();
         squadEl.blur();
       });
+      keyHint(squadEl, 'C');
 
       spellbookEl = el('button', 'tc-action');
       const sbIcon = el('img');
@@ -2430,6 +2437,7 @@
         if (onSpellbook) onSpellbook();
         spellbookEl.blur();
       });
+      keyHint(spellbookEl, 'B');
 
       root.appendChild(actionEl);
       root.appendChild(inventoryEl);

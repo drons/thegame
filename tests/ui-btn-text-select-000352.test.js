@@ -9,8 +9,12 @@
 // на контейнере D-pad (свойство наследуется ⇒ покрывает все 4 стрелки
 // и любой будущий текст контрола). Охват: экранные КНОПКИ ДВИЖЕНИЯ —
 // ровно D-pad (в схеме 'keyboard' экранных кнопок движения нет, 000123);
-// .tc-action ([E]/[I]/«Отряд») — содержимое только <img>, выделять
-// нечего; сверка скоупа — T3 и memory/000352-btn-text-select.md.
+// .tc-action ([E]/[I]/«Отряд»/[B]) — содержимое было только <img>;
+// 000356 вернул туда ТЕКСТ (подсказки клавиш '[E]'/'[I]'/'[C]'/'[B]'
+// в span.tc-key-hint) и СВОЕЙ правкой подавил выделение
+// (user-select:none на .tc-action + на правиле подсказки) — T3
+// ре-пиннут на этот контракт. Сверка скоупа — T3 и
+// memory/000352-btn-text-select.md.
 //
 // Слой проверок (computed-стили DOM-стабами недоступны — пин
 // CSS-источника по образцу tests/ui-panel.test.js #touch-controls/
@@ -26,11 +30,13 @@
 //     pointerdown+preventDefault+blur — 000351 ре-пин: 4 кнопки, книга
 //     [B] в общем блоке). Механизм — CSS-каскад: на D-pad
 //     НЕ висит mousedown-слушателя (обработчик-дубль отвергнут).
-//   T3 (скоуп-регистр, зелёный): прецедент .combat-placebar-btn цел;
-//     house-style index.html — без -webkit-префиксов; у .tc-action
-//     внутри только <img> (выделяемого текста нет ⇒ вне скоупа фикса;
-//     000356, легитимно вернувшему туда текст, подавлять выделение
-//     обязанному OWN-правки — ре-пин этого теста не требуется).
+//   T3 (скоуп-регистр): прецедент .combat-placebar-btn цел; house-style
+//     index.html — без -webkit-префиксов; у .tc-action внутри — ровно
+//     <img> + span.tc-key-hint с текстом подсказки клавиши (000356
+//     ре-пин: вернула легитимный ТЕКСТ и обязала подавить его выделение
+//     — user-select:none на .tc-action пинуется здесь же). Прежняя
+//     версия T3 (img-only) предполагала «000356 не нужен ре-пин» —
+//     код T3 краснел бы на span: источник правды — код, ре-пин честный.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -223,19 +229,39 @@ test('T2: pointer-конвейер и разметка D-pad целы — фик
     'колбэки кнопок вызваны по одному разу');
 });
 
-test('T3: скоуп-регистр — прецедент цел, house-style без префиксов, у кнопок выделять нечего', () => {
+test('T3: скоуп-регистр — прецедент цел, house-style без префиксов, кнопки невыделяемы и с текстом только подсказки (000356 ре-пин)', () => {
   const placebar = ruleDecls('.combat-placebar-btn');
   assert.ok(placebar && placebar['user-select'] === 'none',
     'прецедент мира: .combat-placebar-btn сохраняет user-select:none');
   assert.ok(!html.includes('-webkit-'),
     'house-style index.html — без -webkit-префиксов (фикс — без префикса)');
+  // 000356 ре-пин: наследуемая невыделяемость расширена с D-pad на
+  // кнопки (подсказка клавиши — легитимный текст, выделяться не должен).
+  const tca = ruleDecls('.tc-action');
+  assert.ok(tca && tca['user-select'] === 'none',
+    "user-select у .tc-action = 'none' (000356: span подсказок [E]/[I]/"
+    + '[C]/[B] наследуют невыделяемость кнопки): ' +
+    JSON.stringify(tca && tca['user-select']));
+  const keyByIcon = {
+    'assets/ui/icon_action.svg': '[E]',
+    'assets/ui/icon_inventory.svg': '[I]',
+    'assets/ui/icon_squad.svg': '[C]',
+    'assets/ui/combat_spellbook.svg': '[B]',
+  };
   const env = bootControls();
   for (const btn of env.actions) {
-    assert.ok(btn.children.length >= 1, '.tc-action не пуста');
-    for (const ch of btn.children) {
-      assert.equal(ch.tagName, 'img',
-        'содержимое .tc-action — только <img> (текстовых узлов нет ⇒ ' +
-        'выделение физически невозможно, кнопка вне скоупа 000352)');
-    }
+    const imgs = btn.children.filter((ch) => ch.tagName === 'img');
+    const hints = btn.children.filter(
+      (ch) => ch.className === 'tc-key-hint');
+    assert.equal(imgs.length, 1, '.tc-action — ровно один <img> (иконка)');
+    assert.equal(hints.length, 1,
+      '.tc-action — ровно один span.tc-key-hint (подсказка 000356): '
+      + btn.children.map((ch) => ch.tagName).join('/'));
+    assert.deepEqual(
+      btn.children.map((ch) => ch.tagName), ['img', 'span'],
+      'содержимое кнопки — ровно [img, span-подсказка]: единственный '
+      + 'текст на кнопке — подсказка, её выделение подавлено пином выше');
+    assert.equal(hints[0].textContent, keyByIcon[imgs[0].src],
+      'текст подсказки соответствует иконке кнопки: ' + imgs[0].src);
   }
 });
