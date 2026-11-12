@@ -20,8 +20,10 @@
 //     текущем контенте численно бит-в-бит (регресс-свип T4);
 //   * golden-стоки (makeShop/makeCampShop — rng без цен) не двигаются
 //     (T7 — зелёный страж протечки цены в stock-rng).
-// Свитки (×8 по уровню) — задача 000347: spell_scroll без rarity →
-// наш множитель ×1, ортогонально.
+// Свитки (×8 по уровню) — РЕ-ПИН 000347.01: в свипы T1/T4 добавил
+// ся ЛОКАЛЬНЫЙ scroll-член ×8^(уровень−1) (таблица уровней читается
+// с диска, независимо от резолверов); spell_scroll без rarity — наш
+// множитель по-прежнему ×1 (цепи ортогональны по полям).
 //
 // КРАСНЫЕ (осмысленные ERR_ASSERTION без краха загрузки): T1 (шаг-
 // таблица + свип каталога), T2 (репрезентативы 5 редкостей × богатство
@@ -50,6 +52,7 @@ const B = M.BUILDING_TYPES;
 
 const ITEM_DIR = path.join(ROOT, 'assets', 'items');
 const NPC_DIR = path.join(ROOT, 'assets', 'npc');
+const SPELL_DIR = path.join(ROOT, 'assets', 'spells');
 const diskItems = fs.readdirSync(ITEM_DIR)
   .filter((f) => /^\d{6}\.json$/.test(f))
   .map((f) => JSON.parse(fs.readFileSync(path.join(ITEM_DIR, f), 'utf8')));
@@ -62,6 +65,25 @@ const multOf = (rarity) => {
   const s = Object.prototype.hasOwnProperty.call(STEP, rarity)
     ? STEP[rarity] : 0;
   return Math.pow(8, s);
+};
+// Локальная таблица уровней заклинаний (000347.01) — с диска, НЕ через
+// spellScrollPriceMult и НЕ через зеркало (анти-самоуспокоение).
+const SPELL_LVL_000347 = {};
+for (const f of fs.readdirSync(SPELL_DIR)) {
+  if (!f.endsWith('.json') || f === 'schema.json') continue;
+  const s = JSON.parse(fs.readFileSync(path.join(SPELL_DIR, f), 'utf8'));
+  SPELL_LVL_000347[s.id] = s.уровень;
+}
+const scrollMultOf = (it) => {
+  if (it.kind !== 'spell_scroll') return 1;
+  const spell = it.effect && it.effect.spell;
+  if (typeof spell !== 'string'
+      || !Object.prototype.hasOwnProperty.call(SPELL_LVL_000347, spell)) {
+    return 1;
+  }
+  const lvl = SPELL_LVL_000347[spell];
+  if (!Number.isFinite(lvl) || lvl < 1) return 1;
+  return Math.pow(8, Math.floor(lvl) - 1);
 };
 
 const charWithMerchant = (lvl) => {
@@ -113,7 +135,7 @@ const RING = (id, rarity, value, extra) => Object.assign(
 // T1. Шаг-таблица резолвера + ПОЛНЫЙ свип каталога (RED)
 // ============================================================
 
-test('T1. RARITY_PRICE_STEPS/rarityPriceMult: 1/8/64/512/4096, без редкости и неизвестная — ×1; свип каталога: buyPrice(w0,Торговец 0) === round(value×8^шаг) точно', () => {
+test('T1. RARITY_PRICE_STEPS/rarityPriceMult: 1/8/64/512/4096, без редкости и неизвестная — ×1; свип каталога: buyPrice(w0,Торговец 0) === round(value×8^шаг) точно; РЕ-ПИН 000347.01: свип ×8^(ур−1) для spell_scroll через ЛОКАЛЬНУЮ таблицу уровней', () => {
   assert.equal(typeof I.rarityPriceMult, 'function',
     'RED: rarityPriceMult не экспортирован (резолвер цены 000346)');
   assert.equal(typeof I.RARITY_PRICE_STEPS, 'object',
@@ -135,14 +157,17 @@ test('T1. RARITY_PRICE_STEPS/rarityPriceMult: 1/8/64/512/4096, без редко
   const s0 = shopLit(0);
   let withRarity = 0;
   for (const it of diskItems) {
-    const exp = Math.max(1, Math.round(it.value * multOf(it.rarity)));
+    const exp = Math.max(1, Math.round(
+      it.value * multOf(it.rarity) * scrollMultOf(it)));
     assert.equal(I.buyPrice(s0, it.id, c0), exp,
       it.id + ': buy w0 = round(' + it.value + '×' +
       multOf(it.rarity) + (it.rarity ? ' (' + it.rarity + ')' : '') +
-      '); факт: ' + I.buyPrice(s0, it.id, c0));
+      '×свиток ' + scrollMultOf(it) + '); факт: ' +
+      I.buyPrice(s0, it.id, c0));
     assert.equal(I.sellPrice(s0, it.id, c0), exp,
       it.id + ': sell w0 = round(' + it.value + '×' +
-      multOf(it.rarity) + '); факт: ' + I.sellPrice(s0, it.id, c0));
+      multOf(it.rarity) + '×свиток ' + scrollMultOf(it) +
+      '); факт: ' + I.sellPrice(s0, it.id, c0));
     if (it.rarity) withRarity++;
   }
   assert.ok(withRarity >= 500,
@@ -225,12 +250,14 @@ test('T3. vm: пять проб value=10 всех редкостей — buy/sel
 });
 
 // ============================================================
-// T4. NPC-цепь: real-свип 73 входов бит-в-бит старая формула (все
-// торгуемые без rarity — ×1-регресс, зелёный) + vm-проба редкого
-// торгуемого: base_price×8^шаг внутри npcBuyPrice/npcSellPrice (RED)
+// T4. NPC-цепь: real-свип 73 входов — РЕ-ПИН 000347.01: свитки
+// Пергамента получают ЛОКАЛЬНЫЙ scroll-член ×8^(ур−1) (fireball/
+// light_heal ур2 → ×8, frost_bolt ур1 → ×1), прочие торгуемые без
+// rarity — ×1-регресс бит-в-бит + vm-проба редкого торгуемого:
+// base_price×8^шаг внутри npcBuyPrice/npcSellPrice (RED)
 // ============================================================
 
-test('T4. NPC: свип всех входов торговли — npcBuyPrice/npcSellPrice бит-в-бит max(1,round((base_price??value)×mult×derived)) (44 предмета без rarity → ×1); vm-проба: rarity rare → база×8, epic без base_price → value×64', () => {
+test('T4. NPC: свип всех входов торговли — npcBuyPrice/npcSellPrice бит-в-бит max(1,round((base_price??value)×8^(ур−1)×mult×derived)) (44 предмета без rarity → ×1 по редкости; свитки Пергамента — scroll-член 000347.01); vm-проба: rarity rare → база×8, epic без base_price → value×64', () => {
   const npcFiles = fs.readdirSync(NPC_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f));
   let entries = 0;
@@ -246,8 +273,8 @@ test('T4. NPC: свип всех входов торговли — npcBuyPrice/n
       for (const e of npc.торговля.предметы) {
         const it = itemById(e.предмет);
         assert.ok(it, npc.id + ': предмет в каталоге: ' + e.предмет);
-        const base = typeof it.base_price === 'number'
-          ? it.base_price : it.value;
+        const base = (typeof it.base_price === 'number'
+          ? it.base_price : it.value) * scrollMultOf(it);
         assert.equal(N.npcBuyPrice(shop, e.предмет, c),
           Math.max(1, Math.round(
             base * (e.mult_покупки || 1) * d.buyPriceMult)),
@@ -262,8 +289,9 @@ test('T4. NPC: свип всех входов торговли — npcBuyPrice/n
       entries++;
       traded.add(e.предмет);
       assert.equal(itemById(e.предмет).rarity, undefined,
-        'реальная торговля ×1-регресс: ' + e.предмет +
-        ' не должен иметь rarity');
+        'реальная торговля ×1-регресс по РЕДКОСТИ: ' + e.предмет +
+        ' не должен иметь rarity (свитки Пергамента дорожены членом ' +
+        'уровня 000347.01, не редкостью)');
     }
   }
   assert.ok(entries >= 70 && traded.size >= 40,

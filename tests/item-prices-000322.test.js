@@ -64,6 +64,12 @@
 // mult_*, base undefined), R5 (старый формат валиден, base_price нет),
 // R6 (зеркала без base_price / со старыми полями), R8 (фолбэк не читается).
 // ЗЕЛЁНЫЕ с первого запуска (регрессия): R4, R7.
+// РЕ-ПИН 000347.01 (цена свитка ×8^(уровень−1), резолвер в src/items.js):
+// R2 формула-свип += ЛОКАЛЬНЫЙ scroll-член ×8^(ур−1) (таблица уровней —
+// assets/spells/*.json с диска, независимо от резолвера; у Пергамента
+// краснеют fireball/light_heal: 60→480/70→560 buy, frost_bolt ур1 ×1).
+// R1/R3/R6 НЕ двигались: base_price 0-diff (000347.02 вопрос), счётчики
+// 73/44/44 целы; R3 скипает scroll_merchant (вне миграции).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -92,6 +98,27 @@ for (const f of itemFiles) {
   ITEM_JSON[f] = JSON.parse(fs.readFileSync(path.join(ITEM_DIR, f), 'utf8'));
 }
 const itemRefToId = (ref) => ITEM_JSON[ref.split('/').pop()].id;
+
+// Локальная таблица уровней заклинаний (РЕ-ПИН 000347.01) — с диска,
+// НЕ через spellScrollPriceMult и НЕ через зеркало (анти-самоуспокоение).
+const SPELL_DIR = path.join(ROOT, 'assets', 'spells');
+const SPELL_LVL_000347 = {};
+for (const f of fs.readdirSync(SPELL_DIR)) {
+  if (!f.endsWith('.json') || f === 'schema.json') continue;
+  const s = JSON.parse(fs.readFileSync(path.join(SPELL_DIR, f), 'utf8'));
+  SPELL_LVL_000347[s.id] = s.уровень;
+}
+const scrollMultOf = (it) => {
+  if (it.kind !== 'spell_scroll') return 1;
+  const spell = it.effect && it.effect.spell;
+  if (typeof spell !== 'string'
+      || !Object.prototype.hasOwnProperty.call(SPELL_LVL_000347, spell)) {
+    return 1;
+  }
+  const lvl = SPELL_LVL_000347[spell];
+  if (!Number.isFinite(lvl) || lvl < 1) return 1;
+  return Math.pow(8, Math.floor(lvl) - 1);
+};
 
 const OLD_PRICES = {
   weapons_merchant: {
@@ -187,7 +214,7 @@ test('R1: SWEEP миграции — base_price в JSON у КАЖДОГО пре
     + traded.size);
 });
 
-test('R2: точная формула — npcBuyPrice/npcSellPrice = max(1, round(base × mult × derived)); base — из JSON предмета', () => {
+test('R2: точная формула — npcBuyPrice/npcSellPrice = max(1, round(base × mult × derived)); base — из JSON предмета; РЕ-ПИН 000347.01: spell_scroll += локальный scroll-член ×8^(ур−1)', () => {
   for (const f of npcFiles) {
     const npc = ND.NPCS.find((n) => n.id === NPC_JSON[f].id);
     assert.ok(npc, f + ': NPC в зеркале: ' + NPC_JSON[f].id);
@@ -203,18 +230,21 @@ test('R2: точная формула — npcBuyPrice/npcSellPrice = max(1, roun
         assert.ok(Number.isInteger(base) && base >= 1,
           f + ': ' + e.предмет + ': base_price в JSON; '
           + 'факт: ' + JSON.stringify(base));
+        const baseScroll = base * scrollMultOf(it);
         const expBuy = Math.max(
-          1, Math.round(base * (e.mult_покупки || 1) * d.buyPriceMult));
+          1, Math.round(baseScroll * (e.mult_покупки || 1) * d.buyPriceMult));
         const expSell = Math.max(
-          1, Math.round(base * e.mult_продажи * d.sellPriceMult));
+          1, Math.round(baseScroll * e.mult_продажи * d.sellPriceMult));
         assert.equal(N.npcBuyPrice(shop, e.предмет, c), expBuy,
           f + ': ' + e.предмет + ' buy lvl' + lvl
-          + ' = max(1, round(' + base + ' × ' + (e.mult_покупки || 1)
+          + ' = max(1, round(' + base + ' × ' + scrollMultOf(it)
+          + ' × ' + (e.mult_покупки || 1)
           + ' × ' + d.buyPriceMult + ')); факт: '
           + N.npcBuyPrice(shop, e.предмет, c));
         assert.equal(N.npcSellPrice(shop, e.предмет, c), expSell,
           f + ': ' + e.предмет + ' sell lvl' + lvl
-          + ' = max(1, round(' + base + ' × ' + e.mult_продажи
+          + ' = max(1, round(' + base + ' × ' + scrollMultOf(it)
+          + ' × ' + e.mult_продажи
           + ' × ' + d.sellPriceMult + ')); факт: '
           + N.npcSellPrice(shop, e.предмет, c));
       }

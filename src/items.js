@@ -98,6 +98,36 @@
       ? RARITY_PRICE_STEPS[rarity] : 0;
     return Math.pow(8, step);
   }
+  let spellCatalogRef = null;
+  function spellCatalog() {
+    if (spellCatalogRef) return spellCatalogRef;
+    let src = null;
+    if (rootRef && rootRef.Game && rootRef.Game.SpellsData
+        && rootRef.Game.SpellsData.SPELLS_BY_ID
+        && Object.keys(rootRef.Game.SpellsData.SPELLS_BY_ID).length) {
+      src = rootRef.Game.SpellsData.SPELLS_BY_ID;
+    }
+    if (!src && typeof require === 'function') {
+      try {
+        const byId = require('./spells-data.js').SPELLS_BY_ID;
+        if (byId && Object.keys(byId).length) src = byId;
+      } catch (e) { src = null; }
+    }
+    if (!src) return null;
+    spellCatalogRef = src;
+    return src;
+  }
+  function spellScrollPriceMult(it) {
+    if (!it || it.kind !== ITEM_KINDS.SPELL_SCROLL) return 1;
+    const cat = spellCatalog();
+    if (!cat) return 1;
+    const spell = it.effect && it.effect.spell;
+    if (typeof spell !== 'string'
+        || !Object.prototype.hasOwnProperty.call(cat, spell)) return 1;
+    const lvl = cat[spell]['уровень'];
+    if (!Number.isFinite(lvl) || lvl < 1) return 1;
+    return Math.pow(8, Math.floor(lvl) - 1);
+  }
   const AFFIX_TYPES = { SKILL: 'skill', FREE_CAST: 'free_cast' };
   const EQUIP_KINDS = new Set([
     ITEM_KINDS.WEAPON, ITEM_KINDS.ARMOR, ITEM_KINDS.SHIELD,
@@ -1784,7 +1814,7 @@
     const it = getItem(itemId);
     if (!it) return null;
     const d = P.derived(c);
-    return Math.max(1, Math.round(it.value * rarityPriceMult(it.rarity) * (1 - BUY_WEALTH_MULT * shop.wealth) * d.buyPriceMult));
+    return Math.max(1, Math.round(it.value * rarityPriceMult(it.rarity) * spellScrollPriceMult(it) * (1 - BUY_WEALTH_MULT * shop.wealth) * d.buyPriceMult));
   }
 
   /** Цена продажи (за 1 шт.) в магазине. */
@@ -1794,7 +1824,8 @@
     const d = P.derived(c);
     const base = (Number.isFinite(it.value) ? it.value
       : (SELL_BASE_VALUE[it.kind] === undefined ? 1
-        : SELL_BASE_VALUE[it.kind])) * rarityPriceMult(it.rarity);
+        : SELL_BASE_VALUE[it.kind]))
+      * rarityPriceMult(it.rarity) * spellScrollPriceMult(it);
     return Math.max(1, Math.round(base * (1 + SELL_WEALTH_MULT * shop.wealth) * d.sellPriceMult));
   }
 
@@ -2178,7 +2209,7 @@
     ITEM_KINDS, WEAPON_SUBTYPES, EFFECT_KINDS,
     // 000230.01: поля экипировки — единый источник для .02/.03/.05.
     EQUIP_SLOTS, ITEM_RARITIES, AFFIX_TYPES, EQUIP_KINDS,
-    RARITY_PRICE_STEPS, rarityPriceMult,
+    RARITY_PRICE_STEPS, rarityPriceMult, spellScrollPriceMult,
     // 000230.02: физ. слоты c.equipment (18) + кольца (8).
     RING_SLOTS, EQUIP_PHYS_SLOTS,
     // 000230.04: наборы — пороги set-бонусов.

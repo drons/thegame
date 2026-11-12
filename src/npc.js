@@ -331,7 +331,7 @@
     const it = I.getItem(itemId);
     const base = (it && typeof it.base_price === 'number'
       ? it.base_price : it ? it.value : 0)
-      * I.rarityPriceMult(it && it.rarity);
+      * I.rarityPriceMult(it && it.rarity) * I.spellScrollPriceMult(it);
     return Math.max(1, Math.round(
       base * (p.mult_покупки || 1) * P.derived(character).buyPriceMult));
   }
@@ -343,7 +343,7 @@
     const it = I.getItem(itemId);
     const base = (it && typeof it.base_price === 'number'
       ? it.base_price : it ? it.value : 0)
-      * I.rarityPriceMult(it && it.rarity);
+      * I.rarityPriceMult(it && it.rarity) * I.spellScrollPriceMult(it);
     return Math.max(1, Math.round(
       base * p.mult_продажи * P.derived(character).sellPriceMult));
   }
