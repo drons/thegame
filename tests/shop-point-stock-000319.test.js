@@ -461,61 +461,108 @@ function dialogBuyOnce(ov, itemId) {
 
 // --- Тесты ---
 
-test('T1. диалог: выкуп зелья у Милы в точке A — в точке B покупка возможна; ключи точки раздельны', async () => {
+test('T1. диалог на магазинном тайле — сток ТОЧКИ (РЕ-ПИН 000345): выкуп у Милы в A списывает worldShops A; точка B цела, покупка возможна', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
   assert.equal(h.errors.length, 0,
     'ошибок загрузки нет: ' + h.errors.join('; '));
-  const [tA, tB] = findTwoShopTiles(G);
+  // РЕ-ПИН 000345: диалог на ТАЙЛЕ-МАГАЗИНЕ мира читает ЖИВОЙ сток
+  // точки (worldShopFor, прецедент города 000107) — прежний канал
+  // npcStocks для магазинных тайлов НЕ используется. Смысловой
+  // инвариант 000319 («в двух точках — раздельные остатки») сохраняется
+  // через раздельные записи worldShops.
   const npc = G.npcById(G.NpcData.NPCS, 'apothecary');
   assert.ok(npc && npc.торговля, 'каталог: Мила-аптекарь торгует');
   const rec = G.getBuilding(3);
-  const entry = npc.торговля.предметы
-    .map((p) => {
-      const it = G.getItem(p.предмет);
-      const base = it && typeof it.base_price === 'number'
-        ? it.base_price : it ? it.value : Infinity;
-      return { id: p.предмет, qty: p.количество || 1, price: base * (p.mult_покупки || 1) };
-    })
-    .sort((a, b) => (a.price - b.price) || (a.id < b.id ? -1 : 1))[0];
-  const itemId = entry.id;
-  const keyA = 'apothecary@W:' + tA.x + ',' + tA.y;
-  const keyB = 'apothecary@W:' + tB.x + ',' + tB.y;
-  // Точка A — выкупаем предмет ДО НУЛЯ.
+  const map = G.createMap(G.generateSeedPixels());
+  const tiles = [];
+  for (let y = -200; y <= 200; y++) {
+    for (let x = -200; x <= 200; x++) {
+      const t = map.tileAt(x, y);
+      if (t.hasBuilding && t.building === 2) tiles.push(t);
+    }
+  }
+  assert.ok(tiles.length >= 2, 'в мире есть ≥2 аптекарских тайла');
+  const pay = G.createCharacter();
+  const gold = g.state.hero.gold;
+  // Выкуп ДО НУЛЯ должен быть ПО КАРМАНУ: кандидаты — общий товар
+  // (≥2 на полке A, ≥1 на полке B), суммарная цена npcBuyPrice за всю
+  // полку A ≤ gold; берём самого дешёвого кандидата (перебор по всем
+  // парам точек — детерминирован по координатному порядку скана).
+  const shops = tiles.map((t) => G.makeShop(t.x, t.y, t.building,
+    t.buildingWealth));
+  let pair = null;
+  let itemId = null;
+  let npcPrice = null;
+  let bestTotal = Infinity;
+  for (let i = 0; i < tiles.length; i++) {
+    const inA = npc.торговля.предметы
+      .map((p) => p.предмет)
+      .filter((id) => (shops[i].stock[id] || 0) >= 2 && G.getItem(id));
+    if (!inA.length) continue;
+    for (let j = i + 1; j < tiles.length; j++) {
+      for (const id of inA) {
+        if ((shops[j].stock[id] || 0) < 1) continue;
+        const price = G.npcBuyPrice({ npc, stock: shops[i].stock }, id, pay);
+        const priceB = G.npcBuyPrice({ npc, stock: shops[j].stock }, id, pay);
+        const total = price * shops[i].stock[id];
+        // Кармана хватит и на выкуп A ДО НУЛЯ, и на ОДНУ покупку в B.
+        if (price != null && priceB != null
+            && total + priceB <= gold && total + priceB < bestTotal) {
+          bestTotal = total + priceB;
+          pair = [tiles[i], tiles[j]];
+          itemId = id;
+          npcPrice = price;
+        }
+      }
+    }
+  }
+  assert.ok(pair, 'скан: найдены две точки с общим посильным выкупу товаром'
+    + ' Милы на полке (gold ' + gold + ')');
+  const [tA, tB] = pair;
+  const keyA = tA.x + ',' + tA.y;
+  const keyB = tB.x + ',' + tB.y;
+  const gA = shops[tiles.indexOf(tA)];
+  const gB = shops[tiles.indexOf(tB)];
+  const initA = gA.stock[itemId];
+  const initB = gB.stock[itemId];
+  // Точка A — выкупаем предмет ДО НУЛЯ через диалог.
   G.buildingActions.onBuildingAction(DIALOG, tA, rec, npc);
   const ov = findNpcOverlay(h);
   assert.ok(ov, 'диалог на тайле A открыт');
   dialogClickOpt(ov, 'trade');
-  for (let i = 0; i < entry.qty + 1; i++) {
+  assert.ok(npcPrice != null && npcPrice * initA <= gold,
+    'выкуп по карману (цена ' + npcPrice + ' × ' + initA
+    + ' ≤ gold ' + gold + ')');
+  for (let i = 0; i < initA + 1; i++) {
     if (!dialogBuyOnce(ov, itemId)) break;
   }
   G.npcUI.close();
-  const stocks = g.npcStocks;
-  assert.ok(stocks[keyA],
-    'npcStocks: запись ТОЧКИ A (ключ «apothecary@W:x,y»); '
-    + 'фактические ключи: ' + Object.keys(stocks).join(' | '));
-  assert.equal(stocks[keyA][itemId], 0,
-    'сток A выкуплен до нуля (ожидание по каталогу: ' + entry.qty + ')');
-  // Точка B — ТОТ ЖЕ NPC, ДРУГАЯ точка: покупка возможна.
+  assert.ok(g.worldShops[keyA],
+    'диалог списывает сток ТОЧКИ A (раздел worldShops); ключи: '
+    + Object.keys(g.worldShops).join(' | '));
+  assert.equal(g.worldShops[keyA].stock[itemId], 0,
+    'сток точки A выкуплен до нуля (init ' + initA + ')');
+  assert.ok(!('apothecary@W:' + keyA in g.npcStocks),
+    'для магазинного тайла запись npcStocks НЕ создаётся; ключи: '
+    + Object.keys(g.npcStocks).join(' | '));
+  // Точка B — ТОТ ЖЕ NPC, ДРУГАЯ точка: покупка возможна, списание
+  // только из записи B (раздельность остатков по точкам — 000319).
   G.buildingActions.onBuildingAction(DIALOG, tB, rec, npc);
   const ov2 = findNpcOverlay(h);
   assert.ok(ov2, 'диалог на тайле B открыт');
   dialogClickOpt(ov2, 'trade');
   const bought = dialogBuyOnce(ov2, itemId);
   assert.ok(bought,
-    'витрина B: строка предмета «' + itemId + '» есть (красный корня: '
-    + 'общий сток по npcId → «нет в наличии»); лог оверлея: '
-    + textOf(ov2).slice(-200));
-  const stocks2 = g.npcStocks;
-  assert.ok(stocks2[keyB],
-    'npcStocks: запись ТОЧКИ B создана отдельно; ключи: '
-    + Object.keys(g.npcStocks).join(' | '));
-  assert.equal(stocks2[keyB][itemId], entry.qty - 1,
-    'B: списание ТОЛЬКО из стока B (init ' + entry.qty + ')');
-  assert.notEqual(stocks2[keyA], stocks2[keyB],
-    'объекты стоков A и B — РАЗНЫЕ (общий сток = корень дефекта)');
-  assert.equal(stocks2[keyA][itemId], 0, 'A осталась нулевой');
+    'витрина B: строка предмета «' + itemId + '» есть (init B '
+    + initB + '); лог оверлея: ' + textOf(ov2).slice(-200));
+  assert.equal(g.worldShops[keyB].stock[itemId], initB - 1,
+    'B: списание ТОЛЬКО из записи точки B (init ' + initB + ')');
+  assert.equal(g.worldShops[keyA].stock[itemId], 0,
+    'A осталась нулевой (точки не смешиваются)');
+  assert.notEqual(g.worldShops[keyA].stock, g.worldShops[keyB].stock,
+    'объекты стоков A и B — РАЗНЫЕ записи');
   G.npcUI.close();
 });
 
@@ -644,22 +691,45 @@ test('T4. save/restore: раздельные остатки картовых т�
     assert.equal(bAfter[id], bBefore[id] - (id === Y ? 1 : 0),
       'B: строка «' + id + '» — только Y списан (A не смешалась)');
   }
-  // NPC-диалог: одна покупка у Милы на тайле A — point-ключ.
-  const npc = G.npcById(G.NpcData.NPCS, 'apothecary');
-  const rec = G.getBuilding(3);
+  // NPC-диалог КАНАЛА КАТАЛОГА (000319): одна покупка — point-ключ
+  // npcStocks. РЕ-ПИН 000345: магазинный тайл больше НЕ идёт этим
+  // каналом (см. T1), поэтому несущий тест раздельности каналов берёт
+  // НЕ-магазинную постройку — Храм солнца (жрец, каталог «торговля»).
+  const npc = G.npcById(G.NpcData.NPCS, 'sun_priest');
+  assert.ok(npc && npc.торговля, 'каталог: Жрец Солнца торгует');
+  const rec = G.getBuilding(36);
+  const world = G.createMap(G.generateSeedPixels());
+  let tT = null;
+  for (let y = -200; y <= 200 && !tT; y++) {
+    for (let x = -200; x <= 200 && !tT; x++) {
+      const t = world.tileAt(x, y);
+      if (t.hasBuilding && t.building === 8 && !G.shopKindsFor(t.building)) {
+        tT = t;
+      }
+    }
+  }
+  assert.ok(tT, 'в мире есть тайл Храма солнца (не «картовый» магазин)');
+  const goldLeft = g.state.hero.gold;
+  const pay = G.createCharacter();
   const nEntry = npc.торговля.предметы
     .map((p) => {
-      const it = G.getItem(p.предмет);
-      const base = it && typeof it.base_price === 'number'
-        ? it.base_price : it ? it.value : Infinity;
-      return { id: p.предмет, qty: p.количество || 1, price: base * (p.mult_покупки || 1) };
+      const id = p.предмет;
+      const price = G.npcBuyPrice({ npc, stock: {} }, id, pay);
+      return { id, qty: p.количество || 1,
+        price: price == null ? Infinity : price };
     })
+    .filter((e) => e.price <= goldLeft && G.getItem(e.id))
     .sort((a, b) => (a.price - b.price) || (a.id < b.id ? -1 : 1))[0];
-  const npcKey = 'apothecary@W:' + tA.x + ',' + tA.y;
-  G.buildingActions.onBuildingAction(DIALOG, tA, rec, npc);
+  assert.ok(nEntry,
+    'найдена посильная позиция каталога жреца (gold ' + goldLeft + ')');
+  const npcKey = 'sun_priest@W:' + tT.x + ',' + tT.y;
+  G.buildingActions.onBuildingAction(DIALOG, tT, rec, npc);
   const ov = findNpcOverlay(h);
+  assert.ok(ov, 'диалог жреца открыт');
   dialogClickOpt(ov, 'trade');
-  assert.ok(dialogBuyOnce(ov, nEntry.id), 'покупка 1 у Милы (A)');
+  assert.ok(dialogBuyOnce(ov, nEntry.id),
+    'покупка 1 у жреца «' + nEntry.id + '» (цена ' + nEntry.price
+    + ' ≤ ' + goldLeft + ')');
   G.npcUI.close();
   // Сейв.
   fireBeforeUnload(h);

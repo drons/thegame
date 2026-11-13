@@ -3471,6 +3471,12 @@
       }
       return { npc, stock: s.stock };
     }
+    if (!ds && t && t.hasBuilding && npc && npc.торговля
+        && Array.isArray(npc.торговля.предметы)
+        && G.shopKindsFor(t.building)) {
+      const ws = worldShopFor(t.x, t.y, t);
+      if (ws) return { npc, stock: ws.stock };
+    }
     return npc ? npcShopFor(npc.id, t) : null;
   }
 
