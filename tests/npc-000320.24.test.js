@@ -435,3 +435,53 @@ test('T8: [E]-оверлей Лавки странника — ровно 8 ст
     + 'Digit1..8 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки, лимит 9 не достигнут');
 });
+
+// --- T9: forbid-цепь — зуб длины/уникальности/включения (000372) -------------
+
+test('T9: forbid-цепь 000372 (.23→.24) — guard-массив T5 этого файла РОВНО 83 и без дублей, предыдущего звена .23 РОВНО 79 и без дублей, prev ⊆ own, дельта — РОВНО 4 оборота Сарбона (формула наследования)', () => {
+  const extract = (file) => {
+    const src = fs.readFileSync(file, 'utf8');
+    const anchor = "test('" + "T5:";
+    const at = src.indexOf(anchor);
+    assert.ok(at >= 0,
+      path.basename(file) + ': якорь T5 не найден — порча имени '
+      + 'теста-носителя цепи ловится здесь (ERR_ASSERTION, не крах '
+      + 'загрузки)');
+    const m = src.slice(at).match(/for \(const w of \[([\s\S]*?)\]\)/);
+    assert.ok(m,
+      path.basename(file) + ': guard-массив не найден после якоря T5');
+    return [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]);
+  };
+  const EXPECT_ADDS = [
+    'обоз — это стена, которая ходит',
+    'груз считается привезённым, только когда он на площади',
+    'дорогу берегут до разбоя, а не после',
+    'караван держат не узлы, а порядок',
+  ];
+  const own = extract(__filename);
+  const prevFile = path.join(__dirname, 'npc-000320.23.test.js');
+  assert.ok(fs.existsSync(prevFile),
+    'предыдущее звено цепи tests/npc-000320.23.test.js существует');
+  const prev = extract(prevFile);
+  assert.equal(own.length, 83,
+    'guard-массив T5 этого файла — РОВНО 83 (пин по диску; вырез или '
+    + 'лишний элемент ловятся здесь); факт: ' + own.length);
+  assert.equal(new Set(own).size, own.length,
+    'guard-массив этого файла — элементы уникальны (дубль ловится здесь)');
+  assert.equal(prev.length, 79,
+    'guard-массив T5 .23 — РОВНО 79 (то же число пинует T9 файла .23 — '
+    + 'двойное покрытие); факт: ' + prev.length);
+  assert.equal(new Set(prev).size, prev.length,
+    'guard-массив .23 — элементы уникальны');
+  const ownSet = new Set(own);
+  const lost = [...new Set(prev)].filter((x) => !ownSet.has(x));
+  assert.deepEqual(lost, [],
+    'строгое включение prev ⊆ own — ни один элемент .23 не потерян; '
+    + 'потеряно: ' + JSON.stringify(lost));
+  const prevSet = new Set(prev);
+  const adds = own.filter((x) => !prevSet.has(x));
+  assert.deepEqual([...adds].sort(), [...EXPECT_ADDS].sort(),
+    'дельта (own минус prev) — РОВНО 4 оборота Сарбона = MINE-константа '
+    + 'файла .23 (формула наследования memory/000320-caravan_leader.md); '
+    + 'факт: ' + JSON.stringify(adds));
+});

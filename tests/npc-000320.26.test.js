@@ -514,3 +514,53 @@ test('T8: [E]-оверлей Гладиаторского двора — ров�
     + 'общий механизм /^Digit([1-9])$/ (src/building-ui.js) по '
     + 'индексу строки');
 });
+
+// --- T9: forbid-цепь — зуб длины/уникальности/включения (000372) -------------
+
+test('T9: forbid-цепь 000372 (.25→.26) — guard-массив T5 этого файла РОВНО 91 и без дублей, предыдущего звена .25 РОВНО 87 и без дублей, prev ⊆ own, дельта — РОВНО 4 оборота Насечки (формула наследования; хвост цепи — резерв 4 Костяшки НЕ в списке, он для .27)', () => {
+  const extract = (file) => {
+    const src = fs.readFileSync(file, 'utf8');
+    const anchor = "test('" + "T5:";
+    const at = src.indexOf(anchor);
+    assert.ok(at >= 0,
+      path.basename(file) + ': якорь T5 не найден — порча имени '
+      + 'теста-носителя цепи ловится здесь (ERR_ASSERTION, не крах '
+      + 'загрузки)');
+    const m = src.slice(at).match(/for \(const w of \[([\s\S]*?)\]\)/);
+    assert.ok(m,
+      path.basename(file) + ': guard-массив не найден после якоря T5');
+    return [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]);
+  };
+  const EXPECT_ADDS = [
+    'рука помнит дольше головы', 'сильный удар не бывает первым',
+    'пот на лбу дешевле крови на песке', 'урока без пота не бывает',
+  ];
+  const own = extract(__filename);
+  const prevFile = path.join(__dirname, 'npc-000320.25.test.js');
+  assert.ok(fs.existsSync(prevFile),
+    'предыдущее звено цепи tests/npc-000320.25.test.js существует');
+  const prev = extract(prevFile);
+  assert.equal(own.length, 91,
+    'guard-массив T5 этого файла — РОВНО 91 (пин по диску; вырез или '
+    + 'лишний элемент ловятся здесь); факт: ' + own.length);
+  assert.equal(new Set(own).size, own.length,
+    'guard-массив этого файла — элементы уникальны (дубль ловится здесь)');
+  assert.equal(prev.length, 87,
+    'guard-массив T5 .25 — РОВНО 87 (то же число пинует T9 файла .25 — '
+    + 'двойное покрытие); факт: ' + prev.length);
+  assert.equal(new Set(prev).size, prev.length,
+    'guard-массив .25 — элементы уникальны');
+  const ownSet = new Set(own);
+  const lost = [...new Set(prev)].filter((x) => !ownSet.has(x));
+  assert.deepEqual(lost, [],
+    'строгое включение prev ⊆ own — ни один элемент .25 не потерян; '
+    + 'потеряно: ' + JSON.stringify(lost));
+  const prevSet = new Set(prev);
+  const adds = own.filter((x) => !prevSet.has(x));
+  assert.deepEqual([...adds].sort(), [...EXPECT_ADDS].sort(),
+    'дельта (own минус prev) — РОВНО 4 оборота Насечки = MINE-константа '
+    + 'файла .25 (формула наследования memory/000320-sword_instructor.md); '
+    + 'СВОИ 4 оборота Костяшки (резерв .27 по '
+    + 'memory/000320-fist_instructor.md) в списке НЕ сидят; факт: '
+    + JSON.stringify(adds));
+});

@@ -495,3 +495,51 @@ test('T8: [E]-оверлей Лавки странника — ровно 8 ст
     + 'Digit1..8 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки, лимит 9 не достигнут');
 });
+
+// --- T9: forbid-цепь — зуб длины/уникальности/включения (000372) -------------
+
+test('T9: forbid-цепь 000372 (.22→.23) — guard-массив T5 этого файла РОВНО 79 и без дублей, предыдущего звена .22 РОВНО 75 и без дублей, prev ⊆ own, дельта — РОВНО 4 оборота Перекати (формула наследования)', () => {
+  const extract = (file) => {
+    const src = fs.readFileSync(file, 'utf8');
+    const anchor = "test('" + "T5:";
+    const at = src.indexOf(anchor);
+    assert.ok(at >= 0,
+      path.basename(file) + ': якорь T5 не найден — порча имени '
+      + 'теста-носителя цепи ловится здесь (ERR_ASSERTION, не крах '
+      + 'загрузки)');
+    const m = src.slice(at).match(/for \(const w of \[([\s\S]*?)\]\)/);
+    assert.ok(m,
+      path.basename(file) + ': guard-массив не найден после якоря T5');
+    return [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]);
+  };
+  const EXPECT_ADDS = [
+    'мой дом там, где ночевал', 'вьюки легче всякого сундука',
+    'базара без дорог не бывает', 'новости ногами приходят',
+  ];
+  const own = extract(__filename);
+  const prevFile = path.join(__dirname, 'npc-000320.22.test.js');
+  assert.ok(fs.existsSync(prevFile),
+    'предыдущее звено цепи tests/npc-000320.22.test.js существует');
+  const prev = extract(prevFile);
+  assert.equal(own.length, 79,
+    'guard-массив T5 этого файла — РОВНО 79 (пин по диску; вырез или '
+    + 'лишний элемент ловятся здесь); факт: ' + own.length);
+  assert.equal(new Set(own).size, own.length,
+    'guard-массив этого файла — элементы уникальны (дубль ловится здесь)');
+  assert.equal(prev.length, 75,
+    'guard-массив T5 .22 — РОВНО 75 (то же число пинует T9 файла .22 — '
+    + 'двойное покрытие); факт: ' + prev.length);
+  assert.equal(new Set(prev).size, prev.length,
+    'guard-массив .22 — элементы уникальны');
+  const ownSet = new Set(own);
+  const lost = [...new Set(prev)].filter((x) => !ownSet.has(x));
+  assert.deepEqual(lost, [],
+    'строгое включение prev ⊆ own — ни один элемент .22 не потерян; '
+    + 'потеряно: ' + JSON.stringify(lost));
+  const prevSet = new Set(prev);
+  const adds = own.filter((x) => !prevSet.has(x));
+  assert.deepEqual([...adds].sort(), [...EXPECT_ADDS].sort(),
+    'дельта (own минус prev) — РОВНО 4 оборота Перекати = MINE-константа '
+    + 'файла .22 (формула наследования memory/000320-nomad.md); факт: '
+    + JSON.stringify(adds));
+});
