@@ -68,4 +68,10 @@ clay_warden→aegis), skill-аффиксов 589 на 31 навык, уник-с
 sprites/items 831, наборы/бесплатные-касты не тронуты. golden-пересъёмка:
 12 литералов universam/camp/видовых стоков +39/+43/+36/+41/+42/+30/+33/+24/+30/+33
 (additions-only), rng-хвост allItems сдвинут. Подробности и ГРАБЛИ —
-memory/000321-potion-items.md.
+memory/000321-potion-items.md. ЭРРАТА 000373 (П.8): «12 литералов» — ЛОЖНО,
+факт 15 (+1 комментарий-литерал иконок = 16 хитов «Ре-пин 000321.07» на базе
+`6330d2ec`, сейчас 15 — B27 переснят 000318.08): items.test 8 (GOLDEN
+bt2/bt11/universam + GOLDEN_CAMP 4 энтри + vm-таверна) + cities 3
+(SHOP_GOLDEN) + building-effects 3 (A57/B26/B27) + shop-upgrade-assortment-000317 1
+(GOLDEN_MAKESHOP). Дельты перечисленного ряда — из тех же 15, перечисление
+неполное; пересчёт счётчика — дисковым grep на волне.

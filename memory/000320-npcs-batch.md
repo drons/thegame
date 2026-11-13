@@ -66,6 +66,19 @@ swordsman+heavy; контракт 000211.07 «школы»). Остальные 
 диапазона (.25 исполнено, .27–.31 план) остаются на Арене; дом 9
 сверх .26 таблицей не закреплён.
 
+ЭРРАТА 000373 (П.9): колонка «здание (фикс)» во всей таблице несёт
+numeric-форму assets/buildings/NNNNNN.json — мертва как ПУТЬ с 000318.06, эррата 000373
+(slug-rename каталога зданий; живой ростер — memory/000318-buildings.md). Строки Арены (.25, .27–.31) исправлены на
+arena.json этой эрратой; прочие строки (.01–.24 дома 1–5, .32–.34 Кузница,
+.35– Стрельбище) при постановке волны перечитывать по slug — по диску
+базы: 1=weapons_shop.json (Оружейная), 2=armor_shop.json (Бронник),
+3=apothecary.json (Аптекарь), 4=magic_shop.json (Магазин магии),
+5=wanderer_shop.json (Лавка странника), 7=arena.json (Арена),
+8=blacksmith.json (Кузница), 9=gladiator_yard.json (Гладиаторский двор),
+10=archery_range.json (Стрельбище); numeric id в зеркале src/buildings-data.js
+остаётся числом. Правило для новых волн: ТЗ-фикс «assets/buildings/NNNNNN.json»
+— негатив T2, а не путь; сверять с assets/buildings/ по диску.
+
 | подзадача | здание (фикс) | роль (фикс) | профиль (фикс) | NPC-файл |
 |---|---|---|---|---|
 | 000320.01 | assets/buildings/000001.json — Оружейная | торговец оружием | торговля | assets/npc/000019.json (Корд) |
@@ -92,13 +105,13 @@ swordsman+heavy; контракт 000211.07 «школы»). Остальные 
 | 000320.22 | assets/buildings/000005.json — Лавка странника | кочевник | подсказка | assets/npc/000043.json (Перекати) |
 | 000320.23 | assets/buildings/000005.json — Лавка странника | глава каравана | квесты, подсказка | assets/npc/000044.json (Сарбон) |
 | 000320.24 | assets/buildings/000005.json — Лавка странника | старый торговец | подсказка | assets/npc/000045.json (Просол) |
-| 000320.25 | assets/buildings/000007.json — Арена | наставник-боец | обучение (навыки [swordsman, heavy] — РАВЕНСТВО тренирует Арены по контракту 000211.07, см. memory/000320-sword_instructor.md) | assets/npc/000046.json (Насечка) |
+| 000320.25 | assets/buildings/arena.json — Арена (id 7; эррата 000373: numeric assets/buildings/000007.json мёртв как путь с 000318.06) | наставник-боец | обучение (навыки [swordsman, heavy] — РАВЕНСТВО тренирует Арены по контракту 000211.07, см. memory/000320-sword_instructor.md) | assets/npc/000046.json (Насечка) |
 | 000320.26 | assets/buildings/gladiator_yard.json — Гладиаторский двор (F2: ТЗ-«Арена» мертва дважды — numeric-путь мёртв с 000318.06, а fists тренирует РОВНО дом 9; см. memory/000320-fist_instructor.md) | наставник-боец | обучение (навыки [fists] — ТЗ-список сохранён, РАВЕНСТВО тренирует двора по контракту 000211.07) | assets/npc/000047.json (Костяшка) |
-| 000320.27 | assets/buildings/000007.json — Арена | чемпион арены | квесты | — |
-| 000320.28 | assets/buildings/000007.json — Арена | вызовший | квесты, подсказка | — |
-| 000320.29 | assets/buildings/000007.json — Арена | арбитр | подсказка | — |
-| 000320.30 | assets/buildings/000007.json — Арена | мишень | подсказка | — |
-| 000320.31 | assets/buildings/000007.json — Арена | врач | подсказка | — |
+| 000320.27 | assets/buildings/arena.json — Арена (id 7; эррата 000373: numeric assets/buildings/000007.json мёртв как путь с 000318.06) | чемпион арены | квесты | — |
+| 000320.28 | assets/buildings/arena.json — Арена (id 7; эррата 000373: numeric assets/buildings/000007.json мёртв как путь с 000318.06) | вызовший | квесты, подсказка | — |
+| 000320.29 | assets/buildings/arena.json — Арена (id 7; эррата 000373: numeric assets/buildings/000007.json мёртв как путь с 000318.06) | арбитр | подсказка | — |
+| 000320.30 | assets/buildings/arena.json — Арена (id 7; эррата 000373: numeric assets/buildings/000007.json мёртв как путь с 000318.06) | мишень | подсказка | — |
+| 000320.31 | assets/buildings/arena.json — Арена (id 7; эррата 000373: numeric assets/buildings/000007.json мёртв как путь с 000318.06) | врач | подсказка | — |
 | 000320.32 | assets/buildings/000008.json — Кузница | торговец рудой | торговля | — |
 | 000320.33 | assets/buildings/000008.json — Кузница | наставник | обучение | — |
 | 000320.34 | assets/buildings/000008.json — Кузница | кузнец | подсказка | — |
