@@ -655,6 +655,7 @@
     actions.appendChild(placebarEl);
     placeOpen = true;
     placeMoveWarned = false;
+    syncPlacementDpad(true);
 
     // «Быстрый предмет» — список (задача 000194): контейнер строк —
     // МЕЖДУ .combat-actions и .combat-log. Строки (div, не
@@ -1278,6 +1279,14 @@
     return placeOpen && !!ctx && !ctx.combat.result;
   }
 
+  function syncPlacementDpad(on) {
+    const game = liveGame();
+    const tc = game && game.touchControls;
+    if (tc && typeof tc.setDpadSuppressed === 'function') {
+      tc.setDpadSuppressed(on === true);
+    }
+  }
+
   function snapshotPlaceAnchors(c) {
     const snap = { player: [c.px, c.py] };
     for (const u of c.units) {
@@ -1314,6 +1323,7 @@
 
   function closePlacementWindow() {
     if (!placeOpen || !ctx) return false;
+    syncPlacementDpad(false);
     const c0 = ctx.combat;
     if (c0.result) {
       placeOpen = false;
@@ -3634,6 +3644,7 @@
     placeAnchors = null;
     placeTargetPick = null;
     placeMoveWarned = false;
+    syncPlacementDpad(false);
     moveAnims = null;
     atkLayer = null;
     atkKids = {};
@@ -3920,6 +3931,7 @@
         placeAnchors = null;
         placeTargetPick = null;
         placeMoveWarned = false;
+        syncPlacementDpad(false);
         moveAnims = null;
         atkLayer = null;
         atkKids = {};

@@ -2263,6 +2263,7 @@
     // 000150: последнее применённое per-control состояние видимости
     // (идемпотентность applyVisibility: DOM-записи только при смене).
     let parts = { buttons: true, dpad: true };
+    let dpadSuppressed = false;
     let layout = null;
     let heldPointer = null; // pointerId, удерживающий D-pad (один)
     let heldDir = null;
@@ -2531,7 +2532,16 @@
         spellbookEl.style.display = buttons ? '' : 'none';
         // Схема 'keyboard': dpadEl === null — dpad-часть no-op, НЕ крах
         // (кнопки работают в ОБЕИХ схемах — 000123).
-        if (dpadEl) dpadEl.style.display = dpad ? '' : 'none';
+        if (dpadEl) dpadEl.style.display = (dpad && !dpadSuppressed) ? '' : 'none';
+      },
+      setDpadSuppressed(on) {
+        if (!root) return;
+        const v = on === true;
+        if (v === dpadSuppressed) return;
+        dpadSuppressed = v;
+        if (dpadEl) {
+          dpadEl.style.display = (parts.dpad && !dpadSuppressed) ? '' : 'none';
+        }
       },
     };
   })();
