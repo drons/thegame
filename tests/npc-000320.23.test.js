@@ -97,19 +97,19 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 45 файлов 000001..000045 подряд; зеркало NPCS 45 записи с caravan_leader', () => {
+test('T1: каталог — ровно 46 файлов 000001..000046 подряд; зеркало NPCS 46 записи с caravan_leader', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 45,
-    'в каталоге NPC 45 файлов (000320.01..22 + 000347.02: жрецы; '
-    + '000320.23: +Сарбон; 000320.24: +Просол — полная цепочка в tests/npc-000320.01 '
+  assert.equal(files.length, 46,
+    'в каталоге NPC 46 файлов (000320.01..22 + 000347.02: жрецы; '
+    + '000320.23: +Сарбон; 000320.24: +Просол; 000320.25: +Насечка — полная цепочка в tests/npc-000320.01 '
     + '.test.js T1), факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 45,
-    'зеркало src/npc-data.js — 45 записи (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 46,
+    'зеркало src/npc-data.js — 46 записи (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[43];
   assert.ok(last, '44-я запись зеркала существует');
