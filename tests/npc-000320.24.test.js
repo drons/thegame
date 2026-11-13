@@ -1,0 +1,437 @@
+// Задача 000320.24: «Старый торговец» — id old_trader, имя «Просол»
+// (Лавка странника, 8-й ПОСЛЕДНИЙ NPC постройки по диапазону батча
+// .18–.24; 24-я из 100 дочерних 000320).
+//
+// Контракт (ТЗ tasks/pending/000320.24.md; механизм мульти-NPC —
+// 000320.01, spec/npc.md «Несколько NPC на постройку»,
+// memory/000320-npcs-batch.md; профиль-эталон ЧИСТОЙ ПОДСКАЗКИ —
+// .14 «Жгут» / .17 «Грифель» / .21 «Стрелка» / .22 «Перекати»):
+//   * assets/npc/000045.json — id old_trader (свип по 44 занятым —
+//     свободен), имя «Просол» (выбор агента: просолёный ветеран ряда
+//     и метка товара, который солит, а не прячет; роль-слово ТЗ
+//     «старый торговец» именем НЕ стало — правило ландромина .22;
+//     конвенция батча — прозвище), роль «старый торговец» (фикс ТЗ —
+//     точным равенством; свипов уникальности ролей нет; «странствующий
+//     торговец» .18 и «торговец» .20 — ДРУГИЕ роли-строки), постройка
+//     assets/buildings/wanderer_shop.json (Лавка странника — ТЗ-путь
+//     000005.json мёртв с 000318.06: zero-sweep tests/
+//     buildings-rename-000318.06.test.js T5; путь — SLUG), 8-й NPC
+//     дома: Хольд ПЕРВЫЙ, npcForBuilding(5) продолжает возвращать
+//     Хольда; хук истории «Торгует с тех пор, как проложили нынешнюю
+//     дорогу» — последнее предложение описания (без «;» — endsWith
+//     всё равно от ПОЛНОЙ строки, конвенция .22/.23);
+//   * профиль диалога — ЧИСТАЯ подсказка (форма эталона .14/.17/.22):
+//     РОВНО 3 опции, ВСЕ действием «подсказка» (prives / hint_shelf /
+//     hint_price), РОВНО одна (последняя) с {харизма:3} — харизма-
+//     прецедент батча, НЕ «проверка»; блоков обучение/торговля/
+//     квесты/найм НЕТ — счётчики npc-refs торговля 234 / goal 3 /
+//     reward 7 / сумма 244 / уникальные 202 НЕ растут,
+//     item-prices-000322 R7=20 не растёт (неторговец свипам невидим:
+//     `if (!npc.торговля) continue`);
+//   * опций с «для» — РОВНО 0: контракт A8a (tests/npc-dialog-scope)
+//     — динамический свип ждёт 0 «для» у всех, кроме Берты/Элдиры/
+//     Корда; добавление «для» = ослабление пина, запрещено (мутация);
+//   * тема диалога — старый товар/полка/цена; запрет-лист ТЕКСТОВ
+//     диалога 83 = дисковый список .23 T5 ЦЕЛИКОМ (79 = .22-75 +
+//     4 оборота Перекати) + 4 зарезервированных оборота Сарбона
+//     (memory/000320-caravan_leader.md для .24+: «обоз — это стена,
+//     которая ходит», «груз считается привезённым, только когда он на
+//     площади», «дорогу берегут до разбоя, а не после», «караван
+//     держат не узлы, а порядок»); СВОИ 4 оборота зарезервированы для
+//     .25+ — memory/000320-old_trader.md (.25 ОБЯЗАН += их в свой
+//     список; по той же цепочке и все 83 этого списка);
+//   * [E]-оверлей Лавки странника — РОВНО ВОСЕМЬ dialog-строк в
+//     порядке каталога: 'dialog' (Хольд) → 'dialog:wanderer_trader'
+//     (Хомут) → 'dialog:spice_trader' (Шафран) → 'dialog:
+//     caravan_trader' (Барыш) → 'dialog:path_guide' (Стрелка) →
+//     'dialog:tumbleweed' (Перекати) → 'dialog:caravan_leader'
+//     (Сарбон) → 'dialog:old_trader' (Просол); хоткеи Digit1..8 —
+//     общий механизм src/building-ui.js /^Digit([1-9])$/ по индексу
+//     строки; пин создан в .18 (ДВЕ), поднят .19 (ТРИ), .20
+//     (ЧЕТЫРЕ), .21 (ПЯТЬ), .22 (ШЕСТЬ), .23 (СЕМЬ) и здесь
+//     (ВОСЕМЬ) — ре-пинуты T7/T8 всех семи файлов
+//     (.18/.19/.20/.21/.22/.23/.24) (предписание .23 T8 реализовано
+//     здесь); дом 5 укомплектован — диапазон батча .18–.24 закрыт.
+//
+// КРАСНЫЕ (TDD): T1..T8 красные до зелёной стадии (000045.json нет,
+// каталог 44, ростер дома 5 — СЕМЬ NPC, оверлей 7 строк), без
+// краха загрузки.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { validateData } = require('./json-schema.js');
+
+const ROOT = path.join(__dirname, '..');
+const NDIR = path.join(ROOT, 'assets', 'npc');
+const NEW = path.join(NDIR, '000045.json');
+const SCHEMA = JSON.parse(
+  fs.readFileSync(path.join(NDIR, 'schema.json'), 'utf8'));
+
+const N = require('../src/npc.js');
+const { NPCS } = require('../src/npc-data.js');
+const BE = require('../src/building-effects.js');
+
+const HOOK = 'Торгует с тех пор, как проложили нынешнюю дорогу';
+const ID = 'old_trader';
+const NAME = 'Просол';
+
+const MINE = ['товар помнит того, кто его привёз', 'полог не прячет брака',
+  'старые весы не льстят', 'у старого угла всегда длиннее очередь'];
+
+function listNpcFiles() {
+  return fs.readdirSync(NDIR)
+    .filter((f) => /^\d{6}\.json$/.test(f))
+    .sort();
+}
+
+function readJson(file) {
+  return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+// --- T1: размер каталога ---------------------------------------------------
+
+test('T1: каталог — ровно 45 файлов 000001..000045 подряд; зеркало NPCS 45 записей с old_trader', () => {
+  const files = listNpcFiles();
+  assert.equal(files.length, 45,
+    'в каталоге NPC 45 файлов (000320.17: +Переписчик; 000320.18: '
+    + '+Странствующий торговец; 000320.19: +Торговец специями; '
+    + '000320.20: +Торговец каравана; 000347.02: +жрец солнца, жрица '
+    + 'луны, горный жрец; 000320.21: +Проводник; 000320.22: +Перекати; '
+    + '000320.23: +Сарбон; 000320.24: +Просол), '
+    + 'факт: ' + files.length);
+  for (let i = 0; i < files.length; i++) {
+    assert.equal(files[i],
+      String(i + 1).padStart(6, '0') + '.json',
+      'нумерация подряд без пропусков: индекс ' + i);
+  }
+  assert.equal(NPCS.length, 45,
+    'зеркало src/npc-data.js — 45 записей (sync не прогнан?), факт: '
+    + NPCS.length);
+  const last = NPCS[44];
+  assert.ok(last, '45-я запись зеркала существует');
+  assert.equal(last.id, ID,
+    '45-я запись зеркала — old_trader (порядок = нумерация файлов)');
+  assert.equal(NPCS[43].id, 'caravan_leader',
+    'guard: 44-я запись — Сарбон (позиционные NPCS[..] не '
+    + 'сдвинуты)');
+});
+
+// --- T2: 000045.json валиден по схеме + порядок ключей + roundtrip ---------
+
+test('T2: assets/npc/000045.json валиден по schema; ключи в порядке эталона ЧИСТОЙ ПОДСКАЗКИ .14/.17/.22 (id, имя, роль, описание, постройки, диалог — без блоков); roundtrip-канон; негативы — мимо схемы и мимо порядка ключей', () => {
+  assert.ok(fs.existsSync(NEW),
+    'RED: assets/npc/000045.json отсутствует (NPC задачи ещё не создан)');
+  const data = readJson(NEW);
+  assert.deepEqual(validateData(SCHEMA, data, 'npc/000045'), [],
+    '000045.json обязан проходить assets/npc/schema.json');
+  const KEYS = ['id', 'имя', 'роль', 'описание', 'постройки', 'диалог'];
+  assert.deepEqual(Object.keys(data), KEYS,
+    'порядок ключей — как у эталона чистой подсказки .14 (000032)/'
+    + '.17 (000035)/.22 (000043): id, имя, роль, описание, постройки, '
+    + 'диалог — без блоков обучение/торговля/квесты/найм');
+  const raw = fs.readFileSync(NEW, 'utf8');
+  assert.equal(raw, JSON.stringify(data, null, 2) + '\n',
+    '000045.json — roundtrip JSON.stringify(obj,null,2)+перевод строки');
+  const extraKey = JSON.parse(JSON.stringify(data));
+  extraKey.цена = 10;
+  assert.notDeepEqual(validateData(SCHEMA, extraKey, 'npc/extra'), [],
+    'посторонний ключ «цена» — additionalProperties false, обязан отваливаться');
+  const badCharisma = JSON.parse(JSON.stringify(data));
+  const reqOpt = badCharisma.диалог.find((o) => o.требования);
+  assert.ok(reqOpt, 'есть опция с требованиями (прецедент hint_hand .15)');
+  reqOpt.требования.харизма = 0;
+  assert.notDeepEqual(validateData(SCHEMA, badCharisma, 'npc/badcharisma'), [],
+    'требование харизма 0 — вне схемы (minimum 1)');
+  const badAction = JSON.parse(JSON.stringify(data));
+  badAction.диалог[0].действие = 'дар';
+  assert.notDeepEqual(validateData(SCHEMA, badAction, 'npc/badaction'), [],
+    'действие «дар» — вне enum схемы');
+  const badPath = JSON.parse(JSON.stringify(data));
+  badPath.постройки = ['000005.json'];
+  assert.notDeepEqual(validateData(SCHEMA, badPath, 'npc/badpath'), [],
+    'постройки без пути assets/buildings/ (numeric-форма) — вне паттерна схемы');
+  const numericPath = JSON.parse(JSON.stringify(data));
+  numericPath.постройки = ['assets/buildings/' + '000005' + '.json'];
+  assert.notDeepEqual(validateData(SCHEMA, numericPath, 'npc/numericpath'), [],
+    'numeric-путь постройки — вне паттерна схемы: база содержит 000318.06, '
+    + 'здания — slug-именование, numeric-форма мертва (zero-sweep '
+    + 'tests/buildings-rename-000318.06.test.js T5); ТЗ-путь '
+    + '000005.json устарел');
+  const withTrade = JSON.parse(JSON.stringify(data));
+  withTrade.торговля = { предметы: [{ предмет: 'assets/items/000765.json',
+    mult_продажи: 0.5, количество: 1 }] };
+  assert.notDeepEqual(Object.keys(withTrade), KEYS,
+    'лишний блок «торговля» — вне эталона ключей: схема блок допускает '
+    + '(невидимость свипам пинит не схема, а T2/T6), профиль чистая '
+    + 'подсказка держится только СЛОВОМ, не витриной');
+  const legacyEntry = JSON.parse(JSON.stringify(data));
+  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/000765.json',
+    mult_продажи: 0.5, количество: 1, цена_покупки: 60, цена_продажи: 30 }] };
+  assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacyentry'), [],
+    'legacy-вход торговли цена_покупки/цена_продажи — вне схемы '
+    + '(additionalProperties false, формат 000322)');
+});
+
+// --- T3: id и имя уникальны (sweep) ----------------------------------------
+
+test('T3: id old_trader и имя «Просол» уникальны в sweep каталога', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000045.json отсутствует');
+  const ids = new Set();
+  const names = new Set();
+  for (const f of listNpcFiles()) {
+    const d = readJson(path.join(NDIR, f));
+    assert.ok(!ids.has(d.id), 'дубликат id «' + d.id + '» (файл ' + f + ')');
+    assert.ok(!names.has(d.имя), 'дубликат имени «' + d.имя + '» (файл ' + f + ')');
+    ids.add(d.id);
+    names.add(d.имя);
+  }
+  assert.ok(ids.has(ID), 'id old_trader в каталоге');
+  assert.ok(names.has(NAME), 'имя «Просол» в каталоге');
+});
+
+// --- T4: роль-фикс, описание с хуком и уникально ----------------------------
+
+test('T4: роль РОВНО «старый торговец» (точная строка ТЗ; свипов уникальности ролей нет — прецеденты «наставник», «торговец» .20, «кочевник» .22; «странствующий торговец» .18 — ДРУГАЯ роль-строка); описание непустое, хук «Торгует с тех пор, как проложили нынешнюю дорогу» — последнее предложение, и НЕ копия описания другого NPC', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000045.json отсутствует');
+  const data = readJson(NEW);
+  assert.ok(typeof data.описание === 'string' && data.описание.trim() !== '',
+    'описание непустое');
+  assert.equal(data.роль, 'старый торговец',
+    'роль — фикс-строка «старый торговец» (ТЗ); Т4 пишет точное равенство '
+    + '(свипов уникальности ролей нет — прецеденты «наставник» '
+    + '.10/.13/.16, «торговец» .20; роль «странствующий торговец» '
+    + '.18 — не наша; роль-слово ТЗ именем не стало — правило '
+    + 'ландромина .22: имя «Просол»)');
+  assert.ok(data.описание.includes(HOOK),
+    'хук истории «' + HOOK + '» (ТЗ) в описании дословно');
+  assert.ok(data.описание.endsWith(HOOK + '.'),
+    'хук — ПОСЛЕДНЕЕ предложение описания (с заглавной, с точкой на '
+    + 'конце — прецеденты .02–.23; хук без «;» — endsWith всё равно '
+    + 'идёт от ПОЛНОЙ строки хука, конвенция .22/.23); факт: '
+    + JSON.stringify(data.описание.slice(-80)));
+  for (const f of listNpcFiles()) {
+    if (f === '000045.json') continue;
+    const d = readJson(path.join(NDIR, f));
+    assert.notEqual(d.описание, data.описание,
+      'описание совпадает с ' + f + ' (не копия существующего)');
+  }
+});
+
+// --- T5: диалог — профиль чистая подсказка, без «для» ------------------------
+
+test('T5: диалог валиден по схеме, РОВНО 3 опции как у эталона .14/.17/.22, ВСЕ «подсказка», ровно одна с {харизма:3}, id опций уникальны, опций с «для» — ровно 0, запрет-лист 83 подстроки (дисковый список .23 ЦЕЛИКОМ = 79: .22-75 [.21-67: .20 = 63, живой «храме солнца», + 4 Барыша, + 4 Проводника, + 4 жреческие] + 4 оборота Перекати; + 4 оборота Сарбона) по ТЕКСТАМ диалога', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000045.json отсутствует');
+  const data = readJson(NEW);
+  assert.ok(Array.isArray(data.диалог) && data.диалог.length >= 1,
+    'диалог непустой (schema minItems 1)');
+  assert.equal(data.диалог.length, 3,
+    'диалог — ровно 3 опции (prives / hint_shelf / hint_price — форма '
+    + 'эталона чистой подсказки .14 «Жгут» / .17 «Грифель» / .22 '
+    + '«Перекати»), факт: ' + data.диалог.length);
+  const ACTIONS = SCHEMA.properties.диалог.items.properties.действие.enum;
+  for (const o of data.диалог) {
+    assert.ok(ACTIONS.includes(o.действие),
+      'действие «' + o.действие + '» вне enum схемы');
+    const errs = validateData(SCHEMA.properties.диалог.items, o, 'диалог');
+    assert.deepEqual(errs, [],
+      'опция «' + o.id + '» — вне схемы диалога: ' + JSON.stringify(errs));
+  }
+  assert.ok(data.диалог.some((o) => o.действие === 'подсказка'),
+    'профиль «подсказка» — хотя бы одна опция действия «подсказка»');
+  assert.equal(data.диалог.filter((o) => o.действие !== 'подсказка').length, 0,
+    'профиль ЧИСТАЯ подсказка (клон .14/.17/.22): опций с действием вне '
+    + '«подсказка» — ровно 0');
+  const ids = data.диалог.map((o) => o.id);
+  assert.equal(new Set(ids).size, ids.length, 'id опций диалога уникальны');
+  assert.equal(data.диалог.filter((o) => o.для !== undefined).length, 0,
+    'опций с «для» — ровно 0: старый торговец говорит со всеми; добавление '
+    + '«для» требует ре-пина A8a (tests/npc-dialog-scope) и запрещено');
+  const withReq = data.диалог.filter((o) => o.требования !== undefined);
+  assert.equal(withReq.length, 1,
+    'ровно одна опция с требованиями (прецедент hint_wood/hint_old/'
+    + 'hint_blade/hint_collection/hint_anvil/hint_march/hint_ring/'
+    + 'hint_weight/hint_dry/hint_stone/hint_fire/hint_hand/hint_talent/'
+    + 'hint_pack/hint_scent/hint_map/hint_reader/hint_home/hint_news/'
+    + 'hint_road)');
+  assert.deepEqual(withReq[0].требования, { харизма: 3 },
+    'требование опции — {харизма: 3} (харизма-прецедент батча, НЕ «проверка»)');
+  assert.equal(data.диалог.indexOf(withReq[0]), 2,
+    'опция с требованием — ПОСЛЕДНЯЯ (эталон .17: hint_reader последней)');
+  const texts = data.диалог.map((o) => o.текст).join(' ');
+  for (const w of ['хвостовик', 'наковальн', 'штампов', 'коллекци',
+    'позолот', 'старые походы', 'арен', 'жалован',
+    'знамен', 'задаток', 'табель', 'метл',
+    'стена клинков', 'звон', 'дребезг', 'нагрудник',
+    'закалк', 'трещин', 'молотк', 'примеря',
+    'старые дела', 'храме солнца', 'старейшин', 'посмееш',
+    'на весах', 'сонной мяты', 'клонит в сон', 'завянет',
+    'пучками', 'почерневш', 'разотрёшь', 'где болит',
+    'выше раны', 'доживают до старости', 'не бывает лишнего', 'с далёких гор',
+    'договоримся о цене', 'между строк', 'при дневном свете', 'чернила помнят',
+    'прощает торопливому', 'из-под пальцев', 'выберем тебе школу', 'описк',
+    'чистовик', 'по концу листа', 'копию без торгу', 'вкривь',
+    'кормит', 'от кузницы до кузницы', 'не пожалеешь', 'пока повозка полная',
+    'на дневку', 'сколько сгрузил', 'ближе к холке', 'сырьё кончается',
+    'спрашивай про руду', 'то в моих вьюках', 'ищи меня', 'до площади раньше колокола',
+    'понюхай сначала', 'каменная соль', 'в самом конце', 'три металла на прилавке',
+    'три монеты в коше', 'два языка служат', 'монету берут на глаз', 'вода по колено',
+    'кривой указатель', 'указатель врёт', 'дорога — мой хлеб', 'с солнечной полки',
+    'у этой залы слух длинный', 'гора лишних слов не держит', 'про спуск',
+    'мой дом там, где ночевал', 'вьюки легче всякого сундука',
+    'базара без дорог не бывает', 'новости ногами приходят',
+    'обоз — это стена, которая ходит',
+    'груз считается привезённым, только когда он на площади',
+    'дорогу берегут до разбоя, а не после', 'караван держат не узлы, а порядок']) {
+    assert.ok(!texts.includes(w),
+      'тема чужого NPC (.04 «старые походы»/арена — «арен», .05 '
+      + 'коллекция, .06 ковка/хвостовик, .07 наём/жалованье, .08 '
+      + 'метла/стена клинков, .09 броня-звонок, .10 големы; тексты '
+      + 'Милы — «старые дела»/«храм солнца» (матчер «храме солнца» — '
+      + 'живой, цепочка по 000364 / b18 №7)/«старейшина»/«посмеешь»; '
+      + 'обороты Отвара — «на весах»/«сонной мяты»/«клонит в сон»; '
+      + 'обороты Травницы — «завянет»/«пучками»/«почерневш»/'
+      + '«разотрёшь»; обороты Жгута — «где болит»/«выше раны»/'
+      + '«доживают до старости»; обороты Зиры — «не бывает лишнего»/'
+      + '«с далёких гор»/«договоримся о цене»; обороты Пергамента — '
+      + '«между строк»/«при дневном свете»/«чернила помнят»; обороты '
+      + 'Пробника — «прощает торопливому»/«из-под пальцев»/«выберем '
+      + 'тебе школу»; обороты Грифеля — «описк»/«чистовик»/«по концу '
+      + 'листа»/«копию без торгу» + «вкривь»; обороты Хольда — '
+      + '«кормит»/«от кузницы до кузницы»/«не пожалеешь»/«пока '
+      + 'повозка полная» + «сырьё кончается»/«спрашивай про руду»; '
+      + 'обороты Хомута — «на дневку»/«сколько сгрузил»/«ближе к '
+      + 'холке»/«то в моих вьюках»/«ищи меня»; обороты Шафрана — «до '
+      + 'площади раньше колокола»/«понюхай сначала»/«каменная соль»/'
+      + '«в самом конце»; обороты Барыша — резерв memory/'
+      + '000320-caravan_trader.md для .21+ «три металла на прилавке»/'
+      + '«три монеты в коше»/«два языка служат»/«монету берут на '
+      + 'глаз»; обороты Проводника — резерв memory/000320-path_guide.md '
+      + 'для .22+ «вода по колено»/«кривой указатель»/«указатель '
+      + 'врёт»/«дорога — мой хлеб»; жрецы 000347.02 — обязательство '
+      + 'ре-пин-карты memory/000347-temple-scroll-trade.md (эррата '
+      + '000367 П.4) «с солнечной полки»/«у этой залы слух длинный»/'
+      + '«гора лишних слов не держит»/«про спуск»; обороты Перекати — '
+      + 'резерв memory/000320-nomad.md для .23+ «мой дом там, где '
+      + 'ночевал»/«вьюки легче всякого сундука»/«базара без дорог не '
+      + 'бывает»/«новости ногами приходят»; обороты Сарбона — резерв '
+      + 'memory/000320-caravan_leader.md для .24+ «обоз — это стена, '
+      + 'которая ходит»/«груз считается привезённым, только когда он '
+      + 'на площади»/«дорогу берегут до разбоя, а не после»/«караван '
+      + 'держат не узлы, а порядок») не дублируется: '
+      + 'подстрока «' + w + '»');
+  }
+  for (const w of MINE) {
+    assert.ok(texts.includes(w),
+      'СВОЙ оборот «' + w + '» живёт в текстах 000045.json — резерв '
+      + '.25+ по memory/000320-old_trader.md (формула наследования: '
+      + 'список .25 = дисковый .24 ЦЕЛИКОМ + эти 4)');
+  }
+});
+
+// --- T6: профиль-гарант — блоков профильных НЕТ, зеркало ≡ JSON --------------
+
+test('T6: блоков обучение/торговля/квесты/найм НЕТ (ни в JSON, ни в зеркале), нет ссылок assets/items — профиль чистая подсказка (счётчики торговля 234 / goal 3 / reward 7 / сумма 244 / уникальные 202 / R7=20 НЕ растут); постройки [assets/buildings/wanderer_shop.json]; зеркало NPCS[44]: постройки [5], диалог/описание deepEqual', () => {
+  assert.ok(fs.existsSync(NEW), 'RED: assets/npc/000045.json отсутствует');
+  const data = readJson(NEW);
+  for (const block of ['обучение', 'торговля', 'квесты', 'найм']) {
+    assert.ok(!(block in data),
+      'в JSON нет блока «' + block + '»: профиль чистая подсказка — '
+      + 'счётчики npc-refs торговля 234 / goal 3 / reward 7 / сумма '
+      + '244 / уникальные предметы 202 и R7 торгующих 20 (tests/'
+      + 'item-prices-000322) не растут');
+  }
+  assert.ok(!JSON.stringify(data).includes('assets/items'),
+    'в JSON нет ссылок assets/items (ни торговли, ни квестов) — свипы '
+    + 'item-prices-000322 пропускают неторговцев: старый торговец невидим');
+  assert.deepEqual(data.постройки, ['assets/buildings/wanderer_shop.json'],
+    'постройка — Лавка странника (фикс ТЗ; путь — SLUG: база содержит '
+    + '000318.06, numeric-путь зданий больше НЕ ref)');
+  const mirror = NPCS[44];
+  assert.ok(mirror && mirror.id === ID,
+    'зеркало: 45-я запись old_trader');
+  assert.equal(mirror.роль, 'старый торговец',
+    'роль в зеркале — «старый торговец» (фикс ТЗ)');
+  for (const block of ['обучение', 'торговля', 'квесты', 'найм']) {
+    assert.ok(!(block in mirror),
+      'в зеркале нет блока «' + block + '» (следует из JSON)');
+  }
+  assert.deepEqual(mirror.постройки, [5],
+    'зеркало: постройки [5] — sync резолвит ссылку Лавки странника в id');
+  assert.deepEqual(mirror.диалог, data.диалог,
+    'зеркало NPCS[44].диалог ≡ JSON-диалог бит-в-бит (резолвинга нет — '
+    + 'ни квестов, ни торговли)');
+  assert.deepEqual(mirror.описание, data.описание,
+    'зеркало NPCS[44].описание ≡ JSON');
+});
+
+// --- T7: ростер дома 5 — ВОСЕМЬ записей, Хольд первый ---------------------------
+
+test('T7: npcsForBuilding(NPCS, 5) — ВОСЕМЬ записей Лавки странника в порядке каталога [wanderer_merchant, wanderer_trader, spice_trader, caravan_trader, path_guide, tumbleweed, caravan_leader, old_trader]; npcForBuilding(5) — по-прежнему Хольд; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+  const list = N.npcsForBuilding(NPCS, 5);
+  assert.deepEqual(list.map((n) => n.id),
+    ['wanderer_merchant', 'wanderer_trader', 'spice_trader',
+      'caravan_trader', 'path_guide', 'tumbleweed', 'caravan_leader', ID],
+    'Лавка странника (5): Хольд (000011) + Странствующий торговец '
+    + '(000036) + Торговец специями (000037) + Торговец каравана '
+    + '(000038) + Проводник (000042) + Кочевник Перекати (000043) '
+    + '+ глава каравана Сарбон (000044) + старый торговец Просол '
+    + '(000045), порядок = нумерация файлов; факт: '
+    + JSON.stringify(list.map((n) => n.id)));
+  assert.equal(N.npcForBuilding(NPCS, 5).id, 'wanderer_merchant',
+    'npcForBuilding — ПЕРВЫЙ по номеру файла (Хольд; HUD/«Здесь:» '
+    + 'не тронуты, CI-134 е2е Digit1 — по-прежнему Хольд)');
+  const magic = N.npcsForBuilding(NPCS, 4);
+  assert.deepEqual(magic.map((n) => n.id),
+    ['magic_merchant', 'scroll_merchant', 'magic_instructor', 'scribe'],
+    'Магазин магии (4) — ЧЕТЫРЕ NPC не тронуты (новый NPC — Лавка '
+    + 'странника): ' + JSON.stringify(magic.map((n) => n.id)));
+  const apteka = N.npcsForBuilding(NPCS, 3);
+  assert.deepEqual(apteka.map((n) => n.id),
+    ['apothecary', 'brewer', 'herbalist', 'alchemy_instructor',
+      'village_doctor'],
+    'Аптекарь (3) — ПЯТЬ NPC не тронуты: '
+    + JSON.stringify(apteka.map((n) => n.id)));
+  const brunnik = N.npcsForBuilding(NPCS, 2);
+  assert.deepEqual(brunnik.map((n) => n.id),
+    ['armor_merchant', 'armor_specialist', 'golem_instructor'],
+    'Бронник (2) — ТРИ NPC не тронуты: '
+    + JSON.stringify(brunnik.map((n) => n.id)));
+  const armory = N.npcsForBuilding(NPCS, 1);
+  assert.deepEqual(armory.map((n) => n.id),
+    ['weapons_merchant', 'blade_merchant', 'fencing_instructor',
+      'duelist', 'veteran_blade', 'sword_collector', 'blade_smith',
+      'ex_mercenary',
+      'armory_apprentice'],
+    'Оружейная (1) — ДЕВЯТЬ NPC не тронута: '
+    + JSON.stringify(armory.map((n) => n.id)));
+});
+
+// --- T8: оверлей дома 5 — ровно 8 dialog-строк ------------------------------
+
+test('T8: [E]-оверлей Лавки странника — ровно 8 строк: dialog (Хольд), dialog:wanderer_trader (Хомут), dialog:spice_trader (Шафран), dialog:caravan_trader (Барыш), dialog:path_guide (Стрелка), dialog:tumbleweed (Перекати), dialog:caravan_leader (Сарбон), dialog:old_trader (Просол) — ре-пин .22 ПЯТЬ→ШЕСТЬ, .23 ШЕСТЬ→СЕМЬ и 000320.24 СЕМЬ→ВОСЕМЬ; хоткеи Digit1..8; дом 5 укомплектован восемью (диапазон батча .18–.24 закрыт): новый NPC дома 5 сверх восьми = ДЕВЯТЫЙ — Digit9 ещё в границе /^Digit([1-9])$/, десятый её превысит и потребует анализа src/building-actions.js / src/building-ui.js', () => {
+  const b = readJson(path.join(ROOT, 'assets', 'buildings', 'wanderer_shop.json'));
+  const list = N.npcsForBuilding(NPCS, 5);
+  const rows = BE.buildingActions(b, list, { day: 5 });
+  assert.equal(rows.length, 8,
+    'у здания 5 эффектов нет — список = dialog-строки по каждому NPC '
+    + '(РОВНО ВОСЕМЬ), факт: ' + JSON.stringify(rows.map((r) => r.id)));
+  assert.deepEqual(rows.map((r) => r.id),
+    ['dialog', 'dialog:wanderer_trader', 'dialog:spice_trader',
+      'dialog:caravan_trader', 'dialog:path_guide', 'dialog:tumbleweed',
+      'dialog:caravan_leader', 'dialog:' + ID],
+    'порядок строк = нумерация файлов каталога, Хольд по-прежнему '
+    + 'ПЕРВЫЙ; факт: ' + JSON.stringify(rows.map((r) => r.id)));
+  assert.deepEqual(rows.map((r) => r.имя),
+    ['Диалог: Хольд', 'Диалог: Хомут', 'Диалог: Шафран',
+      'Диалог: Барыш', 'Диалог: Стрелка', 'Диалог: Перекати',
+      'Диалог: Сарбон', 'Диалог: ' + NAME],
+    'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
+  assert.deepEqual(rows.map((r) => r.npcId),
+    ['wanderer_merchant', 'wanderer_trader', 'spice_trader',
+      'caravan_trader', 'path_guide', 'tumbleweed', 'caravan_leader', ID],
+    'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
+    + 'Digit1..8 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'по индексу строки, лимит 9 не достигнут');
+});
