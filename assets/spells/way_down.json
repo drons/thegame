@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000513.json"
+    "assets/items/way_down_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

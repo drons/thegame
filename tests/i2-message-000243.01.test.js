@@ -89,7 +89,7 @@ test('000243.01-I2-M: I2-сообщение (items.test.js) — «без icon �
     + '— отсутствует (с пробелом-якорем: live «0 предметов» не '
     + 'маскирует пин подстрокой « 23 предмета»); факт: ' + msg);
   const files = fs.readdirSync(ITEMS_DIR)
-    .filter(f => /^\d{6}\.json$/.test(f));
+    .filter(f => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f)); // 000318.08
   let withIcon = 0;
   for (const f of files) {
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));

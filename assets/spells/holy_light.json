@@ -14,7 +14,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000281.json"
+    "assets/items/holy_light_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

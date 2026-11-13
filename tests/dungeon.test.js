@@ -419,7 +419,9 @@ test('ссылки: ВСЕ предметы подземелий существ�
   const I = require('../src/items.js');
   const idir = path.join(ROOT, 'assets', 'items');
   const itemIds = new Set();
-  for (const f of fs.readdirSync(idir).filter((f) => /^\d{6}\.json$/.test(f))) {
+  for (const f of fs.readdirSync(idir)
+      .filter((f) => f !== 'schema.json'
+        && /^[a-z][a-z0-9_]*\.json$/.test(f))) {
     itemIds.add(JSON.parse(fs.readFileSync(path.join(idir, f), 'utf8')).id);
   }
   assert.ok(itemIds.size >= 20, 'каталог assets/items пуст (прединд теста)');
@@ -985,13 +987,13 @@ test('S3. пулы подземелий — 158 свитков, каждый р�
 // заменяет предмет с явным slot предметом EQUIP_POOLS — выпасть из
 // сундуков они не могут. Пины данных (красные до фикса). Контракт:
 // memory/000251-chest-phantoms.md §5 (C-1..C-3), §6.1.
-test('000251-P1: CRYPT (assets/dungeons/crypt.json) пул «предметы» — БЕЗ chainmail (assets/items/000009.json): фантом удалён (явный slot torso → chest-equip-блок 000230.05 ВСЕГДА заменяет его предметом EQUIP_POOLS; выпадать из сундуков не может)', () => {
+test('000251-P1: CRYPT (assets/dungeons/crypt.json) пул «предметы» — БЕЗ chainmail (assets/items/chainmail.json): фантом удалён (явный slot torso → chest-equip-блок 000230.05 ВСЕГДА заменяет его предметом EQUIP_POOLS; выпадать из сундуков не может)', () => {
   const cat = loadDungeonCatalog();
   const crypt = cat.find(({ file }) => file === 'crypt.json');
   const rec = resolvedDungeonRecord(crypt.data, 'crypt.json');
   assert.ok(
     !rec.предметы.includes('chainmail'),
-    'CRYPT «предметы»: «chainmail» (assets/items/000009.json, явный ' +
+    'CRYPT «предметы»: «chainmail» (assets/items/chainmail.json, явный ' +
     'slot torso) присутствует в пуле — фантом: chest-equip-блок ' +
     '000230.05 всегда заменяет его предметом EQUIP_POOLS, выпасть из ' +
     'сундуков он не может (000251: убрать из пула)');
@@ -1006,13 +1008,13 @@ test('000251-P1: CRYPT (assets/dungeons/crypt.json) пул «предметы» 
   }
 });
 
-test('000251-P2: RUINS (assets/dungeons/castle_ruins.json) пул «предметы» — БЕЗ knight_plate (assets/items/000010.json): фантом удалён (то же основание)', () => {
+test('000251-P2: RUINS (assets/dungeons/castle_ruins.json) пул «предметы» — БЕЗ knight_plate (assets/items/knight_plate.json): фантом удалён (то же основание)', () => {
   const cat = loadDungeonCatalog();
   const ruins = cat.find(({ file }) => file === 'castle_ruins.json');
   const rec = resolvedDungeonRecord(ruins.data, 'castle_ruins.json');
   assert.ok(
     !rec.предметы.includes('knight_plate'),
-    'RUINS «предметы»: «knight_plate» (assets/items/000010.json, ' +
+    'RUINS «предметы»: «knight_plate» (assets/items/knight_plate.json, ' +
     'явный slot torso) присутствует в пуле — фантом: chest-equip-блок ' +
     '000230.05 всегда заменяет его предметом EQUIP_POOLS, выпасть из ' +
     'сундуков он не может (000251: убрать из пула)');
@@ -2833,7 +2835,8 @@ test('DUN-REF-2: dungeons: предметы[] и руда[].предмет — j
       const id = prev.предметы[i];
       assert.equal(refLib.isRef(ref), true,
         file + ' предметы[' + i + ']: «' + JSON.stringify(ref) +
-        '» — не якорная ссылка (ожидается assets/items/NNNNNN.json)');
+        '» — не якорная ссылка (ожидается assets/items/<id>.json, slug с '
+        + '000318.08)');
       assert.ok(String(ref).startsWith('assets/items/'),
         file + ' предметы[' + i + ']: ссылка вне каталога assets/items: '
         + ref);
@@ -2859,7 +2862,8 @@ test('DUN-REF-2: dungeons: предметы[] и руда[].предмет — j
       const ref = rec.предмет;
       assert.equal(refLib.isRef(ref), true,
         file + ' руда[' + i + '].предмет: «' + JSON.stringify(ref) +
-        '» — не якорная ссылка (ожидается assets/items/NNNNNN.json)');
+        '» — не якорная ссылка (ожидается assets/items/<id>.json, slug с '
+        + '000318.08)');
       assert.ok(String(ref).startsWith('assets/items/'),
         file + ' руда[' + i + '].предмет: ссылка вне каталога '
         + 'assets/items: ' + ref);
@@ -2951,7 +2955,7 @@ test('DUN-REF-4: dungeons: ∈-проверка мобы ПОСЛЕ резолю
   assert.ok(!C.MOB_TYPES['wood_sword'],
     'предпосылка: id предмета «wood_sword» — НЕ моб');
   withTmpRoot([
-    ['assets/items/000001.json', JSON.stringify({ id: 'wood_sword' })],
+    ['assets/items/wood_sword.json', JSON.stringify({ id: 'wood_sword' })],
   ], (dir) => {
     // (а) якорная ссылка на несуществующий файл мобов → битый.
     assert.equal(mobRefBroken(dir, 'assets/mobs/no_such_mob.json',
@@ -2959,7 +2963,7 @@ test('DUN-REF-4: dungeons: ∈-проверка мобы ПОСЛЕ резолю
       'провисший путь assets/mobs/no_such_mob.json → no-file');
     // (б) ссылка резолвится, но id ∉ MOB_TYPES (чужой каталог
     // items) → битый: миграция в чужой каталог не пройдёт.
-    assert.equal(mobRefBroken(dir, 'assets/items/000001.json',
+    assert.equal(mobRefBroken(dir, 'assets/items/wood_sword.json',
       C.MOB_TYPES), 'not-a-mob',
       'id «wood_sword» ∉ MOB_TYPES → not-a-mob');
     // (в) plain-id (сегодняшняя форма данных) — не ссылка → битый.
@@ -3230,7 +3234,7 @@ test('000230.05-CH3: детерминизм СВОЕГО потока: фикс�
   }
 });
 
-test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/30/15/4.9/0.1 (сумма === 1, ids === ITEM_RARITIES), пулы = live-каталог по редкости (ре-пин 000230.08: 25 head), pickRarityTier — функция; целостность-хук', () => {
+test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/30/15/4.9/0.1 (сумма === 1, ids === ITEM_RARITIES), пулы ≡ live-каталогу по редкости МНОЖЕСТВОМ (ре-пин 000318.08 F2-P1: set), pickRarityTier — функция; целостность-хук', () => {
   const L = require('../src/loot-equip-data.js');
   const I = require('../src/items.js');
   assert.ok(Array.isArray(L.RARITY), 'RARITY — массив');
@@ -3248,19 +3252,19 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
     Object.values(I.ITEM_RARITIES),
     'ids === ITEM_RARITIES (items.js, 000230.01 — единый источник)');
   for (const t of L.RARITY) {
-    assert.deepEqual(L.EQUIP_POOLS[t.id],
-      I.allItems().filter((it) => it.rarity === t.id).map((it) => it.id),
-      'пул «' + t.id + '» — все предметы каталога с rarity = «'
-      + t.id + '» (каталожный порядок; ре-пин 000230.08: 25 head)');
+    assert.deepEqual([...L.EQUIP_POOLS[t.id]].sort(),
+      I.allItems().filter((it) => it.rarity === t.id).map((it) => it.id).sort(),
+      'пул «' + t.id + '» — ВСЕ предметы каталога с rarity = «' + t.id
+      + '» МНОЖЕСТВОМ (ре-пин 000318.08 F2-P1: сравнение numeric→set — '
+      + 'порядок пулов loot-equip-data.js 0-diff = свой append, лекс-'
+      + 'порядок slug-каталога ему больше не указ)');
   }
   assert.equal(typeof L.pickRarityTier, 'function',
     'pickRarityTier(rngFn) — чистая функция (1 вызов rngFn)');
   // Целостность-хук (волны): каждый id — в каталоге, явный slot +
   // rarity, catalog-rarity === ключ тира, порядок = каталожный.
   const byId = new Map(I.allItems().map((it) => [it.id, it]));
-  const catOrder = I.allItems().map((it) => it.id);
   for (const t of L.RARITY) {
-    let prevIdx = -1;
     for (const id of (L.EQUIP_POOLS[t.id] || [])) {
       const it = byId.get(id);
       assert.ok(it, 'пул ' + t.id + ': id есть в каталоге: ' + id);
@@ -3268,10 +3272,6 @@ test('000230.05-CH4: данные модуля: RARITY — 5 записей 50/3
         'пул ' + t.id + ': явный slot: ' + id);
       assert.equal(it.rarity, t.id,
         'пул ' + t.id + ': catalog-rarity === ключ тира: ' + id);
-      const idx = catOrder.indexOf(id);
-      assert.ok(idx > prevIdx,
-        'пул ' + t.id + ': порядок = порядок каталога: ' + id);
-      prevIdx = idx;
     }
   }
 });

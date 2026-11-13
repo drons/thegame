@@ -4,24 +4,24 @@
   "тип": "зачарование",
   "база": "assets/craft/rune_gauntlets.json",
   "результат": {
-    "предмет": "assets/items/000330.json",
+    "предмет": "assets/items/rune_gauntlets.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 3
     },
     {
-      "предмет": "assets/items/000054.json",
+      "предмет": "assets/items/mithril_ore.json",
       "количество": 1
     }
   ],

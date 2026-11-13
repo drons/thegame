@@ -13,7 +13,7 @@
     "turns": 4
   },
   "предметы": [
-    "assets/items/000480.json"
+    "assets/items/iron_sentinel_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

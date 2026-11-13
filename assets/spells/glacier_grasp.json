@@ -9,7 +9,7 @@
   "мани": 12,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000152.json"
+    "assets/items/glacier_grasp_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

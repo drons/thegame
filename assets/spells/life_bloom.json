@@ -15,7 +15,7 @@
     "turns": 2
   },
   "предметы": [
-    "assets/items/000259.json"
+    "assets/items/life_bloom_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

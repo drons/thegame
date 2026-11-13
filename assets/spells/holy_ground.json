@@ -16,7 +16,7 @@
     "radius": 2
   },
   "предметы": [
-    "assets/items/000278.json"
+    "assets/items/holy_ground_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

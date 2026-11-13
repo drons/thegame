@@ -9,7 +9,7 @@
   "уровень": 2,
   "мани": 6,
   "действие": "лечение",
-  "предметы": ["assets/items/000023.json"],
+  "предметы": ["assets/items/moonstone.json"],
   "здания": ["assets/buildings/healing_temple.json"],
   "описание": "Луч тёплого света: заметно восстанавливает здоровье цели.",
   "icon": "assets/spell-icons/light_heal.svg",

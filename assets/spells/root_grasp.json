@@ -12,7 +12,7 @@
     "turns": 1
   },
   "предметы": [
-    "assets/items/000506.json"
+    "assets/items/root_grasp_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

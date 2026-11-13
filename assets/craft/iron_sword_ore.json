@@ -2,10 +2,10 @@
   "id": "iron_sword_ore",
   "название": "Ковка железного меча из руды",
   "тип": "кузнечное_дело",
-  "результат": { "предмет": "assets/items/000002.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/iron_sword.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000033.json", "количество": 2 },
-    { "предмет": "assets/items/000038.json", "количество": 1 }
+    { "предмет": "assets/items/iron_ore.json", "количество": 2 },
+    { "предмет": "assets/items/coal.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000010.json"],
   "здания": ["assets/buildings/blacksmith.json", "assets/buildings/npc_house.json"],

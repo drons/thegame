@@ -3,16 +3,16 @@
   "название": "Киплачение медового отвара",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000820.json",
+    "предмет": "assets/items/honey_brew.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000063.json",
+      "предмет": "assets/items/berry_red.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "количество": 1
     }
   ],

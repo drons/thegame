@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000268.json"
+    "assets/items/swift_prayer_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

@@ -3,16 +3,16 @@
   "название": "Плетение тканой сутаны",
   "тип": "столярное_дело",
   "результат": {
-    "предмет": "assets/items/000215.json",
+    "предмет": "assets/items/cloth_sutan.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "количество": 1
     }
   ],

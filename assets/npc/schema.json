@@ -85,7 +85,7 @@
             "additionalProperties": false,
             "required": ["предмет", "mult_продажи"],
             "properties": {
-              "предмет": { "type": "string", "pattern": "^assets/items/\\d{6}\\.json$" },
+              "предмет": { "type": "string", "pattern": "^assets/items/[a-z][a-z0-9_]*\\.json$" },
               "mult_покупки": { "type": "number", "minimum": 0 },
               "mult_продажи": { "type": "number", "minimum": 0 },
               "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
@@ -136,7 +136,7 @@
                 "required": ["тип", "предмет", "количество"],
                 "properties": {
                   "тип": { "const": "bring_item" },
-                  "предмет": { "type": "string", "pattern": "^assets/items/\\d{6}\\.json$" },
+                  "предмет": { "type": "string", "pattern": "^assets/items/[a-z][a-z0-9_]*\\.json$" },
                   "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
                 }
               }
@@ -157,7 +157,7 @@
                   "additionalProperties": false,
                   "required": ["предмет", "количество"],
                   "properties": {
-                    "предмет": { "type": "string", "pattern": "^assets/items/\\d{6}\\.json$" },
+                    "предмет": { "type": "string", "pattern": "^assets/items/[a-z][a-z0-9_]*\\.json$" },
                     "количество": { "type": "integer", "minimum": 1, "maximum": 99 }
                   }
                 }

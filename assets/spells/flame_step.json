@@ -10,7 +10,7 @@
   "действие": "телепорт",
   "вне_боя": true,
   "предметы": [
-    "assets/items/000132.json"
+    "assets/items/flame_step_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

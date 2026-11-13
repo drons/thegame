@@ -29,132 +29,132 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000048.json",
+        "предмет": "assets/items/light_heal_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000258.json",
+        "предмет": "assets/items/radiant_heal_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000259.json",
+        "предмет": "assets/items/life_bloom_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000260.json",
+        "предмет": "assets/items/purify_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000261.json",
+        "предмет": "assets/items/mass_heal_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000262.json",
+        "предмет": "assets/items/holy_mending_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000263.json",
+        "предмет": "assets/items/mass_holy_light_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000264.json",
+        "предмет": "assets/items/regeneration_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000265.json",
+        "предмет": "assets/items/blessing_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000266.json",
+        "предмет": "assets/items/divine_favor_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000267.json",
+        "предмет": "assets/items/guardian_blessing_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000268.json",
+        "предмет": "assets/items/swift_prayer_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000269.json",
+        "предмет": "assets/items/faith_shield_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000270.json",
+        "предмет": "assets/items/smite_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000271.json",
+        "предмет": "assets/items/unholy_wrath_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000272.json",
+        "предмет": "assets/items/stun_of_light_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000273.json",
+        "предмет": "assets/items/holy_bind_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000274.json",
+        "предмет": "assets/items/light_sprite_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000275.json",
+        "предмет": "assets/items/spirit_healer_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000276.json",
+        "предмет": "assets/items/holy_guardian_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000277.json",
+        "предмет": "assets/items/circle_of_light_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000278.json",
+        "предмет": "assets/items/holy_ground_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000279.json",
+        "предмет": "assets/items/prayer_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000280.json",
+        "предмет": "assets/items/divine_protection_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000281.json",
+        "предмет": "assets/items/holy_light_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000282.json",
+        "предмет": "assets/items/miracle_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

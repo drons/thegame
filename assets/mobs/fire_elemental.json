@@ -22,11 +22,11 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000024.json",
+      "item": "assets/items/phoenix_feather.json",
       "chance": 0.1
     },
     {
-      "item": "assets/items/000081.json",
+      "item": "assets/items/blueprint_enchant.json",
       "chance": 0.05
     }
   ],

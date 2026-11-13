@@ -10,7 +10,7 @@
   "мани": 20,
   "действие": "урон",
   "предметы": [
-    "assets/items/000238.json"
+    "assets/items/shadowflame_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

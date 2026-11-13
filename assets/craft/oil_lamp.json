@@ -3,20 +3,20 @@
   "название": "Зачарование жаровни-лампады",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000746.json",
+    "предмет": "assets/items/oil_lamp.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000066.json",
+      "предмет": "assets/items/herb_sun.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000055.json",
+      "предмет": "assets/items/quartz.json",
       "количество": 1
     }
   ],

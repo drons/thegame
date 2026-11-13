@@ -2,9 +2,9 @@
   "id": "minor_healing",
   "название": "Варка малого зелья лечения",
   "тип": "алхимия",
-  "результат": { "предмет": "assets/items/000011.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/minor_healing.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000039.json", "количество": 2 }
+    { "предмет": "assets/items/herb_healing.json", "количество": 2 }
   ],
   "навыки": ["assets/skills/000025.json", "assets/skills/000031.json"],
   "здания": ["assets/buildings/apothecary.json", "assets/buildings/alchemy_lab.json"],

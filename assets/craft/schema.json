@@ -42,7 +42,7 @@
       "properties": {
         "предмет": {
           "type": "string",
-          "pattern": "^assets/items/\\d{6}\\.json$"
+          "pattern": "^assets/items/[a-z][a-z0-9_]*\\.json$"
         },
         "количество": {
           "type": "integer",
@@ -62,7 +62,7 @@
         "properties": {
           "предмет": {
             "type": "string",
-            "pattern": "^assets/items/\\d{6}\\.json$"
+            "pattern": "^assets/items/[a-z][a-z0-9_]*\\.json$"
           },
           "количество": {
             "type": "integer",

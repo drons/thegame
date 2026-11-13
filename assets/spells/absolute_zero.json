@@ -10,7 +10,7 @@
   "мани": 20,
   "действие": "урон",
   "предметы": [
-    "assets/items/000139.json"
+    "assets/items/absolute_zero_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

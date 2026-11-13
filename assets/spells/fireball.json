@@ -9,7 +9,7 @@
   "уровень": 2,
   "мани": 6,
   "действие": "урон",
-  "предметы": ["assets/items/000022.json", "assets/items/000024.json"],
+  "предметы": ["assets/items/sulfur.json", "assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/mage_tower.json"],
   "описание": "Сгусток пламени, летящий к врагу и взрывающийся. Основной урон школы Огня.",
   "icon": "assets/spell-icons/fireball.svg",

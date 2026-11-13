@@ -3,20 +3,20 @@
   "название": "Вытапливание пепельного эликсира",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000864.json",
+    "предмет": "assets/items/ash_elixir.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000024.json",
+      "предмет": "assets/items/phoenix_feather.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000069.json",
+      "предмет": "assets/items/root_ember.json",
       "количество": 1
     }
   ],

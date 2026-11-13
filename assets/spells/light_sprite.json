@@ -13,7 +13,7 @@
     "turns": 4
   },
   "предметы": [
-    "assets/items/000274.json"
+    "assets/items/light_sprite_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

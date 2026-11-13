@@ -9,7 +9,7 @@
   "мани": 12,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000248.json"
+    "assets/items/nightmare_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

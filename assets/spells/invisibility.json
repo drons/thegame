@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000255.json"
+    "assets/items/invisibility_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

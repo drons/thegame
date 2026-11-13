@@ -9,7 +9,7 @@
   "уровень": 3,
   "мани": 12,
   "действие": "урон",
-  "предметы": ["assets/items/000023.json"],
+  "предметы": ["assets/items/moonstone.json"],
   "здания": ["assets/buildings/mage_tower.json"],
   "описание": "Совершенствование «Морозной стрелы»: снежная буря бьёт по всем врагам в секторе и надолго замедляет.",
   "icon": "assets/spell-icons/blizzard.svg",

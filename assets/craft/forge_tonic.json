@@ -3,16 +3,16 @@
   "название": "Промывка кузнечного зелья",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000825.json",
+    "предмет": "assets/items/forge_tonic.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000070.json",
+      "предмет": "assets/items/root_rock.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "количество": 1
     }
   ],

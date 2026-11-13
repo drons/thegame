@@ -3,16 +3,16 @@
   "название": "Ковка гладиуса легиона",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000535.json",
+    "предмет": "assets/items/legion_gladius.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "количество": 3
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 1
     }
   ],

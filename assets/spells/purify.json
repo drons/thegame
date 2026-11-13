@@ -10,7 +10,7 @@
   "мани": 6,
   "действие": "лечение",
   "предметы": [
-    "assets/items/000260.json"
+    "assets/items/purify_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

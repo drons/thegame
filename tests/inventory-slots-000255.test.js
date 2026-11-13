@@ -152,7 +152,10 @@ test('000255-S1: sanitizeInventory(inv, maxSlots) — ёмкость героя 
   assert.equal(out.slots.length, 25,
     'ёмкость 26: 25 слотов сохранены (баг-кейс: сейчас отсечение до 20); '
     + 'факт: ' + out.slots.length);
-  assert.equal(out.slots[0].id, 'wood_sword', 'порядок слотов — как во входе');
+  // 000318.08: каталог — лекс по id, «первый нескладываемый» больше
+  // не wood_sword — сверка ПОЗИЦИОННАЯ (контракт = порядок входа).
+  assert.equal(out.slots[0].id, slots25[0].id,
+    'порядок слотов — как во входе');
   assert.equal(out.slots[24].id, slots25[24].id, '25-й слот на месте');
   assert.deepEqual(out.quick, [null, null, null], 'quick — 3 слота');
   // Регрессия (пин items.test.js :558): одноаргументный вызов —
@@ -399,7 +402,7 @@ test('000255-S2: restoreFromSave — сейв hero back=3 с 25 слотами �
   assert.equal(inv.length, 25,
     'hero back=3 (ёмкость 26): 25 слотов переживают restore; '
     + 'факт: ' + inv.length + ' (баг: main.js передаёт без ёмкости)');
-  assert.equal(inv[0].id, 'wood_sword', 'порядок слотов сохранён');
+  assert.equal(inv[0].id, slots25[0].id, 'порядок слотов сохранён');
   // Зеркало state.hero без secondary (main.js) — через maxWeight:
   // back=3 → 30·1.3 = 39 (back=0 дало бы 30): вторичный навык
   // восстановлен (sanitizeSavedHero).

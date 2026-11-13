@@ -3,20 +3,20 @@
   "название": "Варка дубильного отвара",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000822.json",
+    "предмет": "assets/items/oak_tonic.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000070.json",
+      "предмет": "assets/items/root_rock.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000073.json",
+      "предмет": "assets/items/fruit_quince.json",
       "количество": 1
     }
   ],

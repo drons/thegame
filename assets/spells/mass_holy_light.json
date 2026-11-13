@@ -10,7 +10,7 @@
   "мани": 20,
   "действие": "лечение",
   "предметы": [
-    "assets/items/000263.json"
+    "assets/items/mass_holy_light_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

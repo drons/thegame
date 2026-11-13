@@ -22,7 +22,7 @@
 //   D-JSON-1 — файла нет / схема / slug-шейп / порядок ключей / roundtrip;
 //   D-SWEEP-2 — записи нет в каталоге; коллизий id/имени нет и в RED
 //     (guard-пин — ловит будущую коллизию);
-//   D-SCROLL-3 — свитка 000764 нет / схема / канон desc;
+//   D-SCROLL-3 — свитки нет (бывший 000764; <id>.json с 000318.08) /
 //   D-MIRROR-4 — записи нет в зеркалах spells-data/items-data;
 //   D-CTX-5 — castOutOfCombat: «неизвестное заклинание» вместо ветки;
 //   D-COMBAT-6 — тот же отказ вместо «внебоевое заклинание»;
@@ -42,7 +42,8 @@ const { validate } = require('./json-schema.js');
 
 const ROOT = path.join(__dirname, '..');
 const SPELL_FILE = path.join(ROOT, 'assets', 'spells', 'decadance.json');
-const SCROLL_FILE = path.join(ROOT, 'assets', 'items', '000764.json');
+const SCROLL_FILE = path.join(ROOT, 'assets', 'items',
+  'decadance_scroll.json');
 const SPELL_ICON = path.join(ROOT, 'assets', 'spell-icons', 'decadance.svg');
 const SCROLL_ICON = path.join(
   ROOT, 'assets', 'sprites', 'items', 'decadance_scroll.svg');
@@ -147,14 +148,14 @@ test('D-SWEEP-2: в каталоге spells ровно один decadance; id/и
     'ровно один файл decadance.json');
 });
 
-// --- D-SCROLL-3: свиток-спутник 000764 ---
+// --- D-SCROLL-3: свиток-спутник decadance_scroll (бывший 000764) ---
 
-test('D-SCROLL-3: assets/items/000764.json — spell_scroll decadance_scroll, effect.spell=«decadance» (ID), value 115 / tier 3, desc-канон, base_price=115 (ре-пин 000347.02: E1 — base_price=value у всех spell_scroll); связан со спеллом; иконки на месте', () => {
+test('D-SCROLL-3: assets/items/decadance_scroll.json (бывший 000764) — spell_scroll decadance_scroll, effect.spell=«decadance» (ID), value 115 / tier 3, desc-канон, base_price=115 (ре-пин 000347.02: E1 — base_price=value у всех spell_scroll); связан со спеллом; иконки на месте', () => {
   assert.ok(fs.existsSync(SCROLL_FILE),
-    'RED: файл assets/items/000764.json отсутствует');
+    'RED: файл assets/items/decadance_scroll.json отсутствует');
   const it = readJson(SCROLL_FILE);
   const errors = [];
-  validate(ITEM_SCHEMA, it, '000764.json', errors);
+  validate(ITEM_SCHEMA, it, 'decadance_scroll.json', errors);
   assert.deepEqual(errors, [], 'схема каталога items: ' +
     JSON.stringify(errors));
   assert.equal(it.id, 'decadance_scroll');
@@ -173,7 +174,7 @@ test('D-SCROLL-3: assets/items/000764.json — spell_scroll decadance_scroll, ef
     'Свиток: изучает «Декаданс» (нужен ранг школы.)',
     'desc-канон каталога свитков (точка ВНУТРИ скобки)');
   const s = readJson(SPELL_FILE);
-  assert.ok(s['предметы'].includes('assets/items/000764.json'),
+  assert.ok(s['предметы'].includes('assets/items/decadance_scroll.json'),
     'спелл ссылается на свиток-спутник');
   assert.equal(it.icon, 'assets/sprites/items/decadance_scroll.svg');
   assert.ok(fs.existsSync(SCROLL_ICON), 'RED: спрайт свитка отсутствует');

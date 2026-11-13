@@ -10,7 +10,7 @@
   "мани": 3,
   "действие": "урон",
   "предметы": [
-    "assets/items/000488.json"
+    "assets/items/thorn_whip_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

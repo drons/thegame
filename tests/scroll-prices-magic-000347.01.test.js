@@ -49,7 +49,8 @@ const B = M.BUILDING_TYPES;
 const ITEM_DIR = path.join(ROOT, 'assets', 'items');
 const SPELL_DIR = path.join(ROOT, 'assets', 'spells');
 const diskItems = fs.readdirSync(ITEM_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && /^[a-z][a-z0-9_]*\.json$/.test(f))
   .map((f) => JSON.parse(fs.readFileSync(path.join(ITEM_DIR, f), 'utf8')));
 
 // Локальные таблицы (НЕ через резолвер и НЕ через зеркала — ожидаемые

@@ -3,20 +3,20 @@
   "название": "Зачарование длинного военного лука",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000540.json",
+    "предмет": "assets/items/long_warbow.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 3
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000037.json",
+      "предмет": "assets/items/hide.json",
       "количество": 1
     }
   ],

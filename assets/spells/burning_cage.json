@@ -9,7 +9,7 @@
   "мани": 12,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000127.json"
+    "assets/items/burning_cage_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

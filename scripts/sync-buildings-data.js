@@ -55,7 +55,7 @@ const REQUIRED = [
 ];
 
 // Задача 000207: .стройка.исходники[].предмет — ссылка на файл
-// «assets/items/NNNNNN.json» (контракт 000211 §2); при запекании
+// «assets/items/<id>.json» (контракт 000211 §2); при запекании
 // резолюция в id файла-цели — зеркало src/buildings.js остаётся
 // в id-форме (ссылки живут ТОЛЬКО в JSON). Fail-closed: значение
 // вне паттерна (включая голый id — дрейф), файл-цель отсутствует /
@@ -71,7 +71,7 @@ function resolveItemRef(file, entry) {
   if (!isCatalogRef('items', ref)) {
     console.error(
       `${file}: .стройка.исходники.предмет «${ref}» — не ссылка `
-      + 'на файл items (формат "assets/items/NNNNNN.json")');
+      + 'на файл items (формат "assets/items/<id>.json")');
     process.exit(1);
   }
   const target = path.join(ROOT, ref);

@@ -10,7 +10,7 @@
   "мани": 4,
   "действие": "урон",
   "предметы": [
-    "assets/items/000487.json"
+    "assets/items/acid_splash_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

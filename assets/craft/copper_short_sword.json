@@ -3,16 +3,16 @@
   "название": "Ковка медного короткого меча",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000514.json",
+    "предмет": "assets/items/copper_short_sword.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

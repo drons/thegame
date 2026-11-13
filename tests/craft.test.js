@@ -87,7 +87,7 @@ function loadSpellIds() {
 // задача 000216 параллельна — жёсткая зависимость сломала бы мерж
 // (решение 000208, memory/000208-craft-refs.md §6.9).
 
-const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
+const REF_ITEMS = /^assets\/items\/[a-z][a-z0-9_]*\.json$/;
 const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
 const REF_CRAFT = /^assets\/craft\/[a-z][a-z0-9_]*\.json$/;
@@ -771,8 +771,8 @@ const SCRIPTS = path.join(__dirname, '..', 'scripts');
 
 const FIXTURE_TARGETS = {
   items: {
-    '000001.json': '{"id": "wood_sword"}\n',
-    '000002.json': '{"id": "wood_log"}\n',
+    'wood_sword.json': '{"id": "wood_sword"}\n',
+    'wood_log.json': '{"id": "wood_log"}\n',
   },
   skills: { '000001.json': '{"id": "forge"}\n' },
   buildings: { 'apothecary.json': '{"id": 3}\n' },
@@ -782,8 +782,8 @@ const FIXTURE_RECIPE = {
   id: 'test_recipe',
   'название': 'Тестовый рецепт',
   'тип': 'столярное_дело',
-  'результат': { 'предмет': 'assets/items/000001.json', 'количество': 1 },
-  'исходники': [{ 'предмет': 'assets/items/000002.json', 'количество': 3 }],
+  'результат': { 'предмет': 'assets/items/wood_sword.json', 'количество': 1 },
+  'исходники': [{ 'предмет': 'assets/items/wood_log.json', 'количество': 3 }],
   'навыки': ['assets/skills/000001.json'],
   'здания': ['assets/buildings/apothecary.json'],
   'уровень': 1,
@@ -797,8 +797,8 @@ const FIXTURE_BASE_RECIPE = {
   id: 'base_recipe',
   'название': 'Базовый рецепт',
   'тип': 'столярное_дело',
-  'результат': { 'предмет': 'assets/items/000001.json', 'количество': 1 },
-  'исходники': [{ 'предмет': 'assets/items/000002.json', 'количество': 2 }],
+  'результат': { 'предмет': 'assets/items/wood_sword.json', 'количество': 1 },
+  'исходники': [{ 'предмет': 'assets/items/wood_log.json', 'количество': 2 }],
   'навыки': ['assets/skills/000001.json'],
   'здания': ['assets/buildings/apothecary.json'],
   'уровень': 1,
@@ -840,10 +840,10 @@ function makeTmpCraftRepo(craftFiles, targets) {
 test('000208 R1: schema.json — поля-ссылки зафиксированы per-catalog паттернами', () => {
   const schema = loadSchema();
   assert.deepEqual(schema.properties.результат.properties.предмет,
-    { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+    { type: 'string', pattern: '^assets/items/[a-z][a-z0-9_]*\\.json$' },
     'результат.предмет — ссылка на файл assets/items');
   assert.deepEqual(schema.properties.исходники.items.properties.предмет,
-    { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+    { type: 'string', pattern: '^assets/items/[a-z][a-z0-9_]*\\.json$' },
     'исходники[].предмет — ссылка на файл assets/items');
   assert.deepEqual(schema.properties.навыки.items,
     { type: 'string', pattern: '^assets/skills/\\d{6}\\.json$' },
@@ -925,7 +925,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
   // 1. Нет цели ссылки.
   {
     const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
-    recipe.результат.предмет = 'assets/items/000009.json';
+    recipe.результат.предмет = 'assets/items/no_such_item.json';
     const dir = makeTmpCraftRepo(
       { [FIXTURE_FILE]: JSON.stringify(recipe) }, FIXTURE_TARGETS);
     try {
@@ -935,7 +935,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
       assert.equal(r.status, 1,
         'битая ссылка (нет цели) обязана дать exit 1: ' +
         (r.stdout || '') + (r.stderr || ''));
-      assert.match(r.stderr || '', /assets\/items\/000009\.json/,
+      assert.match(r.stderr || '', /assets\/items\/no_such_item\.json/,
         'в stderr — имя битой ссылки (нет цели)');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -945,8 +945,8 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
   {
     const targets = {
       items: {
-        '000001.json': '{"name": "без id"}\n',
-        '000002.json': '{"id": "wood_log"}\n',
+        'wood_sword.json': '{"name": "без id"}\n',
+        'wood_log.json': '{"id": "wood_log"}\n',
       },
       skills: { '000001.json': '{"id": "forge"}\n' },
       buildings: { 'apothecary.json': '{"id": 3}\n' },
@@ -960,7 +960,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
       assert.equal(r.status, 1,
         'цель без id обязана дать exit 1: ' +
         (r.stdout || '') + (r.stderr || ''));
-      assert.match(r.stderr || '', /assets\/items\/000001\.json/,
+      assert.match(r.stderr || '', /assets\/items\/wood_sword\.json/,
         'в stderr — имя ссылки на цель без id');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -1883,7 +1883,7 @@ const CROWN_FLAME_INPUTS_00023011 = [
   ['ruby', 2], ['coal', 4],
 ];
 
-test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/файл/тип/уровень/здания/навыки/результат/исходники/заклинания; 16 столярное_дело [5] dexterity + 21 кузнечное_дело [8,25] forge + 13 зачарование [18] runes+first-affix-skill); 1:1-формула: результат = assets/items/000283+i.json по строке ростера i (000318.07: номера файлов вытеснены id-именами — формула по порядку ростера, он === прежнему порядку 000144..000193), id рецепта == id предмета (D-01); материалы ⊆ контрактного множества по типу+редкости результата (D-08: qty — green-таблица) + первичный материал строки + ≥2 различных; зачарование — ровно 3 различных (silver_ore + coal + ровно 1 самоцвет = первичный); кузнечное — coal обязателен, ≤4; столярное — ≤3; impossible-кузнечное (titan_brace) — ТОЧНЫЙ паттерн crown_flame; «уровень» в диапазоне редкости РЕЗУЛЬТАТА (пин); зачарование — 1–4 заклинания (ID-форма, live); каждый из 50 forearms/palms-предметов — ровно 1 базовый рецепт-результат (краснота: рецептов волны нет)', () => {
+test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/файл/тип/уровень/здания/навыки/результат/исходники/заклинания; 16 столярное_дело [5] dexterity + 21 кузнечное_дело [8,25] forge + 13 зачарование [18] runes+first-affix-skill); 1:1-формула: результат = файл <id>.json предмета строки ростера i (000318.08: slug-именование; прежний номер 000283+i) (000318.07: номера файлов вытеснены id-именами — формула по порядку ростера, он === прежнему порядку 000144..000193), id рецепта == id предмета (D-01); материалы ⊆ контрактного множества по типу+редкости результата (D-08: qty — green-таблица) + первичный материал строки + ≥2 различных; зачарование — ровно 3 различных (silver_ore + coal + ровно 1 самоцвет = первичный); кузнечное — coal обязателен, ≤4; столярное — ≤3; impossible-кузнечное (titan_brace) — ТОЧНЫЙ паттерн crown_flame; «уровень» в диапазоне редкости РЕЗУЛЬТАТА (пин); зачарование — 1–4 заклинания (ID-форма, live); каждый из 50 forearms/palms-предметов — ровно 1 базовый рецепт-результат (краснота: рецептов волны нет)', () => {
   const { byId } = loadCatalog();
   const spellIds = loadSpellIds();
   for (const [row, [id, file, type, level, buildings, skills, primaryMat,
@@ -1904,13 +1904,10 @@ test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/�
     assert.equal(r.data['база'], undefined,
       id + ': базовый рецепт (без «база»); улучшенные — T10');
     const resPath = r.data['результат']['предмет'];
-    assert.equal(
-      resPath, 'assets/items/'
-        + String(283 + row).padStart(6, '0') + '.json',
-      id + ': 1:1-формула — результат assets/items/'
-      + String(283 + row).padStart(6, '0')
-      + '.json (строка ростера ' + row + ' ↔ прежний номер 000'
-      + (144 + row) + '; D-01)');
+    assert.equal(resPath, 'assets/items/' + id + '.json',
+      id + ': 1:1-формула — результат = файл предмета <id>.json '
+      + '(ре-пин 000318.08: slug-каталог; строка ростера ' + row
+      + ' ↔ прежний номер 000' + (144 + row) + '; D-01)');
     const resId = refId(resPath, REF_ITEMS, r.file);
     assert.equal(resId, id,
       id + ': id базового рецепта == id предмета (1:1, D-01)');

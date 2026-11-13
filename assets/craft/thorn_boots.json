@@ -3,20 +3,20 @@
   "название": "Зачарование шипастых сапог",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000611.json",
+    "предмет": "assets/items/thorn_boots.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000060.json",
+      "предмет": "assets/items/emerald.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     }
   ],

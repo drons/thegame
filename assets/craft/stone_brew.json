@@ -3,16 +3,16 @@
   "название": "Растирание каменного отвара",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000831.json",
+    "предмет": "assets/items/stone_brew.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000070.json",
+      "предмет": "assets/items/root_rock.json",
       "количество": 1
     }
   ],

@@ -9,7 +9,7 @@
   "мани": 6,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000272.json"
+    "assets/items/stun_of_light_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

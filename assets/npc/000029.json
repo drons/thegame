@@ -29,17 +29,17 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000012.json",
+        "предмет": "assets/items/healing_potion.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000014.json",
+        "предмет": "assets/items/mana_potion.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000013.json",
+        "предмет": "assets/items/greater_healing.json",
         "mult_продажи": 0.55,
         "количество": 1
       }

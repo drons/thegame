@@ -55,7 +55,7 @@
         "type": "object",
         "required": ["item"],
         "properties": {
-          "item": { "type": "string", "pattern": "^assets/items/\\d{6}\\.json$" },
+          "item": { "type": "string", "pattern": "^assets/items/[a-z][a-z0-9_]*\\.json$" },
           "chance": { "type": "number", "minimum": 0, "maximum": 1 }
         },
         "additionalProperties": false

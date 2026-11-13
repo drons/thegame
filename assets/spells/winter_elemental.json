@@ -13,7 +13,7 @@
     "turns": 4
   },
   "предметы": [
-    "assets/items/000154.json"
+    "assets/items/winter_elemental_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

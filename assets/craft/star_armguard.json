@@ -3,20 +3,20 @@
   "название": "зачарование: star_armguard",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000306.json",
+    "предмет": "assets/items/star_armguard.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000056.json",
+      "предмет": "assets/items/obsidian.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 3
     }
   ],

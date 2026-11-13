@@ -8,7 +8,7 @@
   "уровень": 3,
   "мани": 15,
   "действие": "воскрешение",
-  "предметы": ["assets/items/000024.json"],
+  "предметы": ["assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/healing_temple.json", "assets/buildings/temple.json", "assets/buildings/moon_temple.json", "assets/buildings/mountain_temple.json"],
   "описание": "Возвращает павшего союзника (или Флогистона) на поле боя с половиной здоровья. Спасательное заклинание: дальность не ограничена.",
   "icon": "assets/spell-icons/resurrect.svg",

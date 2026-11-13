@@ -3,24 +3,24 @@
   "название": "Зачарование сосуда Первоматерии",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000763.json",
+    "предмет": "assets/items/prima_vessel.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000023.json",
+      "предмет": "assets/items/moonstone.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000060.json",
+      "предмет": "assets/items/emerald.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 2
     }
   ],

@@ -16,7 +16,7 @@
     "radius": 2
   },
   "предметы": [
-    "assets/items/000140.json"
+    "assets/items/ice_field_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

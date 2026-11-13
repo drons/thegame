@@ -3,16 +3,16 @@
   "название": "Сгущение пустотного настоя",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000863.json",
+    "предмет": "assets/items/void_tonic.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000056.json",
+      "предмет": "assets/items/obsidian.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000057.json",
+      "предмет": "assets/items/phosphorite.json",
       "количество": 1
     }
   ],

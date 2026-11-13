@@ -13,7 +13,7 @@
     "turns": 4
   },
   "предметы": [
-    "assets/items/000153.json"
+    "assets/items/frost_wisp_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

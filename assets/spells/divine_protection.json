@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000280.json"
+    "assets/items/divine_protection_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

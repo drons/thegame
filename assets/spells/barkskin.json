@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000498.json"
+    "assets/items/barkskin_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

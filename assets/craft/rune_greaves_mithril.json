@@ -4,24 +4,24 @@
   "тип": "зачарование",
   "база": "assets/craft/rune_greaves.json",
   "результат": {
-    "предмет": "assets/items/000430.json",
+    "предмет": "assets/items/rune_greaves.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000059.json",
+      "предмет": "assets/items/sapphire.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000054.json",
+      "предмет": "assets/items/mithril_ore.json",
       "количество": 1
     }
   ],

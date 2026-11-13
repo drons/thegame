@@ -8,7 +8,7 @@
   "уровень": 2,
   "мани": 8,
   "действие": "защита",
-  "предметы": ["assets/items/000023.json"],
+  "предметы": ["assets/items/moonstone.json"],
   "здания": ["assets/buildings/mage_tower.json", "assets/buildings/mountain_temple.json"],
   "описание": "Кожа покрывается каменной чешуёй: добавляет к броне на время действия.",
   "icon": "assets/spell-icons/stone_skin.svg",

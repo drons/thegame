@@ -171,7 +171,7 @@ test('T2: assets/npc/000037.json валиден по schema; ключи в по�
     'количество 0 — вне схемы (minimum 1, maximum 99)');
   const legacyEntry = JSON.parse(JSON.stringify(data));
   legacyEntry.торговля.предметы[0] = {
-    предмет: 'assets/items/000038.json',
+    предмет: 'assets/items/coal.json',
     цена_покупки: 2, цена_продажи: 1, количество: 1,
   };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacy'), [],
@@ -335,7 +335,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
     'зеркало: постройки [5] — sync резолвит ссылку Лавки странника в id');
   const ids = new Set();
   items.forEach((p, j) => {
-    assert.match(p.предмет, /^assets\/items\/\d{6}\.json$/,
+    assert.match(p.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
       'путь предмета — якорная ссылка: ' + p.предмет);
     assert.ok(holdPaths.has(p.предмет),
       p.предмет + ': позиция ⊆ ассортимента дома 5 — резолв «пряностей» '
@@ -378,7 +378,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
     readJson(path.join(NDIR, '000036.json')).торговля.предметы
       .map((p) => p.предмет));
   for (const p of items) {
-    assert.ok(!khomyutPaths.has(p.предмет) || p.предмет === 'assets/items/000038.json',
+    assert.ok(!khomyutPaths.has(p.предмет) || p.предмет === 'assets/items/coal.json',
       p.предмет + ': витрина различима с Хомутом (общий допустим — '
       + 'только уголь как «тёмный помол»); дрейф запрещён');
   }

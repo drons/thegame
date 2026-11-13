@@ -13,7 +13,7 @@
     "turns": 5
   },
   "предметы": [
-    "assets/items/000496.json"
+    "assets/items/wall_of_thorns_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

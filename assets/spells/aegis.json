@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000461.json"
+    "assets/items/aegis_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

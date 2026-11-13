@@ -3,16 +3,16 @@
   "название": "Стояние глубинного бальзама",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000827.json",
+    "предмет": "assets/items/deep_balm.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000074.json",
+      "предмет": "assets/items/mushroom_grey.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000070.json",
+      "предмет": "assets/items/root_rock.json",
       "количество": 1
     }
   ],

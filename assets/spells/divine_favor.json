@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000266.json"
+    "assets/items/divine_favor_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

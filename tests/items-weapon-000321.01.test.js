@@ -29,6 +29,32 @@ const { validateData } = require('./json-schema.js');
 
 const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
+
+// 000318.08: assets/items — файлы <id>.json. Замороженный реестр
+// «номер → id» (tests/scripts/items-num2id-000318.08.json) даёт
+// файлам прежние ВИРТУАЛЬНЫЕ имена «000NNN.json» для позиционных
+// пинов (тот же порядок), чтение с диска — DISKF_I08().
+const NUM2ID_I08 = require(path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json'));
+const ID2NUM_I08 = {};
+for (const n08 of Object.keys(NUM2ID_I08)) {
+  ID2NUM_I08[NUM2ID_I08[n08]] = n08;
+}
+function SLUGI08(f) {
+  return f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f);
+}
+function VIRTNUMI08(f) {
+  const b = f.replace(/\.json$/, '');
+  return ID2NUM_I08[b] !== undefined ? ID2NUM_I08[b] + '.json' : f;
+}
+function DISKF_I08(x) {
+  const b = String(x).replace(/\.json$/, '');
+  return (NUM2ID_I08[b] !== undefined ? NUM2ID_I08[b] : b) + '.json';
+}
+function FILES_I08() {
+  return fs.readdirSync(ITEMS_DIR).filter(SLUGI08)
+    .map(VIRTNUMI08).sort();
+}
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
 const SPR_DIR = path.join(ROOT, 'assets', 'sprites', 'items');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
@@ -244,8 +270,9 @@ function craftFiles(dir) {
 }
 
 function refNum(ref) {
-  const m = /(\d{6})\.json$/.exec(ref);
-  return m ? m[1] : null;
+  const m = /([a-z0-9_]+)\.json$/.exec(ref);
+  if (!m) return null;
+  return ID2NUM_I08[m[1]] !== undefined ? ID2NUM_I08[m[1]] : m[1];
 }
 
 function buildingTargetId(ref) {
@@ -253,8 +280,8 @@ function buildingTargetId(ref) {
     fs.readFileSync(path.join(ROOT, ref), 'utf8')).id;
 }
 function loadItemFile(num) {
-  const f = String(num).padStart(6, '0') + '.json';
-  const p = path.join(ITEMS_DIR, f);
+  const f = DISKF_I08(String(num).padStart(6, '0'));
+  const p = path.join(ITEMS_DIR, DISKF_I08(f));
   assert.ok(fs.existsSync(p),
     'assets/items/' + f + ' существует (краснота: каталог 513 — '
     + 'предмет волны не создан)');
@@ -275,9 +302,8 @@ function spellIds() {
 
 // --- T1: каталог и форма 50 предметов ------------------------------
 
-test('000321.01 T1: каталог — ровно 864 файла 000001–000864 подряд (ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин 000321.06: +50 колец 000765–000814 — новый конец каталога; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.05: +50 инструментов 000714–000763; ре-пин 000321.02: +50 брони; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов); 50 новых (000514–000563) — kind weapon, slot right_hand, subtype ∈ enum-4 схемы, полный equip-набор полей, порядок ключей = канон 000345 (icon МЕЖДУ stats и slot), roundtrip-канон stringify(…,2)+\\n, валидность по assets/items/schema.json (краснота: каталог 513 — волна не добавлена)', () => {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+test('000321.01 T1: каталог — ровно 864 файла <id>.json (позиции — виртуальные номера по реестру 000318.08) (ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин 000321.06: +50 колец 000765–000814 — новый конец каталога; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.05: +50 инструментов 000714–000763; ре-пин 000321.02: +50 брони; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов); 50 новых (000514–000563) — kind weapon, slot right_hand, subtype ∈ enum-4 схемы, полный equip-набор полей, порядок ключей = канон 000345 (icon МЕЖДУ stats и slot), roundtrip-канон stringify(…,2)+\\n, валидность по assets/items/schema.json (краснота: каталог 513 — волна не добавлена)', () => {
+  const files = FILES_I08();
   assert.equal(files.length, 864,
     'каталог — 864 файла (513 + 50 оружия 000321.01 + 50 брони 000321.02 + 50 щитов '
     + '000321.03 + 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07); факт: '
@@ -375,15 +401,14 @@ test('000321.01 T2: композиция волны — редкость РОВ�
 // --- T3: уникальность и полосы --------------------------------------
 
 test('000321.01 T3: уникум id и имён — sweep против ВСЕХ 864 файлов каталога (ре-пин 000321.07: +50 зелий; ре-пин 000321.06: +50 колец) (id/имя не пересекаются со старыми 513 и внутри волны); desc уникальны против всего каталога; damage/value/weight в полосах таблицы по редкости (краснота: каталог 513)', () => {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const files = FILES_I08();
   assert.equal(files.length, 864, 'каталог — 864; факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
   for (const f of files) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISKF_I08(f)), 'utf8'));
     assert.ok(!ids.has(j.id), 'дубликат id: ' + j.id + ' (' + f + ')');
     ids.set(j.id, f);
     assert.ok(!names.has(j.name),
@@ -422,8 +447,7 @@ test('000321.01 T4: 50 рецептов — файлы по id (прежние �
     + files.length + ' (краснота: рецепты не созданы)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(CRAFT_DIR, 'schema.json'), 'utf8'));
-  const itemFiles = new Set(fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)));
+  const itemFiles = new Set(FILES_I08());
   const skills = new Set(fs.readdirSync(SKILLS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)));
   const buildings = new Set(fs.readdirSync(BUILDINGS_DIR)
@@ -446,9 +470,8 @@ test('000321.01 T4: 50 рецептов — файлы по id (прежние �
     assert.equal(j['тип'], тип, f + ': тип «' + тип + '»');
     typeCount[тип] = (typeCount[тип] || 0) + 1;
     assert.equal(j['результат']['предмет'],
-      'assets/items/' + String(NEW_FROM
-        + RECIPES_00032101.findIndex((r) => r[1] === id)).padStart(6, '0')
-      + '.json', f + ': результат — предмет волны');
+      'assets/items/' + DISKF_I08(String(NEW_FROM
+        + RECIPES_00032101.findIndex((r) => r[1] === id)).padStart(6, '0')), f + ': результат — предмет волны');
     results.push(j['результат']['предмет']);
     assert.equal(j['база'], undefined,
       f + ': «база» отсутствует (базовые рецепты, ТЗ «50 рецептов»)');
@@ -521,9 +544,9 @@ test('000321.01 T5: EQUIP_POOLS — новые id на фикс. окнах св
   const all = I.allItems();
   assert.equal(all.length, 864, 'live-каталог — 864');
   for (const t of L.RARITY) {
-    assert.deepEqual(P[t.id],
-      all.filter((it) => it.rarity === t.id).map((it) => it.id),
-      'пул «' + t.id + '» ≡ live-каталогу по редкости (EQ2/LF6)');
+    assert.deepEqual([...P[t.id]].sort(),
+      all.filter((it) => it.rarity === t.id).map((it) => it.id).sort(),
+      'пул «' + t.id + '» ≡ live-каталогу по редкости — set-равенство (ре-пин 000318.08 F2-P1; EQ2/LF6)');
   }
   for (const [num, id, name, subtype, rarity] of ROSTER_00032101) {
     const pool = P[rarity];
@@ -630,7 +653,7 @@ test('000321.01 T7: зеркала — src/items-data.js содержит 50 н�
     const m = CRD.CRAFT_BY_ID[id];
     assert.ok(m, 'craft-data: рецепт «' + id + '» (' + f + ')');
     const itemById = (ref) => JSON.parse(fs.readFileSync(
-      path.join(ITEMS_DIR, refNum(ref) + '.json'), 'utf8')).id;
+      path.join(ITEMS_DIR, DISKF_I08(refNum(ref))), 'utf8')).id;
     assert.deepEqual(m['результат'],
       { предмет: itemById(j['результат']['предмет']), количество: 1 },
       f + ': зеркало — результат резолвлен в id');

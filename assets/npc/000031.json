@@ -41,7 +41,7 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000078.json",
+        "предмет": "assets/items/blueprint_alchemy.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

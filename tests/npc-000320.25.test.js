@@ -180,7 +180,7 @@ test('T2: assets/npc/000046.json валиден по schema; ключи в по�
   assert.notDeepEqual(validateData(SCHEMA, badSkill, 'npc/badskill'), [],
     'навык «Мечник» — вне паттерна id ^[a-z][a-z0-9_]*$');
   const withTrade = JSON.parse(JSON.stringify(data));
-  withTrade.торговля = { предметы: [{ предмет: 'assets/items/000765.json',
+  withTrade.торговля = { предметы: [{ предмет: 'assets/items/tin_band.json',
     mult_продажи: 0.5, количество: 1 }] };
   assert.notDeepEqual(Object.keys(withTrade), KEYS,
     'лишний блок «торговля» — вне эталона ключей: схема блок допускает '

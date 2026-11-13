@@ -10,7 +10,7 @@
   "мани": 4,
   "действие": "лечение",
   "предметы": [
-    "assets/items/000258.json"
+    "assets/items/radiant_heal_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000481.json"
+    "assets/items/stone_anchor_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

@@ -14,7 +14,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000157.json"
+    "assets/items/frozen_stillness_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

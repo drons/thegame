@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000122.json"
+    "assets/items/sunfire_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

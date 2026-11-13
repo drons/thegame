@@ -2,10 +2,10 @@
   "id": "healing_potion",
   "название": "Варка зелья лечения",
   "тип": "алхимия",
-  "результат": { "предмет": "assets/items/000012.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/healing_potion.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000018.json", "количество": 1 },
-    { "предмет": "assets/items/000023.json", "количество": 1 }
+    { "предмет": "assets/items/honey_cake.json", "количество": 1 },
+    { "предмет": "assets/items/moonstone.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000025.json", "assets/skills/000031.json"],
   "здания": ["assets/buildings/apothecary.json", "assets/buildings/alchemy_lab.json"],

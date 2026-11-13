@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000509.json"
+    "assets/items/wild_growth_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

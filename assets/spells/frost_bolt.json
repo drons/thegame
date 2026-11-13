@@ -9,7 +9,7 @@
   "уровень": 1,
   "мани": 4,
   "действие": "урон",
-  "предметы": ["assets/items/000023.json"],
+  "предметы": ["assets/items/moonstone.json"],
   "здания": ["assets/buildings/alchemy_lab.json", "assets/buildings/mage_tower.json"],
   "описание": "Стрела инея: урон и замедление цели. Первое заклинание школы Льда.",
   "icon": "assets/spell-icons/frost_bolt.svg",

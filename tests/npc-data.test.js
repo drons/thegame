@@ -195,7 +195,7 @@ test('схема: цель квеста требует поле по типу (o
     { goal: { тип: 'kill_group', количество: 1 }, ok: false },
     { goal: { тип: 'bring_item', количество: 2 }, ok: false },
     { goal: { тип: 'kill_group', группа: 2, количество: 1 }, ok: true },
-    { goal: { тип: 'bring_item', предмет: 'assets/items/000023.json', количество: 2 }, ok: true },
+    { goal: { тип: 'bring_item', предмет: 'assets/items/moonstone.json', количество: 2 }, ok: true },
     // чужое поле типа — тоже мимо (additionalProperties false в варианте)
     { goal: { тип: 'kill_group', группа: 2, количество: 1,
               предмет: 'moonstone' }, ok: false },

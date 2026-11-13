@@ -183,7 +183,7 @@ test('000243-I1-T: заголовок I1 (000211.06) = телу: «прочие 
     'устаревшее «прочие 23» (срез 000302.07) — отсутствует; '
     + 'факт: ' + line.slice(0, 160));
   const files = fs.readdirSync(ITEMS_DIR)
-    .filter(f => /^\d{6}\.json$/.test(f));
+    .filter(f => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f)); // 000318.08
   let withIcon = 0;
   for (const f of files) {
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));

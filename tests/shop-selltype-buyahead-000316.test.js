@@ -55,7 +55,8 @@ const campRec = JSON.parse(
 
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 const diskItems = fs.readdirSync(ITEMS_DIR)
-  .filter((f) => /^\d+\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && /^[a-z][a-z0-9_]*\.json$/.test(f))
   .map((f) => JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f),
     'utf8')));
 const diskKinds = [...new Set(diskItems.map((it) => it.kind))].sort();
@@ -781,7 +782,12 @@ test('T7. выкуп следующего цикла (ядро): покупка 
 
   const stockSnap = JSON.parse(JSON.stringify(cur.stock));
   const c = createCharacter('Флогистон');
-  c.gold = 1000000;
+  // Ре-пин 000318.08: состав/порядок camp-стока под lex-порядком
+  // каталога — A может оказаться дорогим свитком (spellScrollPriceMult
+  // 8^tier); золото — с запасом на любой выкуп пула, пин ниже
+  // симметричный (GOLD0 − r.price).
+  const GOLD0 = 1000000000000;
+  c.gold = GOLD0;
   const r = I.buyItem(cur, c, A, 1);
   assert.equal(r.ok, true, 'RED: выкуп отсутствующего в текущем ' +
     'стоке предмета из СЛЕДУЮЩЕГО цикла не работает: '
@@ -792,7 +798,7 @@ test('T7. выкуп следующего цикла (ядро): покупка 
     'r.message до ветки «Куплено:»)');
   assert.equal(r.price, I.buyPrice(cur, A, c),
     'цена выкупа — существующая buyPrice');
-  assert.equal(c.gold, 1000000 - r.price, 'золото списано');
+  assert.equal(c.gold, GOLD0 - r.price, 'золото списано');
   assert.equal(I.totalQty(c, A), 1, 'предмет — в инвентаре');
   assert.deepEqual(JSON.parse(JSON.stringify(cur.stock)), stockSnap,
     'ТЕКУЩИЙ сток не тронут выкупом: '

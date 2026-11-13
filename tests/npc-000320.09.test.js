@@ -132,7 +132,7 @@ test('T2: assets/npc/000027.json валиден по schema; ключи в по�
     'количество 0 — вне схемы (minimum 1, maximum 99)');
   const legacyEntry = JSON.parse(JSON.stringify(data));
   legacyEntry.торговля.предметы[0] = {
-    предмет: 'assets/items/000008.json',
+    предмет: 'assets/items/leather_armor.json',
     цена_покупки: 36, цена_продажи: 20, количество: 1,
   };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacy'), [],
@@ -270,7 +270,7 @@ test('T7: торговля — РОВНО 3 входа брони; пути на
   const mirror = NPCS[26];
   const ids = new Set();
   items.forEach((p, j) => {
-    assert.match(p.предмет, /^assets\/items\/\d{6}\.json$/,
+    assert.match(p.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
       'путь предмета — якорная ссылка: ' + p.предмет);
     const target = path.join(ROOT, p.предмет);
     assert.ok(fs.existsSync(target), 'предмет существует по пути: ' + p.предмет);

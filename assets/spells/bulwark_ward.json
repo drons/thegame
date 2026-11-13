@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000466.json"
+    "assets/items/bulwark_ward_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

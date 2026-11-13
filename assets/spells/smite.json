@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000270.json"
+    "assets/items/smite_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

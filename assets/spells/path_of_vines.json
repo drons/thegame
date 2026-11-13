@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000511.json"
+    "assets/items/path_of_vines_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

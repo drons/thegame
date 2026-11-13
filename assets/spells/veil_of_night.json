@@ -16,7 +16,7 @@
     "radius": 2
   },
   "предметы": [
-    "assets/items/000251.json"
+    "assets/items/veil_of_night_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

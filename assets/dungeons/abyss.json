@@ -7,14 +7,14 @@
     "assets/mobs/abomination.json"
   ],
   "предметы": [
-    "assets/items/000007.json",
-    "assets/items/000024.json",
-    "assets/items/000013.json",
-    "assets/items/000029.json",
-    "assets/items/000027.json",
-    "assets/items/000044.json",
-    "assets/items/000046.json",
-    "assets/items/000081.json"
+    "assets/items/war_hammer.json",
+    "assets/items/phoenix_feather.json",
+    "assets/items/greater_healing.json",
+    "assets/items/heavy_tome.json",
+    "assets/items/fire_spellbook.json",
+    "assets/items/flame_burst_scroll.json",
+    "assets/items/blizzard_scroll.json",
+    "assets/items/blueprint_enchant.json"
   ],
   "размер": 35,
   "постройка": "assets/buildings/abyss.json",
@@ -24,35 +24,35 @@
   ],
   "руда": [
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000056.json",
+      "предмет": "assets/items/obsidian.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "assets/items/000058.json",
+      "предмет": "assets/items/ruby.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000057.json",
+      "предмет": "assets/items/phosphorite.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000054.json",
+      "предмет": "assets/items/mithril_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "вид": "самоцвет"
     }
   ]

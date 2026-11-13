@@ -61,7 +61,8 @@
 //      фикстуры.
 //   T7 live-фильтры БЕЗ rebuild: обёртка G.groupVisible (false для (1,0))
 //      убирает спрайт группы на СЛЕДУЮЩЕМ хите без пересборки субсписков;
-//      снятие — возвращает; то же G.lootVisible для лута (-1,1).
+//      снятие — возвращает; то же G.lootVisible для лута (-2,0)
+//      (ре-пин 000318.08 F1: (-1,1) больше не лут-тайл).
 //
 // Красность на HEAD (до правки): во всех тестах — guard «механизм
 // субсписков существует» (state.frameTilesCache.subsets/subsetBuilds);
@@ -881,16 +882,18 @@ test('T2: row-major субсписков — water/decor/loot/anchors(first-seen
 // T3 — collect → bump → пересборка ровно 1×; призрак собранного лута.
 // =====================================================================
 
-test('T3: collect лута [E] на (-1,1) → версия КЛЮЧА субсписков (collectedLoot.size) сдвигается → РОВНО одна пересборка пакета на следующем кадре; призрак собранного лута НЕ рисуется; остальные слои по числам неизменны; следующий кадр — плато (000340)', async () => {
+test('T3: collect лута [E] на (-2,0) → версия КЛЮЧА субсписков (collectedLoot.size) сдвигается → РОВНО одна пересборка пакета на следующем кадре; призрак собранного лута НЕ рисуется; остальные слои по числам неизменны; следующий кадр — плато (000340)', async () => {
   const h = await boot();
   assertReady(h);
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
-  assert.equal(WORLD.tileAt(-1, 1).loot && WORLD.tileAt(-1, 1).loot.item,
-    'root_rock', 'сценарий: (-1,1) — Каменный корень');
+  // Ре-пин 000318.08 F1 (лут-канал, лекс-порядок slug-каталога):
+  // ближайший лут от спавна — (-2,0) root_ember.
+  assert.equal(WORLD.tileAt(-2, 0).loot && WORLD.tileAt(-2, 0).loot.item,
+    'root_ember', 'сценарий: (-2,0) — Огненный корень');
   const walk = makeWalker(h);
   let now = walk(-1, 0);
-  now = walk(-1, 1);
+  now = walk(-2, 0);
   now = settleFrames(h, now);
   const cA = cacheOf(h);
   guardMechanism(cA);
@@ -899,22 +902,22 @@ test('T3: collect лута [E] на (-1,1) → версия КЛЮЧА субс�
   assert.equal(cacheOf(h).subsetBuilds, buildsA,
     'сценарий: кадр до сбора — HIT (плато после шагов)');
   const tokBefore = tokensOf(fBefore.draw, h);
-  // Позитивный контроль: лут (-1,1) нарисован (LM7-паттерн).
-  const ls = SPR.lootSprite('root_rock', -1, 1);
+  // Позитивный контроль: лут (-2,0) нарисован (LM7-паттерн).
+  const ls = SPR.lootSprite('root_ember', -2, 0);
   assert.ok(ls && ls.sprite.startsWith(LOOT_PREFIX),
     'сценарий: иконка лута существует');
   const st0 = stateOf(h);
-  const p0 = G.worldToScreen(-1, 1, st0.cam.x, st0.cam.y, st0.zoom,
+  const p0 = G.worldToScreen(-2, 0, st0.cam.x, st0.cam.y, st0.zoom,
     h.spriteCanvas.width, h.spriteCanvas.height);
   const rr0 = G.visualDrawRect(ls, p0.x, p0.y, st0.zoom);
   const atLoot = (tok) => tok[0] === 'img' && tok[1] === ls.sprite
     && Math.abs(tok[2] - rr0.x) < 1e-4 && Math.abs(tok[3] - rr0.y) < 1e-4;
   assert.ok(tokBefore.some(atLoot),
-    'сценарий: root_rock на (-1,1) нарисован ДО сбора');
+    'сценарий: root_ember на (-2,0) нарисован ДО сбора');
   const famBefore = familyCounts(tokBefore);
   key(h, 'KeyE');
-  assert.equal((g.collectedLoot || {})['-1,1'], stateOf(h).day,
-    'сценарий: collectedLoot["-1,1"] = день (механика 000158.04)');
+  assert.equal((g.collectedLoot || {})['-2,0'], stateOf(h).day,
+    'сценарий: collectedLoot["-2,0"] = день (механика 000158.04)');
   assert.equal(cacheOf(h).subsetBuilds, buildsA,
     'вне кадра сбор НЕ пересобирает пакет (версия — размер Map, бамп'
     + ' производный, в кадре)');
@@ -1164,7 +1167,7 @@ test('T6: регресс z-порядка CC-2/LM на HIT-кадре при и�
 // T7 — live-фильтры работают БЕЗ rebuild.
 // =====================================================================
 
-test('T7: live-фильтры на хите БЕЗ пересборки субсписков: обёртка G.groupVisible(false для (1,0)) убирает спрайт группы на СЛЕДУЮЩЕМ hit-кадре (subsetBuilds плато), снятие — возвращает; то же G.lootVisible для лута (-1,1) — без призрака и без сборки (000340)', async () => {
+test('T7: live-фильтры на хите БЕЗ пересборки субсписков: обёртка G.groupVisible(false для (1,0)) убирает спрайт группы на СЛЕДУЮЩЕМ hit-кадре (subsetBuilds плато), снятие — возвращает; то же G.lootVisible для лута (-2,0) — без призрака и без сборки (000340)', async () => {
   const h = await boot();
   assertReady(h);
   frameAt(h, NOW + 200);
@@ -1203,24 +1206,24 @@ test('T7: live-фильтры на хите БЕЗ пересборки субс
   assert.equal(cacheOf(h).subsetBuilds, buildsB,
     'и возврат — без пересборки (тот же пакет)');
 
-  // Лут-вариант: (-1,1) root_rock.
-  const ls = SPR.lootSprite('root_rock', -1, 1);
-  const pL = G.worldToScreen(-1, 1, st.cam.x, st.cam.y, st.zoom,
+  // Лут-вариант: (-2,0) root_ember (ре-пин 000318.08 F1).
+  const ls = SPR.lootSprite('root_ember', -2, 0);
+  const pL = G.worldToScreen(-2, 0, st.cam.x, st.cam.y, st.zoom,
     h.spriteCanvas.width, h.spriteCanvas.height);
   const rr = G.visualDrawRect(ls, pL.x, pL.y, st.zoom);
   const lootAt = (tok) => tok[0] === 'img' && tok[1] === ls.sprite
     && Math.abs(tok[2] - rr.x) < 1e-4 && Math.abs(tok[3] - rr.y) < 1e-4;
   const f3 = frameAt(h, NOW + 1200);
   assert.ok(tokensOf(f3.draw, h).some(lootAt),
-    'сценарий: лут (-1,1) нарисован');
+    'сценарий: лут (-2,0) нарисован');
   const buildsC = cacheOf(h).subsetBuilds;
   const origLV = G.lootVisible;
-  G.lootVisible = (m, x, y) => (x === -1 && y === 1 ? false
+  G.lootVisible = (m, x, y) => (x === -2 && y === 0 ? false
     : origLV(m, x, y));
   try {
     const f4 = frameAt(h, NOW + 1400);
     assert.ok(!tokensOf(f4.draw, h).some(lootAt),
-      'lootVisible=false → лут (-1,1) скрыт на hit-кадре');
+      'lootVisible=false → лут (-2,0) скрыт на hit-кадре');
     assert.equal(cacheOf(h).subsetBuilds, buildsC,
       'сокрытие лута — БЕЗ пересборки субсписков');
   } finally {

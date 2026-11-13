@@ -3,16 +3,16 @@
   "название": "Толчение алмазного эликсира",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000842.json",
+    "предмет": "assets/items/diamond_draught.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000024.json",
+      "предмет": "assets/items/phoenix_feather.json",
       "количество": 1
     }
   ],

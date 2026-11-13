@@ -23,7 +23,7 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000010.json",
+      "item": "assets/items/knight_plate.json",
       "chance": 0.1
     }
   ],

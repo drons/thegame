@@ -2,9 +2,9 @@
   "id": "short_bow",
   "название": "Изготовление короткого лука",
   "тип": "столярное_дело",
-  "результат": { "предмет": "assets/items/000004.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/short_bow.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000035.json", "количество": 2 }
+    { "предмет": "assets/items/wood_log.json", "количество": 2 }
   ],
   "навыки": ["assets/skills/000002.json", "assets/skills/000015.json"],
   "здания": ["assets/buildings/wanderer_shop.json"],

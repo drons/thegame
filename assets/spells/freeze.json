@@ -9,7 +9,7 @@
   "мани": 6,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000151.json"
+    "assets/items/freeze_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

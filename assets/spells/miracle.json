@@ -10,7 +10,7 @@
   "действие": "воскрешение",
   "вне_боя": true,
   "предметы": [
-    "assets/items/000282.json"
+    "assets/items/miracle_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

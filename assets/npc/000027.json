@@ -29,17 +29,17 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000008.json",
+        "предмет": "assets/items/leather_armor.json",
         "mult_продажи": 0.55,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000009.json",
+        "предмет": "assets/items/chainmail.json",
         "mult_продажи": 0.55,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000010.json",
+        "предмет": "assets/items/knight_plate.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

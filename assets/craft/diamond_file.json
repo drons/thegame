@@ -3,20 +3,20 @@
   "название": "Нарезка алмазного надфиля",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000752.json",
+    "предмет": "assets/items/diamond_file.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

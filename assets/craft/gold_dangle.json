@@ -3,20 +3,20 @@
   "название": "Зачарование золотого подвеса",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000178.json",
+    "предмет": "assets/items/gold_dangle.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000058.json",
+      "предмет": "assets/items/ruby.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

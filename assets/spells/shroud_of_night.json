@@ -14,7 +14,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000256.json"
+    "assets/items/shroud_of_night_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

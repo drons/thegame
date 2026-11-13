@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000473.json"
+    "assets/items/weaken_defense_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

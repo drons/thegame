@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000144.json"
+    "assets/items/ice_armor_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

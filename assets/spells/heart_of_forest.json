@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000499.json"
+    "assets/items/heart_of_forest_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

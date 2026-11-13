@@ -157,8 +157,8 @@ test('N6: торговля — 5 входов меч/лук; пути на ди�
   assert.ok(mirror && mirror.id === 'blade_merchant',
     'зеркало: 19-я запись blade_merchant');
   items.forEach((p, j) => {
-    assert.match(p.предмет, /^assets\/items\/\d{6}\.json$/,
-      'путь предмета — якорная ссылка: ' + p.предмет);
+    assert.match(p.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
+      'путь предмета — якорная ссылка (000318.08: имя = id): ' + p.предмет);
     const target = path.join(ROOT, p.предмет);
     assert.ok(fs.existsSync(target), 'предмет существует по пути: ' + p.предмет);
     const it = readJson(target);

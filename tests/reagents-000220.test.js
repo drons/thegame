@@ -33,11 +33,11 @@ const VISDS = new Set(['руда', 'минерал', 'самоцвет']);
 // 5 строительных reagent'ов: id → файл каталога (индексы в ITEMS
 // 34/36/38/39/40 — append-only, новых файлов предметов НЕТ).
 const FIVE = [
-  ['wood_log', '000035.json'],
-  ['hide', '000037.json'],
-  ['herb_healing', '000039.json'],
-  ['herb_mana', '000040.json'],
-  ['herb_bitter', '000041.json'],
+  ['wood_log', 'wood_log.json'],
+  ['hide', 'hide.json'],
+  ['herb_healing', 'herb_healing.json'],
+  ['herb_mana', 'herb_mana.json'],
+  ['herb_bitter', 'herb_bitter.json'],
 ];
 const FIVE_IDS = new Set(FIVE.map(([id]) => id));
 const DUN_FILES = fs.readdirSync(DDIR)
@@ -153,23 +153,23 @@ for (const [n, [id]] of FIVE.entries()) {
 // --- REAG-T1: таблица «где-что» (memory/000220-*.md §2) — пин ---
 
 const T1_TABLE = [
-  { id: 'wood_log', itemFile: '000035.json',
+  { id: 'wood_log', itemFile: 'wood_log.json',
     loot: { terrains: ['лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/wood_log.svg',
     dungeonFile: 'castle_ruins.json', type: 2, kind: 'минерал' },
-  { id: 'hide', itemFile: '000037.json',
+  { id: 'hide', itemFile: 'hide.json',
     loot: { terrains: ['лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/hide.svg',
     dungeonFile: 'castle_ruins.json', type: 2, kind: 'минерал' },
-  { id: 'herb_healing', itemFile: '000039.json',
+  { id: 'herb_healing', itemFile: 'herb_healing.json',
     loot: { terrains: ['болото', 'лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/herb_healing.svg',
     dungeonFile: 'simple_cave.json', type: 0, kind: 'минерал' },
-  { id: 'herb_mana', itemFile: '000040.json',
+  { id: 'herb_mana', itemFile: 'herb_mana.json',
     loot: { terrains: ['болото', 'лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/herb_mana.svg',
     dungeonFile: 'crypt.json', type: 1, kind: 'минерал' },
-  { id: 'herb_bitter', itemFile: '000041.json',
+  { id: 'herb_bitter', itemFile: 'herb_bitter.json',
     loot: { terrains: ['болото', 'лес'], frequency: 0.02 },
     icon: 'assets/sprites/loot/herb_bitter.svg',
     dungeonFile: 'flooded_cave.json', type: 3, kind: 'минерал' },

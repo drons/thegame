@@ -3,24 +3,24 @@
   "название": "Зачарование фениксового кольца",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000407.json",
+    "предмет": "assets/items/phoenix_ring.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 4
     },
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000024.json",
+      "предмет": "assets/items/phoenix_feather.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 3
     }
   ],

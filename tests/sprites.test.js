@@ -732,14 +732,18 @@ test('SP-LOOT-3 000158.05: LOOT_MIN_ZOOM = 16 (жёсткий пин); LOOT_VISU
   assert.notEqual(SEED, LOOT_SEED,
     'свой сид — НЕ LOOT_SEED map.js (канал генерации «что лежит»)');
   // Золотые hash2 (вычислены на 1ca4904; §2 D3): x — с офсетом +1,
-  // y — с офсетом +2 к seed; index: 22 = moonstone (первый
-  // лут-предмет каталога), 73 = mushroom_grey (последний).
+  // y — с офсетом +2 к seed. Индексы 22/73 — ФИКСИРОВАННЫЕ позиции
+  // для пина формулы (seed-литералы не переснимаются): до 000318.08
+  // на них стояли moonstone (первый лут-предмет) и mushroom_grey
+  // (последний); под лекс-порядком slug-каталога — antler_hook /
+  // boar_tusk_earring (лут-якоря уехали: moonstone=466,
+  // mushroom_grey=472; «index 0» — absolute_zero_scroll).
   assert.equal(hash2(-1, 1, SEED + 1), 779866397, 'golden x (index 0)');
   assert.equal(hash2(-1, 1, SEED + 2), 666786471, 'golden y (index 0)');
   assert.equal(hash2(3, 4, SEED + 22 * 0x9e3779b9 + 1), 462833820,
-    'golden x (index 22 = moonstone)');
+    'golden x (индекс 22 — пин формулы)');
   assert.equal(hash2(3, 4, SEED + 73 * 0x9e3779b9 + 2), 3271630315,
-    'golden y (index 73 = mushroom_grey)');
+    'golden y (индекс 73 — пин формулы)');
 });
 
 test('SP-LOOT-2 000158.05: allAssetPaths ↔ каталог лута — ровно 33 пути assets/sprites/loot/<id>.svg, все существуют, чужих id нет', () => {
@@ -821,23 +825,27 @@ test('SP-LOOT-5 000158.05: vm без items-data.js — гард: lootSprite → 
 
 test('SP-IC1 000211.06: lootSprite — при icon — sprite = item.icon (путь из данных, дивергентный фейк); x/y/size БЕЗ ИЗМЕНЕНИЙ (детерминизм: seed-схема не тронута)', () => {
   const e0 = S.lootSprite('moonstone', 3, 4);
-  assert.ok(e0, 'baseline: moonstone (index 22) в каталоге');
+  // 000318.08: index в seed = лекс-позиция в каталоге (moonstone больше
+  // не 22) — берём ЖИВОЙ индекс, как в SP-IC3/SP-IC4 ниже.
+  const IDX = ITEMS.findIndex((it) => it.id === 'moonstone');
+  assert.ok(IDX >= 0, 'baseline: moonstone в каталоге');
   try {
     // node-UMD sprites.js жёстко привязан к require('../src/
     // items-data.js') — ТОТ ЖЕ модульный экземпляр, что в тесте
     // (единственный способ увидеть «из данных» node-тестом).
-    ITEMS[22].icon = 'assets/sprites/loot/divergent_ic.svg';
+    ITEMS[IDX].icon = 'assets/sprites/loot/divergent_ic.svg';
     const e = S.lootSprite('moonstone', 3, 4);
     assert.equal(e.sprite, 'assets/sprites/loot/divergent_ic.svg',
       'sprite = item.icon — путь из данных (краснота: icon не '
       + 'читается — конвенция assets/sprites/loot/moonstone.svg); '
       + 'факт: ' + e.sprite);
     assert.equal(e.x, e0.x,
-      'x без изменений (seed = LOOT_VISUAL_SEED + 22*0x9e3779b9)');
+      'x без изменений (seed = LOOT_VISUAL_SEED + ' + IDX
+      + '*0x9e3779b9)');
     assert.equal(e.y, e0.y, 'y без изменений');
     assert.equal(e.size, e0.size, 'size без изменений (LOOT_SIZE)');
   } finally {
-    delete ITEMS[22].icon;
+    delete ITEMS[IDX].icon;
   }
 });
 

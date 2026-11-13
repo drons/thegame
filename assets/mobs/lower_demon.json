@@ -22,11 +22,11 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000013.json",
+      "item": "assets/items/greater_healing.json",
       "chance": 0.1
     },
     {
-      "item": "assets/items/000022.json",
+      "item": "assets/items/sulfur.json",
       "chance": 0.2
     }
   ],

@@ -2,12 +2,12 @@
   "id": "ruby_cut",
   "название": "Огранка рубина",
   "тип": "резьба_по_камню",
-  "результат": { "предмет": "assets/items/000058.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/ruby.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000036.json", "количество": 4 },
-    { "предмет": "assets/items/000056.json", "количество": 2 },
-    { "предмет": "assets/items/000057.json", "количество": 2 },
-    { "предмет": "assets/items/000042.json", "количество": 1 }
+    { "предмет": "assets/items/stone_chunk.json", "количество": 4 },
+    { "предмет": "assets/items/obsidian.json", "количество": 2 },
+    { "предмет": "assets/items/phosphorite.json", "количество": 2 },
+    { "предмет": "assets/items/stone_chisel.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000027.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],

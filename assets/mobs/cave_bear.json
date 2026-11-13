@@ -23,11 +23,11 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000017.json",
+      "item": "assets/items/meat.json",
       "chance": 0.3
     },
     {
-      "item": "assets/items/000018.json",
+      "item": "assets/items/honey_cake.json",
       "chance": 0.1
     }
   ],

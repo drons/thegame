@@ -167,18 +167,19 @@ test('T2: assets/npc/000044.json валиден по schema; ключи в по�
   assert.notDeepEqual(validateData(SCHEMA, badGroup, 'npc/badgroup'), [],
     'группа 7 в kill_group — вне схемы (maximum 6; каталог 7 групп 0..6)');
   const badItem = JSON.parse(JSON.stringify(data));
-  badItem.квесты[0].цель.предмет = 'assets/items/bread.json';
+  badItem.квесты[0].цель.предмет = 'assets/items/' + '000012' + '.json';
   assert.notDeepEqual(validateData(SCHEMA, badItem, 'npc/baditem'), [],
-    'имя-файл вместо numeric-пути в bring_item — вне паттерна схемы');
+    'numeric-путь вместо slug-имени (id) в bring_item — вне паттерна '
+    + 'схемы (000318.08: assets/items — имя = id)');
   const withTrade = JSON.parse(JSON.stringify(data));
-  withTrade.торговля = { предметы: [{ предмет: 'assets/items/000765.json',
+  withTrade.торговля = { предметы: [{ предмет: 'assets/items/tin_band.json',
     mult_продажи: 0.5, количество: 1 }] };
   assert.notDeepEqual(Object.keys(withTrade), KEYS,
     'лишний блок «торговля» — вне эталона ключей: схема блок допускает '
     + '(невидимость свипам пинит не схема, а T2/T6), профиль '
     + 'квесты+подсказка держится только СЛОВОМ, не витриной');
   const legacyEntry = JSON.parse(JSON.stringify(data));
-  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/000765.json',
+  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/tin_band.json',
     mult_продажи: 0.5, количество: 1, цена_покупки: 60, цена_продажи: 30 }] };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacyentry'), [],
     'legacy-вход торговли цена_покупки/цена_продажи — вне схемы '
@@ -371,7 +372,7 @@ test('T6: блоков торговля/обучение/найм НЕТ (ни �
     } else {
       assert.equal(goal.тип, 'bring_item',
         'квест ' + q.id + ': тип цели «' + goal.тип + '» вне {kill_group, bring_item}');
-      assert.match(goal.предмет, /^assets\/items\/\d{6}\.json$/,
+      assert.match(goal.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
         'квест ' + q.id + ': предмет цели «' + goal.предмет + '» вне пути');
       assert.ok(fs.existsSync(path.join(ROOT, goal.предмет)),
         'квест ' + q.id + ': предмет цели ' + goal.предмет + ' нет на диске');
@@ -383,7 +384,7 @@ test('T6: блоков торговля/обучение/найм НЕТ (ни �
       + 'диска: существующие 5 квестов дают 40/50…120/100); факт: '
       + q.награда.опыт + '/' + q.награда.золото);
     for (const r of (q.награда.предметы || [])) {
-      assert.match(r.предмет, /^assets\/items\/\d{6}\.json$/,
+      assert.match(r.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
         'квест ' + q.id + ': предмет награды «' + r.предмет + '» вне пути');
       assert.ok(fs.existsSync(path.join(ROOT, r.предмет)),
         'квест ' + q.id + ': предмет награды ' + r.предмет + ' нет на диске');

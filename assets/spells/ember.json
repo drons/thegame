@@ -10,7 +10,7 @@
   "мани": 3,
   "действие": "урон",
   "предметы": [
-    "assets/items/000108.json"
+    "assets/items/ember_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

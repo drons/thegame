@@ -233,23 +233,27 @@ test('000158.03 ML6: nearMountain — холм у горы несёт nugget (з
   assert.equal(typeof map.nearMountain, 'function',
     'map.js: нет функции инстанса nearMountain(x, y) (краснота: не реализовано)');
   // Запущенный тайл (детерм. проба реального map.png, окно ±120, скан
-  // x→y; в окне 316 таких тайлов): холмы, проходимый, без постройки/
+  // x→y; в окне 1148 таких тайлов): холм, проходимый, без постройки/
   // моба, гора в 8-окрестности (ортогональная (1,0)) — лут только
-  // самородки (у холмов нет природных кандидатов).
-  const t = map.tileAt(-120, 26);
-  assert.equal(t.terrain, TERRAIN.HILL, '(−120,26): террейн — холмы');
-  assert.equal(t.passable, true, '(−120,26): проходимый');
-  assert.equal(t.inBuilding, false, '(−120,26): вне постройки');
-  assert.equal(t.hasMobGroup, false, '(−120,26): без mob-группы');
-  assert.equal(map.nearMountain(-120, 26), true,
-    '(−120,26): гора (−119,26) в 8-окрестности → nearMountain true');
+  // самородки (у холмов нет природных кандидатов). РЕ-ПИН 000318.08
+  // (F1, лут-канал): прежний якорь (−120,26) при лекс-порядке каталога
+  // остался без лута; взят ПЕРВЫЙ с лутом по тому же скану —
+  // (−119,25) silver_ore (гора (−119,26)); число тайлов переснято
+  // живым сканом.
+  const t = map.tileAt(-119, 25);
+  assert.equal(t.terrain, TERRAIN.HILL, '(−119,25): террейн — холмы');
+  assert.equal(t.passable, true, '(−119,25): проходимый');
+  assert.equal(t.inBuilding, false, '(−119,25): вне постройки');
+  assert.equal(t.hasMobGroup, false, '(−119,25): без mob-группы');
+  assert.equal(map.nearMountain(-119, 25), true,
+    '(−119,25): гора (−119,26) в 8-окрестности → nearMountain true');
   assert.ok(t.loot && typeof t.loot === 'object',
-    '(−120,26): лут — самородок (краснота: поля loot нет)');
+    '(−119,25): лут — самородок (краснота: поля loot нет)');
   assert.ok(NUGGET_LOOT.has(t.loot.item),
-    `(−120,26): item ${t.loot && t.loot.item} — у гор только самородки`);
+    `(−119,25): item ${t.loot && t.loot.item} — у гор только самородки`);
   // lootAt — self-contained: совпадает с полем tileAt.
-  assert.deepEqual(map.lootAt(-120, 26), t.loot,
-    'lootAt(−120,26) — само-поле tileAt');
+  assert.deepEqual(map.lootAt(-119, 25), t.loot,
+    'lootAt(−119,25) — само-поле tileAt');
   // Вода — никогда (структурно: passable-гейт; дополнение ML2).
   let water = 0, waterBad = 0, firstWater = null;
   for (const t2 of tiles.values()) {

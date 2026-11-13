@@ -14,7 +14,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000484.json"
+    "assets/items/warding_circle_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

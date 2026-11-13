@@ -111,7 +111,7 @@ const page = () => fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 // memory/000211.07-buildings-sprites-trains-refs.md §4.2 T2).
 // НЕ-ссылка (имя — данные не миграированы) — throw: краснота
 // осмысленная, терпимый no-op отклонён (серийный паттерн 000211.08).
-const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+const ITEM_REF_RE = /^assets\/items\/[a-z][a-z0-9_]*\.json$/; // 000318.08 slug
 const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
 function resolveItemRefs(record) {
   const out = JSON.parse(JSON.stringify(record));

@@ -2,10 +2,10 @@
   "id": "knight_plate",
   "название": "Зачарование латных доспехов",
   "тип": "зачарование",
-  "результат": { "предмет": "assets/items/000010.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/knight_plate.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000009.json", "количество": 1 },
-    { "предмет": "assets/items/000023.json", "количество": 2 }
+    { "предмет": "assets/items/chainmail.json", "количество": 1 },
+    { "предмет": "assets/items/moonstone.json", "количество": 2 }
   ],
   "навыки": ["assets/skills/000027.json", "assets/skills/000020.json"],
   "здания": ["assets/buildings/mage_tower.json", "assets/buildings/npc_house.json"],

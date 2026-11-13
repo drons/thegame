@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000472.json"
+    "assets/items/aura_of_protection_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

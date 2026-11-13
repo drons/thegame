@@ -3,16 +3,16 @@
   "название": "Ковка деревянных вил",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000335.json",
+    "предмет": "assets/items/wood_pitchfork.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 1
     }
   ],

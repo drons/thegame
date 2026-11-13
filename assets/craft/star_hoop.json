@@ -3,20 +3,20 @@
   "название": "Звёздное зачарование обруча",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000106.json",
+    "предмет": "assets/items/star_hoop.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000059.json",
+      "предмет": "assets/items/sapphire.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 1
     }
   ],

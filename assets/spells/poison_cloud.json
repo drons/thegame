@@ -16,7 +16,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000494.json"
+    "assets/items/poison_cloud_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

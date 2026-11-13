@@ -2,10 +2,10 @@
   "id": "mana_potion",
   "название": "Варка зелья маны",
   "тип": "алхимия",
-  "результат": { "предмет": "assets/items/000014.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/mana_potion.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000040.json", "количество": 1 },
-    { "предмет": "assets/items/000041.json", "количество": 1 }
+    { "предмет": "assets/items/herb_mana.json", "количество": 1 },
+    { "предмет": "assets/items/herb_bitter.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000025.json"],
   "здания": ["assets/buildings/apothecary.json", "assets/buildings/alchemy_lab.json"],

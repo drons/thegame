@@ -8,36 +8,36 @@
     "assets/mobs/giant_larva.json"
   ],
   "предметы": [
-    "assets/items/000002.json",
-    "assets/items/000012.json",
-    "assets/items/000022.json",
-    "assets/items/000025.json",
-    "assets/items/000045.json",
-    "assets/items/000133.json",
-    "assets/items/000134.json",
-    "assets/items/000135.json",
-    "assets/items/000136.json",
-    "assets/items/000137.json",
-    "assets/items/000138.json",
-    "assets/items/000139.json",
-    "assets/items/000140.json",
-    "assets/items/000141.json",
-    "assets/items/000142.json",
-    "assets/items/000143.json",
-    "assets/items/000144.json",
-    "assets/items/000145.json",
-    "assets/items/000146.json",
-    "assets/items/000147.json",
-    "assets/items/000148.json",
-    "assets/items/000149.json",
-    "assets/items/000150.json",
-    "assets/items/000151.json",
-    "assets/items/000152.json",
-    "assets/items/000153.json",
-    "assets/items/000154.json",
-    "assets/items/000155.json",
-    "assets/items/000156.json",
-    "assets/items/000157.json"
+    "assets/items/iron_sword.json",
+    "assets/items/healing_potion.json",
+    "assets/items/sulfur.json",
+    "assets/items/stone_fist_grimoire.json",
+    "assets/items/frost_bolt_scroll.json",
+    "assets/items/ice_lance_scroll.json",
+    "assets/items/rime_bolt_scroll.json",
+    "assets/items/hail_scroll.json",
+    "assets/items/shatter_scroll.json",
+    "assets/items/glacial_spike_scroll.json",
+    "assets/items/permafrost_scroll.json",
+    "assets/items/absolute_zero_scroll.json",
+    "assets/items/ice_field_scroll.json",
+    "assets/items/wall_of_ice_scroll.json",
+    "assets/items/blizzard_field_scroll.json",
+    "assets/items/frost_aura_scroll.json",
+    "assets/items/ice_armor_scroll.json",
+    "assets/items/winter_haste_scroll.json",
+    "assets/items/frostbite_blessing_scroll.json",
+    "assets/items/slow_scroll.json",
+    "assets/items/frostbite_scroll.json",
+    "assets/items/arctic_touch_scroll.json",
+    "assets/items/deep_freeze_scroll.json",
+    "assets/items/freeze_scroll.json",
+    "assets/items/glacier_grasp_scroll.json",
+    "assets/items/frost_wisp_scroll.json",
+    "assets/items/winter_elemental_scroll.json",
+    "assets/items/frost_walk_scroll.json",
+    "assets/items/cold_breath_scroll.json",
+    "assets/items/frozen_stillness_scroll.json"
   ],
   "размер": 25,
   "постройка": "assets/buildings/cave_entrance.json",
@@ -47,43 +47,43 @@
   ],
   "руда": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000055.json",
+      "предмет": "assets/items/quartz.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000056.json",
+      "предмет": "assets/items/obsidian.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000057.json",
+      "предмет": "assets/items/phosphorite.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000039.json",
+      "предмет": "assets/items/herb_healing.json",
       "вид": "минерал"
     }
   ]

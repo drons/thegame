@@ -76,15 +76,21 @@ const BUILDINGS = fs.readFileSync(
 
 const NOW = 1000;
 
-// Фиксированные координаты (город (500,−100) клетка (2,3) — Оружейная
+// Фиксированные координаты (город (500,−100) клетка (3,2) — Оружейная
 // id 1 (map_index 0); город (−114,−119) клетка (5,7) — Таверна id 44
 // (map_index 11)); координаты makeShop — офсет CITY_SHOP_CELL_BASE=256
 // (GOLDEN 000108). Ассерты ДИНАМИЧЕСКИЕ (⊇/strict по стокам) — без
 // канареек счёта каталога (000333 его растит).
-const CITY = { cx: 500, cy: -100, tx: 2, ty: 3, bid: 1 };
+// Ре-пин 000318.08: клетка якоря (2,3)→(3,2) — под лекс-порядком
+// slug-зеркала top-N сток этой клетки перестал строго расширяться на
+// 3 шагах из 6 (и L1→L2 не давал новых строк экрана); (3,2) — та же
+// карта/здание/богатства, контракт 000317 восстановлен без ослабления
+// пинов (зонд живым кодом: strict-steps ≥3 на w0/w1/w2, новые строки
+// L1→L2 и только оружие на L2→L3).
+const CITY = { cx: 500, cy: -100, tx: 3, ty: 2, bid: 1 };
 const TAV = { cx: -114, cy: -119, tx: 5, ty: 7, bid: 44 };
-const SX = 500 * 256 + 2;
-const SY = -100 * 256 + 3;
+const SX = 500 * 256 + 3;
+const SY = -100 * 256 + 2;
 const TX = -114 * 256 + 5;
 const TY = -119 * 256 + 7;
 
@@ -180,19 +186,21 @@ test('000317-T1. ассортимент строго шире с уровнем:
 // 4-арг. makeShop — семантика «как до изменения».
 const GOLDEN_MAKESHOP = {
   '10,20,2,1': {
-    stock: { healing_potion: 3, greater_healing: 3, mana_potion: 2, mana_elixir: 3, bread: 1, meat: 2,
+    stock: {
+      // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула апотекаря [potion, food] → += 33;
     // не выпали: herb_draught/honey_brew/oak_tonic/dawn_tonic/forge_tonic/gale_tonic/pearl_draught/sapphire_balm/emerald_tonic/moonlight_draught/mint_draught/blue_sip/star_tonic/tide_draught/quartz_tonic/eclipse_draught/void_tonic — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    weak_healing: 3, forest_balm: 2, crimson_sip: 1, field_tonic: 2,
-    resin_brew: 2, sun_potion: 1, amber_elixir: 1, deep_balm: 1,
-    alpine_brew: 2, ember_tonic: 2, marsh_balm: 3, stone_brew: 2,
-    silver_tonic: 2, ruby_draught: 2, amethyst_draught: 3, obsidian_balm: 1,
-    phoenix_tonic: 2, diamond_draught: 1, night_brew: 2, frost_draught: 3,
-    glass_tonic: 2, violet_brew: 1, rain_draught: 2, indigo_brew: 2,
-    azure_tonic: 3, glacier_draught: 2, dusk_brew: 3, phosphor_brew: 3,
-    shadow_tonic: 2, argent_draught: 2, royal_elixir: 1, arcane_tonic: 3,
-    ash_elixir: 2,},
+
+      amber_elixir: 3, amethyst_draught: 3, arcane_tonic: 2, argent_draught: 3, ash_elixir: 1,
+      azure_tonic: 2, bread: 3, dawn_tonic: 2, deep_balm: 1, diamond_draught: 2, eclipse_draught: 2,
+      field_tonic: 1, forge_tonic: 1, frost_draught: 1, gale_tonic: 2, glacier_draught: 2,
+      glass_tonic: 3, greater_healing: 2, honey_brew: 2, honey_cake: 2, mana_potion: 3, marsh_balm: 1,
+      minor_healing: 2, mint_draught: 1, oak_tonic: 2, obsidian_balm: 3, pearl_draught: 2,
+      phoenix_tonic: 1, quartz_tonic: 2, rain_draught: 2, resin_brew: 3, royal_elixir: 2,
+      ruby_draught: 3, silver_tonic: 3, star_tonic: 2, stone_brew: 2, sun_potion: 1, tide_draught: 3,
+      weak_healing: 2,
+    },
     seed: baseSeed(10, 20, 2),
   },
 };

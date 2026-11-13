@@ -44,25 +44,25 @@ const { createCharacter } = require('../src/player.js');
 const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 
-// Фиксированный состав (D-items): файл → id → якорный рецепт (JSON,
+// Фиксированный состав (D-items): файл (<id>.json, 000318.08) → id → якорный рецепт (JSON,
 // ПЕРВЫЙ/низший уровень вида) → вид. Якорь задаёт имя/вид свитка.
 const BLUEPRINTS_000232 = [
-  { file: '000077.json', id: 'blueprint_forge',
+  { file: 'blueprint_forge.json', id: 'blueprint_forge',
     name: 'Чертёж: кузнечное дело', recipe: 'assets/craft/iron_sword.json',
     type: 'кузнечное_дело' },
-  { file: '000078.json', id: 'blueprint_alchemy',
+  { file: 'blueprint_alchemy.json', id: 'blueprint_alchemy',
     name: 'Чертёж: алхимия', recipe: 'assets/craft/healing_potion.json',
     type: 'алхимия' },
-  { file: '000079.json', id: 'blueprint_carving',
+  { file: 'blueprint_carving.json', id: 'blueprint_carving',
     name: 'Чертёж: резьба по камню', recipe: 'assets/craft/stone_chisel.json',
     type: 'резьба_по_камню' },
-  { file: '000080.json', id: 'blueprint_woodwork',
+  { file: 'blueprint_woodwork.json', id: 'blueprint_woodwork',
     name: 'Чертёж: столярное дело', recipe: 'assets/craft/wood_sword.json',
     type: 'столярное_дело' },
-  { file: '000081.json', id: 'blueprint_enchant',
+  { file: 'blueprint_enchant.json', id: 'blueprint_enchant',
     name: 'Чертёж: зачарование', recipe: 'assets/craft/hunting_bow.json',
     type: 'зачарование' },
-  { file: '000082.json', id: 'blueprint_runecraft',
+  { file: 'blueprint_runecraft.json', id: 'blueprint_runecraft',
     name: 'Чертёж: рунопись', recipe: 'assets/craft/moonstone_runes.json',
     type: 'рунопись' },
 ];
@@ -70,7 +70,8 @@ const BLUEPRINTS_000232 = [
 function itemsByFile() {
   const m = new Map();
   for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
+      .filter((x) => x !== 'schema.json'
+        && /^[a-z][a-z0-9_]*\.json$/.test(x))) {
     m.set(f, JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
   }
   return m;

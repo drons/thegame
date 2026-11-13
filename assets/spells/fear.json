@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000243.json"
+    "assets/items/fear_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

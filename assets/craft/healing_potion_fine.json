@@ -3,10 +3,10 @@
   "название": "Тонкая варка зелья лечения",
   "тип": "алхимия",
   "база": "assets/craft/healing_potion.json",
-  "результат": { "предмет": "assets/items/000012.json", "количество": 2 },
+  "результат": { "предмет": "assets/items/healing_potion.json", "количество": 2 },
   "исходники": [
-    { "предмет": "assets/items/000018.json", "количество": 2 },
-    { "предмет": "assets/items/000023.json", "количество": 2 }
+    { "предмет": "assets/items/honey_cake.json", "количество": 2 },
+    { "предмет": "assets/items/moonstone.json", "количество": 2 }
   ],
   "навыки": ["assets/skills/000025.json", "assets/skills/000031.json"],
   "здания": ["assets/buildings/alchemy_lab.json"],

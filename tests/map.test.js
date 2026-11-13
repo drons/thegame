@@ -1025,7 +1025,12 @@ test('vm, реальный порядок index.html: имена построе�
 // map.png, 2026-10-11): 6 «сухих» травяных (−59,0 / −58,−1 / −58,0 /
 // −58,1 / −57,−2 / −57,−1) — лут у ДВУХ: (−58,−1) berry_red,
 // (−58,1) herb_wind; остальные 46 (входы/стены/мобы/вода/горы +
-// 4 сухих) — null гарантированно исключением. Зеркало СТАРЫХ 13
+// 4 сухих) — null гарантированно исключением. РЕ-ПИН 000318.08 (F1,
+// лут-канал): при лекс-порядке slug-каталога те же роллы
+// lootCandidates выбирают других предметов — на 6 сухих лут у ДВУХ
+// ДРУГИХ: (−58,1) root_rock, (−57,−1) root_ember; (−58,−1) berry_red
+// и (−58,1) herb_wind — уехали (переснято живым createMap по
+// assets/map.png). Зеркало СТАРЫХ 13
 // ПОЛЕЙ — GOLDEN_OLD_48 (tests/map-loot.test.js, гард ML7b) —
 // ОБНОВЛЯТЬ В ПАРЕ с этим литералом (ревью 000158.03: ручной
 // зеркальный массив).
@@ -1075,11 +1080,11 @@ const GOLDEN_TILES = {
   '-118,26': { x: -118, y: 26, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // горы
   '-118,27': { x: -118, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // горы
   '-59,0': { x: -59, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
-  '-58,-1': { x: -58, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'berry_red' } }, // суша, лут (000158)
+  '-58,-1': { x: -58, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша (лут уехал — ре-пин 000318.08 F1)
   '-58,0': { x: -58, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
-  '-58,1': { x: -58, y: 1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'herb_wind' } }, // суша, лут (000158)
+  '-58,1': { x: -58, y: 1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'root_rock' } }, // суша, лут (ре-пин 000318.08 F1)
   '-57,-2': { x: -57, y: -2, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
-  '-57,-1': { x: -57, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
+  '-57,-1': { x: -57, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'root_ember' } }, // суша, лут (ре-пин 000318.08 F1)
 };
 
 test('golden: tileAt на фиксированных координатах (реальный assets/map.png, node)', () => {

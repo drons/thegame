@@ -99,6 +99,24 @@ function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
 
+// 000318.08: assets/items — файлы <id>.json. Замороженный реестр
+// «номер → id» даёт прежние ВИРТУАЛЬНЫЕ номера (позиционные пины
+// «витрина отсортирована по номеру файла» и спот-номера T4 живут по
+// ним); чтение с диска — DISKI08().
+const NUM2ID_I08 = require(path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json'));
+const ID2NUM_I08 = {};
+for (const n08 of Object.keys(NUM2ID_I08)) {
+  ID2NUM_I08[NUM2ID_I08[n08]] = n08;
+}
+function DISKI08(f) {
+  const b = String(f).replace(/\.json$/, '');
+  return (NUM2ID_I08[b] !== undefined ? NUM2ID_I08[b] : b) + '.json';
+}
+function SLUGI08(f) {
+  return f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f);
+}
+
 // Локальная таблица: spell id → {школа, уровень} ПРЯМО с assets/spells
 // (анти-самоуспокоение .346/.347.01: не через spellCatalog/резолвер/зеркало).
 function localSpellTable() {
@@ -116,7 +134,7 @@ function diskScrolls() {
   const spells = localSpellTable();
   const out = {};
   for (const f of fs.readdirSync(IDIR)) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (!SLUGI08(f)) continue;
     const it = readJson(path.join(IDIR, f));
     if (it.kind !== 'spell_scroll') continue;
     out[it.id] = {
@@ -338,7 +356,7 @@ test('T4: base_price — РОВНО у 252 предметов каталога; 
   let withBase = 0;
   const scrolls = diskScrolls();
   for (const f of fs.readdirSync(IDIR)) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (!SLUGI08(f)) continue;
     const file = path.join(IDIR, f);
     const raw = fs.readFileSync(file, 'utf8');
     const it = JSON.parse(raw);
@@ -368,9 +386,9 @@ test('T4: base_price — РОВНО у 252 предметов каталога; 
     + 'ре-пин 000321.07: было 202); факт: ' + withBase);
   for (const [f, bp] of [['000043.json', 60], ['000045.json', 45],
     ['000048.json', 70]]) {
-    assert.equal(readJson(path.join(IDIR, f)).base_price, bp,
+    assert.equal(readJson(path.join(IDIR, DISKI08(f))).base_price, bp,
       f + ': base_price НЕ двигается (миграция 000320.15); факт: '
-      + readJson(path.join(IDIR, f)).base_price);
+      + readJson(path.join(IDIR, DISKI08(f))).base_price);
   }
   let mirrorBase = 0;
   for (const it of ITEMS) {
@@ -600,7 +618,7 @@ test('T8: Пергамент — ассортимент РОВНО огонь+л
     assert.ok(fs.existsSync(path.join(ROOT, data.постройки[0])),
       'постройка резолвится: ' + data.постройки[0]);
     const nums = data.торговля.предметы
-      .map((e) => e.предмет.match(/(\d{6})\.json$/)[1]);
+      .map((e) => ID2NUM_I08[path.basename(e.предмет, '.json')]);
     assert.deepEqual(nums, [...nums].sort(),
       (s ? s.file : '000033.json')
       + ': витрина отсортирована по номеру файла');

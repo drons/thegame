@@ -10,7 +10,7 @@
   "мани": 20,
   "действие": "урон",
   "предметы": [
-    "assets/items/000493.json"
+    "assets/items/hurricane_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

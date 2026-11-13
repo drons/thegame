@@ -3,20 +3,20 @@
   "название": "Зачарование резца руниста",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000349.json",
+    "предмет": "assets/items/rune_stylus.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000055.json",
+      "предмет": "assets/items/quartz.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

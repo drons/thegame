@@ -13,7 +13,7 @@
     "turns": 5
   },
   "предметы": [
-    "assets/items/000117.json"
+    "assets/items/wall_of_fire_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

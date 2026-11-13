@@ -170,7 +170,7 @@ test('T2: assets/npc/000033.json валиден по schema; ключи в по�
     'количество 0 — вне схемы (minimum 1, maximum 99)');
   const legacyEntry = JSON.parse(JSON.stringify(data));
   legacyEntry.торговля.предметы[0] = {
-    предмет: 'assets/items/000043.json',
+    предмет: 'assets/items/fireball_scroll.json',
     цена_покупки: 60, цена_продажи: 30, количество: 1,
   };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacy'), [],
@@ -312,7 +312,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
     'зеркало: постройки [4] — sync резолвит ссылку Магазина магии в id');
   const zira = readJson(path.join(NDIR, '000004.json'));
   const ziraScrollMult = zira.торговля.предметы
-    .filter((e) => e.предмет === 'assets/items/000082.json')
+    .filter((e) => e.предмет === 'assets/items/blueprint_runecraft.json')
     .map((e) => e.mult_продажи);
   assert.ok(ziraScrollMult.length === 1 && ziraScrollMult[0] === 0.5,
     'тон свиткового товара дома 4: у Зиры blueprint_runecraft mult РОВНО '
@@ -321,7 +321,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
   const ids = new Set();
   const schools = new Set();
   items.forEach((p, j) => {
-    assert.match(p.предмет, /^assets\/items\/\d{6}\.json$/,
+    assert.match(p.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
       'путь предмета — якорная ссылка: ' + p.предмет);
     const target = path.join(ROOT, p.предмет);
     assert.ok(fs.existsSync(target), 'предмет существует по пути: ' + p.предмет);
@@ -365,7 +365,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
     + JSON.stringify([...schools].sort()));
   const expectedFi = [];
   for (const f of fs.readdirSync(path.join(ROOT, 'assets/items'))) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    if (f === 'schema.json' || !/^[a-z][a-z0-9_]*\.json$/.test(f)) continue;
     const it = readJson(path.join(ROOT, 'assets/items', f));
     if (it.kind !== 'spell_scroll') continue;
     const sp = readJson(path.join(ROOT, 'assets/spells',

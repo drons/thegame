@@ -3,20 +3,20 @@
   "название": "Резьба медной монисты",
   "тип": "резьба_по_камню",
   "результат": {
-    "предмет": "assets/items/000580.json",
+    "предмет": "assets/items/copper_beads.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

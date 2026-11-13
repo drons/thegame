@@ -10,7 +10,7 @@
   "мани": 10,
   "действие": "урон",
   "предметы": [
-    "assets/items/000137.json"
+    "assets/items/glacial_spike_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

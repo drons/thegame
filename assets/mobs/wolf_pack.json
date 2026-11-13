@@ -20,7 +20,7 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000008.json",
+      "item": "assets/items/leather_armor.json",
       "chance": 0.15
     }
   ],

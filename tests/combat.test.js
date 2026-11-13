@@ -278,7 +278,7 @@ test('assets/mobs: JSON-файлы — структура по схеме, id у
     assert.ok(Array.isArray(j.spells), f + ': spells — массив ссылок');
     assert.ok(Array.isArray(j.loot), f + ': loot — массив');
     for (const l of j.loot) {
-      assert.match(l.item, /^assets\/items\/\d{6}\.json$/, f + ': loot.item');
+      assert.match(l.item, /^assets\/items\/[a-z][a-z0-9_]*\.json$/, f + ': loot.item');
       if (l.chance != null) assert.ok(l.chance >= 0 && l.chance <= 1, f + ': chance 0..1');
     }
   }
@@ -7905,8 +7905,8 @@ test('mobs schema (000211.03): поля-ссылки закрепили якор
     '^assets/spells/[a-z][a-z0-9_]*\\.json$',
     'spells: pattern — slug-носитель (000318.05: assets/spells — имя = id)');
   assert.equal(p.loot.items.properties.item.pattern,
-    '^assets/items/\\d{6}\\.json$',
-    'loot.item: pattern не закреплён якорный (assets/items)');
+    '^assets/items/[a-z][a-z0-9_]*\\.json$',
+    'loot.item: pattern — slug-носитель (000318.08: assets/items — имя = id)');
   assert.equal(p.skills.items.type, 'string', 'skills: type string');
   assert.equal(p.spells.items.type, 'string', 'spells: type string');
   assert.equal(p.loot.items.properties.item.type, 'string',
@@ -8968,15 +8968,17 @@ test('000230.05-EQ1: таблица редкости — пин: точные 5 
     + 'источник)');
 });
 
-test('000230.05-EQ2: пул экипировки — данные модуля (ре-пин 000230.08: 25 head — живьём по каталогу: pool[тир] = ids предметов каталога с rarity === тир, каталожный порядок), live-ссылка на data-модуль, целостность-хук', () => {
+test('000230.05-EQ2: пул экипировки — данные модуля (ре-пин 000230.08: 25 head — живьём по каталогу: pool[тир] = ids предметов каталога с rarity === тир — МНОЖЕСТВОМ; ре-пин 000318.08 F2-P1: slug-лекс-каталог ≠ порядок пула), live-ссылка на data-модуль, целостность-хук', () => {
   assert.ok(EQUIP_POOLS && typeof EQUIP_POOLS === 'object',
     'combat.js: экспорт EQUIP_POOLS (пул экипировки — данные '
     + 'модуля, НЕ вывод из каталога в рантайме)');
   for (const t of RARITY_TABLE) {
-    assert.deepEqual(EQUIP_POOLS[t.id],
-      I.allItems().filter((it) => it.rarity === t.id).map((it) => it.id),
-      'пул «' + t.id + '» — все предметы каталога с rarity = '
-      + '«' + t.id + '» (каталожный порядок)');
+    assert.deepEqual([...EQUIP_POOLS[t.id]].sort(),
+      I.allItems().filter((it) => it.rarity === t.id)
+        .map((it) => it.id).sort(),
+      'пул «' + t.id + '» — все предметы каталога с rarity = «' + t.id
+      + '» МНОЖЕСТВОМ (ре-пин 000318.08 F2-P1: slug-каталог в лекс '
+      + 'порядке ≠ каталожный порядок пула; состав прежний)');
   }
   const L = require('../src/loot-equip-data.js');
   assert.strictEqual(EQUIP_POOLS, L.EQUIP_POOLS,
@@ -9164,7 +9166,8 @@ test('000230.05-EQ5: детерминизм: фиксированный сид +
 // seed 6, day 0, wolf L4, герой L1 (D=3, P=0.11, T=2): солёный поток
 // (0x2eaef6ed) → r1=0.088617<0.11 (попадание) → школа лёд → T2 лёд
 // 10 свитков (ре-пин 000235.08: +25 свитков волны Лёд) →
-// pool[floor(r3·10)] = frost_wisp_scroll. Доизменения тот же
+// pool[floor(r3·10)] = ice_field_scroll (ре-пин 000318.08 F1: при
+// лекс-порядке slug-каталога; было frost_wisp_scroll). Доизменения тот же
 // бой: xp=24, gold=13, items=[honey_cake]. Legacy-фикстуры
 // (N1/N2 seed 5..10 day 0, C6 seed 5 day 0 — D=1, P=0.07): первый
 // заброс солёного потока (seed 5..10 × day 0..2) ≥ 0.07 → свитка нет,
@@ -9296,13 +9299,15 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   //     0.088617 < 0.11 (попадание) → школа лёд → T2 лёд — 10 свитков
   //     (ре-пин 000235.08: +25 свитков волны Лёд; до волны T2 лёд
   //     был пуст → fallback вниз (T1) → frost_bolt_scroll) →
-  //     pool[floor(r3·10)] = frost_wisp_scroll.
+  //     pool[floor(r3·10)] = ice_field_scroll (ре-пин 000318.08 F1:
+  //     лекс-порядок slug-каталога; было frost_wisp_scroll в 000235.08).
   const { c } = winLoot({ mobs: ['wolf'], mobLevel: 4, seed: 6,
     killBy: 'dealDamage' });
   const scrolls = c.result.items.filter((r) => SCROLL_IDS_000235.includes(r.id));
-  assert.deepEqual(scrolls, [{ id: 'frost_wisp_scroll', qty: 1 }],
-    'золотой: выпавший свиток — frost_wisp_scroll (ре-пин 000235.08: '
-    + '+25 свитков волны Лёд; факт: '
+  assert.deepEqual(scrolls, [{ id: 'ice_field_scroll', qty: 1 }],
+    'золотой: выпавший свиток — ice_field_scroll (ре-пин 000318.08 F1: '
+    + 'лекс-порядок slug-каталога; было frost_wisp_scroll в 000235.08 '
+    + '(+25 свитков волны Лёд); факт: '
     + JSON.stringify(c.result.items) + ')');
   // (c) Пин SALT_SCROLL: значение + литерал в src/combat.js +
   //     самостоятельный расчёт FNV-1a32("SCRL") + уникальность среди
@@ -9335,7 +9340,7 @@ test('000235.05 S2: солёный поток — детерминизм по (s
   }
 });
 
-test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring); ре-пин 000245: P(D) — базовый 0.1992 ≥ P(−3) = 0.13 → мимо (сдвиг: редкий 0.9879 мимо, tier 0.9451 → epic (пул 45), select 0.2691 → epic[floor(0.2691·45)] = epic[12]) (a → ruby_pendant; b — без изменений (void_ring); ре-пин 000230.15: common-пул 90 → 110, legendary-пул 18 → 22, epic-пул 45 → 55 (a → epic[floor(0.2691·55)] = epic[14] = mithril_choker; b → pool[21] = rune_boots); ре-пин 000230.19: common-пул 110 → 111, epic-пул 55 → 56 (+1 torso-набор концом тира) (a → epic[floor(0.2691·56)] = epic[15] = ember_robe; b → без изменений (rune_boots)); ре-пин 000277: common-пул 111 → 112, epic-пул 56 → 57 (+1 set-предмет концом тира; a — без изменений: epic[floor(0.2691·57)] = epic[15] = ember_robe; b → без изменений (rune_boots); ре-пин 000321.01: epic-пул 57 → 67 → a = epic[floor(0.2691·67)] = epic[18] = deep_breath_robe, legendary-пул 22 → 26 → b = pool[25] = starvault_staff; ре-пин 000321.02: epic-пул 67 → 77 → a = epic[floor(0.2691·77)] = epic[20] = steel_bracers, legendary-пул 26 → 30 → b = pool[29] = dusk_greaves; ре-пин 000321.03: epic-пул 77 → 87 → a = epic[floor(0.2691·87)] = epic[23] = ghost_cuff, legendary-пул 30 → 34 → b = pool[33] = dawnwall_shield; ре-пин 000321.04: epic-пул 87 → 97 → a = epic[floor(0.2691·97)] = epic[26] = gold_gloves, legendary-пул 34 → 38 → b = pool[37] = sun_reliquary; ре-пин 000321.05: epic-пул 97 → 107 → a = epic[floor(0.2691·107)] = epic[28] = phantom_gloves, legendary-пул 38 → 42 → b = pool[41] = phoenix_still; ре-пин 000321.06: epic-пул 107 → 117 → a = epic[floor(0.2691·117)] = epic[31] = flame_staff, legendary-пул 42 → 46 → b = pool[45] = forewarning))', () => {
+test('000235.05 S3: существующие роллы бит-в-бит + независимость свитка от c._rng (ре-пин 000230.08: +экипировочный МЕЖДУ редким и свитком: (a) реальный rng seed 6 → leather_choker; (b) r=0.99 → legendary pool[floor(0.99·6)] = star_pendant; ре-пин 000230.09: common-пул 10 → 30, legendary-пул 2 → 6; ре-пин 000230.10: common-пул 30 → 40, legendary-пул 6 → 8 (a → cloth_sutan; b → void_robe); ре-пин 000235.08: +25 свитков волны Лёд — золотой свиток → frost_wisp_scroll; ре-пин 000230.11: common-пул 40 → 60, legendary-пул 8 → 12 (a → iron_gauntlets; b → star_gloves); ре-пин 000230.12: common-пул 60 → 70, legendary-пул 12 → 14 («правая рука»: a → iron_tongs; b → mithril_hammer); ре-пин 000230.13: common-пул 70 → 80, legendary-пул 14 → 16 (a → bone_shield; b → snow_focus); ре-пин 000230.14: common-пул 80 → 90, legendary-пул 16 → 18 (a → clay_ring; b → void_ring); ре-пин 000245: P(D) — базовый 0.1992 ≥ P(−3) = 0.13 → мимо (сдвиг: редкий 0.9879 мимо, tier 0.9451 → epic (пул 45), select 0.2691 → epic[floor(0.2691·45)] = epic[12]) (a → ruby_pendant; b — без изменений (void_ring); ре-пин 000230.15: common-пул 90 → 110, legendary-пул 18 → 22, epic-пул 45 → 55 (a → epic[floor(0.2691·55)] = epic[14] = mithril_choker; b → pool[21] = rune_boots); ре-пин 000230.19: common-пул 110 → 111, epic-пул 55 → 56 (+1 torso-набор концом тира) (a → epic[floor(0.2691·56)] = epic[15] = ember_robe; b → без изменений (rune_boots)); ре-пин 000277: common-пул 111 → 112, epic-пул 56 → 57 (+1 set-предмет концом тира; a — без изменений: epic[floor(0.2691·57)] = epic[15] = ember_robe; b → без изменений (rune_boots); ре-пин 000321.01: epic-пул 57 → 67 → a = epic[floor(0.2691·67)] = epic[18] = deep_breath_robe, legendary-пул 22 → 26 → b = pool[25] = starvault_staff; ре-пин 000321.02: epic-пул 67 → 77 → a = epic[floor(0.2691·77)] = epic[20] = steel_bracers, legendary-пул 26 → 30 → b = pool[29] = dusk_greaves; ре-пин 000321.03: epic-пул 77 → 87 → a = epic[floor(0.2691·87)] = epic[23] = ghost_cuff, legendary-пул 30 → 34 → b = pool[33] = dawnwall_shield; ре-пин 000321.04: epic-пул 87 → 97 → a = epic[floor(0.2691·97)] = epic[26] = gold_gloves, legendary-пул 34 → 38 → b = pool[37] = sun_reliquary; ре-пин 000321.05: epic-пул 97 → 107 → a = epic[floor(0.2691·107)] = epic[28] = phantom_gloves, legendary-пул 38 → 42 → b = pool[41] = phoenix_still; ре-пин 000321.06: epic-пул 107 → 117 → a = epic[floor(0.2691·117)] = epic[31] = flame_staff, legendary-пул 42 → 46 → b = pool[45] = forewarning; ре-пин 000318.08 F1: свиток → ice_field_scroll))', () => {
   // (a) Золотой бой (seed 6, wolf L4, герой L1): значения доизменения
   //     (пробный прогон на текущем коде) — новый код обязан их
   //     сохранить: новый ролл — СТРОГО ПОСЛЕ существующих (пин N2),
@@ -9406,7 +9411,7 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   assert.equal(c.result.gold, 13, 'gold = 13 (бит-в-бит)');
   assert.deepEqual(c.result.items, [
     { id: 'flame_staff', qty: 1 },
-    { id: 'frost_wisp_scroll', qty: 1 },
+    { id: 'ice_field_scroll', qty: 1 },
   ], 'items: (ре-пин 000245: базовый 0.1992 ≥ P(−3) = 0.13 — мимо; '
     + 'сдвиг: tier 0.9451 → epic (пул 117, ре-пин 000321.01: 67, '
     + 'ре-пин 000321.02: 77, ре-пин 000321.03: 87, '
@@ -9417,7 +9422,8 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
     + 'ре-пин 000321.04: epic[26] = gold_gloves; '
     + 'ре-пин 000321.03: epic[23] = ghost_cuff); ре-пин 000235.08: '
     + 'золотой '
-    + 'frost_wisp_scroll — солёный поток, порядок первого '
+    + 'ice_field_scroll (ре-пин 000318.08 F1: лекс slug-каталога; было '
+    + 'frost_wisp_scroll) — солёный поток, порядок первого '
     + 'появления; факт: ' + JSON.stringify(c.result.items) + ')');
   // (b) c._rng → 0.99: все СТАРЫЕ роллы промахиваются (таблица wolf 0.1,
   //     базовый = редкий = P(−3) = 0.13 — ре-пин 000245: было 0.25 /
@@ -9451,10 +9457,11 @@ test('000235.05 S3: существующие роллы бит-в-бит + не�
   assert.equal(b.result.gold, 15, 'gold = round(3+2·4+0.99·4) = 15 (бит-в-бит)');
   assert.deepEqual(b.result.items, [
     { id: 'forewarning', qty: 1 },
-    { id: 'frost_wisp_scroll', qty: 1 },
+    { id: 'ice_field_scroll', qty: 1 },
   ], 'rng→0.99: старые роллы промахнулись, экипировка (legendary) + '
     + 'солёный поток дал свиток всё равно (ре-пин 000235.08: '
-    + 'frost_wisp_scroll; ре-пин 000321.01: legendary pool[25] = '
+    + 'frost_wisp_scroll; ре-пин 000318.08 F1: свиток → ice_field_scroll '
+    + '(лекс slug-каталога); ре-пин 000321.01: legendary pool[25] = '
     + 'starvault_staff; ре-пин 000321.02: pool[29] = dusk_greaves; '
     + 'ре-пин 000321.03: pool[33] = dawnwall_shield; '
     + 'ре-пин 000321.04: pool[37] = sun_reliquary; '
@@ -9814,7 +9821,8 @@ test('000230.13 T10 (node, e2e): free_cast — реальный предмет �
 // =====================================================================
 // Задача 000230.14 — пулы дропа колец (контракт —
 // memory/000230.14-ring-items-wave.md §2.5/D-08): append КОНЦОМ
-// тиров (EQ2/CH4 «пул ≡ каталог по редкости в каталожном порядке»):
+// тиров (EQ2/CH4 «пул ≡ каталогу МНОЖЕСТВОМ по редкости — ре-пин
+// 000318.08 F2-P1»):
 // common 40→50, rare 28→35, epic 20→25, legendary 8→10,
 // impossible 4→5 (всего 100→125). RARITY 50/30/15/4.9/0.1 — БЕЗ
 // ПРАВОК (EQ1; баланс-инвариант). RED (TDD): колец в пулах нет
@@ -9901,7 +9909,7 @@ const RINGS_TAIL_COUNTS_00032106 = {
   common: 20, rare: 14, epic: 10, legendary: 4, impossible: 2,
 };
 
-test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиров (append; §2.5): размеры 40/28/20/8/4 → 60/42/30/12/6 (ре-пин 000230.11: +50 рук) → 70/49/35/14/7 (ре-пин 000230.12: +25 «правая рука») → 80/56/40/16/8 (ре-пин 000230.14: +25 колец) → РОВНО 232/161/117/46/23 (Σ 579, ре-пин 000321.06: +50 колец КОНЦОМ 20/14/10/4/2, ре-пин 000321.05: +50 инструментов КОНЦОМ 20/14/10/4/2, ре-пин 000321.04: +50 артефактов КОНЦОМ 20/14/10/4/2, ре-пин 000321.03: +50 щитов КОНЦОМ 20/14/10/4/2, ре-пин 000321.02: +50 брони КОНЦОМ 20/14/10/4/2, ре-пин 000321.01: +50 оружия КОНЦОМ 20/14/10/4/2, ре-пин 000230.13: +25 left_hand, 000230.12: +25 «правая рука», ре-пин 000230.15: +50 ног/ступней КОНЦОМ 20/14/10/4/2, ре-пин 000230.19: +2 torso-набора КОНЦОМ common/epic, ре-пин 000277: +2 set-предмета КОНЦОМ common/epic); блок колец (ре-пин 000230.15: перед хвостом ног/ступней) = 25 id колец в каталожном порядке (10/7/5/2/1, compatible с динамическими EQ2/CH4 «пул ≡ каталог по редкости, каталожный порядок»); RARITY — 0 diff (EQ1: 50/30/15/4.9/0.1, Σ 1) (краснота: колец в EQUIP_POOLS нет — тиры 40/28/20/8/4)', () => {
+test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиров (append; §2.5): размеры 40/28/20/8/4 → 60/42/30/12/6 (ре-пин 000230.11: +50 рук) → 70/49/35/14/7 (ре-пин 000230.12: +25 «правая рука») → 80/56/40/16/8 (ре-пин 000230.14: +25 колец) → РОВНО 232/161/117/46/23 (Σ 579, ре-пин 000321.06: +50 колец КОНЦОМ 20/14/10/4/2, ре-пин 000321.05: +50 инструментов КОНЦОМ 20/14/10/4/2, ре-пин 000321.04: +50 артефактов КОНЦОМ 20/14/10/4/2, ре-пин 000321.03: +50 щитов КОНЦОМ 20/14/10/4/2, ре-пин 000321.02: +50 брони КОНЦОМ 20/14/10/4/2, ре-пин 000321.01: +50 оружия КОНЦОМ 20/14/10/4/2, ре-пин 000230.13: +25 left_hand, 000230.12: +25 «правая рука», ре-пин 000230.15: +50 ног/ступней КОНЦОМ 20/14/10/4/2, ре-пин 000230.19: +2 torso-набора КОНЦОМ common/epic, ре-пин 000277: +2 set-предмета КОНЦОМ common/epic); блок колец (ре-пин 000230.15: перед хвостом ног/ступней) = 25 id колец в каталожном порядке (10/7/5/2/1, compatible с динамическими EQ2/CH4 «пул ≡ каталогу МНОЖЕСТВОМ по редкости (ре-пин 000318.08 F2-P1)»); RARITY — 0 diff (EQ1: 50/30/15/4.9/0.1, Σ 1) (краснота: колец в EQUIP_POOLS нет — тиры 40/28/20/8/4)', () => {
   const L = require('../src/loot-equip-data.js');
   for (const t of EQ_TIERS) {
     const pool = L.EQUIP_POOLS[t];
@@ -9945,11 +9953,12 @@ test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиро�
           + n32105 + n32106))));
   }
   for (const t of EQ_TIERS) {
-    assert.deepEqual(L.EQUIP_POOLS[t],
+    assert.deepEqual([...L.EQUIP_POOLS[t]].sort(),
       I.allItems().filter((it) => it.rarity === t)
-        .map((it) => it.id),
-      'пул «' + t + '» ≡ каталог по редкости, каталожный порядок '
-      + '(совместимость с EQ2/CH4)');
+        .map((it) => it.id).sort(),
+      'пул «' + t + '» ≡ каталогу по редкости МНОЖЕСТВОМ (ре-пин '
+      + '000318.08 F2-P1: slug-лекс-каталог ≠ порядок пула; '
+      + 'совместимость с EQ2/CH4)');
   }
   assert.deepEqual(L.RARITY, [
     { id: 'common', chance: 0.5 },
@@ -9974,13 +9983,13 @@ test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиро�
 test('000230.12 R9: remap бит-в-бит — 7 legacy-оружий: JSON-поле "slot" === "right_hand" (краснота: у 7 оружия поля slot нет — фолбэк slotOf) + бой НЕ изменился: урон = stats.damage (strongHero), даль (ближний 1 / лук 3), practice-скилл swordsman/swordsman/swordsman/archer/archer/heavy/heavy, опыт в копилку; slot-поле не изменило equipmentStats (hitBonus/dmgBonus/armor)', () => {
   // [id, файл, stats.damage, practice-скилл, лук]
   const cases = [
-    ['wood_sword', '000001.json', 3, 'swordsman', false],
-    ['iron_sword', '000002.json', 5, 'swordsman', false],
-    ['steel_sword', '000003.json', 7, 'swordsman', false],
-    ['short_bow', '000004.json', 4, 'archer', true],
-    ['hunting_bow', '000005.json', 6, 'archer', true],
-    ['battle_axe', '000006.json', 8, 'heavy', false],
-    ['war_hammer', '000007.json', 10, 'heavy', false],
+    ['wood_sword', 'wood_sword.json', 3, 'swordsman', false],
+    ['iron_sword', 'iron_sword.json', 5, 'swordsman', false],
+    ['steel_sword', 'steel_sword.json', 7, 'swordsman', false],
+    ['short_bow', 'short_bow.json', 4, 'archer', true],
+    ['hunting_bow', 'hunting_bow.json', 6, 'archer', true],
+    ['battle_axe', 'battle_axe.json', 8, 'heavy', false],
+    ['war_hammer', 'war_hammer.json', 10, 'heavy', false],
   ];
   for (const [id, file, dmg, skill, isBow] of cases) {
     const j = JSON.parse(
@@ -10178,7 +10187,7 @@ test('000230.12 R11: tool — 10 инструментов: equip в right_hand (
 //   * свиток (солёный поток по (seed, day 0)) — null во ВСЕХ новых
 //     сценариях (пробный прогон на текущем каталоге, 83 свитка;
 //     методика верифицирована S3(a)-золотым: seed 6 →
-//     frost_wisp_scroll);
+//     ice_field_scroll (ре-пин 000318.08 F1; было frost_wisp_scroll));
 //   * пулы экипировки в node НЕ ПУСТЫ (loot-equip-data.js грузится
 //     UMD-require'ом combat.js) → L3/L4/L6 ИЗОЛИРОВАНЫ фикстурами
 //     (eqPoolsSave/Restore, паттерн D7 EQ3) — иначе экипировочный

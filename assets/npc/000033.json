@@ -29,272 +29,272 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000043.json",
+        "предмет": "assets/items/fireball_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000044.json",
+        "предмет": "assets/items/flame_burst_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000045.json",
+        "предмет": "assets/items/frost_bolt_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000046.json",
+        "предмет": "assets/items/blizzard_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000108.json",
+        "предмет": "assets/items/ember_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000109.json",
+        "предмет": "assets/items/ignite_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000110.json",
+        "предмет": "assets/items/fire_nova_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000111.json",
+        "предмет": "assets/items/lava_burst_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000112.json",
+        "предмет": "assets/items/meteor_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000113.json",
+        "предмет": "assets/items/flame_strike_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000114.json",
+        "предмет": "assets/items/hellfire_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000115.json",
+        "предмет": "assets/items/phlogiston_blast_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000116.json",
+        "предмет": "assets/items/burning_ground_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000117.json",
+        "предмет": "assets/items/wall_of_fire_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000118.json",
+        "предмет": "assets/items/burning_haze_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000119.json",
+        "предмет": "assets/items/blazing_speed_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000120.json",
+        "предмет": "assets/items/fire_aura_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000121.json",
+        "предмет": "assets/items/heat_shield_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000122.json",
+        "предмет": "assets/items/sunfire_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000123.json",
+        "предмет": "assets/items/scorch_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000124.json",
+        "предмет": "assets/items/cinder_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000125.json",
+        "предмет": "assets/items/ashen_debilitation_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000126.json",
+        "предмет": "assets/items/lava_snare_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000127.json",
+        "предмет": "assets/items/burning_cage_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000128.json",
+        "предмет": "assets/items/flame_imp_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000129.json",
+        "предмет": "assets/items/phoenix_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000130.json",
+        "предмет": "assets/items/firelight_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000131.json",
+        "предмет": "assets/items/hearthfire_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000132.json",
+        "предмет": "assets/items/flame_step_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000133.json",
+        "предмет": "assets/items/ice_lance_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000134.json",
+        "предмет": "assets/items/rime_bolt_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000135.json",
+        "предмет": "assets/items/hail_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000136.json",
+        "предмет": "assets/items/shatter_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000137.json",
+        "предмет": "assets/items/glacial_spike_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000138.json",
+        "предмет": "assets/items/permafrost_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000139.json",
+        "предмет": "assets/items/absolute_zero_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000140.json",
+        "предмет": "assets/items/ice_field_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000141.json",
+        "предмет": "assets/items/wall_of_ice_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000142.json",
+        "предмет": "assets/items/blizzard_field_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000143.json",
+        "предмет": "assets/items/frost_aura_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000144.json",
+        "предмет": "assets/items/ice_armor_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000145.json",
+        "предмет": "assets/items/winter_haste_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000146.json",
+        "предмет": "assets/items/frostbite_blessing_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000147.json",
+        "предмет": "assets/items/slow_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000148.json",
+        "предмет": "assets/items/frostbite_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000149.json",
+        "предмет": "assets/items/arctic_touch_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000150.json",
+        "предмет": "assets/items/deep_freeze_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000151.json",
+        "предмет": "assets/items/freeze_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000152.json",
+        "предмет": "assets/items/glacier_grasp_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000153.json",
+        "предмет": "assets/items/frost_wisp_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000154.json",
+        "предмет": "assets/items/winter_elemental_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000155.json",
+        "предмет": "assets/items/frost_walk_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000156.json",
+        "предмет": "assets/items/cold_breath_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000157.json",
+        "предмет": "assets/items/frozen_stillness_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

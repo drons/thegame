@@ -22,11 +22,11 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000007.json",
+      "item": "assets/items/war_hammer.json",
       "chance": 0.15
     },
     {
-      "item": "assets/items/000080.json",
+      "item": "assets/items/blueprint_woodwork.json",
       "chance": 0.05
     }
   ],

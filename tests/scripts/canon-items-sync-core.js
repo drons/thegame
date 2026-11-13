@@ -140,10 +140,20 @@ const NUM6 = /^\d{6}\.json$/;
 // (НЕ dir-count: каталог 285 = 279 + 6 blueprint_*).
 function loadCatalog(ROOT) {
   const itemsDir = path.join(ROOT, 'assets', 'items');
-  const all = fs.readdirSync(itemsDir).filter((f) => NUM6.test(f)).sort().map((f) => {
+  // 000318.08: items переименован в slug — номер файла восстановлен по
+  // замороженному реестру tests/scripts/items-num2id-000318.08.json
+  // (канон §2 оперирует диапазонами nums; имя файла больше не номер).
+  const JRC = require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
+  const ITEMS_RE = JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.items];
+  const LEDGER = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'tests', 'scripts', 'items-num2id-000318.08.json'), 'utf8'));
+  const NUM_BY_ID = {};
+  for (const numStr of Object.keys(LEDGER)) NUM_BY_ID[LEDGER[numStr]] = +numStr;
+  const all = fs.readdirSync(itemsDir)
+    .filter((f) => f !== 'schema.json' && ITEMS_RE.test(f)).sort().map((f) => {
     const obj = JSON.parse(fs.readFileSync(path.join(itemsDir, f), 'utf8'));
     return {
-      num: +f.slice(0, 6), id: obj.id, kind: obj.kind, subtype: obj.subtype,
+      num: NUM_BY_ID[obj.id], id: obj.id, kind: obj.kind, subtype: obj.subtype,
       slot: obj.slot, rarity: obj.rarity, icon: obj.icon, set: obj.set,
       set_bonus: obj.set_bonus, affixes: obj.affixes || [],
       stats: obj.stats || {}, obj,
@@ -242,19 +252,18 @@ function loadCatalog(ROOT) {
   }
 
   const craftDir = path.join(ROOT, 'assets', 'craft');
-  const JRC = require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
   const CRAFT_RE = JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.craft];
   const crafts = fs.readdirSync(craftDir)
     .filter((f) => f !== 'schema.json' && CRAFT_RE.test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(craftDir, f), 'utf8')));
-  const rarityNum = new Set(rarity.map((x) => x.num));
+  const rarityIds = new Set(rarity.map((x) => x.id));
   const byItem = {};
   let rarityEquip = 0;
   const types = {};
   for (const c of crafts) {
     const res = c.результат && c.результат.предмет;
-    const m = res && res.match(/^assets\/items\/(\d{6})\.json$/);
-    if (!m || !rarityNum.has(+m[1])) continue;
+    const m = res && res.match(/^assets\/items\/([a-z][a-z0-9_]*)\.json$/);
+    if (!m || !rarityIds.has(m[1])) continue;
     rarityEquip++;
     byItem[m[1]] = (byItem[m[1]] || 0) + 1;
     types[c.тип] = (types[c.тип] || 0) + 1;

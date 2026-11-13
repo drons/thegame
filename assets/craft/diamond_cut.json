@@ -2,12 +2,12 @@
   "id": "diamond_cut",
   "название": "Огранка алмаза",
   "тип": "резьба_по_камню",
-  "результат": { "предмет": "assets/items/000062.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/diamond.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000036.json", "количество": 5 },
-    { "предмет": "assets/items/000055.json", "количество": 3 },
-    { "предмет": "assets/items/000061.json", "количество": 1 },
-    { "предмет": "assets/items/000042.json", "количество": 1 }
+    { "предмет": "assets/items/stone_chunk.json", "количество": 5 },
+    { "предмет": "assets/items/quartz.json", "количество": 3 },
+    { "предмет": "assets/items/amethyst.json", "количество": 1 },
+    { "предмет": "assets/items/stone_chisel.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000027.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],

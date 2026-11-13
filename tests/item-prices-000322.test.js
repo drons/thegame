@@ -96,7 +96,8 @@ const NPC_DIR = path.join(ROOT, 'assets', 'npc');
 const ITEM_DIR = path.join(ROOT, 'assets', 'items');
 
 const npcFiles = fs.readdirSync(NPC_DIR).filter((f) => /^\d{6}\.json$/.test(f));
-const itemFiles = fs.readdirSync(ITEM_DIR).filter((f) => /^\d{6}\.json$/.test(f));
+const itemFiles = fs.readdirSync(ITEM_DIR)
+  .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f)); // 000318.08
 const NPC_JSON = {};
 for (const f of npcFiles) {
   NPC_JSON[f] = JSON.parse(fs.readFileSync(path.join(NPC_DIR, f), 'utf8'));
@@ -414,7 +415,7 @@ test('R3: БИТ-В-БИТ — base × mult === старая цена (точн�
     + checked);
 });
 
-test('R4: магазин постройки — от value, НЕ зависит от NPC-данных (мутация каталога NPC — 0 влияния); healing_potion: buy 10/9/8/7, sell 10/12/13/15 (wealth 0..3, hero)', () => {
+test('R4: магазин постройки — от value, НЕ зависит от NPC-данных (мутация каталога NPC — 0 влияния); healing_potion: buy 10/9/8/7, sell 10/12/13/15 (wealth 0..3, hero); реальная витрина — mana_potion (ре-пин 000318.08: ранжированный top-N отбор витрины wealth 3 чувствителен к порядку allItems — лекс-порядок slug-зеркала вытеснил healing_potion из 733)', () => {
   const c0 = P.createCharacter();
   const before = [];
   for (let w = 0; w <= 3; w++) {
@@ -428,15 +429,16 @@ test('R4: магазин постройки — от value, НЕ зависит 
   const merc2 = charWithMerchant(2);
   const shop3 = I.makeShop(5, 7, 2, 3);
   assert.ok(shop3, 'makeShop(2, wealth 3) — магазин');
-  assert.ok(shop3.stock.healing_potion >= 1, 'healing_potion в стоке');
-  assert.equal(I.buyPrice(shop3, 'healing_potion', merc2), 6,
-    'A6-инвариант: round(10 × 0.7 × 0.9) = 6');
-  assert.equal(I.sellPrice(shop3, 'healing_potion', merc2), 16,
-    'A6-инвариант: round(10 × 1.45 × 1.1) = 16');
-  assert.equal(I.buyPrice(shop3, 'healing_potion', c0), 7,
-    'hero: round(10 × 0.7) = 7');
-  assert.equal(I.sellPrice(shop3, 'healing_potion', c0), 15,
-    'hero: round(10 × 1.45) = 15');
+  assert.ok(shop3.stock.mana_potion >= 1,
+    'mana_potion в стоке (ре-пин 000318.08 — см. имя теста)');
+  assert.equal(I.buyPrice(shop3, 'mana_potion', merc2), 8,
+    'A6-инвариант: round(12 × 0.7 × 0.9) = 8');
+  assert.equal(I.sellPrice(shop3, 'mana_potion', merc2), 19,
+    'A6-инвариант: round(12 × 1.45 × 1.1) = 19');
+  assert.equal(I.buyPrice(shop3, 'mana_potion', c0), 8,
+    'hero: round(12 × 0.7) = 8');
+  assert.equal(I.sellPrice(shop3, 'mana_potion', c0), 17,
+    'hero: round(12 × 1.45) = 17');
   for (const f of npcFiles) {
     const npc = ND.NPCS.find((n) => n.id === NPC_JSON[f].id);
     if (!npc || !npc.торговля) continue;
@@ -484,7 +486,7 @@ test('R5: схемы — base_price в items schema (опциональное, i
     assert.deepEqual(errs, [], f + ': валиден по новой схеме: '
       + JSON.stringify(errs));
   }
-  const bread = JSON.parse(JSON.stringify(ITEM_JSON['000016.json']));
+  const bread = JSON.parse(JSON.stringify(ITEM_JSON['bread.json'])); // 000318.08
   bread.base_price = 2;
   assert.deepEqual(validateData(itemsSchema, bread), [],
     'base_price (integer) — валидно');
@@ -493,7 +495,7 @@ test('R5: схемы — base_price в items schema (опциональное, i
   assert.ok(validateData(itemsSchema, badItem).length > 0,
     'base_price: "2" (string) — невалидно');
   const entryOk = {
-    предмет: 'assets/items/000001.json', mult_продажи: 0.6, количество: 2,
+    предмет: 'assets/items/wood_sword.json', mult_продажи: 0.6, количество: 2,
   };
   const entryMp = { ...entryOk, mult_покупки: 1.5 };
   const tradeOf = (predmet) => validateData(
@@ -502,7 +504,7 @@ test('R5: схемы — base_price в items schema (опциональное, i
   assert.equal(tradeOf(entryOk), 0, 'новый формат — валиден');
   assert.equal(tradeOf(entryMp), 0, 'mult_покупки — валиден');
   const legacy = {
-    предмет: 'assets/items/000001.json',
+    предмет: 'assets/items/wood_sword.json',
     цена_покупки: 10, цена_продажи: 6, количество: 2,
   };
   assert.ok(tradeOf(legacy) > 0,

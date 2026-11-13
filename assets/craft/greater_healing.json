@@ -2,11 +2,11 @@
   "id": "greater_healing",
   "название": "Варка сильного зелья исцеления",
   "тип": "алхимия",
-  "результат": { "предмет": "assets/items/000013.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/greater_healing.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000012.json", "количество": 1 },
-    { "предмет": "assets/items/000023.json", "количество": 2 },
-    { "предмет": "assets/items/000024.json", "количество": 1 }
+    { "предмет": "assets/items/healing_potion.json", "количество": 1 },
+    { "предмет": "assets/items/moonstone.json", "количество": 2 },
+    { "предмет": "assets/items/phoenix_feather.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000025.json"],
   "здания": ["assets/buildings/alchemy_lab.json", "assets/buildings/mage_tower.json"],

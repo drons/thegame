@@ -3,16 +3,16 @@
   "название": "столярное_дело: hide_gloves",
   "тип": "столярное_дело",
   "результат": {
-    "предмет": "assets/items/000310.json",
+    "предмет": "assets/items/hide_gloves.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000037.json",
+      "предмет": "assets/items/hide.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "количество": 1
     }
   ],

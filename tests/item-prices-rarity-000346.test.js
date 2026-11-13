@@ -54,7 +54,7 @@ const ITEM_DIR = path.join(ROOT, 'assets', 'items');
 const NPC_DIR = path.join(ROOT, 'assets', 'npc');
 const SPELL_DIR = path.join(ROOT, 'assets', 'spells');
 const diskItems = fs.readdirSync(ITEM_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f)) // 000318.08
   .map((f) => JSON.parse(fs.readFileSync(path.join(ITEM_DIR, f), 'utf8')));
 const itemById = (id) => diskItems.find((it) => it.id === id) || null;
 

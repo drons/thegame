@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000149.json"
+    "assets/items/arctic_touch_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

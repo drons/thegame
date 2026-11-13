@@ -3,20 +3,20 @@
   "название": "Зачарование рунного сплава",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000799.json",
+    "предмет": "assets/items/rune_alloy.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

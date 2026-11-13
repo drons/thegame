@@ -13,7 +13,7 @@
     "turns": 4
   },
   "предметы": [
-    "assets/items/000275.json"
+    "assets/items/spirit_healer_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

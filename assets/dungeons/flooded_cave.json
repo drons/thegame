@@ -8,37 +8,37 @@
     "assets/mobs/imp.json"
   ],
   "предметы": [
-    "assets/items/000015.json",
-    "assets/items/000005.json",
-    "assets/items/000023.json",
-    "assets/items/000032.json",
-    "assets/items/000049.json",
-    "assets/items/000082.json",
-    "assets/items/000460.json",
-    "assets/items/000461.json",
-    "assets/items/000462.json",
-    "assets/items/000463.json",
-    "assets/items/000464.json",
-    "assets/items/000465.json",
-    "assets/items/000466.json",
-    "assets/items/000467.json",
-    "assets/items/000468.json",
-    "assets/items/000469.json",
-    "assets/items/000470.json",
-    "assets/items/000471.json",
-    "assets/items/000472.json",
-    "assets/items/000473.json",
-    "assets/items/000474.json",
-    "assets/items/000475.json",
-    "assets/items/000476.json",
-    "assets/items/000477.json",
-    "assets/items/000478.json",
-    "assets/items/000479.json",
-    "assets/items/000480.json",
-    "assets/items/000481.json",
-    "assets/items/000482.json",
-    "assets/items/000483.json",
-    "assets/items/000484.json"
+    "assets/items/mana_elixir.json",
+    "assets/items/hunting_bow.json",
+    "assets/items/moonstone.json",
+    "assets/items/nature_scroll.json",
+    "assets/items/magic_shield_scroll.json",
+    "assets/items/blueprint_runecraft.json",
+    "assets/items/iron_bulwark_scroll.json",
+    "assets/items/aegis_scroll.json",
+    "assets/items/shield_wall_scroll.json",
+    "assets/items/magical_barrier_scroll.json",
+    "assets/items/stony_hide_scroll.json",
+    "assets/items/iron_bastion_scroll.json",
+    "assets/items/bulwark_ward_scroll.json",
+    "assets/items/resilience_scroll.json",
+    "assets/items/thorns_scroll.json",
+    "assets/items/fortitude_scroll.json",
+    "assets/items/guardian_oath_scroll.json",
+    "assets/items/stalwart_scroll.json",
+    "assets/items/aura_of_protection_scroll.json",
+    "assets/items/weaken_defense_scroll.json",
+    "assets/items/corrode_scroll.json",
+    "assets/items/stone_grasp_scroll.json",
+    "assets/items/time_slow_scroll.json",
+    "assets/items/stone_wall_scroll.json",
+    "assets/items/guardian_field_scroll.json",
+    "assets/items/stone_golem_scroll.json",
+    "assets/items/iron_sentinel_scroll.json",
+    "assets/items/stone_anchor_scroll.json",
+    "assets/items/recall_scroll.json",
+    "assets/items/gate_scroll.json",
+    "assets/items/warding_circle_scroll.json"
   ],
   "размер": 27,
   "постройка": "assets/buildings/flooded_cave.json",
@@ -47,35 +47,35 @@
   ],
   "руда": [
     {
-      "предмет": "assets/items/000022.json",
+      "предмет": "assets/items/sulfur.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000055.json",
+      "предмет": "assets/items/quartz.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "вид": "руда"
     },
     {
-      "предмет": "assets/items/000060.json",
+      "предмет": "assets/items/emerald.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "assets/items/000059.json",
+      "предмет": "assets/items/sapphire.json",
       "вид": "самоцвет"
     },
     {
-      "предмет": "assets/items/000057.json",
+      "предмет": "assets/items/phosphorite.json",
       "вид": "минерал"
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "вид": "минерал"
     }
   ]

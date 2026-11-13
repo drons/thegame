@@ -3,24 +3,24 @@
   "название": "Зачарование колокола души",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000182.json",
+    "предмет": "assets/items/soul_bell.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 4
     },
     {
-      "предмет": "assets/items/000024.json",
+      "предмет": "assets/items/phoenix_feather.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000058.json",
+      "предмет": "assets/items/ruby.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 3
     }
   ],

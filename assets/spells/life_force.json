@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000497.json"
+    "assets/items/life_force_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

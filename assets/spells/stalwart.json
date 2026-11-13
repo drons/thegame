@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000471.json"
+    "assets/items/stalwart_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

@@ -166,7 +166,7 @@ test('T2: assets/npc/000038.json валиден по schema; ключи в по�
     'количество 0 — вне схемы (minimum 1, maximum 99)');
   const legacyEntry = JSON.parse(JSON.stringify(data));
   legacyEntry.торговля.предметы[0] = {
-    предмет: 'assets/items/000038.json',
+    предмет: 'assets/items/coal.json',
     цена_покупки: 2, цена_продажи: 1, количество: 1,
   };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacy'), [],
@@ -342,7 +342,7 @@ test('T6: блоков квесты/обучение/найм НЕТ (ни в JS
     'зеркало: постройки [5] — sync резолвит ссылку Лавки странника в id');
   const ids = new Set();
   items.forEach((p, j) => {
-    assert.match(p.предмет, /^assets\/items\/\d{6}\.json$/,
+    assert.match(p.предмет, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
       'путь предмета — якорная ссылка: ' + p.предмет);
     assert.ok(holdPaths.has(p.предмет),
       p.предмет + ': позиция ⊆ ассортимента дома 5 — резолв «валют» '

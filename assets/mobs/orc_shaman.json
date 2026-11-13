@@ -22,7 +22,7 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000014.json",
+      "item": "assets/items/mana_potion.json",
       "chance": 0.15
     }
   ],

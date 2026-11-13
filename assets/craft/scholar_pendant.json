@@ -3,16 +3,16 @@
   "название": "Зачарование подвеса учёного",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000374.json",
+    "предмет": "assets/items/scholar_pendant.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000023.json",
+      "предмет": "assets/items/moonstone.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 1
     }
   ],

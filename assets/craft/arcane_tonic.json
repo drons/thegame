@@ -3,20 +3,20 @@
   "название": "Выстаивание арканного настоя",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000861.json",
+    "предмет": "assets/items/arcane_tonic.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000075.json",
+      "предмет": "assets/items/mushroom_glow.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000040.json",
+      "предмет": "assets/items/herb_mana.json",
       "количество": 1
     }
   ],

@@ -3,20 +3,20 @@
   "название": "Зачарование оселкового перстня",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000795.json",
+    "предмет": "assets/items/whetstone_ring.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

@@ -3,16 +3,16 @@
   "название": "Стояние ночного отвара",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000845.json",
+    "предмет": "assets/items/night_brew.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000064.json",
+      "предмет": "assets/items/berry_blue.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000075.json",
+      "предмет": "assets/items/mushroom_glow.json",
       "количество": 1
     }
   ],

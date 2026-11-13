@@ -29,272 +29,272 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000049.json",
+        "предмет": "assets/items/magic_shield_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000050.json",
+        "предмет": "assets/items/vine_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000460.json",
+        "предмет": "assets/items/iron_bulwark_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000461.json",
+        "предмет": "assets/items/aegis_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000462.json",
+        "предмет": "assets/items/shield_wall_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000463.json",
+        "предмет": "assets/items/magical_barrier_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000464.json",
+        "предмет": "assets/items/stony_hide_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000465.json",
+        "предмет": "assets/items/iron_bastion_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000466.json",
+        "предмет": "assets/items/bulwark_ward_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000467.json",
+        "предмет": "assets/items/resilience_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000468.json",
+        "предмет": "assets/items/thorns_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000469.json",
+        "предмет": "assets/items/fortitude_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000470.json",
+        "предмет": "assets/items/guardian_oath_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000471.json",
+        "предмет": "assets/items/stalwart_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000472.json",
+        "предмет": "assets/items/aura_of_protection_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000473.json",
+        "предмет": "assets/items/weaken_defense_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000474.json",
+        "предмет": "assets/items/corrode_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000475.json",
+        "предмет": "assets/items/stone_grasp_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000476.json",
+        "предмет": "assets/items/time_slow_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000477.json",
+        "предмет": "assets/items/stone_wall_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000478.json",
+        "предмет": "assets/items/guardian_field_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000479.json",
+        "предмет": "assets/items/stone_golem_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000480.json",
+        "предмет": "assets/items/iron_sentinel_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000481.json",
+        "предмет": "assets/items/stone_anchor_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000482.json",
+        "предмет": "assets/items/recall_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000483.json",
+        "предмет": "assets/items/gate_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000484.json",
+        "предмет": "assets/items/warding_circle_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000487.json",
+        "предмет": "assets/items/acid_splash_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000488.json",
+        "предмет": "assets/items/thorn_whip_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000489.json",
+        "предмет": "assets/items/poison_spore_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000490.json",
+        "предмет": "assets/items/vine_lash_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000491.json",
+        "предмет": "assets/items/thorn_storm_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000492.json",
+        "предмет": "assets/items/nature_wrath_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000493.json",
+        "предмет": "assets/items/hurricane_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000494.json",
+        "предмет": "assets/items/poison_cloud_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000495.json",
+        "предмет": "assets/items/thorn_field_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000496.json",
+        "предмет": "assets/items/wall_of_thorns_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000497.json",
+        "предмет": "assets/items/life_force_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000498.json",
+        "предмет": "assets/items/barkskin_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000499.json",
+        "предмет": "assets/items/heart_of_forest_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000500.json",
+        "предмет": "assets/items/nature_haste_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000501.json",
+        "предмет": "assets/items/vitality_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000502.json",
+        "предмет": "assets/items/poison_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000503.json",
+        "предмет": "assets/items/rot_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000504.json",
+        "предмет": "assets/items/paralyzing_spore_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000505.json",
+        "предмет": "assets/items/entangle_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000506.json",
+        "предмет": "assets/items/root_grasp_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000507.json",
+        "предмет": "assets/items/forest_beast_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000508.json",
+        "предмет": "assets/items/treant_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000509.json",
+        "предмет": "assets/items/wild_growth_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000510.json",
+        "предмет": "assets/items/beast_friend_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000511.json",
+        "предмет": "assets/items/path_of_vines_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000512.json",
+        "предмет": "assets/items/way_up_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000513.json",
+        "предмет": "assets/items/way_down_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

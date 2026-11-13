@@ -156,14 +156,14 @@ test('T2: assets/npc/000035.json валиден по schema; ключи в по�
     + 'здания — slug-именование, numeric-форма мертва (zero-sweep '
     + 'tests/buildings-rename-000318.06.test.js T5)');
   const withTrade = JSON.parse(JSON.stringify(data));
-  withTrade.торговля = { предметы: [{ предмет: 'assets/items/000043.json',
+  withTrade.торговля = { предметы: [{ предмет: 'assets/items/fireball_scroll.json',
     mult_продажи: 0.5, количество: 1 }] };
   assert.notDeepEqual(Object.keys(withTrade), KEYS,
     'лишний блок «торговля» — вне эталона ключей: схема блок допускает '
     + '(невидимость свипам пинит не схема, а T2/T6), профиль чистая '
     + 'подсказка «продаёт копии» держит только СЛОВОМ, не витриной');
   const legacyEntry = JSON.parse(JSON.stringify(data));
-  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/000043.json',
+  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/fireball_scroll.json',
     mult_продажи: 0.5, количество: 1, цена_покупки: 60, цена_продажи: 30 }] };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacyentry'), [],
     'legacy-вход торговли цена_покупки/цена_продажи — вне схемы '

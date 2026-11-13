@@ -22,15 +22,15 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000024.json",
+      "item": "assets/items/phoenix_feather.json",
       "chance": 0.2
     },
     {
-      "item": "assets/items/000013.json",
+      "item": "assets/items/greater_healing.json",
       "chance": 0.15
     },
     {
-      "item": "assets/items/000051.json",
+      "item": "assets/items/resurrect_scroll.json",
       "chance": 0.05
     }
   ],

@@ -177,7 +177,7 @@ test('000318.04 T2: зеркала позиционно — MOB_GROUPS ids [1..7
   });
 });
 
-test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→mobs + 21 dungeons→mobs в slug-форме (isRef, резолв, id==basename); numeric-форм в данных 0; items dungeons — numeric, buildings — slug с 000318.06', () => {
+test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→mobs + 21 dungeons→mobs в slug-форме (isRef, резолв, id==basename); numeric-форм в данных 0; items dungeons — slug с 000318.08, buildings — slug с 000318.06', () => {
   const NUM_MOB_REF = /assets\/mobs\/\d{6}\.json/g;
   let nMg = 0;
   for (const f of shapeFiles('mob_groups')) {
@@ -210,8 +210,9 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
     }
     for (const m of (data.предметы || [])) {
       assert.ok(JR.isRef(m), `dungeons/${f}: предметы «${m}» — не ref`);
-      assert.match(m, /^assets\/items\/\d{6}\.json$/,
-        `dungeons/${f}: items-ссылка «${m}» — не numeric (шейп items не менялся)`);
+      assert.match(m, /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
+        `dungeons/${f}: items-ссылка «${m}» — не slug (шейп items — slug `
+        + 'с 000318.08)');
     }
     if (data.постройка !== undefined) {
       assert.match(data.постройка, /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/,
@@ -219,8 +220,10 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
     }
     for (const rec of (data.руда || [])) {
       if (rec && rec.предмет !== undefined) {
-        assert.match(rec.предмет, /^assets\/items\/\d{6}\.json$/,
-          `dungeons/${f}: руда.предмет «${rec.предмет}» — не numeric`);
+        assert.match(rec.предмет,
+          /^assets\/items\/[a-z][a-z0-9_]*\.json$/,
+          `dungeons/${f}: руда.предмет «${rec.предмет}» — не slug `
+          + '(с 000318.08)');
       }
     }
   }
@@ -229,12 +232,13 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
 
 test('000318.04 T4: REF_RE — побайтовый пин ДВУХгруппного source + таблица истинности формы × каталога', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|skills|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
-    'REF_RE группами по шейпам: number-группа (items первым в '
-    + 'REF_LINKED_CATALOGS) + slug-группа (spells с .05, mobs) — drift '
-    + 'узаконен .04/.05; рантайм-носитель pattern обновлён в '
-    + 'assets/skills/schema.json');
+    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)'
+    + '\\/[a-z][a-z0-9_]*\\.json$'
+    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
+    'REF_RE группами по шейпам: slug-группа (items встала ПЕРВОЙ по '
+    + 'REF_LINKED_CATALOGS с 000318.08) + number-группа (skills|npc) — '
+    + 'прежний двухгруппный source (items в number) узаконен .04/.05, '
+    + 'снят 000318.08; рантайм-носитель pattern — assets/skills/schema.json');
   for (const [p, want] of [
     ['assets/mobs/abomination.json', true],
     ['assets/mobs/000036.json', false],
@@ -242,8 +246,8 @@ test('000318.04 T4: REF_RE — побайтовый пин ДВУХгруппн�
     ['assets/mob_groups/000001.json', false],
     ['assets/dungeons/abyss.json', true],
     ['assets/dungeons/000005.json', false],
-    ['assets/items/000001.json', true],
-    ['assets/items/wood_sword.json', false],
+    ['assets/items/' + '000001' + '.json', false],
+    ['assets/items/wood_sword.json', true],
     ['assets/buildings/weapons_shop.json', true],
     ['assets/runes/stone_hide.json', false],
     ['assets/visuals/bush.json', false],

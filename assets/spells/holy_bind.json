@@ -9,7 +9,7 @@
   "мани": 12,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000273.json"
+    "assets/items/holy_bind_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

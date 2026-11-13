@@ -50,8 +50,8 @@ const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 const SPELL_UP_FILE = path.join(SPELLS_DIR, 'way_up.json');
 const SPELL_DOWN_FILE = path.join(SPELLS_DIR, 'way_down.json');
-const SCROLL_UP_FILE = path.join(ITEMS_DIR, '000512.json');
-const SCROLL_DOWN_FILE = path.join(ITEMS_DIR, '000513.json');
+const SCROLL_UP_FILE = path.join(ITEMS_DIR, 'way_up_scroll.json');
+const SCROLL_DOWN_FILE = path.join(ITEMS_DIR, 'way_down_scroll.json');
 
 const NAV_COLOR_UP = '#59ffb0';
 const NAV_COLOR_DOWN = '#ff7a4d';
@@ -262,7 +262,7 @@ test('N-SAVE-1: activeRec С navPaths → serializeDungeonMemory теряет na
 
 function readJson(f) { return JSON.parse(fs.readFileSync(f, 'utf8')); }
 
-test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,000513 — схема-валидны, roundtrip-канон (000327 S5), поля: природа/wisdom/внебой/days 1/мани 6/здания [21,38]; свитки spell_scroll value 60 tier 2, effect.spell = ID, base_price = value (ре-пин 000347.02)', () => {
+test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/way_up_scroll,way_down_scroll (бывшие 000512/000513) — схема-валидны, roundtrip-канон (000327 S5), поля: природа/wisdom/внебой/days 1/мани 6/здания [21,38]; свитки spell_scroll value 60 tier 2, effect.spell = ID, base_price = value (ре-пин 000347.02)', () => {
   for (const f of [SPELL_UP_FILE, SPELL_DOWN_FILE,
     SCROLL_UP_FILE, SCROLL_DOWN_FILE]) {
     assert.ok(fs.existsSync(f),
@@ -306,10 +306,10 @@ test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,
     assert.ok(typeof s['описание'] === 'string'
       && s['описание'].trim().length > 0, `${id}: описание непустое`);
   }
-  assert.deepEqual(upS['предметы'], ['assets/items/000512.json'],
-    'way_up: предметы — СВОЙ свиток 000512');
-  assert.deepEqual(downS['предметы'], ['assets/items/000513.json'],
-    'way_down: предметы — СВОЙ свиток 000513');
+  assert.deepEqual(upS['предметы'], ['assets/items/way_up_scroll.json'],
+    'way_up: предметы — СВОЙ свиток (ре-пин 000318.08: бывший 000512)');
+  assert.deepEqual(downS['предметы'], ['assets/items/way_down_scroll.json'],
+    'way_down: предметы — СВОЙ свиток (бывший 000513)');
   const upRawI = fs.readFileSync(SCROLL_UP_FILE, 'utf8');
   const downRawI = fs.readFileSync(SCROLL_DOWN_FILE, 'utf8');
   const upI = JSON.parse(upRawI);
@@ -318,9 +318,9 @@ test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/000512,
     'way_up_scroll: канон roundtrip');
   assert.equal(downRawI, JSON.stringify(downI, null, 2) + '\n',
     'way_down_scroll: канон roundtrip');
-  const e3 = []; validate(itemSchema, upI, '000512.json', e3);
+  const e3 = []; validate(itemSchema, upI, 'way_up_scroll.json', e3);
   assert.deepEqual(e3, [], 'way_up_scroll: схема-ошибки: ' + e3.join('; '));
-  const e4 = []; validate(itemSchema, downI, '000513.json', e4);
+  const e4 = []; validate(itemSchema, downI, 'way_down_scroll.json', e4);
   assert.deepEqual(e4, [], 'way_down_scroll: схема-ошибки: ' + e4.join('; '));
   const dataMod = loadSpellsData();
   for (const [it, id, name, spell] of [

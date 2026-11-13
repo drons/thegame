@@ -10,7 +10,7 @@
   "мани": 20,
   "действие": "урон",
   "предметы": [
-    "assets/items/000492.json"
+    "assets/items/nature_wrath_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

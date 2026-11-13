@@ -3,16 +3,16 @@
   "название": "Резьба ракушки на проволокке",
   "тип": "резьба_по_камню",
   "результат": {
-    "предмет": "assets/items/000573.json",
+    "предмет": "assets/items/shell_wire_earring.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 1
     }
   ],

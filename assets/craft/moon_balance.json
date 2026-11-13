@@ -3,16 +3,16 @@
   "название": "Зачарование равновесия",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000756.json",
+    "предмет": "assets/items/moon_balance.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000023.json",
+      "предмет": "assets/items/moonstone.json",
       "количество": 1
     }
   ],

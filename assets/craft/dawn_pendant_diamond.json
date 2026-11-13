@@ -4,24 +4,24 @@
   "тип": "зачарование",
   "база": "assets/craft/dawn_pendant.json",
   "результат": {
-    "предмет": "assets/items/000207.json",
+    "предмет": "assets/items/dawn_pendant.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 4
     },
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "количество": 4
     },
     {
-      "предмет": "assets/items/000024.json",
+      "предмет": "assets/items/phoenix_feather.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 4
     }
   ],

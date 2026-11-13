@@ -9,7 +9,7 @@
   "уровень": 3,
   "мани": 10,
   "действие": "урон",
-  "предметы": ["assets/items/000022.json", "assets/items/000024.json"],
+  "предметы": ["assets/items/sulfur.json", "assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/mage_tower.json"],
   "описание": "Совершенствование «Огненного шара»: шар взрывается облаком пламени, поджигая и цели рядом.",
   "icon": "assets/spell-icons/flame_burst.svg",

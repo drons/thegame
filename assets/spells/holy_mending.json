@@ -10,7 +10,7 @@
   "мани": 13,
   "действие": "лечение",
   "предметы": [
-    "assets/items/000262.json"
+    "assets/items/holy_mending_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

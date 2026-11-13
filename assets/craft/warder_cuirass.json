@@ -3,20 +3,20 @@
   "название": "Ковка кирасы дозорного",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000586.json",
+    "предмет": "assets/items/warder_cuirass.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "количество": 3
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000037.json",
+      "предмет": "assets/items/hide.json",
       "количество": 1
     }
   ],

@@ -10,7 +10,7 @@
   "мани": 20,
   "действие": "урон",
   "предметы": [
-    "assets/items/000114.json"
+    "assets/items/hellfire_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

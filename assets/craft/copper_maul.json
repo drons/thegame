@@ -3,20 +3,20 @@
   "название": "Ковка медной кувалды",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000528.json",
+    "предмет": "assets/items/copper_maul.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

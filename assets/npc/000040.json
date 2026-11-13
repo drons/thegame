@@ -29,137 +29,137 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000047.json",
+        "предмет": "assets/items/chill_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000233.json",
+        "предмет": "assets/items/umbra_bolt_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000234.json",
+        "предмет": "assets/items/drain_life_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000235.json",
+        "предмет": "assets/items/void_arrow_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000236.json",
+        "предмет": "assets/items/night_strike_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000237.json",
+        "предмет": "assets/items/soul_drain_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000238.json",
+        "предмет": "assets/items/shadowflame_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000239.json",
+        "предмет": "assets/items/dark_nova_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000240.json",
+        "предмет": "assets/items/shroud_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000241.json",
+        "предмет": "assets/items/night_blade_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000242.json",
+        "предмет": "assets/items/vampire_touch_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000243.json",
+        "предмет": "assets/items/fear_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000244.json",
+        "предмет": "assets/items/doom_mark_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000245.json",
+        "предмет": "assets/items/despair_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000246.json",
+        "предмет": "assets/items/shadow_curse_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000247.json",
+        "предмет": "assets/items/shadow_bind_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000248.json",
+        "предмет": "assets/items/nightmare_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000249.json",
+        "предмет": "assets/items/dark_ensnare_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000250.json",
+        "предмет": "assets/items/shadow_pool_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000251.json",
+        "предмет": "assets/items/veil_of_night_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000252.json",
+        "предмет": "assets/items/shadow_wraith_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000253.json",
+        "предмет": "assets/items/void_horror_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000254.json",
+        "предмет": "assets/items/shadow_step_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000255.json",
+        "предмет": "assets/items/invisibility_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000256.json",
+        "предмет": "assets/items/shroud_of_night_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000257.json",
+        "предмет": "assets/items/dark_presence_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000764.json",
+        "предмет": "assets/items/decadance_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

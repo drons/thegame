@@ -2727,10 +2727,14 @@ test('000101 GREEN: клик data-act sell — продажа (регресси�
     'notice «Продано: <name> за N з» (цена — из результата ядра)');
   assert.equal(panel._shopBody, body0,
     '_shopBody — тот же узел (тело обновляется in place)');
+  // 000318.08: сток bt2 пересобран лекс-порядком — healing_potion
+  // теперь И в покупке (строка стока ×4 идёт раньше). Контракт —
+  // SELL-строка инвентаря: берём её тем же фильтром, что и btn выше.
   const row = findAll(panel._shopBody, '.cp-itemrow')
     .find((r) => {
       const b = r.querySelector('.cp-btn');
-      return b && b.dataset.item === 'healing_potion';
+      return b && b.dataset.act === 'sell'
+        && b.dataset.item === 'healing_potion';
     });
   assert.ok(row, 'sell-строка обновлена после ре-рендера в обработчике');
   assert.equal(String(row.querySelector('.cp-itemname').textContent),

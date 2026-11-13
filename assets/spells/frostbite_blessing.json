@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000146.json"
+    "assets/items/frostbite_blessing_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

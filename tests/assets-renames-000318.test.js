@@ -168,7 +168,8 @@ function renameViolations(mod, dir, cat) {
 // 'number'; остальные NUMBERED остаются number до своих дочерних.
 const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug',
   mobs: 'slug', mob_groups: 'slug', dungeons: 'slug',
-  spells: 'slug', buildings: 'slug', craft: 'slug' }; // .02, .03, .04, .05, .06, .07
+  spells: 'slug', buildings: 'slug', craft: 'slug',
+  items: 'slug' }; // .02, .03, .04, .05, .06, .07, .08
 
 test('RN1: реестр шейпов — переименованные каталоги по таблице, прочие number, portraits named, 9 мишеней', () => {
   const mod = loadShapes();
@@ -178,7 +179,7 @@ test('RN1: реестр шейпов — переименованные ката
       cat + ': шейп по таблице переименований 000318 (.01 — все number; '
       + '.02 переименовал runes в slug; .03 — visuals; .04 — '
       + 'mobs/mob_groups/dungeons; .05 — spells; .06 — buildings; '
-      + '.07 — craft)');
+      + '.07 — craft; .08 — items)');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE, вне SHAPE_BASENAME_RES)');
@@ -190,12 +191,12 @@ test('RN1: реестр шейпов — переименованные ката
     'runes никогда не был мишенью REF_RE — не-ref и при slug-шейпе (000318.02)');
   assert.equal(mod.isRefPath('portraits', 'efir.json'), false,
     'portraits — вне шейпов, только PORTRAITS_RE');
-  assert.equal(mod.isRefPath('items', '000001.json'), true,
-    'number-каталог-мишень: номерная форма — ref');
-  assert.equal(mod.isRefPath('items', 'wood_sword.json'), false,
-    'slug в number-каталоге — НЕ ref (негатив ТЗ)');
-  assert.equal(mod.refPath('items', '000001.json'),
-    'assets/items/000001.json', 'refPath собирает корневой путь');
+  assert.equal(mod.isRefPath('items', '000001.json'), false,
+    'items (slug с 000318.08): прежняя номерная форма — НЕ ref');
+  assert.equal(mod.isRefPath('items', 'wood_sword.json'), true,
+    'items (slug с 000318.08): slug-имя — ref');
+  assert.equal(mod.refPath('items', 'wood_sword.json'),
+    'assets/items/wood_sword.json', 'refPath собирает корневой путь');
   assert.equal(mod.isRefPathFull('assets/mobs/abomination.json'), true,
     'mobs (slug с 000318.04): slug-имя — ref');
   assert.equal(mod.isRefPathFull('assets/mobs/000036.json'), false,
@@ -275,35 +276,40 @@ test('RN3: каждая межкаталожная ссылка в 11 нумер
   assert.deepEqual(bad, [], 'нерезолвящиеся ссылки: ' + bad.join('; '));
 });
 
-test('RN4: slug-шейп (временная подмена) — свип требует basename == id; number — НЕ требует', () => {
+test('RN4: slug-шейп (временная подмена) — свип требует basename == id; number — НЕ требует (ре-пин 000318.08: items — slug на текущем диске)', () => {
   const mod = loadShapes();
   assert.deepEqual(renameViolations(mod, ROOT, 'items'), [],
-    'number-шейп: смещение id допустимо (items id — строковые slug-имена '
-    + 'при файлах 0000NN.json; dungeons с 000318.04 сам slug-шейп)');
+    'slug-шейп (текущий диск): basename == id — чисто (000318.08)');
+  withTmpRoot([
+    ['assets/items/wood_sword.json', JSON.stringify({ id: 'wood_sword' })],
+    ['assets/items/old_name.json', JSON.stringify({ id: 'iron_helmet' })],
+  ], (dir) => {
+    const v = renameViolations(mod, dir, 'items');
+    assert.equal(v.length, 1,
+      'slug-шейп: basename != id — ровно одно нарушение: ' + v.join('; '));
+    assert.ok(v[0].includes('old_name.json'),
+      'нарушение указывает на файл с рассогласованным именем: ' + v[0]);
+  });
   const saved = mod.ASSET_NAME_SHAPES.items;
-  mod.ASSET_NAME_SHAPES.items = 'slug';
+  mod.ASSET_NAME_SHAPES.items = 'number';
   try {
     withTmpRoot([
-      ['assets/items/wood_sword.json', JSON.stringify({ id: 'wood_sword' })],
-      ['assets/items/iron_helmet.json', JSON.stringify({ id: 'iron_helmet' })],
+      ['assets/items/' + '000001' + '.json',
+        JSON.stringify({ id: 'wood_sword' })],
+      ['assets/items/' + '000002' + '.json',
+        JSON.stringify({ id: 'iron_helmet' })],
     ], (dir) => {
       assert.deepEqual(renameViolations(mod, dir, 'items'), [],
-        'slug-шейп: basename == id — чисто');
+        'number-шейп: смещение id допустимо (items id — строковые '
+        + 'slug-имена при номерных файлах)');
     });
-    withTmpRoot([
-      ['assets/items/wood_sword.json', JSON.stringify({ id: 'wood_sword' })],
-      ['assets/items/old_name.json', JSON.stringify({ id: 'iron_helmet' })],
-    ], (dir) => {
-      const v = renameViolations(mod, dir, 'items');
-      assert.equal(v.length, 1,
-        'slug-шейп: basename != id — ровно одно нарушение: ' + v.join('; '));
-      assert.ok(v[0].includes('old_name.json'),
-        'нарушение указывает на файл с рассогласованным именем: ' + v[0]);
-    });
+    assert.ok(renameViolations(mod, ROOT, 'items').length > 0,
+      'number-шейп: slug-файлы текущего диска — «не форма шейпа» '
+      + '(обратная сторона гейта)');
   } finally {
     mod.ASSET_NAME_SHAPES.items = saved;
   }
-  assert.equal(mod.ASSET_NAME_SHAPES.items, 'number',
+  assert.equal(mod.ASSET_NAME_SHAPES.items, 'slug',
     'шейп восстановлен после finally (изоляция от других тестов файла)');
 });
 
@@ -333,7 +339,7 @@ test('RN5: изоморфный набор — isRef ≡ REF_RE ∪ PORTRAITS_RE
     'src/items-data.js',
     'assets',
     'assets//000001.json',
-    'assets/items/000001/000002.json');
+    'assets/items/' + '000001/000002.json');
   for (const s of samples) {
     assert.equal(mod.isRef(s),
       mod.REF_RE.test(s) || mod.PORTRAITS_RE.test(s),

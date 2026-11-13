@@ -3,16 +3,16 @@
   "название": "Киплачение индигового отвара",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000851.json",
+    "предмет": "assets/items/indigo_brew.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000040.json",
+      "предмет": "assets/items/herb_mana.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000041.json",
+      "предмет": "assets/items/herb_bitter.json",
       "количество": 1
     }
   ],

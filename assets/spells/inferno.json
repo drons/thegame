@@ -9,7 +9,7 @@
   "уровень": 4,
   "мани": 20,
   "действие": "урон",
-  "предметы": ["assets/items/000024.json"],
+  "предметы": ["assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/mage_tower.json"],
   "описание": "Совершенствование «Пламенного взрыва»: поток адового пламени охватывает поле боя. Заклинание архимага.",
   "icon": "assets/spell-icons/inferno.svg",

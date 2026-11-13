@@ -23,9 +23,12 @@
 //     console.error 1× (000053), игра не ломается.
 //
 // Детерминированный мир (node-реплика ≡ vm-миру): спавн (0,0) —
-// трава, без лута; ближайший лут-тайл (-1,1) — root_rock «Каменный
-// корень» (ход 2 шага: (-1,0)→(-1,1)); второй — (-2,1) berry_wild
-// «Дикая ягода» (3 шага). Все пути BFS: passable && !hasMobGroup
+// трава, без лута; РЕ-ПИН 000318.08 (F1, лут-канал: лекс-порядок
+// slug-каталога меняет выбор lootCandidates при тех же роллах):
+// ближайший лут-тайл (-2,0) — root_ember «Огненный корень» (ход 2
+// шага: (-1,0)→(-2,0)); второй — (1,1) root_rock «Каменный корень»
+// (2 шага: (0,1)→(1,1)); прежняя пара (-1,1)/(−2,1) переснята живым
+// createMap по assets/map.png. Все пути BFS: passable && !hasMobGroup
 // (моб — startCombat остановил бы мир), без CAVE/NONE-входов
 // (авто-вход). Ходы мелкие — смена дня в сценарии НЕ происходит
 // (steps_per_day = 40); день меняется ТОЛЬКО g.actions.setDay (LM3).
@@ -40,8 +43,8 @@
 //   * LM6 — spawn-кадр: все видимые лут-тайлы нарисованы с ТОЧНОЙ
 //     геометрией (пересчёт из песочницы 1:1 с условием рендера:
 //     visibleTileRange → live tileAt → lootVisible → lootSprite →
-//     worldToScreen); контроль: (-1,1) root_rock в ожидаемом;
-//   * LM7 — [E] на (-1,1) → лут тайла НЕВИДИМ, остальные 51 — в
+//     worldToScreen); контроль: (-2,0) root_ember в ожидаемом (ре-пин 000318.08);
+//   * LM7 — [E] на (-2,0) → лут тайла НЕВИДИМ, остальные — в
 //     точности; декорации — тот же мультимножество, число рисований
 //     текстур/построек/мобов/Флогистона неизменно;
 //   * LM8 — пороги зума (колесом): 16 ≤ zoom < 24 — лут ВИДИМ,
@@ -422,15 +425,15 @@ function findLoot(G, start, isTarget, radius = 600) {
   return null;
 }
 
-// Ход к ближайшему луту (сценарий всех LM*): (-1,1) root_rock,
-// шаги [(-1,0), (-1,1)] — 2 шага (день НЕ проходит).
+// Ход к ближайшему луту (сценарий всех LM*; ре-пин 000318.08 F1):
+// (-2,0) root_ember, шаги [(-1,0), (-2,0)] — 2 шага (день НЕ проходит).
 function walkToNearestLoot(h, now) {
   const res = findLoot(h.sandbox.Game, { x: 0, y: 0 }, (t) =>
     t.loot != null);
   assert.ok(res, 'сценарий: ближайший лут достижим пешком');
-  assert.deepEqual(res.target, { x: -1, y: 1 },
-    'сценарий: ближайший лут — (-1,1)');
-  assert.equal(res.t.loot.item, 'root_rock', 'сценарий: Каменный корень');
+  assert.deepEqual(res.target, { x: -2, y: 0 },
+    'сценарий: ближайший лут — (-2,0)');
+  assert.equal(res.t.loot.item, 'root_ember', 'сценарий: Огненный корень');
   now = walkTiles(h, now, res.steps);
   return { now, res };
 }
@@ -463,24 +466,24 @@ test('LM1. 000158.04 e2e: ходьба к луту, подсказка, [E] → 
   const g = h.sandbox.__game;
   // Инвентарь ДО: предмета нет (свежий герой).
   assert.ok(!(g.state.hero.inventory || []).some(
-    (s) => s.id === 'root_rock'),
+    (s) => s.id === 'root_ember'),
     'сценарий: предмета нет в инвентаре до сбора');
   const { now: n0, res } = walkToNearestLoot(h, NOW);
-  const K = res.target.x + ',' + res.target.y; // "-1,1"
+  const K = res.target.x + ',' + res.target.y; // "-2,0"
   // Подсказка HUD на лут-тайле.
-  assert.ok(h.hud.textContent.includes('[E] Собрать: Каменный корень'),
+  assert.ok(h.hud.textContent.includes('[E] Собрать: Огненный корень'),
     'HUD: подсказка «[E] Собрать: <имя>» (красный: строки нет): ' +
     h.hud.textContent.replace(/\n/g, ' | '));
   // [E] — сбор.
   key(h, 'KeyE');
   let now = n0 + 200;
   h.frameFn(now);
-  // Инвентарь: +1 (root_rock — reagent, стакается).
+  // Инвентарь: +1 (root_ember — reagent, стакается).
   const slot = (g.state.hero.inventory || []).find(
-    (s) => s.id === 'root_rock');
+    (s) => s.id === 'root_ember');
   assert.ok(slot, 'инвентарь: предмет появился (красный: [E] no-op)');
   assert.equal(slot.qty, 1, 'инвентарь: qty 1');
-  // Состояние: ключ «-1,1» → день сбора (1).
+  // Состояние: ключ «-2,0» → день сбора (1).
   assert.equal((g.collectedLoot || {})[K], 1,
     '__game.collectedLoot: ключ → день (красный: getter/ключ нет)');
   // Сейв: раздел collectedLoot в localStorage (saveNow при сборе).
@@ -492,7 +495,7 @@ test('LM1. 000158.04 e2e: ходьба к луту, подсказка, [E] → 
   assert.equal(saved.data.collectedLoot[K], 1,
     'сейв: ключ → день 1');
   // Флэш «Собрано: <имя>».
-  assert.ok(h.hud.textContent.includes('Собрано: Каменный корень'),
+  assert.ok(h.hud.textContent.includes('Собрано: Огненный корень'),
     'флэш «Собрано: <имя>» (красный: флэша нет)');
   // Подсказка исчезла (собрано → lootVisible false).
   now += 200;
@@ -578,14 +581,14 @@ test('LM3. 000158.04 e2e: respawn-цикл — key живёт до дня ден
   assert.equal((g.collectedLoot || {})[K], undefined,
     'день ' + (dayC + rd) + ': key удалён onDay-зачисткой ' +
     '(красный: зачистки нет)');
-  assert.ok(h.hud.textContent.includes('[E] Собрать: Каменный корень'),
+  assert.ok(h.hud.textContent.includes('[E] Собрать: Огненный корень'),
     'день ' + (dayC + rd) + ': лут СНОВА виден (подсказка вернулась)');
   // Повторный сбор: qty 2, новая марка = текущий день.
   key(h, 'KeyE');
   now += 200;
   h.frameFn(now);
   const slot = (g.state.hero.inventory || []).find(
-    (s) => s.id === 'root_rock');
+    (s) => s.id === 'root_ember');
   assert.equal(slot && slot.qty, 2, 'повторный сбор: qty 2');
   assert.equal((g.collectedLoot || {})[K], dayC + rd,
     'новая марка = день повторного сбора');
@@ -598,20 +601,21 @@ test('LM3. 000158.04 e2e: respawn-цикл — key живёт до дня ден
 // =====================================================================
 
 test('LM4. 000158.04 e2e: сейв collectedLoot — (a) валидный ключ restore + ресейв; (b) INVALID + future-day отброшены, мусор не возвращается; (c) старый сейв без поля → {}, версия 1', async () => {
-  // (a) Валидный ключ '-1,1': 1 — restore: лут НЕ виден, [E] no-op;
-  // ресейв: ключ в сейве (не потерян).
+  // (a) Валидный ключ '-2,0': 1 — restore: лут НЕ виден, [E] no-op;
+  // ресейв: ключ в сейве (не потерян). (Ре-пин 000318.08 F1: якоря
+  // сценария сняты живым createMap по map.png.)
   {
     const h = await boot({ save: saveShell({
       day: 1, steps: 0,
       position: { x: 0, y: 0 },
       hero: HERO_SAVE,
-      collectedLoot: { '-1,1': 1 },
+      collectedLoot: { '-2,0': 1 },
     }) });
     const g = h.sandbox.__game;
-    assert.equal((g.collectedLoot || {})['-1,1'], 1,
+    assert.equal((g.collectedLoot || {})['-2,0'], 1,
       '(a) restore: валидный ключ восстановлен (красный: restore нет)');
-    // Ходим на (-1,1): подсказки НЕТ (собрано).
-    let now = walkTiles(h, NOW, [[-1, 0], [-1, 1]]);
+    // Ходим на (-2,0): подсказки НЕТ (собрано).
+    let now = walkTiles(h, NOW, [[-1, 0], [-2, 0]]);
     assert.ok(!h.hud.textContent.includes('[E] Собрать:'),
       '(a) на собранном тайле подсказки нет');
     // [E] — no-op (предмета нет, не появится).
@@ -619,51 +623,51 @@ test('LM4. 000158.04 e2e: сейв collectedLoot — (a) валидный клю
     now += 200;
     h.frameFn(now);
     assert.ok(!(g.state.hero.inventory || []).some(
-      (s) => s.id === 'root_rock'),
+      (s) => s.id === 'root_ember'),
       '(a) [E] no-op: предмет не собран повторно');
     // Ресейв (beforeunload → saveNow): ключ жив в сейве.
     fireSave(h);
     const saved = JSON.parse(h.storage.store[SAVE_KEY]);
     assert.equal(saved.data.collectedLoot &&
-      saved.data.collectedLoot['-1,1'], 1,
+      saved.data.collectedLoot['-2,0'], 1,
       '(a) ресейв: валидный ключ не потерян');
   }
-  // (b) Мусор + future-day: 'abc': 3 (INVALID), '-2,1': 50 (день 50
-  // > clock.day 1) — отброшены; валидный '-1,1': 1 жив. (-2,1) —
-  // «Дикая ягода» — ВИДИМ (50 отброшен) → [E] собираем.
+  // (b) Мусор + future-day: 'abc': 3 (INVALID), '-1,-2': 50 (день 50
+  // > clock.day 1) — отброшены; валидный '-2,0': 1 жив. (-1,-2) —
+  // «Каменный корень» — ВИДИМ (50 отброшен) → [E] собираем.
   {
     const h = await boot({ save: saveShell({
       day: 1, steps: 0,
       position: { x: 0, y: 0 },
       hero: HERO_SAVE,
-      collectedLoot: { 'abc': 3, '-2,1': 50, '-1,1': 1 },
+      collectedLoot: { 'abc': 3, '-1,-2': 50, '-2,0': 1 },
     }) });
     const g = h.sandbox.__game;
     const c0 = g.collectedLoot || {};
-    assert.equal(c0['-1,1'], 1,
+    assert.equal(c0['-2,0'], 1,
       '(b) restore: валидный ключ жив (красный: restore нет)');
-    assert.equal(c0['-2,1'], undefined,
+    assert.equal(c0['-1,-2'], undefined,
       '(b) future-day (50 > 1) отброшен');
     assert.equal(c0['abc'], undefined, '(b) INVALID-ключ отброшен');
-    // Ходим на (-2,1): лут ВИДИМ (ключ отброшен) → подсказка.
-    let now = walkTiles(h, NOW, [[-1, 0], [-2, 0], [-2, 1]]);
-    assert.ok(h.hud.textContent.includes('[E] Собрать: Дикая ягода'),
+    // Ходим на (-1,-2): лут ВИДИМ (ключ отброшен) → подсказка.
+    let now = walkTiles(h, NOW, [[-1, 0], [-1, -1], [-1, -2]]);
+    assert.ok(h.hud.textContent.includes('[E] Собрать: Каменный корень'),
       '(b) отброшенный лут виден (подсказка): ' +
       h.hud.textContent.replace(/\n/g, ' | '));
-    // [E] — сбор: qty 1, ключ «-2,1» → день 1.
+    // [E] — сбор: qty 1, ключ «-1,-2» → день 1.
     key(h, 'KeyE');
     now += 200;
     h.frameFn(now);
     const slot = (g.state.hero.inventory || []).find(
-      (s) => s.id === 'berry_wild');
+      (s) => s.id === 'root_rock');
     assert.ok(slot, '(b) предмет собран (красный: [E] no-op)');
-    assert.equal((g.collectedLoot || {})['-2,1'], 1,
+    assert.equal((g.collectedLoot || {})['-1,-2'], 1,
       '(b) новый ключ → день 1');
-    // Ресейв: ровно { '-1,1': 1, '-2,1': 1 } — мусора нет.
+    // Ресейв: ровно { '-2,0': 1, '-1,-2': 1 } — мусора нет.
     fireSave(h);
     const saved = JSON.parse(h.storage.store[SAVE_KEY]);
     assert.deepEqual(saved.data.collectedLoot,
-      { '-1,1': 1, '-2,1': 1 },
+      { '-2,0': 1, '-1,-2': 1 },
       '(b) сейв: только валидные ключи (abc/50 не вернулись)');
   }
   // (c) СТАРЫЙ сейв (поля collectedLoot нет): restore → {};
@@ -725,7 +729,7 @@ test('LM5. 000158.04 e2e: деградация — tileAt без поля loot: 
   // Игра не ломается: краха нет (boot-инвариант: ошибок загрузки
   // нет), предмета нет, collectedLoot не мутирован.
   assert.ok(!(g.state.hero.inventory || []).some(
-    (s) => s.id === 'root_rock'),
+    (s) => s.id === 'root_ember'),
     'без проводки-данных: предмет не собран');
   assert.deepEqual(
     JSON.parse(JSON.stringify(g.collectedLoot || {})), {},
@@ -879,7 +883,7 @@ function familyCounts(calls) {
 // нарисован спрайтом предмета с ТОЧНОЙ геометрией (пересчёт 1:1).
 // =====================================================================
 
-test('LM6. 000158.05 e2e: тайл с видимым лутом → drawImage loot-спрайта с точной геометрией (size×zoom, позиция hash2); контроль (-1,1) root_rock', async () => {
+test('LM6. 000158.05 e2e: тайл с видимым лутом → drawImage loot-спрайта с точной геометрией (size×zoom, позиция hash2); контроль (-2,0) root_ember', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -896,8 +900,8 @@ test('LM6. 000158.05 e2e: тайл с видимым лутом → drawImage lo
   assert.ok(expected.length >= 10,
     'сценарий: лут-тайлов в spawn-виде достаточно (ожид. '
     + expected.length + ')');
-  assert.ok(expected.some((e) => e.sprite === 'assets/sprites/loot/root_rock.svg'),
-    'сценарий: root_rock (ближайший лут (-1,1)) — в ожидаемом наборе');
+  assert.ok(expected.some((e) => e.sprite === 'assets/sprites/loot/root_ember.svg'),
+    'сценарий: root_ember (ближайший лут (-2,0)) — в ожидаемом наборе');
   assertLootsEqual(lootDraws(calls), expected,
     'геометрия: центр (sx + e.x*zoom, sy + e.y*zoom), сторона e.size*zoom');
 });
@@ -908,7 +912,7 @@ test('LM6. 000158.05 e2e: тайл с видимым лутом → drawImage lo
 // число рисований текстур/построек/мобов/Флогистона — неизменно.
 // =====================================================================
 
-test('LM7. 000158.05 e2e: [E] на (-1,1) → лут тайла невидим, остальные 51 в точности; декорации и другие слои не изменились', async () => {
+test('LM7. 000158.05 e2e: [E] на (-2,0) → лут тайла невидим, остальные — в точности (пин числа ниже); декорации и другие слои не изменились', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -930,15 +934,15 @@ test('LM7. 000158.05 e2e: [E] на (-1,1) → лут тайла невидим, 
     g.collectedLoot || {});
   assertLootsEqual(lootDraws(before), exp0,
     'до сбора: точная геометрия лута');
-  // Положительный контроль: root_rock на (-1,1) нарисован.
-  const ls0 = G.lootSprite('root_rock', res.target.x, res.target.y);
+  // Положительный контроль: root_ember на (-2,0) нарисован.
+  const ls0 = G.lootSprite('root_ember', res.target.x, res.target.y);
   const p0 = G.worldToScreen(res.target.x, res.target.y,
     st0.cam.x, st0.cam.y, st0.zoom, VIEW_W, VIEW_H);
   const s0 = ls0.size * st0.zoom;
   assert.ok(lootDraws(before).some(([, a]) => a[0].__asset === ls0.sprite
     && Math.abs(a[1] - (p0.x + ls0.x * st0.zoom - s0 / 2)) < EPS
     && Math.abs(a[2] - (p0.y + ls0.y * st0.zoom - s0 / 2)) < EPS),
-    'сценарий: root_rock на (-1,1) нарисован ДО сбора');
+    'сценарий: root_ember на (-2,0) нарисован ДО сбора');
   const decoBefore = decoDraws(before);
   const countsBefore = familyCounts(before);
   // [E] — сбор (сценарий LM1: подсказка → addItem + ключ).
@@ -948,13 +952,14 @@ test('LM7. 000158.05 e2e: [E] на (-1,1) → лут тайла невидим, 
   const st1 = g.state;
   assert.equal((g.collectedLoot || {})[res.target.x + ',' + res.target.y], 1,
     'сбор: ключ тайла → день 1 (механика 000158.04)');
-  // Лут: пересчёт видит collectedLoot → (-1,1) отсутствует; ровно 51.
+  // Лут: пересчёт видит collectedLoot → (-2,0) отсутствует; ровно −1.
+  // (Число spawn-вида переснято вместе с лут-каналом 000318.08.)
   const exp1 = expectedLoots(G, G.__liveMap, st1.cam, st1.zoom,
     g.collectedLoot || {});
   assertLootsEqual(lootDraws(after), exp1,
     'после сбора: остальные луты — в точности');
   assert.equal(exp1.length, exp0.length - 1,
-    'ровно ОДИН лут исчез (собраный тайл)');
+    'ровно ОДИН лут исчез (собраный тайл); exp0=' + exp0.length);
   // Декорации — тот же мультимножество (cam/zoom не изменились).
   assertDrawsEqual(decoDraws(after), decoBefore,
     'декорации не изменились по сбору');
@@ -1129,7 +1134,8 @@ test('LM9. 000158.05 e2e: порядок слоёв — текстура < де�
 // код: структурно лут под постройкой невозможен, 000158.03). На
 // базе 1ca4904 ВСЕ постройки спавн-вида 1×1 — стеновых тайлов в
 // видимой области нет → СИНТЕТИКА через G.__liveMap.tileAt (паттерн
-// LM5): форс inBuilding на лут-тайле W = (-1,1) ДО первого кадра
+// LM5): форс inBuilding на лут-тайле W = (1,1) ДО первого кадра
+// (ре-пин 000318.08 F1: (-1,1) больше не лут-тайл — (1,1) root_rock)
 // (tileCache кэширует ПЕРВЫЕ тайлы — патч после кадров не действует)
 // + положительный контроль: форс-лут на W2 = (-1,0) рисуется.
 // =====================================================================
@@ -1142,7 +1148,7 @@ test('LM10. 000158.05 e2e: стена постройки → лут не рис�
     'контракт: экспорт G.lootSprite (красный: символа нет в sprites.js)');
   const live = G.__liveMap;
   const orig = live.tileAt;
-  const W = { x: -1, y: 1 };   // реальный лут-тайл root_rock → «стена»
+  const W = { x: 1, y: 1 };    // реальный лут-тайл root_rock → «стена»
   const W2 = { x: -1, y: 0 };  // норма без лута → контроль видимости форса
   live.tileAt = (x, y) => {
     const t = orig(x, y);

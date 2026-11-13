@@ -29,17 +29,17 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000001.json",
+        "предмет": "assets/items/wood_sword.json",
         "mult_продажи": 0.55,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000002.json",
+        "предмет": "assets/items/iron_sword.json",
         "mult_продажи": 0.55,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000003.json",
+        "предмет": "assets/items/steel_sword.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

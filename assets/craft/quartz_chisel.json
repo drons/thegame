@@ -3,10 +3,10 @@
   "название": "Вытёска кварцевого резца",
   "тип": "резьба_по_камню",
   "база": "assets/craft/stone_chisel.json",
-  "результат": { "предмет": "assets/items/000042.json", "количество": 1 },
+  "результат": { "предмет": "assets/items/stone_chisel.json", "количество": 1 },
   "исходники": [
-    { "предмет": "assets/items/000036.json", "количество": 2 },
-    { "предмет": "assets/items/000055.json", "количество": 1 }
+    { "предмет": "assets/items/stone_chunk.json", "количество": 2 },
+    { "предмет": "assets/items/quartz.json", "количество": 1 }
   ],
   "навыки": ["assets/skills/000027.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],

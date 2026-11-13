@@ -3,16 +3,16 @@
   "название": "кузнечное_дело: silver_cuff",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000296.json",
+    "предмет": "assets/items/silver_cuff.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     }
   ],

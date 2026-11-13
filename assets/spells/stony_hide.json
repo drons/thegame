@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000464.json"
+    "assets/items/stony_hide_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

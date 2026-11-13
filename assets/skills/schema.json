@@ -59,7 +59,7 @@
         },
         "primary": {
           "type": "string",
-          "pattern": "^assets\\/(items|skills|npc)\\/\\d{6}\\.json$|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$"
+          "pattern": "^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$|^assets\\/(skills|npc)\\/\\d{6}\\.json$"
         },
         "requires": {
           "type": "object",
@@ -71,7 +71,7 @@
           "properties": {
             "skill": {
               "type": "string",
-              "pattern": "^assets\\/(items|skills|npc)\\/\\d{6}\\.json$|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$"
+              "pattern": "^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$|^assets\\/(skills|npc)\\/\\d{6}\\.json$"
             },
             "level": {
               "type": "number",

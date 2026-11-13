@@ -3,24 +3,24 @@
   "название": "Ковка рассветной стены",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000661.json",
+    "предмет": "assets/items/dawnwall_shield.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000054.json",
+      "предмет": "assets/items/mithril_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000062.json",
+      "предмет": "assets/items/diamond.json",
       "количество": 1
     }
   ],

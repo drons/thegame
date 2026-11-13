@@ -25,11 +25,11 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000022.json",
+      "item": "assets/items/sulfur.json",
       "chance": 0.2
     },
     {
-      "item": "assets/items/000078.json",
+      "item": "assets/items/blueprint_alchemy.json",
       "chance": 0.05
     }
   ],

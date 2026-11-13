@@ -3,16 +3,16 @@
   "название": "Смешение ветреного настоя",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000832.json",
+    "предмет": "assets/items/gale_tonic.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000067.json",
+      "предмет": "assets/items/herb_wind.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000065.json",
+      "предмет": "assets/items/berry_wild.json",
       "количество": 1
     }
   ],

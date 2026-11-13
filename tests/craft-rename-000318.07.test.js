@@ -152,12 +152,12 @@ const BASE_SELF_00031807 = [
 // 6 чертежей assets/items (effect.recipe) ДО rename: [файл предмета,
 // его id, прежний номер файла рецепта, id рецепта].
 const RECIPE_REFS_00031807 = [
-  ['000077.json', 'blueprint_forge', '000001', 'iron_sword'],
-  ['000078.json', 'blueprint_alchemy', '000004', 'healing_potion'],
-  ['000079.json', 'blueprint_carving', '000013', 'stone_chisel'],
-  ['000080.json', 'blueprint_woodwork', '000011', 'wood_sword'],
-  ['000081.json', 'blueprint_enchant', '000008', 'hunting_bow'],
-  ['000082.json', 'blueprint_runecraft', '000019', 'moonstone_runes'],
+  ['blueprint_forge.json', 'blueprint_forge', '000001', 'iron_sword'],
+  ['blueprint_alchemy.json', 'blueprint_alchemy', '000004', 'healing_potion'],
+  ['blueprint_carving.json', 'blueprint_carving', '000013', 'stone_chisel'],
+  ['blueprint_woodwork.json', 'blueprint_woodwork', '000011', 'wood_sword'],
+  ['blueprint_enchant.json', 'blueprint_enchant', '000008', 'hunting_bow'],
+  ['blueprint_runecraft.json', 'blueprint_runecraft', '000019', 'moonstone_runes'],
 ];
 
 // Ожидаемое множество id == множество прежних номеров (643 на момент rename;
@@ -233,10 +233,10 @@ test('000318.07 T2: зеркало src/craft-data.js — CRAFT в строгом
     const src = byId.get(r.id);
     assert.equal(r.тип, src.тип, `${r.id}: тип`);
     assert.equal(r.уровень, src.уровень, `${r.id}: уровень`);
-    const m = /^assets\/items\/(\d{6})\.json$/.exec(src.результат.предмет);
+    const m = /^assets\/items\/([a-z][a-z0-9_]*)\.json$/.exec(src.результат.предмет);
     assert.ok(m, `${r.id}: результат.предмет в JSON — не item-путь `
-      + `(sources of truth — пути, зеркало — id; 000318.07 items НЕ трогает: `
-      + 'это .318.08)');
+      + `(sources of truth — пути, зеркало — id; ре-пин 000318.08: `
+      + 'items — slug-каталог)');
     const itemFile = path.join(ROOT, src.результат.предмет);
     assert.ok(fs.existsSync(itemFile),
       `${r.id}: цель результата ${src.результат.предмет} — файла нет`);
@@ -281,12 +281,12 @@ test('000318.07 T2: зеркало src/craft-data.js — CRAFT в строгом
 
 test('000318.07 T3: REF_RE — побайтовый пин НОВОГО двухгруппного source с craft в slug-ветке + таблица истинности', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|skills|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
-    'REF_RE группами по шейпам: number (items/skills/npc — craft ушёл) + '
-    + 'slug (spells|mobs|mob_groups|buildings|craft|dungeons — craft встал '
-    + 'после buildings по REF_LINKED_CATALOGS); прежний source (craft в '
-    + 'number-группе) — «до 000318.07»; рантайм-носитель — pattern в '
+    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
+    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
+    'REF_RE группами по шейпам: number (skills/npc — items ушёл 000318.08) + '
+    + 'slug (items|spells|mobs|mob_groups|buildings|craft|dungeons — items '
+    + 'встал первым по REF_LINKED_CATALOGS); прежний source (items в '
+    + 'number-группе) — «до 000318.08»; рантайм-носитель — pattern в '
     + 'assets/skills/schema.json (SR5/skills.test сверяют живо)');
   for (const [p, want] of [
     ['assets/craft/iron_sword.json', true],
@@ -294,7 +294,8 @@ test('000318.07 T3: REF_RE — побайтовый пин НОВОГО двух
     ['assets/craft/yew_longbow.json', true],
     ['assets/craft/' + '000001' + '.json', false],
     ['assets/craft/' + '000031' + '.json', false],
-    ['assets/items/000001.json', true],
+    ['assets/items/' + '000001' + '.json', false],
+    ['assets/items/wood_sword.json', true],
     ['assets/skills/000001.json', true],
     ['assets/npc/000018.json', true],
     ['assets/buildings/weapons_shop.json', true],
@@ -320,8 +321,8 @@ test('000318.07 T4: схемы-носители — skills ×2 ≡ живому 
     'skills/schema.json: secondary.primary ≢ живому REF_RE.source');
   assert.equal(secSkills.properties.requires.properties.skill.pattern, live,
     'skills/schema.json: secondary.requires.skill ≢ живому REF_RE.source');
-  const UNION = '^assets/((items|skills|npc)/\\d{6}'
-    + '|(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
+  const UNION = '^assets/((skills|npc)/\\d{6}'
+    + '|(items|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
   const dungs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'dungeons', 'schema.json'), 'utf8'));
   for (const where of [['мобы', dungs.properties.мобы.items.pattern],
@@ -427,7 +428,7 @@ test('000318.07 T5: referrer-свип — numeric-путей craft в данны
   }
   let recipeRefs = 0;
   for (const f of fs.readdirSync(ITEMS_DIR)
-    .filter((x) => NUM_RE.test(x))) {
+    .filter((x) => x !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(x))) {
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
     if (j.effect && j.effect.kind === 'craft_recipe') recipeRefs += 1;
   }

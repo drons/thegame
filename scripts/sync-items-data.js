@@ -30,18 +30,23 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { resolveRef } = require('./lib/json-ref.js');
+const { resolveRef, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 const OUT_FILE = path.join(ROOT, 'src', 'items-data.js');
 
 // --- Чтение каталога ---
+// Форма имени — из ЖИВОГО реестра lib (000318.08: items — slug, имя файла
+// == его id); slug-regex матчит и schema.json — исключаем явно (прецедент
+// .02/.06/.07).
 const files = fs.readdirSync(ITEMS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.items].test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/items: не найдено ни одного файла 0000NN.json');
+  console.error('assets/items: не найдено ни одного файла каталога');
   process.exit(1);
 }
 
@@ -83,6 +88,13 @@ for (const f of files) {
   }
   items.push({ file: f, data });
 }
+// Порядок записей — по data.id (000318.08): сравнение строк «<» — тот же
+// code-unit порядок, что и у сортировки по именам файлов (имя == id), но
+// контракт закреплен за ДАННЫМИ, а не за совпадением имени: на дереве,
+// где basename ≠ id (tmp-перестановка), выход остаётся id-упорядоченным
+// (урок .07).
+items.sort((a, b) => (a.data.id < b.data.id ? -1
+  : a.data.id > b.data.id ? 1 : 0));
 
 // Канонический порядок ключей (схема assets/items/schema.json).
 // 'loot' — 000158.02 (опциональное поле лута глобальной карты; конец —
@@ -147,7 +159,7 @@ L.push('  }');
 L.push('})(typeof globalThis !== "undefined" ? globalThis : self, function () {');
 L.push('');
 L.push(`  // Предметы (assets/items/${range});`);
-L.push('  // порядок массива = нумерация файлов.');
+L.push('  // порядок массива — лексикографический по id.');
 L.push('  const ITEMS = [');
 for (const { file, data } of items) {
   L.push(`    // ${file}`);

@@ -3,20 +3,20 @@
   "название": "Зачарование тлеющей робы",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000225.json",
+    "предмет": "assets/items/ember_robe.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     }
   ],

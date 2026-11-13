@@ -3,16 +3,16 @@
   "название": "Ковка кривого кописа",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000517.json",
+    "предмет": "assets/items/kopis_curved.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 1
     }
   ],

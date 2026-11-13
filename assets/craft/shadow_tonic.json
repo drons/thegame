@@ -3,16 +3,16 @@
   "название": "Стояние теневого настоя",
   "тип": "алхимия",
   "результат": {
-    "предмет": "assets/items/000858.json",
+    "предмет": "assets/items/shadow_tonic.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000076.json",
+      "предмет": "assets/items/mushroom_ink.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000068.json",
+      "предмет": "assets/items/root_moon.json",
       "количество": 1
     }
   ],

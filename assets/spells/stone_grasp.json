@@ -9,7 +9,7 @@
   "мани": 6,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000475.json"
+    "assets/items/stone_grasp_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

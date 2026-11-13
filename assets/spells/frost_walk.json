@@ -13,7 +13,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000155.json"
+    "assets/items/frost_walk_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

@@ -10,7 +10,7 @@
   "мани": 6,
   "действие": "урон",
   "предметы": [
-    "assets/items/000110.json"
+    "assets/items/fire_nova_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

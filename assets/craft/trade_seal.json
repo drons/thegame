@@ -3,20 +3,20 @@
   "название": "Зачарование товарной печати",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000798.json",
+    "предмет": "assets/items/trade_seal.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000053.json",
+      "предмет": "assets/items/gold_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

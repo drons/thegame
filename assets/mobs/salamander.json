@@ -22,7 +22,7 @@
   "spells": [],
   "loot": [
     {
-      "item": "assets/items/000024.json",
+      "item": "assets/items/phoenix_feather.json",
       "chance": 0.15
     }
   ],

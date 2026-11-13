@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000469.json"
+    "assets/items/fortitude_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

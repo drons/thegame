@@ -9,7 +9,7 @@
   "мани": 12,
   "действие": "контроль",
   "предметы": [
-    "assets/items/000476.json"
+    "assets/items/time_slow_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

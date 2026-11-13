@@ -14,7 +14,7 @@ const DIR = path.join(ROOT, 'assets', 'npc');
 // buildings — slug с 000318.06 (прежний numeric-паттерн — красен: номер
 // более не ref).
 const BUILDING_REF = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
-const ITEM_REF = /^assets\/items\/\d{6}\.json$/;
+const ITEM_REF = /^assets\/items\/[a-z][a-z0-9_]*\.json$/;
 
 function listNpcFiles() {
   return fs.readdirSync(DIR)
@@ -142,7 +142,7 @@ test('npc: предметы — строки-ссылки assets/items (торг
   const unique = new Set();
   const check = (v, where, mirrorValue) => {
     assert.equal(typeof v, 'string',
-      `${where}: ${JSON.stringify(v)} — ждём строку-ссылку на assets/items/NNNNNN.json`);
+      `${where}: ${JSON.stringify(v)} — ждём строку-ссылку на assets/items/<id>.json (slug с 000318.08)`);
     assert.match(v, ITEM_REF,
       `${where}: ${v} — не якорная ссылка`);
     const id = targetId(v);
@@ -282,7 +282,8 @@ test('npc: schema — 4 ссылочных под-схемы зафиксиро�
   ];
   for (const [name, sub] of itemSubs) {
     assert.deepEqual(sub,
-      { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+      { type: 'string',
+        pattern: '^assets/items/[a-z][a-z0-9_]*\\.json$' },
       `${name} — строка с якорным паттерном items`);
   }
   assert.notDeepEqual(validateData(buildingSub, 47, 'постройки'), [],
@@ -301,9 +302,13 @@ test('npc: schema — 4 ссылочных под-схемы зафиксиро�
   assert.deepEqual(
     validateData(buildingSub, 'assets/buildings/camp.json', 'постройки'),
     [], 'якорная slug-ссылка на здание — валидна');
+  assert.notDeepEqual(
+    validateData(itemSubs[0][1], 'assets/items/' + '000001' + '.json',
+      'предмет'),
+    [], 'прежняя numeric-ссылка на предмет по схеме 000318.08 — мимо');
   assert.deepEqual(
-    validateData(itemSubs[0][1], 'assets/items/000001.json', 'предмет'),
-    [], 'якорная ссылка на предмет — валидна');
+    validateData(itemSubs[0][1], 'assets/items/wood_sword.json', 'предмет'),
+    [], 'якорная slug-ссылка на предмет — валидна');
 });
 
 const NPC_BODY = (постройки, торговля) =>
@@ -319,7 +324,7 @@ const NPC_BODY = (постройки, торговля) =>
 const GOOD_ASSETS = {
   'assets/buildings/camp.json': JSON.stringify({ id: 47 }),
   'assets/buildings/tavern.json': JSON.stringify({ id: 44 }),
-  'assets/items/000001.json': JSON.stringify({ id: 'wood_sword' }),
+  'assets/items/wood_sword.json': JSON.stringify({ id: 'wood_sword' }),
 };
 
 function makeTmpNpcRepo(npc, assets) {
@@ -398,7 +403,8 @@ test('sync-npc-data.js: битая/чужая ссылка — exit 1, зерк�
 
   withTmpRepo(
     NPC_BODY(['assets/buildings/camp.json'],
-      { предметы: [{ предмет: 'assets/items/000001.json', mult_продажи: 1, количество: 1 }] }),
+      { предметы: [{ предмет: 'assets/items/wood_sword.json',
+        mult_продажи: 1, количество: 1 }] }),
     GOOD_ASSETS,
     (dir) => {
       const ok = runNpcSync(dir);

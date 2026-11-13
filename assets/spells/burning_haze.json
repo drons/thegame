@@ -16,7 +16,7 @@
     "radius": 2
   },
   "предметы": [
-    "assets/items/000118.json"
+    "assets/items/burning_haze_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

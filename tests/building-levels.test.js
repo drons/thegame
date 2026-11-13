@@ -1700,12 +1700,17 @@ test('000222-R14. vm e2e: build-55 (−100 з., −Бревно ×2, −Каме
   const target = freeCityCell(found);
   assert.notEqual(shopCell.x + ',' + shopCell.y, target.x + ','
     + target.y, 'свободная клетка ≠ Оружейная');
-  // Золото: продажа 2 war_hammer (150 з. шт., Бренн).
+  // Золото: 4 × steel_sword (72 з. шт.) + 2 × wood_sword (6 з. шт.,
+  // Бренн). Ре-пин 000318.08: war_hammer вытеснен из витрины Оружейной
+  // (ранжированный top-N отбор стока чувствителен к порядку allItems —
+  // лекс-порядок slug-зеркала; те же 300 з. достижимы из стока).
   walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, shopCell.x, shopCell.y));
-  seedSlot(g, 'war_hammer', 2);
+  seedSlot(g, 'steel_sword', 4);
+  seedSlot(g, 'wood_sword', 2);
   openNpcTrade(h);
-  sellItem(h, 'war_hammer', 2);
-  assert.equal(g.state.hero.gold, 100 + 2 * 150, 'золото +300');
+  sellItem(h, 'steel_sword', 4);
+  sellItem(h, 'wood_sword', 2);
+  assert.equal(g.state.hero.gold, 100 + 4 * 72 + 2 * 6, 'золото +300');
   key(h, 'Escape');
   // Материалы: 4 wood + 4 stone (build 55 + upgrade L1→2).
   seedSlot(g, 'wood_log', 4);
@@ -1860,12 +1865,19 @@ test('000222-R15. vm e2e магазин: build-1 (Оружейная, wealth 1-2
   const target = freeCityCell(found);
   assert.notEqual(shopCell.x + ',' + shopCell.y, target.x + ','
     + target.y, 'свободная клетка ≠ Оружейная');
-  // Золото: 11 × war_hammer (150 з.).
+  // Золото: 22 × steel_sword (72 з.) + hunting_bow (54 з.)
+  // + 2 × wood_sword (6 з.). Ре-пин 000318.08: war_hammer вне витрины
+  // Оружейной (top-N сток чувствителен к порядку allItems); сумма
+  // +1650 сохранена — цепочка gold-пинов ниже НЕ двигается.
   walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, shopCell.x, shopCell.y));
-  seedSlot(g, 'war_hammer', 11);
+  seedSlot(g, 'steel_sword', 22);
+  seedSlot(g, 'hunting_bow', 1);
+  seedSlot(g, 'wood_sword', 2);
   openNpcTrade(h);
-  sellItem(h, 'war_hammer', 11);
-  assert.equal(g.state.hero.gold, 100 + 11 * 150,
+  sellItem(h, 'steel_sword', 22);
+  sellItem(h, 'hunting_bow', 1);
+  sellItem(h, 'wood_sword', 2);
+  assert.equal(g.state.hero.gold, 100 + 22 * 72 + 1 * 54 + 2 * 6,
     'золото +1650');
   key(h, 'Escape');
   seedSlot(g, 'wood_log', 62);
@@ -1982,11 +1994,14 @@ test('000222-R16. vm e2e ментор 38: build-38 (80 з., −Горечавк�
   const target = freeCityCell(found);
   assert.notEqual(shopCell.x + ',' + shopCell.y, target.x + ','
     + target.y, 'свободная клетка ≠ Оружейная');
-  // Золото: 2 × war_hammer (150 з.).
+  // Золото: 4 × steel_sword (72 з.) + 2 × wood_sword (6 з.).
+  // Ре-пин 000318.08: war_hammer вне витрины Оружейной (top-N сток).
   walkCity(h, cityStepsTo({ x: dg.x, y: dg.y }, shopCell.x, shopCell.y));
-  seedSlot(g, 'war_hammer', 2);
+  seedSlot(g, 'steel_sword', 4);
+  seedSlot(g, 'wood_sword', 2);
   openNpcTrade(h);
-  sellItem(h, 'war_hammer', 2);
+  sellItem(h, 'steel_sword', 4);
+  sellItem(h, 'wood_sword', 2);
   assert.equal(g.state.hero.gold, 400, 'золото +300');
   key(h, 'Escape');
   seedSlot(g, 'herb_bitter', 6);

@@ -15,7 +15,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000264.json"
+    "assets/items/regeneration_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

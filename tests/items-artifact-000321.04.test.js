@@ -37,6 +37,32 @@ const { validateData } = require('./json-schema.js');
 
 const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
+
+// 000318.08: assets/items — файлы <id>.json. Замороженный реестр
+// «номер → id» (tests/scripts/items-num2id-000318.08.json) даёт
+// файлам прежние ВИРТУАЛЬНЫЕ имена «000NNN.json» для позиционных
+// пинов (тот же порядок), чтение с диска — DISKF_I08().
+const NUM2ID_I08 = require(path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json'));
+const ID2NUM_I08 = {};
+for (const n08 of Object.keys(NUM2ID_I08)) {
+  ID2NUM_I08[NUM2ID_I08[n08]] = n08;
+}
+function SLUGI08(f) {
+  return f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f);
+}
+function VIRTNUMI08(f) {
+  const b = f.replace(/\.json$/, '');
+  return ID2NUM_I08[b] !== undefined ? ID2NUM_I08[b] + '.json' : f;
+}
+function DISKF_I08(x) {
+  const b = String(x).replace(/\.json$/, '');
+  return (NUM2ID_I08[b] !== undefined ? NUM2ID_I08[b] : b) + '.json';
+}
+function FILES_I08() {
+  return fs.readdirSync(ITEMS_DIR).filter(SLUGI08)
+    .map(VIRTNUMI08).sort();
+}
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
 const SPR_DIR = path.join(ROOT, 'assets', 'sprites', 'items');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
@@ -211,8 +237,9 @@ function craftDataFiles(dir) {
 }
 
 function refNum(ref) {
-  const m = /(\d{6})\.json$/.exec(ref);
-  return m ? m[1] : null;
+  const m = /([a-z0-9_]+)\.json$/.exec(ref);
+  if (!m) return null;
+  return ID2NUM_I08[m[1]] !== undefined ? ID2NUM_I08[m[1]] : m[1];
 }
 
 function buildingTargetId(ref) {
@@ -220,8 +247,8 @@ function buildingTargetId(ref) {
     fs.readFileSync(path.join(ROOT, ref), 'utf8')).id;
 }
 function loadItemFile(num) {
-  const f = String(num).padStart(6, '0') + '.json';
-  const p = path.join(ITEMS_DIR, f);
+  const f = DISKF_I08(String(num).padStart(6, '0'));
+  const p = path.join(ITEMS_DIR, DISKF_I08(f));
   assert.ok(fs.existsSync(p),
     'assets/items/' + f + ' существует (краснота: каталог 663 — '
     + 'предмет волны не создан)');
@@ -242,9 +269,8 @@ function spellIds() {
 
 // --- T1: каталог и форма 50 предметов ------------------------------
 
-test('000321.04 T1: каталог — ровно 864 файла 000001–000864 подряд (ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин 000321.06: +50 колец 000765–000814 — новый конец каталога; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.05: +50 инструментов 000714–000763); 50 новых (000664–000713) — kind artifact, slot РОВНО left_hand, полный equip-набор полей БЕЗ subtype/base_price/tier, порядок ключей = канон (stats — только у armor-предметов; icon МЕЖДУ stats и slot; set/set_bonus для сетовых), roundtrip-канон stringify(…,2)+\\n, валидность по assets/items/schema.json (краснота: каталог 663 — волна не добавлена)', () => {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+test('000321.04 T1: каталог — ровно 864 файла <id>.json (позиции — виртуальные номера по реестру 000318.08) (ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин 000321.06: +50 колец 000765–000814 — новый конец каталога; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.05: +50 инструментов 000714–000763); 50 новых (000664–000713) — kind artifact, slot РОВНО left_hand, полный equip-набор полей БЕЗ subtype/base_price/tier, порядок ключей = канон (stats — только у armor-предметов; icon МЕЖДУ stats и slot; set/set_bonus для сетовых), roundtrip-канон stringify(…,2)+\\n, валидность по assets/items/schema.json (краснота: каталог 663 — волна не добавлена)', () => {
+  const files = FILES_I08();
   assert.equal(files.length, 864,
     'каталог — 864 файла (663 + 50 артефактов 000321.04 + 50 '
     + 'инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07); факт: '
@@ -290,15 +316,14 @@ test('000321.04 T1: каталог — ровно 864 файла 000001–000864
 // --- T2: ростер и уникальность --------------------------------------
 
 test('000321.04 T2: ростер — 50 строк id/rarity/armor/value/weight/аффикс/set сверяются с JSON; sweep: id уникальны в 864, ИМЕНА и ОПИСАНИЯ уникальны по ВСЕМУ каталогу (включая щиты 000614–000663) (краснота: каталог 663)', () => {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const files = FILES_I08();
   assert.equal(files.length, 864, 'каталог — 864; факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
   for (const f of files) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISKF_I08(f)), 'utf8'));
     assert.ok(!ids.has(j.id), 'дубликат id: ' + j.id + ' (' + f + ')');
     ids.set(j.id, f);
     assert.ok(!names.has(j.name),
@@ -367,9 +392,9 @@ test('000321.04 T3: редкость волны РОВНО 20/14/10/4/2; rarity-
       + ' (краснота: append в пулы не сделан)');
   }
   for (const t of L.RARITY) {
-    assert.deepEqual(P[t.id],
-      all.filter((it) => it.rarity === t.id).map((it) => it.id),
-      'пул «' + t.id + '» ≡ live-каталогу по редкости (EQ2/LF6; '
+    assert.deepEqual([...P[t.id]].sort(),
+      all.filter((it) => it.rarity === t.id).map((it) => it.id).sort(),
+      'пул «' + t.id + '» ≡ live-каталогу по редкости — set-равенство (ре-пин 000318.08 F2-P1; EQ2/LF6; '
       + 'прежний префикс цел, append каталожным порядком)');
   }
   for (const tier of ['common', 'rare', 'epic', 'legendary', 'impossible']) {
@@ -455,7 +480,7 @@ test('000321.04 T4: stats.armor — РОВНО у 12 из 50 (ростер: 3/3/
   // Покрываем факт старых 13 артефактов (полосы не уехали):
   for (const num of OLD_ARTIFACT_NUMS) {
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR,
-      String(num).padStart(6, '0') + '.json'), 'utf8'));
+      DISKF_I08(String(num).padStart(6, '0'))), 'utf8'));
     const [vlo, vhi] = VALUE_BAND_00032104[j.rarity];
     const [wlo, whi] = WEIGHT_BAND_00032104[j.rarity];
     assert.ok(j.value >= vlo && j.value <= vhi,
@@ -525,10 +550,9 @@ test('000321.04 T6: сеты — arcane_focus ПРОДОЛЖЕН: РОВНО 5 �
       + 'arcane_focus; факт: ' + j.set);
   }
   const members = [];
-  for (const f of fs.readdirSync(ITEMS_DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x))) {
+  for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUGI08)) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISKF_I08(f)), 'utf8'));
     if (j.set === 'arcane_focus') members.push(j);
   }
   assert.equal(members.length, 5,
@@ -542,7 +566,7 @@ test('000321.04 T6: сеты — arcane_focus ПРОДОЛЖЕН: РОВНО 5 �
     ['epic', 'epic', 'epic', 'impossible', 'legendary'],
     'arcane_focus: лестница тиров e/e/e/l/i');
   const ref = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR,
-    String(FOCUS_REF_00032104).padStart(6, '0') + '.json'), 'utf8'));
+    DISKF_I08(String(FOCUS_REF_00032104).padStart(6, '0'))), 'utf8'));
   for (const j of members) {
     assert.deepEqual(j.set_bonus, FOCUS_BONUS_00032104,
       j.id + ': set_bonus arcane_focus побайтово ≡ существующим '
@@ -592,10 +616,9 @@ test('000321.04 T7: иконки — у 50 новых поле icon ↔ файл
       f + ': первый элемент — тень-эллипс rgba(0,0,0,0.22)');
   }
   const svgBase = new Set(allSvg.map((f) => f.replace(/\.svg$/, '')));
-  for (const f of fs.readdirSync(ITEMS_DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x))) {
+  for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUGI08)) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISKF_I08(f)), 'utf8'));
     if (j.icon && j.icon.startsWith('assets/sprites/items/')) {
       assert.ok(svgBase.has(j.id), j.id + ': svg по basename=id');
     }
@@ -612,8 +635,7 @@ test('000321.04 T8: 50 рецептов — файлы по id (прежние �
     + files.length + ' (краснота: рецепты не созданы)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(CRAFT_DIR, 'schema.json'), 'utf8'));
-  const itemFiles = new Set(fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)));
+  const itemFiles = new Set(FILES_I08());
   const skills = new Set(fs.readdirSync(SKILLS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f)));
   const buildings = new Set(fs.readdirSync(BUILDINGS_DIR)
@@ -655,7 +677,7 @@ test('000321.04 T8: 50 рецептов — файлы по id (прежние �
     assert.equal(j['id'], id, f + ': id рецепта = id результата');
     assert.equal(j['тип'], REC_TYPE_00032104, f + ': тип «зачарование»');
     assert.equal(j['результат']['предмет'],
-      'assets/items/' + String(num).padStart(6, '0') + '.json',
+      'assets/items/' + DISKF_I08(String(num).padStart(6, '0')),
       f + ': результат — предмет волны (тот же порядок)');
     results.push(j['результат']['предмет']);
     assert.equal(j['база'], undefined,
@@ -735,7 +757,7 @@ test('000321.04 T9: зеркала — src/items-data.js содержит 50 н�
     const m = CRD.CRAFT_BY_ID[id];
     assert.ok(m, 'craft-data: рецепт «' + id + '» (' + f + ')');
     const itemById = (ref) => JSON.parse(fs.readFileSync(
-      path.join(ITEMS_DIR, refNum(ref) + '.json'), 'utf8')).id;
+      path.join(ITEMS_DIR, DISKF_I08(refNum(ref))), 'utf8')).id;
     assert.deepEqual(m['результат'],
       { предмет: itemById(j['результат']['предмет']), количество: 1 },
       f + ': зеркало — результат резолвлен в id');

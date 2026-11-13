@@ -12,6 +12,34 @@ const { validateData } = require('./json-schema.js');
 
 const ITEMS_DIR = path.join(__dirname, '..', 'assets', 'items');
 
+// 000318.08: assets/items переименован в <id>.json. Замороженный реестр
+// «номер → id» (tests/scripts/items-num2id-000318.08.json) возвращает
+// файлам ИХ НОМЕРА: массивы файлов ниже — виртуальные «000NNN.json»
+// (тот же лексико-числовой порядок, что до переименования); чтение с
+// диска — через DISK_I08().
+const LEDGER_I08 = require(path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json'));
+const NUMNAME_I08 = {};
+const DISKNAME_I08 = {};
+for (const n08 of Object.keys(LEDGER_I08)) {
+  NUMNAME_I08[LEDGER_I08[n08] + '.json'] = n08 + '.json';
+  DISKNAME_I08[n08 + '.json'] = LEDGER_I08[n08] + '.json';
+}
+function NUMNAMEI08(x) {
+  return NUMNAME_I08[x] !== undefined ? NUMNAME_I08[x] : x;
+}
+function DISK_I08(x) {
+  return DISKNAME_I08[x] !== undefined ? DISKNAME_I08[x] : x;
+}
+function ITEMSFILES_I08() {
+  const arr = [];
+  for (const f of fs.readdirSync(ITEMS_DIR)) {
+    if (f === 'schema.json' || !/^[a-z][a-z0-9_]*\.json$/.test(f)) continue;
+    arr.push(NUMNAME_I08[f] !== undefined ? NUMNAME_I08[f] : f);
+  }
+  return arr.sort();
+}
+
 // --- Каталог ---
 
 test('каталог: все предметы валидны, id уникальны', () => {
@@ -62,9 +90,7 @@ test('каталог: оружие/броня/зелья/книги семант
 });
 
 test('JS-фолбэк идентичен JSON-каталогу assets/items (source of truth)', () => {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
-    .sort();
+  const files = ITEMSFILES_I08();
   assert.ok(files.length >= 20, 'мало JSON-файлов: ' + files.length);
   assert.equal(files.length, I.allItems().length,
     'число файлов != числу предметов в JS-модуле');
@@ -72,7 +98,7 @@ test('JS-фолбэк идентичен JSON-каталогу assets/items (sou
   const ROOT = path.join(__dirname, '..');
   const { resolveRef } = require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
   for (const f of files) {
-    const raw = fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8');
+    const raw = fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8');
     const j = JSON.parse(raw);
     if (j.effect && j.effect.kind === 'craft_recipe'
         && typeof j.effect.recipe === 'string') {
@@ -701,13 +727,21 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
   // и универсам (богатство 3).
   const GOLDEN = [
     { x: 10, y: 20, type: B.WEAPONS_SHOP, w: 1, seed: 3248047077,
-      stock: { wood_sword: 1, iron_sword: 2, steel_sword: 2, short_bow: 1, hunting_bow: 2, battle_axe: 2, war_hammer: 3,
-        iron_scyte: 2, wood_pitchfork: 1, iron_pitchfork: 2, steel_scyte: 2,
-        steel_pitchfork: 1, ember_staff: 3, harvest_scyte: 1,
-        sage_staff: 2 ,
-        copper_short_sword: 2, drill_sword: 3, poacher_dirk: 1, kopis_curved: 1, legion_sword: 1, battered_falx: 2, merchant_sword: 1, lumber_machete: 1, sapling_bow: 1, patrol_bow: 2, poacher_bow: 1, yew_longbow: 1, stone_mace: 1, lumber_axe: 1, miner_pickaxe: 3, campaign_maul: 3, silvered_sword: 2, arming_sword: 1, rebel_brand: 1, warder_sword: 1, long_warbow: 2, silvered_mace: 2, storm_maul: 2, vine_staff: 1, damascus_blade: 1, thunder_maul: 3, goldstring_bow: 1, windfletch_bow: 3, tempest_staff: 1, pyre_staff: 1, hoarfrost_staff: 3, archivist_staff: 1, gate_hammer: 3, aurora_bow: 1, fate_cleaver: 3, genesis_staff: 1
+      stock: {
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
+
+        archivist_staff: 1, arming_sword: 2, aurora_bow: 2, battered_falx: 1, battle_axe: 2,
+        campaign_maul: 2, copper_maul: 3, copper_short_sword: 2, damascus_blade: 1, dawnedge_blade: 2,
+        ember_staff: 2, fate_cleaver: 1, flame_staff: 3, genesis_staff: 1, goldstring_bow: 2,
+        hoarfrost_staff: 2, hunting_bow: 3, ice_staff: 1, iron_pitchfork: 1, iron_scyte: 1,
+        iron_sword: 2, kopis_curved: 1, legion_sword: 1, long_warbow: 1, lumber_machete: 2,
+        merchant_sword: 1, miner_pickaxe: 1, patrol_sword: 1, poacher_bow: 1, poacher_dirk: 3,
+        pyre_staff: 3, rebel_brand: 2, rune_staff: 1, sage_staff: 1, sapling_bow: 1, short_bow: 2,
+        silver_bound_staff: 2, silver_inlaid_bow: 2, steel_pitchfork: 1, steel_sword: 1, storm_maul: 3,
+        tempest_staff: 1, thunder_maul: 3, trade_bow: 1, vine_staff: 1, war_hammer: 3,
+        warden_quarterstaff: 1, windfletch_bow: 3, wood_pitchfork: 1, wood_sword: 3, yew_longbow: 1,
       } },
     // Ре-пин 000230.12: 25 предметов «правая рука» (15 kind weapon) —
     // пул оружия 7→22, rng-хвост → += 8 новых (не выпали:
@@ -755,61 +789,64 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // (node-симуляция: seed/старые стоки byte-identical).
     { x: 10, y: 20, type: B.ARMOR_SHOP, w: 2, seed: 3248047078,
       stock: {
-        tin_morion: 2, steel_shishak: 3, rune_circlet: 3, boar_tusk_earring: 1, spiral_earring: 2, shell_wire_earring: 1, silver_drop_earring: 4, moonstone_stud: 3, fang_lanyard: 4, copper_beads: 4, silver_pendant_chain: 4, amethyst_collar: 1, warder_pendant: 2, twilight_necklace: 2, quilted_jack: 3, warder_cuirass: 1, vigil_plate: 4, wool_bracers: 3, silver_bracers: 3, thorn_bracers: 4, engraved_bracers: 1, vigil_vambrace: 3, driver_mitts: 3, studded_mitts: 4, grip_gloves: 4, frostgrip_gauntlets: 3, golem_gauntlets: 4, coarse_trousers: 4, hide_hose: 4, wool_breeches: 1, vigil_greaves: 1, sigil_greaves: 2, tar_boots: 3, traveler_boots: 1, nailed_boots: 3, thorn_boots: 2, pathfinder_boots: 4, lostroad_boots: 1, chainmail: 4, knight_plate: 3, wool_cap: 3,
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        leather_cap: 3, fur_hat: 4, cloth_band: 1, hood_common: 2,
-        linen_cloth: 4, felt_hat: 3, silver_band: 3,
-        obsidian_cloth: 3, quartz_cloth: 3, bone_band: 4,
-        silver_helm: 2, gold_helm: 2, mithril_helm: 2,
-        emerald_helm: 4, rune_hoop: 4, copper_hoop: 3, bone_stud: 1,
-        copper_dangle: 3, shell_hoop: 1, faith_stud: 2, twine_hoop: 1,
-        antler_hook: 4, stone_bead: 4, silver_hoop: 1,
-        moonstone_dangle: 4, quartz_bead: 1, silver_stud: 3,
-        obsidian_stud: 1, emerald_stud: 3, ruby_bell: 3,
-        mithril_hoop: 1, star_earring: 4, whisper_hoop: 1,
-        soul_bell: 1, copper_chain: 4, bone_beads: 2, twine_amulet: 3,
-        clay_pendant: 4, wood_pendant: 4, shell_beads: 2,
-        faith_necklace: 1, bone_pendant: 1, faith_amulet: 4,
-        obsidian_pendant: 1, ruby_pendant: 4, gold_chain: 1,
-        mithril_choker: 2, dawn_pendant: 3, linen_shirt: 1,
-        cloth_tunic: 1, linen_gown: 1, hemp_robe: 2, wool_gown: 2,
-        wool_kaftan: 2, embroidered_kaftan: 1, monk_sutan: 1,
-        fine_kaftan: 3, ember_robe: 1, shadow_robe: 4,
-        meditating_robe: 4, pilgrim_sutan: 4, aegis_mantle: 2, cloth_cuff: 2, leather_cuff: 4,
-        hemp_bracer: 2, rough_bracer: 2, cloth_wrap: 4, iron_cuff: 4, bone_bracer: 1,
-        wood_brace: 4, hide_cuff: 4, studded_bracer: 1, copper_brace: 4, silver_cuff: 3,
-        shadow_wrap: 4, runic_cuff: 2, sapphire_bracer: 2, ghost_cuff: 3, star_armguard: 2,
-        titan_brace: 1, cloth_gloves: 4, hide_gloves: 1, rough_gauntlets: 1, archer_gloves: 4,
-        linen_wraps: 1, iron_gauntlets: 3, wood_guards: 3, studded_gloves: 1, quiver_gloves: 3,
-        silver_gauntlets: 3, wind_gloves: 1, steel_gauntlets: 3, gold_gloves: 2, emerald_gauntlets: 2,
-        phantom_gloves: 1, haste_wraps: 2, rune_gauntlets: 2, star_gloves: 3, void_gauntlet: 3,
-        linen_trousers: 2, wool_trousers: 2, hemp_breeches: 1, felt_trousers: 1, traveler_breeches: 2,
-        hide_wrap: 1, twine_wraps: 3, rough_chaps: 1, cloth_loincloth: 3, bone_greaves: 3,
-        stone_greaves: 4, obsidian_greaves: 3, amethyst_pants: 3, mystic_breeches: 1, ember_pants: 1,
-        emerald_greaves: 4, gold_leggings: 3, mithril_greaves: 1, rune_greaves: 1, storm_leggings: 1,
-        titan_greaves: 1, straw_sandals: 1, cloth_sandals: 1, leather_boots: 3, travel_boots: 1,
-        hide_boots: 3, wooden_sandals: 1, hemp_sandals: 2, bone_sandals: 3, copper_boots: 2,
-        silver_boots: 2, stone_sandals: 3, obsidian_sandals: 2, amethyst_boots: 4, mystic_sandals: 3,
-        frost_sandals: 2, emerald_boots: 2, gold_sandals: 2, storm_sandals: 3, rune_boots: 2,
-        swift_boots: 4, mystic_sutan: 1, traveler_bracer: 4,
-        mystic_wraps: 3} },    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
-      stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3,
-        mana_elixir: 3, bread: 1, meat: 2,
+
+        amethyst_band: 4, amethyst_boots: 3, amethyst_collar: 3, amethyst_dangle: 3, amethyst_pants: 4,
+        antler_hook: 1, archer_gloves: 2, boar_tusk_earring: 4, bone_band: 3, bone_bracer: 3,
+        bone_grips: 3, bone_sandals: 3, bone_stud: 4, clay_dangle: 2, clay_pendant: 2, cloth_cuff: 2,
+        cloth_gloves: 4, cloth_loincloth: 4, cloth_sutan: 3, cloth_tunic: 1, copper_beads: 3,
+        copper_boots: 1, copper_brace: 2, copper_chain: 1, copper_dangle: 4, copper_gauntlets: 4,
+        copper_greaves: 1, copper_hoop: 4, copper_pendant: 1, crown_flame: 3, dawn_ear_cuff: 1,
+        driver_mitts: 3, dusk_greaves: 3, ember_robe: 1, embroidered_kaftan: 4, emerald_amulet: 1,
+        emerald_boots: 1, emerald_gauntlets: 4, emerald_greaves: 2, emerald_helm: 3, emerald_stud: 4,
+        engraved_bracers: 4, faith_necklace: 2, faith_stud: 1, felt_coif: 1, fine_kaftan: 4,
+        frost_sandals: 1, gilded_vambraces: 4, gold_brace: 1, gold_chain: 2, gold_helm: 3,
+        gold_leggings: 1, golem_gauntlets: 1, grip_gloves: 1, haste_wraps: 2, hemp_breeches: 2,
+        hide_boots: 2, hide_gloves: 1, hood_common: 1, iron_cuff: 3, iron_elbow: 1, iron_wraps: 4,
+        leather_armor: 4, leather_boots: 4, leather_choker: 2, leather_cuff: 2, leather_garter: 4,
+        leather_gloves: 2, leather_gown: 2, leather_loop: 4, leather_pants: 4, leather_sandals: 1,
+        linen_cloth: 4, linen_gown: 4, linen_shirt: 1, linen_trousers: 4, linen_wraps: 3,
+        lostroad_boots: 4, mithril_boots: 2, mithril_helm: 2, mithril_hoop: 3, moonstone_dangle: 2,
+        moonstone_stud: 1, mystic_breeches: 4, mystic_earring: 1, mystic_sandals: 1, mystic_sutan: 4,
+        mystic_wraps: 1, nailed_boots: 3, obsidian_cloth: 3, obsidian_pendant: 1, obsidian_stud: 3,
+        patched_helm: 3, pilgrim_sutan: 1, quartz_amulet: 3, quartz_bead: 2, quartz_cloth: 2,
+        quilted_jack: 1, quiver_gloves: 2, riveted_helm: 2, rough_bracer: 3, rough_chaps: 3,
+        rough_gauntlets: 2, rough_kaftan: 2, ruby_bell: 1, ruby_pendant: 1, rune_bracers: 2,
+        rune_circlet: 1, rune_gauntlets: 3, rune_greaves: 1, rune_hoop: 3, rune_necklace: 3,
+        sapphire_bracer: 4, sapphire_helm: 3, sapphire_hoop: 3, sapphire_leggings: 1, scale_hose: 1,
+        shadow_robe: 4, shadow_wrap: 3, shell_beads: 1, shell_hoop: 1, shell_wire_earring: 1,
+        sigil_greaves: 1, silver_band: 1, silver_boots: 1, silver_cuff: 3, silver_drop_earring: 1,
+        silver_gauntlets: 3, silver_helm: 1, silver_hoop: 2, silver_pendant_chain: 3, silver_stud: 2,
+        soul_bell: 2, spiral_earring: 3, star_armguard: 2, star_earring: 4, star_gloves: 3,
+        star_pendant: 2, steel_bracers: 2, steel_gauntlets: 2, stone_bead: 3, stone_beads: 2,
+        stone_greaves: 4, stone_sandals: 1, storm_leggings: 4, storm_sandals: 3, studded_bracer: 2,
+        studded_mitts: 3, swift_boots: 3, tar_boots: 1, thorn_boots: 2, thorn_bracers: 1, tin_morion: 4,
+        titan_brace: 3, travel_cloth: 4, traveler_bracer: 4, traveler_breeches: 4, traveler_cloak: 1,
+        twilight_necklace: 2, twine_amulet: 2, twine_hoop: 3, twine_wraps: 1, vial_charm: 4,
+        vigil_helm: 3, vigil_plate: 3, vigil_vambrace: 4, void_gauntlet: 1, wanderer_cap: 3,
+        warder_cuirass: 3, warder_pendant: 4, whisper_hoop: 4, wind_gloves: 3, wood_bead: 4,
+        wood_brace: 4, wood_guards: 4, wood_pendant: 1, wooden_sandals: 1, wool_bracers: 2,
+        wool_gown: 3, wool_kaftan: 1, wool_shirt: 3, wool_sutan: 2, wool_trousers: 4, woven_sandals: 1,
+      } },    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
+      stock: {
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt2 → += 42;
     // не выпали: dawn_tonic/marsh_balm/silver_tonic/emerald_tonic/moonlight_draught/indigo_brew/azure_tonic/shadow_tonic — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    weak_healing: 3, herb_draught: 2, forest_balm: 2, crimson_sip: 2,
-    field_tonic: 4, honey_brew: 3, resin_brew: 4, oak_tonic: 1, sun_potion: 1,
-    forge_tonic: 1, amber_elixir: 3, deep_balm: 2, alpine_brew: 4,
-    ember_tonic: 3, stone_brew: 1, gale_tonic: 3, pearl_draught: 4,
-    ruby_draught: 4, sapphire_balm: 2, amethyst_draught: 2, obsidian_balm: 1,
-    phoenix_tonic: 2, diamond_draught: 3, mint_draught: 2, blue_sip: 2,
-    night_brew: 4, frost_draught: 2, glass_tonic: 2, violet_brew: 4,
-    star_tonic: 2, rain_draught: 4, glacier_draught: 4, dusk_brew: 2,
-    tide_draught: 3, quartz_tonic: 1, phosphor_brew: 4, argent_draught: 2,
-    royal_elixir: 3, arcane_tonic: 2, eclipse_draught: 3, void_tonic: 1,
-    ash_elixir: 4,} },
+
+        alpine_brew: 3, amethyst_draught: 4, arcane_tonic: 3, argent_draught: 3, ash_elixir: 1,
+        azure_tonic: 2, bread: 3, crimson_sip: 2, dawn_tonic: 2, deep_balm: 2, diamond_draught: 4,
+        dusk_brew: 3, eclipse_draught: 4, ember_tonic: 1, field_tonic: 1, forest_balm: 1,
+        forge_tonic: 3, frost_draught: 2, gale_tonic: 4, glacier_draught: 3, greater_healing: 1,
+        healing_potion: 3, herb_draught: 4, honey_cake: 4, indigo_brew: 2, mana_potion: 2,
+        marsh_balm: 1, minor_healing: 2, mint_draught: 3, moonlight_draught: 2, night_brew: 2,
+        oak_tonic: 4, obsidian_balm: 2, pearl_draught: 2, phoenix_tonic: 4, phosphor_brew: 2,
+        quartz_tonic: 4, royal_elixir: 4, ruby_draught: 2, sapphire_balm: 3, shadow_tonic: 1,
+        silver_tonic: 4, stone_brew: 2, sun_potion: 3, tide_draught: 2, violet_brew: 3, void_tonic: 1,
+        weak_healing: 4,
+      } },
     // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
     // каталога, rng-хвост пула [reagent, skill_book] → += 6 новых
     // reagent, остальные ключи стока не сдвинулись (симуляция:
@@ -820,27 +857,29 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // mushroom_glow в этом (x,y) не выпали), остальные ключи стока не
     // сдвинулись (симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.MAGIC_SHOP, w: 0, seed: 3346526316,
-      stock: { sulfur: 2, moonstone: 2, phoenix_feather: 1,
-        stone_fist_grimoire: 2, iron_hide_tome: 1, archer_scroll: 2,
-        hide: 1, coal: 1, herb_healing: 2, stone_chisel: 2,
-        silver_ore: 2, gold_ore: 1, mithril_ore: 1, quartz: 1,
-        ruby: 1, amethyst: 1, berry_blue: 2, berry_wild: 2,
-        herb_sun: 1, herb_wind: 2, root_ember: 2, root_rock: 1,
-        mushroom_grey: 1, mushroom_ink: 1 } },
+      stock: {
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
+
+        archery_manual: 2, berry_blue: 2, berry_red: 1, berry_wild: 2, coal: 1, fire_spellbook: 2,
+        herb_healing: 1, herb_mana: 1, herb_sun: 2, ice_spellbook: 2, iron_hide_tome: 2, iron_ore: 1,
+        meditation_scroll: 1, mithril_ore: 1, mushroom_grey: 1, obsidian: 1, quartz: 2, root_ember: 2,
+        root_moon: 1, root_rock: 2, sapphire: 2, silver_ore: 1, sulfur: 1, wood_log: 1,
+      } },
     { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
-      stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2,
-        mana_elixir: 1, bread: 1, meat: 2,
+      stock: {
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt11 → += 30;
     // не выпали: weak_healing/crimson_sip/field_tonic/honey_brew/sun_potion/alpine_brew/stone_brew/silver_tonic/sapphire_balm/moonlight_draught/night_brew/glass_tonic/rain_draught/azure_tonic/dusk_brew/tide_draught/phosphor_brew/shadow_tonic/argent_draught/ash_elixir — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    herb_draught: 1, forest_balm: 1, resin_brew: 1, oak_tonic: 2,
-    dawn_tonic: 2, forge_tonic: 1, amber_elixir: 2, deep_balm: 2,
-    ember_tonic: 1, marsh_balm: 2, gale_tonic: 1, pearl_draught: 2,
-    ruby_draught: 1, emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 2,
-    phoenix_tonic: 1, diamond_draught: 1, mint_draught: 1, blue_sip: 2,
-    frost_draught: 1, violet_brew: 1, star_tonic: 2, indigo_brew: 2,
-    glacier_draught: 2, quartz_tonic: 1, royal_elixir: 1, arcane_tonic: 2,
-    eclipse_draught: 2, void_tonic: 1,} },
+
+        amber_elixir: 2, amethyst_draught: 2, arcane_tonic: 2, argent_draught: 1, ash_elixir: 1,
+        azure_tonic: 2, crimson_sip: 1, dawn_tonic: 1, eclipse_draught: 1, ember_tonic: 2,
+        emerald_tonic: 2, forest_balm: 1, forge_tonic: 2, frost_draught: 2, glacier_draught: 1,
+        glass_tonic: 2, healing_potion: 1, herb_draught: 2, honey_cake: 1, mana_elixir: 1,
+        mana_potion: 2, marsh_balm: 2, minor_healing: 1, mint_draught: 1, moonlight_draught: 1,
+        night_brew: 2, obsidian_balm: 1, phoenix_tonic: 1, phosphor_brew: 2, rain_draught: 2,
+        royal_elixir: 2, shadow_tonic: 1, sun_potion: 1, tide_draught: 2, violet_brew: 2, void_tonic: 1,
+      } },
     // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
     // заклинаний (000043-000050) добавлены КОНЦОМ каталога →
     // существующие стоки не сдвинулись, += свитки, вытянутые rng-хвостом
@@ -936,195 +975,193 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // сдвинулись (node-симуляция: seed/старые стоки byte-identical).
     { x: 30, y: 40, type: B.WEAPONS_SHOP, w: 3, seed: 3346526313,
       stock: {
-        patched_helm: 4, felt_coif: 5, tin_morion: 1, riveted_helm: 5, steel_shishak: 3, rune_circlet: 5, boar_tusk_earring: 5, spiral_earring: 3, shell_wire_earring: 1, moonstone_stud: 3, mystic_earring: 5, dawn_ear_cuff: 1, fang_lanyard: 4, vial_charm: 1, copper_beads: 2, silver_pendant_chain: 5, amethyst_collar: 3, warder_pendant: 5, twilight_necklace: 3, vigil_plate: 4, hide_bracers: 1, wool_bracers: 3, silver_bracers: 5, thorn_bracers: 1, engraved_bracers: 1, gilded_vambraces: 5, vigil_vambrace: 2, driver_mitts: 2, studded_mitts: 2, grip_gloves: 3, frostgrip_gauntlets: 4, golem_gauntlets: 4, coarse_trousers: 3, hide_hose: 1, wool_breeches: 2, scale_hose: 5, sigil_greaves: 3, dusk_greaves: 4, woven_sandals: 4, tar_boots: 4, traveler_boots: 4, nailed_boots: 4, thorn_boots: 3, iron_sword: 3, steel_sword: 3, hunting_bow: 5, battle_axe: 3, war_hammer: 3,
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        leather_armor: 3, knight_plate: 2, healing_potion: 5, greater_healing: 4, mana_potion: 1,
-        mana_elixir: 1, bread: 3, meat: 3, honey_cake: 1, alchemy_manual: 5, sword_treatise: 4,
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        sulfur: 1, moonstone: 1, phoenix_feather: 2, stone_fist_grimoire: 1, iron_hide_tome: 2,
-        fire_spellbook: 4, ice_spellbook: 2, heavy_tome: 4, archer_scroll: 3, copper_ore: 1,
-        wood_log: 4, stone_chunk: 1, coal: 5, herb_healing: 5, herb_mana: 3, herb_bitter: 5,
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        fireball_scroll: 5, flame_burst_scroll: 2, frost_bolt_scroll: 2, blizzard_scroll: 5,
-        light_heal_scroll: 4, vine_scroll: 3, resurrect_scroll: 5, silver_ore: 5, gold_ore: 4,
-        mithril_ore: 5, quartz: 3, obsidian: 4, phosphorite: 3, ruby: 3, sapphire: 5, emerald: 3,
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        amethyst: 5, berry_red: 3, berry_blue: 5, berry_wild: 3, herb_sun: 3, herb_wind: 4,
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        root_moon: 1, root_ember: 3, root_rock: 3, fruit_apple: 1, fruit_quince: 1,
-        mushroom_grey: 4, mushroom_glow: 3, blueprint_alchemy: 3, blueprint_carving: 3,
-        blueprint_woodwork: 2, blueprint_enchant: 4, blueprint_runecraft: 4, straw_hat: 2,
-        wool_cap: 4, leather_cap: 3, wanderer_cap: 2, hood_common: 4, linen_cloth: 2,
-        felt_hat: 2, travel_cloth: 3, silver_band: 2, obsidian_cloth: 5, amethyst_band: 5,
-        quartz_cloth: 4, bone_band: 2, mystic_cloth: 4, gold_helm: 4, rune_hoop: 4, star_hoop: 1,
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        crown_flame: 3, ignite_scroll: 1, fire_nova_scroll: 2, meteor_scroll: 1,
-        flame_strike_scroll: 4, hellfire_scroll: 5, phlogiston_blast_scroll: 2,
-        wall_of_fire_scroll: 4, burning_haze_scroll: 3, blazing_speed_scroll: 4,
-        fire_aura_scroll: 3, heat_shield_scroll: 3, sunfire_scroll: 5, scorch_scroll: 5,
-        cinder_scroll: 2, ashen_debilitation_scroll: 1, lava_snare_scroll: 1,
-        flame_imp_scroll: 1, phoenix_scroll: 2, firelight_scroll: 4, hearthfire_scroll: 1,
-        rime_bolt_scroll: 2, shatter_scroll: 5, glacial_spike_scroll: 3, permafrost_scroll: 1,
-        absolute_zero_scroll: 3, ice_field_scroll: 1, wall_of_ice_scroll: 1,
-        blizzard_field_scroll: 5, frost_aura_scroll: 4, ice_armor_scroll: 5,
-        winter_haste_scroll: 4, frostbite_blessing_scroll: 5, slow_scroll: 2,
-        frostbite_scroll: 2, deep_freeze_scroll: 1, freeze_scroll: 5, glacier_grasp_scroll: 2,
-        winter_elemental_scroll: 3, frost_walk_scroll: 4, cold_breath_scroll: 1,
-        frozen_stillness_scroll: 4, copper_hoop: 1, bone_stud: 2, leather_loop: 5,
-        clay_dangle: 5, shell_hoop: 4, faith_stud: 5, twine_hoop: 4, antler_hook: 1,
-        stone_bead: 4, silver_hoop: 1, moonstone_dangle: 2, quartz_bead: 3, silver_stud: 3,
-        obsidian_stud: 3, amethyst_dangle: 2, sapphire_hoop: 2, emerald_stud: 2, gold_dangle: 1,
-        mithril_hoop: 5, star_earring: 3, whisper_hoop: 2, copper_chain: 4, bone_beads: 3,
-        twine_amulet: 3, clay_pendant: 5, wood_pendant: 5, copper_pendant: 5, shell_beads: 5,
-        faith_necklace: 3, stone_beads: 4, bone_pendant: 1, silver_chain: 2, quartz_amulet: 2,
-        moonstone_chain: 3, faith_amulet: 4, obsidian_pendant: 3, amethyst_choker: 5,
-        sapphire_pendant: 4, emerald_amulet: 3, gold_chain: 2, mithril_choker: 1,
-        rune_necklace: 4, star_pendant: 5, dawn_pendant: 3, wool_shirt: 1, cloth_tunic: 3,
-        linen_gown: 5, hemp_robe: 3, rough_kaftan: 1, wool_gown: 2, cloth_sutan: 3,
-        linen_tunic: 4, wool_kaftan: 4, wool_sutan: 3, leather_kaftan: 4, embroidered_kaftan: 4,
-        cloth_robe: 4, leather_gown: 3, monk_sutan: 1, fine_kaftan: 4, stone_robe: 2,
-        shadow_robe: 1, deep_breath_robe: 5, pilgrim_sutan: 3, void_robe: 3, aegis_mantle: 2,
-        umbra_bolt_scroll: 5, drain_life_scroll: 1, void_arrow_scroll: 3, night_strike_scroll: 4,
-        soul_drain_scroll: 2, shadowflame_scroll: 2, dark_nova_scroll: 4, shroud_scroll: 5,
-        night_blade_scroll: 5, vampire_touch_scroll: 1, fear_scroll: 4, doom_mark_scroll: 2,
-        despair_scroll: 5, shadow_curse_scroll: 3, nightmare_scroll: 5, dark_ensnare_scroll: 2,
-        shadow_pool_scroll: 2, veil_of_night_scroll: 3, shadow_wraith_scroll: 5,
-        void_horror_scroll: 5, shadow_step_scroll: 1, invisibility_scroll: 2,
-        radiant_heal_scroll: 4, life_bloom_scroll: 5, purify_scroll: 4, mass_heal_scroll: 3,
-        mass_holy_light_scroll: 4, regeneration_scroll: 3, blessing_scroll: 5,
-        divine_favor_scroll: 4, guardian_blessing_scroll: 2, swift_prayer_scroll: 4,
-        faith_shield_scroll: 3, smite_scroll: 1, unholy_wrath_scroll: 4, stun_of_light_scroll: 2,
-        holy_bind_scroll: 5, light_sprite_scroll: 4, spirit_healer_scroll: 5,
-        holy_guardian_scroll: 1, circle_of_light_scroll: 5, holy_ground_scroll: 2,
-        prayer_scroll: 4, divine_protection_scroll: 2, holy_light_scroll: 4, miracle_scroll: 4,
-        leather_cuff: 2, hemp_bracer: 4, cloth_wrap: 5, iron_cuff: 4, bone_bracer: 5,
-        wood_brace: 2, hide_cuff: 1, studded_bracer: 4, copper_brace: 4, archer_brace: 1,
-        silver_cuff: 1, shadow_wrap: 5, iron_elbow: 1, runic_cuff: 4, steel_bracers: 5,
-        gold_brace: 4, sapphire_bracer: 2, ghost_cuff: 3, swift_brace: 4, rune_bracers: 5,
-        star_armguard: 3, titan_brace: 4, cloth_gloves: 5, leather_gloves: 3, hide_gloves: 4,
-        linen_wraps: 4, iron_gauntlets: 2, wood_guards: 4, fine_gloves: 1, studded_gloves: 5,
-        copper_gauntlets: 3, quiver_gloves: 1, silver_gauntlets: 4, night_gloves: 1,
-        iron_wraps: 5, wind_gloves: 4, gold_gloves: 3, emerald_gauntlets: 1, phantom_gloves: 5,
-        haste_wraps: 1, rune_gauntlets: 4, star_gloves: 4, wood_scyte: 3, wood_pitchfork: 2,
-        iron_pitchfork: 4, copper_scyte: 5, iron_hammer: 3, iron_tongs: 2, clay_crucible: 4,
-        stone_mortar: 1, bone_graver: 3, ember_staff: 5, rime_staff: 5, rune_staff: 3,
-        steel_hammer: 5, rune_stylus: 3, harvest_scyte: 4, flame_staff: 2, silver_crucible: 5,
-        rune_chisel: 3, sage_staff: 5, mithril_hammer: 2, wooden_buckler: 3, leather_shield: 3,
-        cloth_shield: 2, wicker_buckler: 2, oiled_shield: 1, horn_shield: 2, palm_shield: 1,
-        ash_shield: 2, clay_buckler: 1, iron_round: 1, steel_buckler: 5, guard_amulet: 4,
-        frost_charm: 4, cinder_eye: 4, frost_orb: 1, mind_pendant: 5, arcane_eye: 4,
-        heart_of_elements: 4, copper_ring: 2, bone_ring: 3, iron_ring: 5, thread_ring: 4,
-        stone_ring: 4, clay_ring: 1, leather_ring: 4, silver_ring: 1, silver_signet: 1,
-        gold_ring: 5, glacier_ring: 2, quartz_ring: 3, obsidian_ring: 3, amethyst_ring: 4,
-        sapphire_ring: 4, ruby_ring: 4, frost_ring: 4, rune_ring: 4, star_signet: 4,
-        void_ring: 1, phoenix_ring: 3, linen_trousers: 3, wool_trousers: 3, hemp_breeches: 3,
-        felt_trousers: 1, leather_pants: 4, traveler_breeches: 2, hide_wrap: 2, twine_wraps: 4,
-        rough_chaps: 4, cloth_loincloth: 5, bone_greaves: 4, copper_greaves: 2, silver_chaps: 2,
-        stone_greaves: 5, obsidian_greaves: 3, amethyst_pants: 4, mystic_breeches: 2,
-        ember_pants: 4, emerald_greaves: 2, gold_leggings: 2, mithril_greaves: 1,
-        rune_greaves: 5, storm_leggings: 4, titan_greaves: 3, straw_sandals: 4, cloth_sandals: 3,
-        leather_sandals: 2, wool_boots: 1, felt_boots: 2, travel_boots: 5, hide_boots: 5,
-        hemp_sandals: 5, bone_sandals: 4, copper_boots: 5, silver_boots: 1, stone_sandals: 5,
-        obsidian_sandals: 1, amethyst_boots: 4, mystic_sandals: 5, frost_sandals: 2,
-        emerald_boots: 3, mithril_boots: 2, storm_sandals: 2, rune_boots: 2, swift_boots: 1,
-        traveler_cloak: 4, mystic_sutan: 2,
-        iron_bulwark_scroll: 5, aegis_scroll: 5, shield_wall_scroll: 3,
-        stony_hide_scroll: 2, iron_bastion_scroll: 3, resilience_scroll: 3,
-        thorns_scroll: 4, fortitude_scroll: 2, guardian_oath_scroll: 4,
-        stalwart_scroll: 5, aura_of_protection_scroll: 2,
-        weaken_defense_scroll: 3, corrode_scroll: 5, stone_grasp_scroll: 4,
-        time_slow_scroll: 3, stone_wall_scroll: 3, guardian_field_scroll: 5,
-        stone_golem_scroll: 5, iron_sentinel_scroll: 4, stone_anchor_scroll: 2,
-        recall_scroll: 5, gate_scroll: 5, warding_circle_scroll: 2,
-        traveler_bracer: 4, mystic_wraps: 5,
-        acid_splash_scroll: 3, poison_spore_scroll: 2, vine_lash_scroll: 5,
-        thorn_storm_scroll: 2, hurricane_scroll: 4, poison_cloud_scroll: 5,
-        wall_of_thorns_scroll: 1, life_force_scroll: 5, barkskin_scroll: 3,
-        heart_of_forest_scroll: 2, nature_haste_scroll: 2, poison_scroll: 4,
-        rot_scroll: 5, paralyzing_spore_scroll: 1, entangle_scroll: 2,
-        forest_beast_scroll: 4, wild_growth_scroll: 3, beast_friend_scroll: 1,
-        path_of_vines_scroll: 4, way_up_scroll: 2, way_down_scroll: 5 ,
-        copper_short_sword: 4, drill_sword: 5, poacher_dirk: 5, kopis_curved: 2, legion_sword: 4, merchant_sword: 3, patrol_sword: 2, lumber_machete: 1, sapling_bow: 1, trade_bow: 4, yew_longbow: 5, copper_maul: 2, stone_mace: 5, flanged_mace: 1, lumber_axe: 3, miner_pickaxe: 3, campaign_maul: 5, silvered_sword: 2, arming_sword: 3, rebel_brand: 1, warder_sword: 2, silver_inlaid_bow: 2, long_warbow: 2, scout_bow: 1, silvered_mace: 1, siege_axe: 4, warden_quarterstaff: 2, gilded_broadsword: 2, damascus_blade: 3, gilt_war_hammer: 1, goldstring_bow: 4, windfletch_bow: 1, tempest_staff: 5, pyre_staff: 4, hoarfrost_staff: 5, archivist_staff: 3, dawnedge_blade: 1, gate_hammer: 4, aurora_bow: 4, starvault_staff: 3, fate_cleaver: 5, genesis_staff: 3 ,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        splint_shield: 3 , reed_buckler: 1 , pine_shield: 5 , rawhide_shield: 3 , rattan_buckler: 1 , felt_shield: 2 , straw_shield: 1 , oak_shield: 3 ,
-        resin_shield: 3 , antler_buckler: 5 , shingle_shield: 2 , adobe_shield: 1 , goatskin_shield: 3 , wicker_targe: 2 , ashround_buckler: 4 , hidefaced_shield: 5 ,
-        rimmed_shield: 2 , iron_boss_shield: 3 , bronze_buckler: 5 , brass_buckler: 1 , spiked_buckler: 2 , lamellar_shield: 1 , quenched_shield: 2 , riveted_shield: 4 ,
-        boar_shield: 4 , crown_shield: 5 , garrison_buckler: 1 , runeward_shield: 1 , steel_targe: 2 , blacksteel_shield: 2 , mirror_buckler: 1 , bulwark_shield: 4 ,
-        thorn_shield: 5 , garrison_shield: 1 , lion_shield: 1 , sentinel_shield: 5 , dragonplate_shield: 2 , dawnwall_shield: 2 , aegis_shield: 5 , lastwall_shield: 1
         // Ре-пин 000321.03: щиты 000614–000663 — КОНЕЦ каталога, rng-хвост
         // пула allItems (универсам, w=3) → += 40 щитов, остальные 516 ключей
         // стока не сдвинулись (node-симуляция: seed/старые стоки
         // byte-identical).
-,
         // Ре-пин 000321.04: артефакты 000664–000713 — КОНЕЦ каталога,
         // rng-хвост пула allItems (магазин богатства 3 — все предметы)
         // → += 42 артефакта, остальные 556 ключей стока не сдвинулись
         // (node-симуляция: seed/старые стоки byte-identical).
-        bone_charm: 1, ash_charm: 2, reed_charm: 2, pebble_charm: 3, tin_charm: 4, shell_charm: 4, straw_idol: 1,
-        bark_idol: 5, dew_fetish: 4, bone_fetish: 1, amber_bead: 3, resin_bead: 2, salt_eye: 1, moss_eye: 2,
-        clay_lens: 4, wood_lens: 4, hide_tassel: 1, ember_bead: 4, rune_stone: 3, scholar_lens: 1, hawk_eye: 3,
-        seer_stone: 5, cinder_charm: 1, rime_charm: 4, ward_stone: 4, watch_stone: 1, spark_totem: 5, chill_totem: 3,
-        glass_eye: 2, runeglass: 1, prism_focus: 5, ward_prism: 1, seer_monocle: 1, ember_core: 5, frost_core: 1,
-        mind_lattice: 5, archmage_eye: 4, arcane_diadem: 2, star_compass: 4, sun_reliquary: 5, arcane_nexus: 1,
-        crown_of_ages: 5,
         // Ре-пин 000321.05: инструменты 000714–000763 — КОНЕЦ каталога,
         // rng-хвост пула allItems (магазин богатства 3 — все предметы)
         // → += 47 инструментов (не выпали: iron_punch/reed_sieve/fuller),
         // остальные 598 ключей стока не сдвинулись (node-симуляция:
         // seed/старые стоки byte-identical).
-        ash_mallet: 5, clay_anvil: 1, copper_tongs: 2, forge_bellows: 2,
-        slag_rake: 1, quench_pail: 1, cross_file: 4, rawhide_mallet: 2,
-        tin_solder: 5, clay_funnel: 2, wood_pestle: 5, bark_tray: 5,
-        wax_jar: 3, linen_filter: 5, salt_scales: 5, shell_spoon: 2,
-        flint_burner: 2, dew_measure: 4, steel_chisel: 5, forge_hook: 1,
-        bronze_bellows: 5, swage_block: 3, iron_drill: 2, forge_stake: 5,
-        glass_retort: 2, bronze_alembic: 4, quartz_muller: 2,
-        silver_spatula: 4, brass_tongs: 2, oil_lamp: 2, glass_measure: 3,
-        damascus_hammer: 1, great_bellows: 3, forge_hardy: 1,
-        blacksteel_tongs: 5, diamond_file: 1, silver_alembic: 4,
-        glass_athanor: 2, silver_retort: 5, moon_balance: 5,
-        cinder_lamp: 2, meteor_hammer: 2, magma_hammer: 4,
-        golden_athanor: 5, phoenix_still: 4, worldforge_hammer: 4,
-        prima_vessel: 2,
         // Ре-пин 000348: свиток Декаданс (000764) — КОНЕЦ каталога,
         // rng-хвост пула allItems (универсам, w=3) → += 1 свиток
         // decadance_scroll: 2, остальные 642 ключа стока не сдвинулись
         // (rng-хвост: на базе с инструментами ролл дал 2).
-        decadance_scroll: 2,
         // Ре-пин 000321.06: кольца 000765–000814 — КОНЕЦ каталога,
         // rng-хвост пула allItems (универсам, w=3) → += 42 кольца
         // (не выпали: resin_ring/wire_ring/fluorite_seal/smoky_signet/
         // etched_seal/serpent_signet/dread_seal/thorn_band),
         // остальные 646 ключей стока не сдвинулись (node-симуляция:
         // seed/старые стоки byte-identical).
-        tin_band: 2, antler_band: 1, woven_ring: 3, amber_disc: 1,
-        glass_band: 3, sinew_knot: 1, pumice_ring: 3, pebble_ring: 2,
-        flint_ring: 4, bronze_loop: 3, cast_iron_ring: 4, brass_signet: 5,
-        blackened_band: 3, forge_washer: 4, chief_signet: 3, garnet_band: 5,
-        jade_signet: 2, moon_setting: 2, tide_knot: 5, windwalker_ring: 1,
-        hawk_eye_ring: 2, blade_braid: 5, whetstone_ring: 4, umbral_band: 3,
-        marksman_loop: 2, trade_seal: 3, rune_alloy: 3, ash_band: 1,
-        silver_frost: 1, icewalker: 4, clay_warden: 5, ink_signet: 5,
-        root_braid: 5, augur_band: 5, selenite_ring: 2, tidebreath: 4,
-        moon_crown: 2, frost_squall: 2, undying_bough: 3, forewarning: 2,
-        eclipse_band: 4, caldera_core: 1,
-      
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула allItems (универсам) → += 41;
     // не выпали: field_tonic/dawn_tonic/amber_elixir/obsidian_balm/blue_sip/glacier_draught/dusk_brew/argent_draught/eclipse_draught — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    weak_healing: 1, herb_draught: 4, forest_balm: 2, crimson_sip: 4,
-    honey_brew: 5, resin_brew: 5, oak_tonic: 2, sun_potion: 4, forge_tonic: 3,
-    deep_balm: 2, alpine_brew: 5, ember_tonic: 2, marsh_balm: 5,
-    stone_brew: 1, gale_tonic: 5, pearl_draught: 1, silver_tonic: 1,
-    ruby_draught: 2, sapphire_balm: 3, emerald_tonic: 3, amethyst_draught: 4,
-    moonlight_draught: 3, phoenix_tonic: 3, diamond_draught: 3,
-    mint_draught: 1, night_brew: 1, frost_draught: 3, glass_tonic: 1,
-    violet_brew: 5, star_tonic: 1, rain_draught: 5, indigo_brew: 3,
-    azure_tonic: 1, tide_draught: 4, quartz_tonic: 5, phosphor_brew: 5,
-    shadow_tonic: 4, royal_elixir: 1, arcane_tonic: 3, void_tonic: 4,
-    ash_elixir: 2,} },
+
+        acid_splash_scroll: 3, adobe_shield: 3, aegis_scroll: 5, aegis_shield: 3, alchemy_manual: 3,
+        alpine_brew: 3, amber_disc: 2, amethyst: 5, amethyst_band: 4, amethyst_boots: 1,
+        amethyst_choker: 1, amethyst_collar: 3, amethyst_dangle: 3, amethyst_draught: 1,
+        amethyst_pants: 5, amethyst_ring: 4, antler_buckler: 1, antler_hook: 1, arcane_diadem: 2,
+        arcane_eye: 1, arcane_nexus: 2, arcane_tonic: 4, archer_brace: 2, archer_gloves: 4,
+        archer_scroll: 3, arctic_touch_scroll: 1, argent_draught: 4, arming_sword: 1, ash_charm: 5,
+        ash_elixir: 5, ash_mallet: 3, ash_shield: 5, ashround_buckler: 5, augur_band: 2,
+        aura_of_protection_scroll: 2, aurora_bow: 5, bark_idol: 4, barkskin_scroll: 3, battered_falx: 5,
+        battle_axe: 5, beast_friend_scroll: 4, berry_blue: 5, berry_red: 3, berry_wild: 4,
+        birch_shield: 3, blackened_band: 3, blacksteel_shield: 5, blacksteel_tongs: 3, blade_braid: 5,
+        blessing_scroll: 3, blizzard_field_scroll: 5, blizzard_scroll: 3, blue_sip: 3,
+        blueprint_alchemy: 4, blueprint_carving: 1, blueprint_enchant: 3, blueprint_forge: 3,
+        blueprint_runecraft: 1, boar_shield: 1, boar_tusk_earring: 4, bone_band: 3, bone_charm: 3,
+        bone_fetish: 3, bone_graver: 2, bone_greaves: 4, bone_grips: 4, bone_pendant: 2, bone_ring: 4,
+        bone_sandals: 3, brass_buckler: 2, brass_signet: 4, brass_tongs: 2, bread: 2, bronze_alembic: 3,
+        bronze_bellows: 2, bronze_loop: 5, bulwark_shield: 5, bulwark_ward_scroll: 4,
+        burning_cage_scroll: 2, burning_ground_scroll: 4, caldera_core: 4, chainmail: 4,
+        chief_signet: 1, chill_scroll: 3, cinder_charm: 1, cinder_eye: 2, cinder_scroll: 1,
+        circle_of_light_scroll: 4, clay_anvil: 5, clay_buckler: 2, clay_dangle: 4, clay_funnel: 3,
+        clay_lens: 4, clay_pendant: 3, clay_ring: 3, clay_warden: 5, cloth_band: 5, cloth_cuff: 2,
+        cloth_gloves: 1, cloth_loincloth: 1, cloth_sandals: 1, cloth_shield: 2, cloth_sutan: 4,
+        cloth_tunic: 1, coarse_trousers: 2, copper_band: 5, copper_beads: 3, copper_boots: 1,
+        copper_brace: 3, copper_chain: 1, copper_dangle: 1, copper_gauntlets: 5, copper_greaves: 4,
+        copper_hoop: 5, copper_maul: 4, copper_ore: 5, copper_pendant: 2, copper_ring: 2,
+        copper_short_sword: 1, copper_tongs: 5, corrode_scroll: 2, cross_file: 3, crown_flame: 4,
+        crown_of_ages: 1, crown_shield: 4, damascus_blade: 1, damascus_hammer: 2,
+        dark_ensnare_scroll: 5, dark_nova_scroll: 5, dawn_pendant: 4, dawn_tonic: 5, dawnedge_blade: 4,
+        dawnwall_shield: 1, decadance_scroll: 4, deep_balm: 1, deep_breath_robe: 2,
+        deep_freeze_scroll: 3, despair_scroll: 3, dew_fetish: 3, dew_measure: 2, diamond: 2,
+        diamond_draught: 2, divine_favor_scroll: 1, divine_protection_scroll: 5, doom_mark_scroll: 3,
+        dragonplate_shield: 2, dread_seal: 4, drill_sword: 3, driver_mitts: 3, dusk_brew: 5,
+        dusk_greaves: 5, eclipse_band: 5, eclipse_draught: 5, ember_bead: 3, ember_focus: 4,
+        ember_pants: 1, ember_robe: 2, ember_scroll: 2, ember_staff: 3, ember_tonic: 4,
+        embroidered_kaftan: 3, emerald: 5, emerald_amulet: 4, emerald_boots: 3, emerald_greaves: 2,
+        emerald_helm: 1, emerald_signet: 4, emerald_stud: 5, emerald_tonic: 3, entangle_scroll: 1,
+        etched_seal: 3, faith_amulet: 5, faith_necklace: 3, faith_shield_scroll: 1, faith_stud: 2,
+        fang_lanyard: 3, fate_cleaver: 4, fear_scroll: 4, felt_boots: 3, felt_coif: 4, felt_hat: 4,
+        felt_shield: 4, felt_trousers: 3, field_tonic: 1, fine_gloves: 4, fire_aura_scroll: 2,
+        fire_nova_scroll: 1, fire_spellbook: 5, firelight_scroll: 3, flame_burst_scroll: 3,
+        flame_imp_scroll: 2, flame_sigil: 5, flame_staff: 1, flame_step_scroll: 3,
+        flame_strike_scroll: 4, flanged_mace: 2, flint_burner: 2, flint_idol: 4, flint_ring: 5,
+        fluorite_seal: 5, forest_balm: 1, forest_beast_scroll: 4, forewarning: 2, forge_bellows: 5,
+        forge_hardy: 3, forge_stake: 5, forge_tonic: 2, forge_washer: 2, fortitude_scroll: 3,
+        freeze_scroll: 5, frontier_shield: 5, frost_aura_scroll: 1, frost_bead: 2, frost_core: 4,
+        frost_draught: 5, frost_orb: 4, frost_ring: 3, frost_squall: 4, frost_walk_scroll: 3,
+        frost_wisp_scroll: 5, frostbite_blessing_scroll: 4, frostbite_scroll: 2, frostgrip_gauntlets: 4,
+        frozen_stillness_scroll: 3, fruit_apple: 1, fruit_plum: 4, fruit_quince: 2, fuller: 5,
+        fur_hat: 4, gale_tonic: 5, garnet_band: 1, garrison_buckler: 5, garrison_shield: 2,
+        gate_hammer: 4, gate_scroll: 2, genesis_staff: 4, ghost_cuff: 4, gilded_vambraces: 2,
+        gilt_war_hammer: 4, glacier_grasp_scroll: 5, glacier_ring: 4, glass_athanor: 5, glass_band: 2,
+        glass_eye: 1, glass_measure: 4, glass_retort: 4, glass_tonic: 1, goatskin_shield: 1,
+        gold_brace: 5, gold_chain: 1, gold_dangle: 4, gold_gloves: 5, gold_helm: 4, gold_leggings: 2,
+        gold_ore: 3, gold_ring: 4, gold_sandals: 5, gold_signet: 3, golden_athanor: 4,
+        goldstring_bow: 5, golem_gauntlets: 3, great_bellows: 4, guard_amulet: 4,
+        guardian_blessing_scroll: 2, guardian_oath_scroll: 4, hail_scroll: 1, harvest_scyte: 5,
+        haste_wraps: 3, hawk_eye: 1, hawk_eye_ring: 4, healing_potion: 1, heart_of_elements: 5,
+        heart_of_forest_scroll: 4, heat_shield_scroll: 3, heavy_tome: 1, hellfire_scroll: 5,
+        hemp_bracer: 1, hemp_breeches: 4, hemp_robe: 4, herb_bitter: 3, herb_healing: 2, herb_mana: 4,
+        herb_sun: 5, herb_wind: 3, hide: 2, hide_boots: 4, hide_bracers: 1, hide_cuff: 3,
+        hide_tassel: 5, hide_wrap: 5, hidefaced_shield: 3, hoarfrost_staff: 5, holy_bind_scroll: 3,
+        holy_ground_scroll: 4, holy_guardian_scroll: 2, holy_mending_scroll: 5, honey_brew: 3,
+        honey_cake: 5, hood_common: 2, hunting_bow: 3, hurricane_scroll: 3, ice_armor_scroll: 2,
+        ice_field_scroll: 2, ice_lance_scroll: 1, ice_spellbook: 2, ice_staff: 1, icewalker: 2,
+        ignite_scroll: 1, indigo_brew: 1, ink_signet: 5, invisibility_scroll: 4, iron_boss_shield: 4,
+        iron_drill: 4, iron_elbow: 1, iron_hammer: 5, iron_hide_tome: 4, iron_pitchfork: 4,
+        iron_punch: 2, iron_ring: 3, iron_round: 5, iron_scyte: 4, iron_sentinel_scroll: 4,
+        iron_sword: 1, iron_wraps: 4, ironbark_shield: 1, ironbulwark_shield: 1, jade_signet: 5,
+        jet_bead: 2, knight_plate: 3, kopis_curved: 3, lamellar_shield: 4, lastwall_shield: 4,
+        leather_armor: 4, leather_boots: 4, leather_cap: 4, leather_cuff: 4, leather_garter: 1,
+        leather_gloves: 3, leather_gown: 3, leather_kaftan: 3, leather_loop: 3, leather_pants: 1,
+        leather_ring: 4, leather_sandals: 2, leather_shield: 2, legion_gladius: 4, legion_sword: 4,
+        life_bloom_scroll: 5, life_force_scroll: 4, light_heal_scroll: 2, light_sprite_scroll: 2,
+        linen_cloth: 5, linen_filter: 3, linen_gown: 4, linen_shirt: 2, linen_tunic: 4, linen_wraps: 2,
+        lion_shield: 2, long_warbow: 1, lostroad_boots: 5, lumber_axe: 4, lumber_machete: 3,
+        magic_shield_scroll: 4, magical_barrier_scroll: 3, magma_hammer: 2, mana_elixir: 1,
+        mana_potion: 2, marsh_balm: 5, mass_heal_scroll: 5, meat: 5, meditating_robe: 4,
+        meditation_scroll: 5, merchant_sword: 1, meteor_hammer: 5, meteor_scroll: 1, mind_lattice: 4,
+        mind_pendant: 5, minor_healing: 2, mint_draught: 3, mirror_buckler: 2, mithril_boots: 2,
+        mithril_choker: 2, mithril_greaves: 1, mithril_hammer: 4, mithril_helm: 2, mithril_hoop: 5,
+        mithril_ore: 5, monk_sutan: 3, moon_crown: 2, moon_setting: 3, moonstone: 3, moonstone_chain: 4,
+        moonstone_dangle: 2, moonstone_stud: 4, moss_eye: 5, mushroom_glow: 2, mushroom_grey: 3,
+        mushroom_ink: 5, mystic_breeches: 4, mystic_cloth: 3, mystic_earring: 3, mystic_sandals: 5,
+        mystic_sutan: 5, mystic_wraps: 4, nailed_boots: 2, nature_haste_scroll: 5, nature_scroll: 5,
+        nature_wrath_scroll: 2, night_blade_scroll: 4, night_brew: 5, night_gloves: 3,
+        nightmare_scroll: 2, oak_shield: 5, oak_tonic: 2, obsidian_balm: 4, obsidian_cloth: 5,
+        obsidian_pendant: 1, obsidian_ring: 5, obsidian_sandals: 3, obsidian_stud: 2, oil_lamp: 2,
+        palm_shield: 4, paralyzing_spore_scroll: 5, patched_helm: 1, path_of_vines_scroll: 2,
+        patrol_bow: 4, pearl_draught: 3, pebble_charm: 1, pebble_ring: 4, permafrost_scroll: 2,
+        phantom_gloves: 5, philosopher_staff: 4, phlogiston_blast_scroll: 5, phoenix_feather: 5,
+        phoenix_ring: 2, phoenix_scroll: 4, phoenix_tonic: 3, phosphor_brew: 2, phosphorite: 1,
+        pilgrim_sutan: 1, pine_shield: 4, poison_cloud_scroll: 5, poison_scroll: 2,
+        poison_spore_scroll: 5, prayer_scroll: 1, prima_vessel: 3, prism_focus: 3, pumice_ring: 5,
+        purify_scroll: 2, quartz: 3, quartz_amulet: 1, quartz_bead: 2, quartz_cloth: 2,
+        quartz_muller: 2, quartz_ring: 1, quartz_tonic: 1, quenched_shield: 4, quiver_gloves: 2,
+        rain_draught: 2, rattan_buckler: 3, rawhide_mallet: 1, rebel_brand: 4, recall_scroll: 1,
+        reed_buckler: 5, reed_charm: 4, reed_sieve: 5, regeneration_scroll: 3, resilience_scroll: 1,
+        resin_bead: 4, resin_brew: 4, resin_ring: 3, resin_shield: 5, resurrect_scroll: 3,
+        rime_bolt_scroll: 4, rime_charm: 5, rime_staff: 1, rimmed_shield: 5, riveted_helm: 3,
+        riveted_shield: 5, root_ember: 5, root_grasp_scroll: 3, root_moon: 1, rot_scroll: 3,
+        rough_bracer: 5, rough_chaps: 1, rough_gauntlets: 4, rough_kaftan: 1, royal_elixir: 2, ruby: 5,
+        ruby_bell: 3, ruby_draught: 5, ruby_pendant: 3, rune_boots: 4, rune_bracers: 1, rune_charm: 3,
+        rune_chisel: 5, rune_circlet: 1, rune_gauntlets: 1, rune_greaves: 5, rune_hoop: 2,
+        rune_necklace: 2, rune_ring: 2, rune_sphere: 3, rune_staff: 4, rune_stone: 4, rune_stylus: 3,
+        rune_tablet: 1, runeglass: 2, runic_cuff: 5, rushtwine_buckler: 3, sage_staff: 4, salt_eye: 4,
+        salt_scales: 4, sapling_bow: 4, sapphire: 4, sapphire_balm: 3, sapphire_helm: 3,
+        sapphire_hoop: 1, sapphire_pendant: 5, sapphire_ring: 3, scale_hose: 1, scalefront_shield: 2,
+        scholar_lens: 1, scholar_pendant: 3, scholar_ring: 3, scout_bow: 5, seer_monocle: 2,
+        seer_stone: 1, sentinel_shield: 3, shadow_bind_scroll: 2, shadow_curse_scroll: 4,
+        shadow_pool_scroll: 5, shadow_robe: 2, shadow_step_scroll: 3, shadow_tonic: 5,
+        shadow_wraith_scroll: 1, shadow_wrap: 2, shatter_scroll: 1, shell_charm: 2, shell_hoop: 4,
+        shell_spoon: 4, shield_wall_scroll: 5, shingle_shield: 1, short_bow: 1,
+        shroud_of_night_scroll: 2, shroud_scroll: 2, siege_axe: 1, sigil_greaves: 4, silver_alembic: 5,
+        silver_band: 1, silver_boots: 1, silver_bound_staff: 5, silver_chaps: 2, silver_cuff: 2,
+        silver_drop_earring: 5, silver_frost: 1, silver_gauntlets: 1, silver_helm: 2, silver_hoop: 2,
+        silver_inlaid_bow: 3, silver_ore: 4, silver_pendant_chain: 4, silver_retort: 1,
+        silver_signet: 5, silver_spatula: 4, silver_stud: 1, silver_tonic: 3, silvered_sword: 2,
+        sinew_knot: 1, slag_rake: 2, slow_scroll: 4, smite_scroll: 4, snow_focus: 1, soul_bell: 4,
+        spark_totem: 3, spiked_buckler: 1, spiral_earring: 3, spirit_healer_scroll: 5, splint_shield: 1,
+        stalwart_scroll: 4, star_armguard: 4, star_earring: 1, star_gloves: 5, star_hoop: 3,
+        star_pendant: 2, star_signet: 1, star_tonic: 5, starvault_staff: 1, steel_bracers: 1,
+        steel_buckler: 5, steel_chisel: 1, steel_gauntlets: 5, steel_shishak: 4, steel_sword: 2,
+        steel_targe: 4, stitched_shield: 5, stone_anchor_scroll: 1, stone_bead: 5, stone_beads: 5,
+        stone_brew: 1, stone_chisel: 2, stone_fist_grimoire: 2, stone_golem_scroll: 1,
+        stone_grasp_scroll: 1, stone_greaves: 4, stone_mace: 2, stone_mortar: 5, stone_ring: 2,
+        stone_robe: 5, stone_wall_scroll: 5, stony_hide_scroll: 3, storm_leggings: 5, storm_maul: 5,
+        storm_sandals: 2, straw_hat: 2, straw_idol: 4, straw_sandals: 5, straw_shield: 1,
+        studded_bracer: 5, studded_gloves: 3, studded_mitts: 2, stun_of_light_scroll: 5, sun_potion: 2,
+        sun_reliquary: 4, sunfire_scroll: 2, swage_block: 4, swift_boots: 2, swift_brace: 2,
+        swift_prayer_scroll: 3, sword_treatise: 1, tar_boots: 3, tarred_shield: 1, tempest_staff: 5,
+        thorn_band: 1, thorn_boots: 4, thorn_bracers: 2, thorn_field_scroll: 5, thorn_shield: 5,
+        thorn_storm_scroll: 2, thorn_whip_scroll: 2, thorns_scroll: 4, thread_ring: 5, thunder_maul: 4,
+        tide_draught: 4, tide_knot: 2, tidebreath: 2, time_slow_scroll: 2, tin_band: 1, tin_charm: 3,
+        tin_morion: 1, tin_solder: 3, tower_shield: 1, trade_bow: 3, travel_cloth: 2, traveler_boots: 4,
+        traveler_bracer: 3, traveler_breeches: 4, traveler_cloak: 5, treant_scroll: 3,
+        twilight_necklace: 4, twine_hoop: 3, twine_wraps: 5, umbra_bolt_scroll: 2, umbral_band: 2,
+        undying_bough: 5, vial_charm: 1, vigil_greaves: 2, vigil_helm: 5, vigil_plate: 4,
+        vigil_vambrace: 3, vine_lash_scroll: 2, vine_scroll: 3, vine_staff: 3, violet_brew: 1,
+        vitality_scroll: 1, void_arrow_scroll: 4, void_gauntlet: 5, void_horror_scroll: 5, void_ring: 5,
+        void_robe: 5, void_tonic: 2, wall_of_fire_scroll: 4, wall_of_ice_scroll: 2,
+        wall_of_thorns_scroll: 2, wanderer_cap: 3, war_hammer: 2, ward_crystal: 4, ward_prism: 1,
+        ward_stone: 1, warden_quarterstaff: 4, warder_cuirass: 2, warder_pendant: 4,
+        warding_circle_scroll: 5, watch_stone: 5, wax_jar: 2, way_up_scroll: 4, weak_healing: 3,
+        whetstone_ring: 2, whisper_hoop: 5, wicker_buckler: 2, wicker_targe: 5, wild_growth_scroll: 1,
+        wind_gloves: 5, windfletch_bow: 1, windwalker_ring: 1, winter_elemental_scroll: 2,
+        winter_haste_scroll: 3, wire_ring: 3, wood_bead: 4, wood_guards: 3, wood_lens: 3, wood_log: 3,
+        wood_pendant: 1, wood_pitchfork: 1, wood_ring: 3, wood_scyte: 1, wood_sword: 5,
+        wooden_buckler: 1, wooden_sandals: 5, wool_boots: 3, wool_bracers: 1, wool_gown: 4,
+        wool_kaftan: 5, wool_shirt: 5, wool_sutan: 4, wool_trousers: 1, worldforge_hammer: 3,
+        woven_sandals: 4, yew_longbow: 2,
+      } },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1194,64 +1231,73 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // byte-identical).
     { x: 10, y: 20, day: 1, w: 2,
       stock: {
-        patched_helm: 1, felt_coif: 2, tin_morion: 2, riveted_helm: 3, rune_circlet: 1, spiral_earring: 4, shell_wire_earring: 2, silver_drop_earring: 2, moonstone_stud: 3, mystic_earring: 2, dawn_ear_cuff: 1, fang_lanyard: 1, vial_charm: 2, copper_beads: 4, amethyst_collar: 4, warder_pendant: 3, twilight_necklace: 1, quilted_jack: 2, warder_cuirass: 4, vigil_plate: 2, wool_bracers: 4, silver_bracers: 3, thorn_bracers: 4, engraved_bracers: 4, gilded_vambraces: 3, vigil_vambrace: 1, grip_gloves: 2, frostgrip_gauntlets: 2, coarse_trousers: 4, hide_hose: 3, vigil_greaves: 1, scale_hose: 4, sigil_greaves: 4, dusk_greaves: 4, tar_boots: 2, traveler_boots: 3, nailed_boots: 2, thorn_boots: 1, pathfinder_boots: 1, lostroad_boots: 3, iron_sword: 3, battle_axe: 3, war_hammer: 2,
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        leather_armor: 4, chainmail: 2, knight_plate: 3,
-        minor_healing: 4, healing_potion: 4, mana_potion: 1, bread: 3,
-        meat: 4, straw_hat: 2, wool_cap: 4, leather_cap: 3,
-        fur_hat: 4, cloth_band: 3, wanderer_cap: 1, hood_common: 2,
-        linen_cloth: 3, travel_cloth: 4, silver_band: 1,
-        copper_band: 2, amethyst_band: 4, quartz_cloth: 2, bone_band: 2, mystic_cloth: 1,
-        silver_helm: 2, gold_helm: 4, mithril_helm: 2, emerald_helm: 2, rune_hoop: 4,
-        crown_flame: 4, copper_hoop: 4, bone_stud: 2, leather_loop: 2, clay_dangle: 3,
-        wood_bead: 2, copper_dangle: 1, shell_hoop: 4, twine_hoop: 2, antler_hook: 2,
-        silver_hoop: 1, moonstone_dangle: 3, quartz_bead: 4, silver_stud: 3, obsidian_stud: 4,
-        sapphire_hoop: 3, emerald_stud: 1, ruby_bell: 2, gold_dangle: 3, mithril_hoop: 4,
-        star_earring: 4, soul_bell: 1, twine_amulet: 1, clay_pendant: 4, wood_pendant: 2,
-        faith_necklace: 1, leather_choker: 3, stone_beads: 4, bone_pendant: 3, quartz_amulet: 3,
-        moonstone_chain: 1, obsidian_pendant: 1, amethyst_choker: 1, sapphire_pendant: 3, emerald_amulet: 2,
-        ruby_pendant: 2, mithril_choker: 3, rune_necklace: 4, star_pendant: 1, linen_shirt: 4,
-        wool_shirt: 1, hemp_robe: 1, rough_kaftan: 1, wool_gown: 1, linen_tunic: 1,
-        wool_sutan: 3, leather_kaftan: 1, cloth_robe: 2, leather_gown: 1, monk_sutan: 3,
-        fine_kaftan: 1, stone_robe: 4, shadow_robe: 1, deep_breath_robe: 2, meditating_robe: 1,
-        pilgrim_sutan: 4, void_robe: 4, aegis_mantle: 3, cloth_cuff: 1, leather_cuff: 2,
-        hemp_bracer: 4, rough_bracer: 4, leather_garter: 2, cloth_wrap: 2, iron_cuff: 2,
-        bone_bracer: 3, wood_brace: 3, hide_cuff: 3, archer_brace: 3, silver_cuff: 3,
-        shadow_wrap: 1, runic_cuff: 4, gold_brace: 1, sapphire_bracer: 1, ghost_cuff: 3,
-        swift_brace: 4, rune_bracers: 4, star_armguard: 1, leather_gloves: 2, hide_gloves: 4,
-        rough_gauntlets: 4, archer_gloves: 3, linen_wraps: 2, iron_gauntlets: 1, bone_grips: 3,
-        wood_guards: 1, fine_gloves: 4, studded_gloves: 2, copper_gauntlets: 1, quiver_gloves: 2,
-        silver_gauntlets: 1, night_gloves: 3, iron_wraps: 3, gold_gloves: 2, emerald_gauntlets: 2,
-        phantom_gloves: 3, haste_wraps: 3, rune_gauntlets: 4, void_gauntlet: 1, wood_scyte: 2,
-        iron_scyte: 4, wood_pitchfork: 4, iron_pitchfork: 3, copper_scyte: 4, steel_scyte: 1,
-        steel_pitchfork: 4, ember_staff: 3, rime_staff: 3, rune_staff: 1, flame_staff: 2,
-        ice_staff: 4, sage_staff: 4, philosopher_staff: 3, linen_trousers: 2, hemp_breeches: 3,
-        felt_trousers: 2, leather_pants: 2, traveler_breeches: 2, hide_wrap: 2, rough_chaps: 1,
-        cloth_loincloth: 4, bone_greaves: 4, silver_chaps: 4, amethyst_pants: 4, mystic_breeches: 3,
-        ember_pants: 1, emerald_greaves: 3, gold_leggings: 1, mithril_greaves: 2, rune_greaves: 2,
-        storm_leggings: 3, titan_greaves: 3, straw_sandals: 1, cloth_sandals: 1, wool_boots: 3,
-        travel_boots: 1, hide_boots: 4, hemp_sandals: 1, silver_boots: 3, stone_sandals: 1,
-        obsidian_sandals: 4, amethyst_boots: 2, mystic_sandals: 2, sapphire_boots: 3, frost_sandals: 1,
-        emerald_boots: 3, storm_sandals: 2, rune_boots: 4, swift_boots: 3,
-        traveler_cloak: 4, mystic_sutan: 3,
-        traveler_bracer: 1,
-        copper_short_sword: 4, drill_sword: 1, poacher_dirk: 4, kopis_curved: 2, legion_sword: 4, battered_falx: 4, merchant_sword: 3, patrol_sword: 2, lumber_machete: 4, sapling_bow: 1, trade_bow: 2, poacher_bow: 2, stone_mace: 3, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2, legion_gladius: 4, arming_sword: 4, warder_sword: 3, silver_inlaid_bow: 3, scout_bow: 2, silvered_mace: 3, storm_maul: 4, silver_bound_staff: 3, warden_quarterstaff: 2, gilded_broadsword: 4, damascus_blade: 2, thunder_maul: 2, goldstring_bow: 3, windfletch_bow: 1, tempest_staff: 2, hoarfrost_staff: 3, archivist_staff: 4, gate_hammer: 1, aurora_bow: 3, fate_cleaver: 1, genesis_staff: 4,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 33;
     // не выпали: weak_healing/herb_draught/field_tonic/honey_brew/oak_tonic/deep_balm/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/azure_tonic/dusk_brew/quartz_tonic/ash_elixir — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    forest_balm: 2, crimson_sip: 1, resin_brew: 1, dawn_tonic: 1,
-    sun_potion: 4, forge_tonic: 3, amber_elixir: 4, alpine_brew: 3,
-    ember_tonic: 4, marsh_balm: 1, stone_brew: 2, gale_tonic: 3,
-    pearl_draught: 3, silver_tonic: 3, ruby_draught: 2, sapphire_balm: 4,
-    emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 1, phoenix_tonic: 1,
-    blue_sip: 4, night_brew: 2, violet_brew: 4, indigo_brew: 4,
-    glacier_draught: 2, tide_draught: 2, phosphor_brew: 4, shadow_tonic: 3,
-    argent_draught: 3, royal_elixir: 1, arcane_tonic: 2, eclipse_draught: 3,
-    void_tonic: 2,} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+
+        alpine_brew: 3, amethyst_choker: 3, amethyst_collar: 2, amethyst_dangle: 4, amethyst_draught: 2,
+        amethyst_pants: 3, antler_hook: 4, arcane_tonic: 4, archer_gloves: 1, argent_draught: 3,
+        arming_sword: 4, aurora_bow: 2, azure_tonic: 4, battered_falx: 3, battle_axe: 4, blue_sip: 3,
+        boar_tusk_earring: 1, bone_band: 2, bone_beads: 3, bone_greaves: 4, bone_grips: 1,
+        bone_pendant: 2, bone_stud: 4, bread: 2, campaign_maul: 2, chainmail: 1, clay_dangle: 2,
+        clay_pendant: 4, cloth_cuff: 2, cloth_gloves: 2, cloth_loincloth: 4, cloth_sandals: 4,
+        cloth_sutan: 4, cloth_tunic: 2, cloth_wrap: 2, coarse_trousers: 3, copper_band: 2,
+        copper_beads: 1, copper_boots: 4, copper_chain: 2, copper_dangle: 2, copper_greaves: 1,
+        copper_hoop: 3, copper_maul: 4, copper_pendant: 3, copper_scyte: 4, crimson_sip: 3,
+        crown_flame: 1, damascus_blade: 2, dawn_ear_cuff: 3, dawn_pendant: 4, dawn_tonic: 4,
+        deep_balm: 1, drill_sword: 1, driver_mitts: 4, dusk_brew: 2, ember_pants: 1, ember_robe: 3,
+        ember_staff: 4, ember_tonic: 3, emerald_amulet: 3, emerald_boots: 1, emerald_greaves: 1,
+        emerald_helm: 1, emerald_stud: 3, emerald_tonic: 2, engraved_bracers: 2, faith_necklace: 3,
+        faith_stud: 4, fang_lanyard: 1, felt_boots: 4, felt_coif: 1, field_tonic: 1, fine_gloves: 1,
+        fine_kaftan: 1, flanged_mace: 1, forge_tonic: 3, frost_draught: 1, frostgrip_gauntlets: 2,
+        fur_hat: 1, gale_tonic: 3, gate_hammer: 1, ghost_cuff: 4, gilded_broadsword: 1,
+        gilded_vambraces: 2, gilt_war_hammer: 1, glacier_draught: 4, glass_tonic: 4, gold_brace: 3,
+        gold_chain: 1, gold_dangle: 2, gold_gloves: 4, gold_helm: 4, gold_leggings: 2, gold_sandals: 2,
+        goldstring_bow: 2, golem_gauntlets: 3, greater_healing: 3, grip_gloves: 3, healing_potion: 3,
+        hemp_bracer: 3, hemp_breeches: 1, hemp_sandals: 4, hide_boots: 1, hide_bracers: 1, hide_cuff: 3,
+        hide_gloves: 4, hide_hose: 4, hide_wrap: 1, honey_cake: 2, hood_common: 4, hunting_bow: 4,
+        ice_staff: 3, indigo_brew: 2, iron_cuff: 1, iron_elbow: 3, iron_gauntlets: 1, iron_pitchfork: 4,
+        iron_scyte: 2, iron_sword: 1, iron_wraps: 2, knight_plate: 1, kopis_curved: 3, leather_armor: 3,
+        leather_choker: 2, leather_cuff: 2, leather_garter: 3, leather_gloves: 3, leather_gown: 4,
+        leather_loop: 1, leather_pants: 2, leather_sandals: 4, legion_gladius: 4, legion_sword: 3,
+        linen_cloth: 4, linen_gown: 1, linen_shirt: 4, linen_trousers: 3, linen_tunic: 3,
+        linen_wraps: 1, lostroad_boots: 2, lumber_axe: 4, lumber_machete: 4, mana_elixir: 3,
+        mana_potion: 2, meat: 3, meditating_robe: 2, merchant_sword: 2, miner_pickaxe: 2,
+        minor_healing: 2, mithril_boots: 1, mithril_choker: 4, mithril_greaves: 4, mithril_hoop: 4,
+        moonstone_chain: 4, moonstone_dangle: 3, mystic_breeches: 1, mystic_cloth: 3, mystic_earring: 1,
+        mystic_sandals: 2, mystic_sutan: 2, mystic_wraps: 3, nailed_boots: 3, night_brew: 1,
+        night_gloves: 1, obsidian_balm: 3, obsidian_pendant: 1, obsidian_sandals: 4, patched_helm: 1,
+        patrol_sword: 3, pearl_draught: 1, phantom_gloves: 4, philosopher_staff: 2, phoenix_tonic: 2,
+        phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 3, quartz_amulet: 2, quartz_bead: 4,
+        quartz_cloth: 3, quartz_tonic: 4, quilted_jack: 3, quiver_gloves: 1, rebel_brand: 4,
+        resin_brew: 1, rime_staff: 4, riveted_helm: 2, rough_bracer: 4, rough_chaps: 4,
+        rough_gauntlets: 3, rough_kaftan: 2, royal_elixir: 4, ruby_bell: 1, ruby_draught: 2,
+        rune_boots: 2, rune_gauntlets: 3, rune_hoop: 2, rune_necklace: 1, rune_staff: 2, sage_staff: 4,
+        sapling_bow: 4, sapphire_boots: 3, sapphire_bracer: 3, sapphire_hoop: 2, sapphire_leggings: 3,
+        sapphire_pendant: 4, scout_bow: 3, shadow_robe: 2, shadow_wrap: 4, shell_beads: 2,
+        shell_wire_earring: 2, short_bow: 3, siege_axe: 1, sigil_greaves: 2, silver_boots: 3,
+        silver_bound_staff: 4, silver_chain: 1, silver_chaps: 3, silver_drop_earring: 1,
+        silver_gauntlets: 4, silver_helm: 1, silver_hoop: 2, silver_inlaid_bow: 2,
+        silver_pendant_chain: 3, silver_tonic: 1, soul_bell: 4, spiral_earring: 2, star_armguard: 2,
+        star_earring: 3, star_gloves: 2, star_hoop: 1, star_pendant: 1, star_tonic: 2,
+        starvault_staff: 4, steel_gauntlets: 4, steel_pitchfork: 3, steel_scyte: 1, steel_shishak: 2,
+        steel_sword: 4, stone_bead: 2, stone_brew: 4, stone_greaves: 3, stone_mace: 4, stone_robe: 4,
+        stone_sandals: 3, storm_leggings: 1, straw_hat: 2, straw_sandals: 2, studded_gloves: 4,
+        studded_mitts: 3, swift_boots: 1, swift_brace: 4, tar_boots: 4, tempest_staff: 4,
+        thorn_bracers: 2, thunder_maul: 3, tide_draught: 2, tin_morion: 1, titan_brace: 1,
+        titan_greaves: 3, travel_cloth: 2, traveler_boots: 1, traveler_cloak: 1, twine_amulet: 1,
+        twine_hoop: 4, twine_wraps: 3, vial_charm: 4, vigil_helm: 3, vigil_plate: 4, vigil_vambrace: 1,
+        vine_staff: 2, violet_brew: 3, void_gauntlet: 3, void_robe: 3, void_tonic: 2, wanderer_cap: 4,
+        war_hammer: 1, warden_quarterstaff: 2, warder_cuirass: 1, warder_sword: 1, wind_gloves: 4,
+        windfletch_bow: 2, wood_guards: 4, wood_scyte: 4, wooden_sandals: 2, wool_bracers: 2,
+        wool_cap: 4, wool_gown: 3, wool_kaftan: 3, wool_shirt: 1, wool_sutan: 2, wool_trousers: 3,
+        woven_sandals: 2,
+      } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 17 torso (не выпали: wool_shirt/cloth_tunic/hemp_robe/embroidered_kaftan/cloth_robe/fine_kaftan/ember_robe/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1281,63 +1327,71 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // byte-identical).
     { x: 10, y: 20, day: 2, w: 2,
       stock: {
-        patched_helm: 3, felt_coif: 2, tin_morion: 1, steel_shishak: 2, rune_circlet: 4, vigil_helm: 3, boar_tusk_earring: 2, spiral_earring: 4, silver_drop_earring: 2, mystic_earring: 1, fang_lanyard: 3, vial_charm: 3, silver_pendant_chain: 1, amethyst_collar: 1, warder_pendant: 3, twilight_necklace: 3, vigil_plate: 3, hide_bracers: 4, wool_bracers: 1, silver_bracers: 2, thorn_bracers: 3, engraved_bracers: 3, vigil_vambrace: 2, driver_mitts: 3, studded_mitts: 1, grip_gloves: 3, frostgrip_gauntlets: 4, golem_gauntlets: 4, coarse_trousers: 4, hide_hose: 2, wool_breeches: 1, vigil_greaves: 3, sigil_greaves: 4, dusk_greaves: 4, woven_sandals: 2, tar_boots: 4, nailed_boots: 4, thorn_boots: 4, pathfinder_boots: 4, lostroad_boots: 4, wood_sword: 1, steel_sword: 1, short_bow: 2,
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        battle_axe: 1, war_hammer: 3, leather_armor: 1, chainmail: 1,
-        minor_healing: 3, healing_potion: 4, greater_healing: 2,
-        mana_potion: 1, mana_elixir: 3, bread: 3, leather_cap: 4,
-        cloth_band: 3, hood_common: 4, linen_cloth: 4, felt_hat: 3,
-        travel_cloth: 2, silver_band: 3, obsidian_cloth: 2,
-        amethyst_band: 3, quartz_cloth: 4, gold_helm: 2,
-        mithril_helm: 1, emerald_helm: 4, star_hoop: 3,
-        copper_hoop: 3, bone_stud: 2, leather_loop: 3, clay_dangle: 1,
-        copper_dangle: 3, shell_hoop: 1, faith_stud: 4,
-        antler_hook: 2, stone_bead: 2, moonstone_dangle: 1,
-        obsidian_stud: 3, amethyst_dangle: 3, sapphire_hoop: 2,
-        emerald_stud: 4, gold_dangle: 2, star_earring: 3,
-        whisper_hoop: 4, copper_chain: 2, bone_beads: 3,
-        twine_amulet: 1, wood_pendant: 4, shell_beads: 3,
-        leather_choker: 3, bone_pendant: 2, silver_chain: 1, quartz_amulet: 1, moonstone_chain: 1,
-        faith_amulet: 3, obsidian_pendant: 3, amethyst_choker: 4, sapphire_pendant: 1, emerald_amulet: 1,
-        ruby_pendant: 3, mithril_choker: 1, rune_necklace: 1, star_pendant: 3, dawn_pendant: 2,
-        linen_shirt: 2, linen_gown: 2, rough_kaftan: 2, wool_gown: 4, cloth_sutan: 3,
-        linen_tunic: 1, wool_kaftan: 2, wool_sutan: 4, leather_kaftan: 4, leather_gown: 2,
-        monk_sutan: 2, stone_robe: 4, shadow_robe: 4, deep_breath_robe: 3, meditating_robe: 1,
-        pilgrim_sutan: 3, aegis_mantle: 4, cloth_cuff: 4, leather_garter: 2, cloth_wrap: 4,
-        bone_bracer: 2, wood_brace: 1, hide_cuff: 4, studded_bracer: 1, copper_brace: 3,
-        archer_brace: 1, silver_cuff: 4, iron_elbow: 4, steel_bracers: 4, gold_brace: 2,
-        swift_brace: 3, rune_bracers: 4, star_armguard: 3, leather_gloves: 2, hide_gloves: 2,
-        rough_gauntlets: 4, archer_gloves: 2, linen_wraps: 3, iron_gauntlets: 4, studded_gloves: 3,
-        copper_gauntlets: 2, quiver_gloves: 4, night_gloves: 3, steel_gauntlets: 3, gold_gloves: 2,
-        emerald_gauntlets: 1, phantom_gloves: 1, void_gauntlet: 2, wood_scyte: 3, iron_scyte: 2,
-        wood_pitchfork: 1, iron_pitchfork: 3, copper_scyte: 1, steel_scyte: 1, steel_pitchfork: 3,
-        rime_staff: 2, rune_staff: 3, harvest_scyte: 3, flame_staff: 2, sage_staff: 2,
-        philosopher_staff: 4, linen_trousers: 2, wool_trousers: 1, hemp_breeches: 1, traveler_breeches: 1,
-        hide_wrap: 1, rough_chaps: 2, cloth_loincloth: 3, bone_greaves: 3, copper_greaves: 2,
-        stone_greaves: 2, obsidian_greaves: 4, amethyst_pants: 1, mystic_breeches: 2, ember_pants: 1,
-        emerald_greaves: 2, mithril_greaves: 2, straw_sandals: 3, leather_sandals: 1, felt_boots: 1,
-        travel_boots: 4, hide_boots: 4, wooden_sandals: 3, hemp_sandals: 1, silver_boots: 4,
-        stone_sandals: 3, amethyst_boots: 3, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
-        gold_sandals: 3, mithril_boots: 2, storm_sandals: 4, rune_boots: 1, swift_boots: 3,
-        traveler_cloak: 4, mystic_wraps: 3,
-        copper_short_sword: 1, poacher_dirk: 1, kopis_curved: 3, legion_sword: 1, battered_falx: 2, merchant_sword: 2, patrol_sword: 4, trade_bow: 3, poacher_bow: 4, yew_longbow: 2, copper_maul: 1, stone_mace: 1, flanged_mace: 2, miner_pickaxe: 4, campaign_maul: 3, silvered_sword: 3, arming_sword: 1, rebel_brand: 4, warder_sword: 3, silver_inlaid_bow: 2, long_warbow: 3, scout_bow: 4, silvered_mace: 2, storm_maul: 1, siege_axe: 4, silver_bound_staff: 4, warden_quarterstaff: 2, vine_staff: 1, gilded_broadsword: 1, damascus_blade: 2, gilt_war_hammer: 4, thunder_maul: 3, windfletch_bow: 3, pyre_staff: 4, hoarfrost_staff: 1, archivist_staff: 3, dawnedge_blade: 1, fate_cleaver: 3, genesis_staff: 4,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 39;
     // не выпали: weak_healing/sun_potion/marsh_balm/stone_brew/silver_tonic/amethyst_draught/mint_draught/night_brew/glass_tonic/dusk_brew/argent_draught — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    herb_draught: 1, forest_balm: 4, crimson_sip: 2, field_tonic: 3,
-    honey_brew: 3, resin_brew: 4, oak_tonic: 3, dawn_tonic: 1, forge_tonic: 1,
-    amber_elixir: 1, deep_balm: 4, alpine_brew: 3, ember_tonic: 2,
-    gale_tonic: 2, pearl_draught: 2, ruby_draught: 1, sapphire_balm: 4,
-    emerald_tonic: 4, obsidian_balm: 4, moonlight_draught: 1,
-    phoenix_tonic: 1, diamond_draught: 3, blue_sip: 3, frost_draught: 1,
-    violet_brew: 3, star_tonic: 2, rain_draught: 4, indigo_brew: 2,
-    azure_tonic: 4, glacier_draught: 2, tide_draught: 1, quartz_tonic: 2,
-    phosphor_brew: 3, shadow_tonic: 2, royal_elixir: 2, arcane_tonic: 4,
-    eclipse_draught: 2, void_tonic: 2, ash_elixir: 4,} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+
+        aegis_mantle: 1, amber_elixir: 1, amethyst_band: 2, amethyst_choker: 1, amethyst_collar: 3,
+        amethyst_dangle: 1, amethyst_draught: 1, antler_hook: 3, arcane_tonic: 4, archer_brace: 2,
+        archer_gloves: 1, archivist_staff: 3, argent_draught: 3, battered_falx: 4, blue_sip: 3,
+        bone_band: 4, bone_beads: 4, bone_bracer: 3, bone_greaves: 2, bone_grips: 3, bone_sandals: 2,
+        bone_stud: 3, bread: 4, clay_pendant: 2, cloth_cuff: 1, cloth_gloves: 4, cloth_robe: 3,
+        cloth_sutan: 3, cloth_tunic: 2, cloth_wrap: 3, coarse_trousers: 1, copper_beads: 3,
+        copper_boots: 1, copper_brace: 4, copper_dangle: 2, copper_gauntlets: 2, copper_hoop: 1,
+        copper_scyte: 3, copper_short_sword: 3, crimson_sip: 2, crown_flame: 4, dawn_ear_cuff: 2,
+        dawn_tonic: 3, dawnedge_blade: 4, deep_breath_robe: 2, diamond_draught: 3, drill_sword: 1,
+        dusk_brew: 4, eclipse_draught: 3, ember_robe: 3, ember_tonic: 2, embroidered_kaftan: 1,
+        emerald_amulet: 1, emerald_boots: 1, emerald_gauntlets: 3, emerald_greaves: 3, emerald_helm: 4,
+        emerald_stud: 1, emerald_tonic: 1, engraved_bracers: 3, faith_necklace: 1, faith_stud: 1,
+        fang_lanyard: 3, fate_cleaver: 2, felt_boots: 2, felt_trousers: 2, fine_gloves: 2,
+        fine_kaftan: 4, flame_staff: 3, flanged_mace: 1, forest_balm: 2, forge_tonic: 4,
+        frost_draught: 4, fur_hat: 2, gale_tonic: 2, ghost_cuff: 4, gilded_broadsword: 4,
+        gilded_vambraces: 3, gilt_war_hammer: 1, glacier_draught: 3, gold_brace: 4, gold_chain: 4,
+        gold_leggings: 2, gold_sandals: 4, golem_gauntlets: 2, greater_healing: 1, grip_gloves: 4,
+        harvest_scyte: 1, haste_wraps: 3, healing_potion: 1, hemp_bracer: 4, hemp_robe: 4,
+        herb_draught: 4, hide_boots: 2, hide_gloves: 3, hide_hose: 4, hide_wrap: 3, honey_cake: 2,
+        hood_common: 2, hunting_bow: 4, ice_staff: 2, indigo_brew: 3, iron_cuff: 4, iron_scyte: 3,
+        iron_sword: 2, iron_wraps: 4, kopis_curved: 3, leather_cap: 3, leather_choker: 2,
+        leather_cuff: 1, leather_garter: 1, leather_loop: 2, leather_pants: 3, leather_sandals: 2,
+        legion_gladius: 1, legion_sword: 3, linen_cloth: 1, linen_gown: 1, linen_shirt: 3,
+        linen_tunic: 2, linen_wraps: 3, long_warbow: 3, lostroad_boots: 2, lumber_machete: 2,
+        mana_elixir: 4, mana_potion: 2, marsh_balm: 1, meat: 1, miner_pickaxe: 1, minor_healing: 1,
+        mithril_boots: 2, mithril_choker: 3, mithril_greaves: 3, mithril_helm: 2, monk_sutan: 2,
+        moonlight_draught: 4, moonstone_chain: 1, moonstone_dangle: 2, mystic_breeches: 1,
+        mystic_cloth: 2, mystic_sandals: 2, night_brew: 3, oak_tonic: 1, obsidian_cloth: 1,
+        obsidian_pendant: 4, obsidian_sandals: 4, obsidian_stud: 3, patched_helm: 1, patrol_sword: 4,
+        pearl_draught: 3, philosopher_staff: 3, phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 2,
+        poacher_dirk: 3, pyre_staff: 2, quartz_amulet: 4, quartz_bead: 1, quartz_cloth: 3,
+        quartz_tonic: 4, rain_draught: 3, rebel_brand: 1, rime_staff: 1, riveted_helm: 3,
+        rough_bracer: 1, rough_chaps: 2, rough_gauntlets: 2, rough_kaftan: 4, ruby_draught: 3,
+        rune_boots: 4, rune_bracers: 2, rune_circlet: 1, rune_gauntlets: 1, rune_greaves: 2,
+        rune_necklace: 4, rune_staff: 3, runic_cuff: 3, sapling_bow: 1, sapphire_balm: 4,
+        sapphire_boots: 3, sapphire_bracer: 2, sapphire_helm: 3, sapphire_hoop: 4, sapphire_leggings: 2,
+        sapphire_pendant: 1, scale_hose: 4, scout_bow: 4, shadow_robe: 2, shadow_tonic: 1,
+        shadow_wrap: 1, shell_beads: 2, shell_hoop: 4, shell_wire_earring: 3, siege_axe: 3,
+        silver_band: 4, silver_boots: 1, silver_bound_staff: 3, silver_bracers: 1,
+        silver_drop_earring: 3, silver_gauntlets: 4, silver_helm: 3, silver_hoop: 2,
+        silver_inlaid_bow: 1, silver_stud: 2, silver_tonic: 4, silvered_mace: 3, silvered_sword: 2,
+        soul_bell: 4, star_armguard: 2, star_gloves: 1, star_pendant: 3, star_tonic: 3,
+        steel_bracers: 1, steel_gauntlets: 1, steel_pitchfork: 3, steel_scyte: 3, stone_bead: 3,
+        stone_beads: 4, stone_brew: 1, stone_greaves: 2, stone_mace: 3, stone_robe: 3,
+        storm_leggings: 2, storm_maul: 3, storm_sandals: 1, straw_hat: 3, straw_sandals: 4,
+        studded_bracer: 4, studded_gloves: 4, studded_mitts: 2, sun_potion: 1, swift_boots: 3,
+        tar_boots: 4, tempest_staff: 4, thorn_boots: 2, thorn_bracers: 4, tide_draught: 4,
+        tin_morion: 4, titan_brace: 4, titan_greaves: 4, travel_boots: 1, travel_cloth: 4,
+        traveler_boots: 2, traveler_bracer: 3, traveler_breeches: 3, traveler_cloak: 4,
+        twilight_necklace: 3, twine_amulet: 1, twine_wraps: 1, vial_charm: 1, vigil_greaves: 4,
+        vigil_helm: 3, vigil_plate: 2, violet_brew: 2, void_gauntlet: 2, void_tonic: 1, wanderer_cap: 4,
+        war_hammer: 4, warder_cuirass: 4, warder_pendant: 1, warder_sword: 1, weak_healing: 3,
+        wind_gloves: 3, wood_bead: 1, wood_guards: 3, wood_pendant: 2, wood_pitchfork: 4, wood_scyte: 2,
+        wood_sword: 4, wooden_sandals: 2, wool_bracers: 1, wool_breeches: 2, wool_cap: 3, wool_gown: 2,
+        wool_shirt: 2, wool_sutan: 4, wool_trousers: 2, woven_sandals: 2, yew_longbow: 4,
+      } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 15 torso (не выпали: wool_shirt/cloth_tunic/rough_kaftan/linen_tunic/leather_kaftan/monk_sutan/fine_kaftan/ember_robe/pilgrim_sutan/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1367,48 +1421,56 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // byte-identical).
     { x: 10, y: 20, day: 1, w: 0,
       stock: {
-        felt_coif: 1, tin_morion: 2, riveted_helm: 1, vigil_helm: 2, spiral_earring: 1, silver_drop_earring: 1, moonstone_stud: 2, silver_pendant_chain: 2, amethyst_collar: 2, twilight_necklace: 1, quilted_jack: 2, wool_bracers: 2, silver_bracers: 1, engraved_bracers: 2, gilded_vambraces: 1, driver_mitts: 1, grip_gloves: 1, frostgrip_gauntlets: 1, golem_gauntlets: 2, sigil_greaves: 1, traveler_boots: 1, nailed_boots: 2, pathfinder_boots: 1, lostroad_boots: 1, war_hammer: 2, leather_armor: 1, chainmail: 2,
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        minor_healing: 1, greater_healing: 2, mana_potion: 2, meat: 2, straw_hat: 1,
-        fur_hat: 1, silver_band: 2, copper_band: 1, obsidian_cloth: 1, mystic_cloth: 2,
-        silver_helm: 1, gold_helm: 1, rune_hoop: 1, star_hoop: 1, crown_flame: 1,
-        copper_hoop: 1, bone_stud: 2, wood_bead: 1, copper_dangle: 1, twine_hoop: 2,
-        antler_hook: 2, stone_bead: 1, silver_hoop: 1, silver_stud: 1, obsidian_stud: 1,
-        amethyst_dangle: 2, ruby_bell: 1, gold_dangle: 2, mithril_hoop: 1, star_earring: 2,
-        whisper_hoop: 2, soul_bell: 2, copper_chain: 2, twine_amulet: 2, clay_pendant: 1,
-        wood_pendant: 1, copper_pendant: 2, shell_beads: 2, faith_necklace: 2, stone_beads: 1,
-        quartz_amulet: 1, amethyst_choker: 2, emerald_amulet: 1, mithril_choker: 2, rune_necklace: 2,
-        dawn_pendant: 2, linen_shirt: 1, linen_gown: 1, hemp_robe: 2, wool_gown: 1,
-        cloth_sutan: 1, wool_kaftan: 2, wool_sutan: 2, embroidered_kaftan: 2, cloth_robe: 2,
-        leather_gown: 1, stone_robe: 1, shadow_robe: 1, deep_breath_robe: 2, meditating_robe: 1,
-        aegis_mantle: 1, cloth_cuff: 2, hemp_bracer: 1, rough_bracer: 2, leather_garter: 1,
-        cloth_wrap: 2, iron_cuff: 2, bone_bracer: 1, hide_cuff: 2, studded_bracer: 1,
-        shadow_wrap: 2, iron_elbow: 1, runic_cuff: 1, steel_bracers: 2, ghost_cuff: 1,
-        rune_bracers: 1, star_armguard: 2, cloth_gloves: 2, leather_gloves: 2, archer_gloves: 2,
-        linen_wraps: 2, iron_gauntlets: 1, wood_guards: 2, studded_gloves: 1, copper_gauntlets: 1,
-        quiver_gloves: 2, silver_gauntlets: 2, wind_gloves: 1, phantom_gloves: 1, rune_gauntlets: 2,
-        wood_scyte: 1, iron_scyte: 1, copper_scyte: 1, rime_staff: 2, rune_staff: 2,
-        harvest_scyte: 1, flame_staff: 1, ice_staff: 1, wool_trousers: 1, hemp_breeches: 1,
-        felt_trousers: 2, bone_greaves: 2, copper_greaves: 1, mystic_breeches: 2, ember_pants: 1,
-        emerald_greaves: 2, gold_leggings: 2, storm_leggings: 1, straw_sandals: 1, wool_boots: 2,
-        felt_boots: 2, leather_boots: 1, hide_boots: 2, wooden_sandals: 1, hemp_sandals: 1,
-        bone_sandals: 1, copper_boots: 1, obsidian_sandals: 2, emerald_boots: 2, swift_boots: 2,
-        mystic_sutan: 1,
-        copper_short_sword: 1, drill_sword: 1, poacher_dirk: 1, kopis_curved: 2, legion_sword: 2, merchant_sword: 2, patrol_sword: 2, lumber_machete: 2, patrol_bow: 1, poacher_bow: 2, stone_mace: 2, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2, silvered_sword: 1, arming_sword: 2, silver_inlaid_bow: 2, storm_maul: 1, vine_staff: 1, gilt_war_hammer: 1, thunder_maul: 2, goldstring_bow: 2, windfletch_bow: 1, archivist_staff: 1, gate_hammer: 2, aurora_bow: 2, fate_cleaver: 2,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 27;
     // не выпали: herb_draught/forest_balm/field_tonic/honey_brew/dawn_tonic/forge_tonic/ember_tonic/stone_brew/gale_tonic/silver_tonic/amethyst_draught/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/indigo_brew/quartz_tonic/shadow_tonic/argent_draught/eclipse_draught — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    weak_healing: 1, crimson_sip: 1, resin_brew: 2, oak_tonic: 1,
-    sun_potion: 1, amber_elixir: 1, deep_balm: 1, alpine_brew: 1,
-    marsh_balm: 1, pearl_draught: 2, ruby_draught: 1, sapphire_balm: 1,
-    emerald_tonic: 1, obsidian_balm: 1, phoenix_tonic: 2, blue_sip: 2,
-    night_brew: 2, violet_brew: 1, azure_tonic: 1, glacier_draught: 2,
-    dusk_brew: 2, tide_draught: 2, phosphor_brew: 1, royal_elixir: 2,
-    arcane_tonic: 2, void_tonic: 1, ash_elixir: 2,} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+
+        amethyst_collar: 2, amethyst_dangle: 1, amethyst_draught: 2, antler_hook: 1, archer_brace: 2,
+        archer_gloves: 2, arming_sword: 2, aurora_bow: 1, battle_axe: 1, bone_grips: 2, bone_pendant: 1,
+        bone_sandals: 1, chainmail: 2, clay_dangle: 1, clay_pendant: 1, cloth_loincloth: 1,
+        cloth_robe: 1, cloth_sandals: 1, cloth_sutan: 1, cloth_tunic: 2, copper_band: 1,
+        copper_beads: 1, copper_chain: 2, copper_dangle: 2, copper_gauntlets: 1, copper_greaves: 1,
+        copper_pendant: 1, copper_scyte: 1, copper_short_sword: 2, damascus_blade: 1, dawn_ear_cuff: 2,
+        dawn_pendant: 1, dawn_tonic: 2, dawnedge_blade: 2, deep_balm: 2, deep_breath_robe: 2,
+        drill_sword: 2, driver_mitts: 1, dusk_brew: 1, dusk_greaves: 2, eclipse_draught: 2,
+        ember_pants: 2, ember_staff: 1, emerald_amulet: 1, emerald_helm: 2, emerald_tonic: 1,
+        faith_necklace: 2, faith_stud: 2, fate_cleaver: 2, felt_boots: 1, felt_trousers: 1,
+        field_tonic: 2, fine_kaftan: 1, flame_staff: 1, forest_balm: 2, forge_tonic: 2,
+        frost_sandals: 2, frostgrip_gauntlets: 2, fur_hat: 1, ghost_cuff: 1, gilded_broadsword: 1,
+        gilded_vambraces: 2, gilt_war_hammer: 1, gold_brace: 1, gold_chain: 2, gold_gloves: 1,
+        gold_helm: 2, gold_leggings: 1, gold_sandals: 2, goldstring_bow: 2, golem_gauntlets: 1,
+        grip_gloves: 2, harvest_scyte: 1, hemp_breeches: 2, hemp_robe: 1, hemp_sandals: 1,
+        herb_draught: 2, hide_cuff: 1, hide_hose: 1, hide_wrap: 2, honey_brew: 2, honey_cake: 2,
+        ice_staff: 2, indigo_brew: 2, iron_cuff: 1, iron_gauntlets: 2, iron_scyte: 1, iron_sword: 1,
+        iron_wraps: 2, knight_plate: 2, leather_boots: 1, leather_garter: 1, leather_gown: 2,
+        leather_pants: 1, leather_sandals: 1, linen_cloth: 1, linen_tunic: 2, linen_wraps: 2,
+        long_warbow: 1, lostroad_boots: 1, lumber_axe: 1, marsh_balm: 1, meat: 1, meditating_robe: 2,
+        mithril_greaves: 2, mithril_helm: 1, moonstone_dangle: 2, mystic_breeches: 1, mystic_cloth: 2,
+        mystic_earring: 2, mystic_wraps: 1, night_brew: 1, obsidian_balm: 2, obsidian_cloth: 2,
+        obsidian_greaves: 1, obsidian_sandals: 2, obsidian_stud: 1, patched_helm: 1,
+        pathfinder_boots: 1, patrol_bow: 1, phantom_gloves: 2, poacher_bow: 2, quartz_cloth: 2,
+        quilted_jack: 1, rebel_brand: 1, resin_brew: 1, rime_staff: 1, riveted_helm: 2, rough_bracer: 2,
+        rough_gauntlets: 2, rough_kaftan: 2, royal_elixir: 2, ruby_pendant: 1, rune_boots: 2,
+        rune_gauntlets: 2, rune_hoop: 2, rune_necklace: 1, rune_staff: 2, runic_cuff: 1, sapling_bow: 2,
+        sapphire_bracer: 2, sapphire_pendant: 1, shadow_tonic: 1, shell_hoop: 1, shell_wire_earring: 2,
+        short_bow: 2, siege_axe: 1, silver_bound_staff: 1, silver_chain: 2, silver_chaps: 2,
+        silver_drop_earring: 2, silver_hoop: 1, silver_inlaid_bow: 2, silver_pendant_chain: 1,
+        silvered_mace: 2, soul_bell: 1, star_armguard: 1, star_earring: 2, steel_bracers: 2,
+        steel_gauntlets: 2, steel_scyte: 1, steel_shishak: 2, stone_brew: 2, stone_greaves: 1,
+        stone_robe: 2, stone_sandals: 1, storm_maul: 1, straw_hat: 1, straw_sandals: 1,
+        studded_bracer: 2, tar_boots: 1, thunder_maul: 1, tide_draught: 2, titan_brace: 1,
+        titan_greaves: 1, trade_bow: 1, traveler_boots: 1, traveler_cloak: 2, twilight_necklace: 1,
+        twine_hoop: 1, vial_charm: 1, vigil_greaves: 1, vigil_helm: 1, vigil_vambrace: 1,
+        void_gauntlet: 2, void_tonic: 1, wanderer_cap: 1, war_hammer: 1, warder_cuirass: 1,
+        warder_sword: 2, wind_gloves: 2, windfletch_bow: 2, wood_guards: 1, wood_sword: 1,
+        wooden_sandals: 2, wool_boots: 2, wool_bracers: 2, wool_cap: 1, wool_shirt: 2, wool_sutan: 2,
+        woven_sandals: 1, yew_longbow: 2,
+      } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 21 torso (не выпали: cloth_tunic/hemp_robe/cloth_sutan/embroidered_kaftan), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1433,76 +1495,80 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // (node-симуляция: seed/старые стоки byte-identical).
     { x: 10, y: 20, day: 1, w: 3,
       stock: {
-        patched_helm: 4, felt_coif: 2, tin_morion: 1, riveted_helm: 1, steel_shishak: 2, rune_circlet: 5, vigil_helm: 2, spiral_earring: 3, shell_wire_earring: 1, silver_drop_earring: 3, moonstone_stud: 4, mystic_earring: 2, dawn_ear_cuff: 1, fang_lanyard: 4, vial_charm: 1, copper_beads: 2, amethyst_collar: 3, warder_pendant: 1, warder_cuirass: 2, vigil_plate: 2, wool_bracers: 5, silver_bracers: 4, thorn_bracers: 2, engraved_bracers: 4, gilded_vambraces: 2, vigil_vambrace: 3, grip_gloves: 2, frostgrip_gauntlets: 4, golem_gauntlets: 3, coarse_trousers: 1, hide_hose: 1, wool_breeches: 3, vigil_greaves: 5, scale_hose: 2, sigil_greaves: 2, tar_boots: 1, traveler_boots: 1, nailed_boots: 1, thorn_boots: 1, pathfinder_boots: 3, iron_sword: 4, hunting_bow: 2, battle_axe: 2,
+        // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
         // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-        war_hammer: 2, leather_armor: 4, chainmail: 2,
-        knight_plate: 2, minor_healing: 3, mana_potion: 1, bread: 3,
-        meat: 5, straw_hat: 3, wool_cap: 5, leather_cap: 3,
-        fur_hat: 5, cloth_band: 4, wanderer_cap: 1, hood_common: 3,
-        linen_cloth: 4, travel_cloth: 4, silver_band: 1,
-        copper_band: 2, obsidian_cloth: 4, quartz_cloth: 2,
-        bone_band: 3, mystic_cloth: 2, silver_helm: 2, gold_helm: 5,
-        mithril_helm: 2, emerald_helm: 2, rune_hoop: 4,
-        crown_flame: 5, copper_hoop: 5, bone_stud: 2, leather_loop: 2,
-        clay_dangle: 4, wood_bead: 3, copper_dangle: 1, shell_hoop: 5,
-        faith_stud: 4, twine_hoop: 1, antler_hook: 5, stone_bead: 2,
-        silver_hoop: 3, moonstone_dangle: 4, quartz_bead: 4,
-        silver_stud: 5, obsidian_stud: 3, amethyst_dangle: 3,
-        sapphire_hoop: 2, emerald_stud: 3, ruby_bell: 2,
-        gold_dangle: 2, star_earring: 2, whisper_hoop: 5,
-        soul_bell: 2, copper_chain: 3, bone_beads: 4, twine_amulet: 4,
-        wood_pendant: 1, copper_pendant: 3, shell_beads: 5,
-        faith_necklace: 3, leather_choker: 1, stone_beads: 2,
-        bone_pendant: 4, silver_chain: 1, quartz_amulet: 1,
-        moonstone_chain: 3, faith_amulet: 2, obsidian_pendant: 3,
-        sapphire_pendant: 4, emerald_amulet: 5, ruby_pendant: 1,
-        gold_chain: 1, rune_necklace: 2, star_pendant: 4,
-        dawn_pendant: 1, linen_shirt: 1, wool_shirt: 1, linen_gown: 1,
-        rough_kaftan: 3, wool_gown: 1, linen_tunic: 2, wool_kaftan: 2,
-        wool_sutan: 3, leather_kaftan: 1, cloth_robe: 4,
-        leather_gown: 2, monk_sutan: 2, fine_kaftan: 2, ember_robe: 4, stone_robe: 5,
-        shadow_robe: 3, deep_breath_robe: 2, meditating_robe: 2, pilgrim_sutan: 5, void_robe: 5,
-        aegis_mantle: 2, cloth_cuff: 3, leather_cuff: 3, hemp_bracer: 3, rough_bracer: 4,
-        leather_garter: 4, cloth_wrap: 5, iron_cuff: 3, bone_bracer: 3, wood_brace: 1,
-        studded_bracer: 4, archer_brace: 1, silver_cuff: 2, shadow_wrap: 4, iron_elbow: 5,
-        runic_cuff: 5, steel_bracers: 1, sapphire_bracer: 4, ghost_cuff: 1, rune_bracers: 5,
-        star_armguard: 4, titan_brace: 2, cloth_gloves: 1, leather_gloves: 4, hide_gloves: 1,
-        rough_gauntlets: 4, archer_gloves: 3, linen_wraps: 1, iron_gauntlets: 2, bone_grips: 1,
-        wood_guards: 3, fine_gloves: 3, copper_gauntlets: 1, quiver_gloves: 3, silver_gauntlets: 2,
-        night_gloves: 3, iron_wraps: 4, steel_gauntlets: 4, gold_gloves: 4, emerald_gauntlets: 1,
-        haste_wraps: 5, rune_gauntlets: 3, star_gloves: 5, void_gauntlet: 1, wood_scyte: 4,
-        iron_scyte: 4, wood_pitchfork: 3, iron_pitchfork: 2, steel_scyte: 2, steel_pitchfork: 5,
-        ember_staff: 5, rime_staff: 4, rune_staff: 3, flame_staff: 4, ice_staff: 2,
-        sage_staff: 3, philosopher_staff: 2, linen_trousers: 2, wool_trousers: 4, hemp_breeches: 4,
-        felt_trousers: 4, traveler_breeches: 3, hide_wrap: 5, rough_chaps: 5, cloth_loincloth: 4,
-        copper_greaves: 1, silver_chaps: 4, stone_greaves: 2, obsidian_greaves: 2, amethyst_pants: 2,
-        mystic_breeches: 3, sapphire_leggings: 3, ember_pants: 1, emerald_greaves: 2, gold_leggings: 2,
-        mithril_greaves: 4, storm_leggings: 1, titan_greaves: 5, cloth_sandals: 1, felt_boots: 3,
-        leather_boots: 2, travel_boots: 4, hide_boots: 2, wooden_sandals: 2, hemp_sandals: 3,
-        bone_sandals: 1, copper_boots: 3, silver_boots: 5, stone_sandals: 3, obsidian_sandals: 5,
-        amethyst_boots: 3, mystic_sandals: 5, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
-        mithril_boots: 1, storm_sandals: 5, rune_boots: 2, swift_boots: 5,
-        traveler_cloak: 4, mystic_sutan: 4, traveler_bracer: 2,
-        mystic_wraps: 5,
-        copper_short_sword: 1, drill_sword: 2, poacher_dirk: 3, kopis_curved: 5, battered_falx: 4, patrol_sword: 2, lumber_machete: 1, sapling_bow: 2, trade_bow: 4, patrol_bow: 4, copper_maul: 4, stone_mace: 3, flanged_mace: 2, lumber_axe: 1, miner_pickaxe: 4, silvered_sword: 2, legion_gladius: 3, arming_sword: 5, rebel_brand: 5, warder_sword: 2, long_warbow: 3, scout_bow: 3, silvered_mace: 1, storm_maul: 2, silver_bound_staff: 3, warden_quarterstaff: 4, gilded_broadsword: 1, damascus_blade: 3, thunder_maul: 2, goldstring_bow: 4, windfletch_bow: 1, tempest_staff: 2, pyre_staff: 2, hoarfrost_staff: 3, dawnedge_blade: 1, starvault_staff: 5, fate_cleaver: 2, genesis_staff: 3,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 44;
     // не выпали: forest_balm/alpine_brew/ruby_draught/sapphire_balm/diamond_draught/star_tonic — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    weak_healing: 1, herb_draught: 4, crimson_sip: 1, field_tonic: 2,
-    honey_brew: 3, resin_brew: 4, oak_tonic: 4, dawn_tonic: 3, sun_potion: 5,
-    forge_tonic: 1, amber_elixir: 2, deep_balm: 1, ember_tonic: 1,
-    marsh_balm: 5, stone_brew: 5, gale_tonic: 2, pearl_draught: 5,
-    silver_tonic: 5, emerald_tonic: 4, amethyst_draught: 4, obsidian_balm: 4,
-    moonlight_draught: 2, phoenix_tonic: 4, mint_draught: 3, blue_sip: 4,
-    night_brew: 1, frost_draught: 3, glass_tonic: 3, violet_brew: 2,
-    rain_draught: 1, indigo_brew: 2, azure_tonic: 3, glacier_draught: 3,
-    dusk_brew: 3, tide_draught: 1, quartz_tonic: 5, phosphor_brew: 1,
-    shadow_tonic: 5, argent_draught: 4, royal_elixir: 5, arcane_tonic: 4,
-    eclipse_draught: 2, void_tonic: 1, ash_elixir: 2,}
+
+        alpine_brew: 4, amethyst_boots: 2, amethyst_choker: 2, amethyst_collar: 2, amethyst_dangle: 4,
+        amethyst_draught: 2, amethyst_pants: 2, antler_hook: 3, archer_gloves: 1, argent_draught: 3,
+        arming_sword: 5, aurora_bow: 3, azure_tonic: 5, battered_falx: 3, battle_axe: 5, blue_sip: 4,
+        boar_tusk_earring: 1, bone_band: 3, bone_beads: 4, bone_greaves: 4, bone_grips: 1,
+        bone_pendant: 2, bone_sandals: 4, bread: 2, campaign_maul: 3, chainmail: 2, clay_dangle: 2,
+        clay_pendant: 5, cloth_cuff: 2, cloth_gloves: 2, cloth_loincloth: 4, cloth_sandals: 5,
+        cloth_sutan: 5, cloth_tunic: 2, cloth_wrap: 2, coarse_trousers: 4, copper_band: 3,
+        copper_beads: 1, copper_boots: 5, copper_brace: 4, copper_chain: 1, copper_dangle: 5,
+        copper_gauntlets: 2, copper_greaves: 3, copper_hoop: 4, copper_maul: 4, copper_pendant: 5,
+        copper_scyte: 3, copper_short_sword: 3, crimson_sip: 2, crown_flame: 3, damascus_blade: 2,
+        dawn_ear_cuff: 2, dawn_tonic: 2, dawnedge_blade: 5, deep_balm: 2, deep_breath_robe: 3,
+        diamond_draught: 4, drill_sword: 4, dusk_brew: 1, dusk_greaves: 3, eclipse_draught: 5,
+        ember_pants: 3, ember_robe: 1, ember_staff: 2, ember_tonic: 4, embroidered_kaftan: 1,
+        emerald_amulet: 1, emerald_boots: 3, emerald_gauntlets: 2, emerald_greaves: 3, emerald_stud: 4,
+        emerald_tonic: 5, engraved_bracers: 1, faith_amulet: 1, faith_stud: 2, fang_lanyard: 4,
+        fate_cleaver: 1, felt_boots: 1, felt_coif: 1, felt_trousers: 1, fine_gloves: 3, fine_kaftan: 1,
+        flanged_mace: 2, forest_balm: 2, forge_tonic: 3, frost_draught: 1, frostgrip_gauntlets: 4,
+        fur_hat: 2, gale_tonic: 2, gate_hammer: 2, genesis_staff: 4, ghost_cuff: 5,
+        gilded_broadsword: 3, gilded_vambraces: 2, gilt_war_hammer: 2, glacier_draught: 5,
+        glass_tonic: 5, gold_brace: 2, gold_chain: 3, gold_dangle: 3, gold_gloves: 3, gold_helm: 4,
+        gold_leggings: 4, gold_sandals: 5, goldstring_bow: 3, golem_gauntlets: 3, greater_healing: 1,
+        harvest_scyte: 4, healing_potion: 1, hemp_bracer: 2, hemp_breeches: 4, hemp_robe: 5,
+        hemp_sandals: 5, herb_draught: 1, hide_bracers: 4, hide_cuff: 1, hide_hose: 5, hide_wrap: 4,
+        hoarfrost_staff: 2, honey_brew: 1, honey_cake: 4, hood_common: 1, hunting_bow: 4, ice_staff: 3,
+        indigo_brew: 1, iron_cuff: 2, iron_elbow: 1, iron_gauntlets: 3, iron_pitchfork: 3,
+        iron_sword: 1, iron_wraps: 3, knight_plate: 2, kopis_curved: 3, leather_armor: 4,
+        leather_cap: 4, leather_choker: 4, leather_cuff: 1, leather_gloves: 5, leather_gown: 3,
+        leather_kaftan: 5, leather_loop: 1, leather_pants: 4, leather_sandals: 4, legion_gladius: 3,
+        legion_sword: 2, linen_gown: 2, linen_shirt: 5, linen_trousers: 5, linen_tunic: 4,
+        linen_wraps: 3, lostroad_boots: 4, lumber_axe: 2, lumber_machete: 3, mana_elixir: 2,
+        mana_potion: 2, marsh_balm: 4, meat: 4, meditating_robe: 4, miner_pickaxe: 3, minor_healing: 5,
+        mithril_boots: 5, mithril_choker: 4, mithril_helm: 1, mithril_hoop: 4, monk_sutan: 2,
+        moonlight_draught: 2, moonstone_chain: 2, moonstone_dangle: 3, moonstone_stud: 3,
+        mystic_breeches: 1, mystic_cloth: 2, mystic_earring: 2, mystic_sandals: 4, mystic_wraps: 1,
+        nailed_boots: 5, night_gloves: 1, obsidian_cloth: 3, obsidian_greaves: 2, obsidian_pendant: 4,
+        obsidian_sandals: 2, obsidian_stud: 2, patched_helm: 3, pathfinder_boots: 1, patrol_bow: 3,
+        patrol_sword: 5, pearl_draught: 3, phantom_gloves: 5, philosopher_staff: 3, phoenix_tonic: 5,
+        phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 2, pyre_staff: 1, quartz_amulet: 5,
+        quartz_bead: 2, quartz_cloth: 5, quartz_tonic: 4, quilted_jack: 4, quiver_gloves: 2,
+        rain_draught: 5, rebel_brand: 1, resin_brew: 2, rime_staff: 3, riveted_helm: 5, rough_chaps: 4,
+        rough_kaftan: 2, royal_elixir: 1, ruby_bell: 2, ruby_draught: 4, ruby_pendant: 4,
+        rune_circlet: 4, rune_gauntlets: 3, rune_greaves: 2, rune_hoop: 1, rune_necklace: 4,
+        runic_cuff: 2, sage_staff: 3, sapling_bow: 5, sapphire_balm: 5, sapphire_boots: 2,
+        sapphire_helm: 3, sapphire_hoop: 3, sapphire_leggings: 1, sapphire_pendant: 2, scout_bow: 3,
+        shadow_robe: 4, shadow_wrap: 1, shell_beads: 3, shell_wire_earring: 2, short_bow: 4,
+        siege_axe: 1, sigil_greaves: 2, silver_band: 2, silver_boots: 3, silver_bracers: 1,
+        silver_cuff: 5, silver_drop_earring: 2, silver_gauntlets: 3, silver_helm: 4, silver_hoop: 2,
+        silver_inlaid_bow: 1, silver_pendant_chain: 1, silver_stud: 2, silver_tonic: 5,
+        silvered_mace: 2, soul_bell: 3, spiral_earring: 1, star_armguard: 3, star_earring: 4,
+        star_gloves: 2, star_hoop: 1, star_pendant: 4, star_tonic: 1, starvault_staff: 2,
+        steel_gauntlets: 3, steel_pitchfork: 1, steel_sword: 2, stone_bead: 2, stone_brew: 5,
+        stone_greaves: 4, stone_mace: 2, stone_robe: 4, stone_sandals: 2, storm_leggings: 3,
+        straw_hat: 2, straw_sandals: 4, studded_bracer: 3, studded_gloves: 1, studded_mitts: 1,
+        sun_potion: 3, swift_boots: 5, swift_brace: 2, tar_boots: 2, thorn_bracers: 1, thunder_maul: 1,
+        tide_draught: 1, tin_morion: 1, titan_brace: 3, trade_bow: 1, travel_boots: 4,
+        traveler_boots: 1, traveler_bracer: 2, traveler_breeches: 3, traveler_cloak: 4,
+        twilight_necklace: 4, twine_amulet: 3, twine_hoop: 5, twine_wraps: 1, vial_charm: 2,
+        vigil_greaves: 1, vigil_plate: 1, vigil_vambrace: 5, vine_staff: 5, violet_brew: 2,
+        void_gauntlet: 5, void_robe: 5, war_hammer: 4, warden_quarterstaff: 4, warder_cuirass: 4,
+        warder_pendant: 2, warder_sword: 4, whisper_hoop: 3, wind_gloves: 4, windfletch_bow: 1,
+        wood_bead: 3, wood_brace: 3, wood_guards: 2, wood_pitchfork: 1, wood_scyte: 2, wood_sword: 3,
+        wooden_sandals: 3, wool_boots: 3, wool_bracers: 1, wool_breeches: 5, wool_cap: 1, wool_gown: 5,
+        wool_kaftan: 4, wool_shirt: 5, wool_sutan: 4, wool_trousers: 2, woven_sandals: 1,
+        yew_longbow: 2,
+      }
       },
   ];
   for (const g of GOLDEN_CAMP) {
@@ -1700,18 +1766,20 @@ test('vm-песочница: items.js без каталога — фолбэк-�
   assert.ok(s, 'таверна в песочнице — магазин');
   assert.equal(s.seed, 766909004, 'seed — как в node');
   assert.deepEqual(fromVm(s.stock),
-    { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2,
+    {
+      // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула таверны [food, potion] → += 30;
     // не выпали: weak_healing/crimson_sip/field_tonic/honey_brew/sun_potion/alpine_brew/stone_brew/silver_tonic/sapphire_balm/moonlight_draught/night_brew/glass_tonic/rain_draught/azure_tonic/dusk_brew/tide_draught/phosphor_brew/shadow_tonic/argent_draught/ash_elixir — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
-    herb_draught: 1, forest_balm: 1, resin_brew: 1, oak_tonic: 2,
-    dawn_tonic: 2, forge_tonic: 1, amber_elixir: 2, deep_balm: 2,
-    ember_tonic: 1, marsh_balm: 2, gale_tonic: 1, pearl_draught: 2,
-    ruby_draught: 1, emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 2,
-    phoenix_tonic: 1, diamond_draught: 1, mint_draught: 1, blue_sip: 2,
-    frost_draught: 1, violet_brew: 1, star_tonic: 2, indigo_brew: 2,
-    glacier_draught: 2, quartz_tonic: 1, royal_elixir: 1, arcane_tonic: 2,
-    eclipse_draught: 2, void_tonic: 1,});
+
+      amber_elixir: 2, amethyst_draught: 2, arcane_tonic: 2, argent_draught: 1, ash_elixir: 1,
+      azure_tonic: 2, crimson_sip: 1, dawn_tonic: 1, eclipse_draught: 1, ember_tonic: 2,
+      emerald_tonic: 2, forest_balm: 1, forge_tonic: 2, frost_draught: 2, glacier_draught: 1,
+      glass_tonic: 2, healing_potion: 1, herb_draught: 2, honey_cake: 1, mana_elixir: 1,
+      mana_potion: 2, marsh_balm: 2, minor_healing: 1, mint_draught: 1, moonlight_draught: 1,
+      night_brew: 2, obsidian_balm: 1, phoenix_tonic: 1, phosphor_brew: 2, rain_draught: 2,
+      royal_elixir: 2, shadow_tonic: 1, sun_potion: 1, tide_draught: 2, violet_brew: 2, void_tonic: 1,
+    });
 });
 
 test('vm-песочница: каталог подхватывается лениво и является источником истины (000060)', () => {
@@ -1779,7 +1847,7 @@ test('vm-песочница: реальный каталог подхвачен 
 //
 // КРАСНЫЕ тесты (TDD): написаны ДО реализации, падают на текущем
 // (неизменённом) коде:
-//   * assets/items/000043..000050.json отсутствуют (S1/S4-S8: нет
+//   * файлы каталога №№ 000043..000050 отсутствуют (S1/S4-S8: нет
 //     каталожных записей — addItem/useItem «неизвестный предмет»);
 //   * kind 'spell_scroll' / effect.kind 'spell' не в schema.json (S2);
 //   * пулы подземелий без свитков (S3);
@@ -1806,10 +1874,9 @@ const SCROLLS_000133 = [
 
 test('S1. 000133: каталог — 161 свитков (8 фиксированных 000133 + 6 волн × 25: Огонь/Лёд/Тень/Исцеление/Защита/Природа — финальный ре-пин 000243: каталог запечатан; ре-пин 000333: +2 свитка навигации; ре-пин 000348: +1 свиток Декаданс), фиксированный состав (id/kind/effect/spell), все 6 школ, per-school 1..K (финальная граница 000243: огонь 27 / лёд 27 / тень 26 / исцеление 26 / защита 26 / природа 26; ре-пин 000333: природа 28; ре-пин 000348: тень 27)', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   for (const e of SCROLLS_000133) {
@@ -1964,7 +2031,7 @@ test('S8. 000133: useItem свиток — без Game.Spells: без исклю
 //
 // КРАСНЫЕ тесты (TDD): написаны ДО реализации, падают на текущем
 // (неизменённом) коде:
-//   * assets/items/000051.json отсутствует (I1: файл, schema.json,
+//   * файл каталога № 000051 отсутствует (I1: файл, schema.json,
 //     зеркало items-data.js, нестаккуемость — «неизвестный предмет»);
 //   * enum'ы schema.json без 'resurrection_scroll' / 'resurrect'
 //     (I3 — tests/assets-schemas.test.js, прецедент 000133);
@@ -1981,8 +2048,7 @@ const { validate: validateSchema165 } = require('./json-schema.js');
 test('000165 I1: каталог 000051.json — 51-й файл, поля по ТЗ, schema.json, зеркало items-data.js, нестаккуемый', () => {
   // (a) Нумерация: 000051.json — 51-й файл, следующий свободный слот
   //     (краснота: файла нет).
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const files = ITEMSFILES_I08();
   // Ре-пин 000157.01 (Р0): каталог растёт 51 → 62 (добавляются
   // 000052-000062 — руды/минералы/самоцветы); 000051.json остаётся
   // 51-м файлом (append-only, слоты не сдвигаются).
@@ -2040,7 +2106,7 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
-    fs.readFileSync(path.join(ITEMS_DIR, '000051.json'), 'utf8'));
+    fs.readFileSync(path.join(ITEMS_DIR, DISK_I08('000051.json')), 'utf8'));
   // (b) Поля по ТЗ (контракт §3.1): id/name/kind/weight/value/desc/
   //     effect. kind 'resurrection_scroll' — НОВЫЙ (не spell_scroll:
   //     тот = свиток-обучалка 000133); effect — ТОЛЬКО
@@ -2146,7 +2212,7 @@ test('000165 I2: useItem в мире — отказ «Свиток воскре�
 // --- Задача 000157.01: каталог — 11 reagent (руды, минералы, самоцветы) ---
 //
 // КРАСНЫЕ (R1/R3/R5; Р0 — ре-пин «000165 I1» выше, 51 → 62):
-// файлов assets/items/000052.json … 000062.json НЕТ (ENOENT), в зеркале
+// файлов каталога №№ 000052 … 000062 НЕТ (ENOENT), в зеркале
 // src/items-data.js записей нет, в схемах поля tier нет (R2 —
 // tests/assets-schemas.test.js). Контракт —
 // memory/000157.01-ores-minerals-gems.md (§2 таблица, §3.1 тесты,
@@ -2174,7 +2240,7 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   const ids = new Set();
   for (const o of ORES_015701) {
-    const p = path.join(ITEMS_DIR, o.file);
+    const p = path.join(ITEMS_DIR, DISK_I08(o.file));
     assert.ok(fs.existsSync(p),
       o.file + ' существует (краснота: ENOENT — файла нет, каталог не расширен)');
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -2205,8 +2271,7 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
     assert.deepEqual(it, j, o.id + ': зеркало ≡ JSON (mirror-пин)');
   }
   assert.equal(ids.size, 11, 'id 11 предметов уникальны');
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const files = ITEMSFILES_I08();
   // Ре-пин 000158.02: каталог растёт 62 → 76 (добавляются
   // 000063-000076 — природные ингредиенты); 000062.json остаётся
   // 62-м файлом (append-only, слоты не сдвигаются).
@@ -2289,7 +2354,7 @@ test('000157.01 R5: шкала редкости — каждый тир 1..4 п�
 //
 // КРАСНЫЕ (L1/L2/L3/L5/L6/L7a/L7b/L7c) — падают на текущем
 // (неизменённом) коде:
-//   * файлов assets/items/000063.json … 000076.json НЕТ (L1/L2 —
+//   * файлов каталога №№ 000063 … 000076 НЕТ (L1/L2 —
 //     ENOENT/записи нет; L3 — у 14 СУЩЕСТВУЮЩИХ руд/самоцветов поля
 //     `loot` нет);
 //   * в assets/items/schema.json свойства `loot` НЕТ (L5/L6 —
@@ -2377,10 +2442,9 @@ test('000158.02 L1: каталог — 14 природных reagent 000063-0000
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   for (const e of LOOT_00015802) {
     const j = byFile.get(e.file);
@@ -2765,13 +2829,11 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
 test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / 864 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; ре-пин 000321.07: +50 зелий с icon в items/ — в исключении, каталог 864; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
-    .sort();
+  const files = ITEMSFILES_I08();
   const byId = new Map();
   for (const f of files) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     byId.set(j.id, j);
   }
   const lootIds = [...byId.values()]
@@ -3851,7 +3913,7 @@ test('000230.01 E20: sync-items-data.js — новые поля slot/rarity/set/
     fs.copyFileSync(
       path.join(__dirname, '..', 'scripts', 'lib', 'json-ref.js'),
       path.join(dir, 'scripts', 'lib', 'json-ref.js'));
-    fs.writeFileSync(path.join(dir, 'assets', 'items', '000001.json'),
+    fs.writeFileSync(path.join(dir, 'assets', 'items', 'x_ring.json'),
       JSON.stringify({
         id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
         weight: 0.1, value: 30, desc: 'т',
@@ -4456,7 +4518,7 @@ test('000235.05 I1: 8 свитков — tier = уровень соответс�
   for (const e of SCROLLS_000133) {
     const t = TIER_TABLE[e.file];
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, e.file), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(e.file)), 'utf8'));
     // (a) JSON: tier проставлен = уровень заклинания (таблица ТЗ).
     assert.equal(j.tier, t.tier, e.file + ': tier = ' + t.tier
       + ' (краснота: tier нет — ' + JSON.stringify(j.tier) + ')');
@@ -5045,7 +5107,7 @@ test('000230.04-SB12 (node, sync, E20-паттерн tmp-репо): ring с set 
     fs.copyFileSync(
       path.join(__dirname, '..', 'scripts', 'lib', 'json-ref.js'),
       path.join(dir, 'scripts', 'lib', 'json-ref.js'));
-    fs.writeFileSync(path.join(dir, 'assets', 'items', '000001.json'),
+    fs.writeFileSync(path.join(dir, 'assets', 'items', 'x_ring.json'),
       JSON.stringify({
         id: 'x_ring', name: 'Тестовое кольцо', kind: 'ring',
         weight: 0.1, value: 30, desc: 'т',
@@ -5597,17 +5659,16 @@ const HEAD_IDS_00023008 = HEAD_ROSTER_00023008.map((r) => r[0]);
 // Live-скан JSON-каталога (паттерн 000211.06 I1): файлы/по id/по
 // файлу/файл-по-id — без чтения зеркала (зеркало проверяет H7).
 function catalogScan00023008() {
-  const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+  const files = ITEMSFILES_I08();
   const byId = new Map();
   const byFile = new Map();
   const fileById = new Map();
   for (const f of files) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     byId.set(j.id, j);
-    byFile.set(f, j);
-    fileById.set(j.id, f);
+    byFile.set(NUMNAMEI08(f), j);
+    fileById.set(j.id, NUMNAMEI08(f));
   }
   return { files, byId, byFile, fileById };
 }
@@ -5830,7 +5891,7 @@ test('000230.08 H6: порядок ключей JSON — подмножеств�
       + 'не добавлена)');
     const f = fileById.get(id);
     const keys = Object.keys(JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
     assert.ok(keys.length > 0, f + ': файл не пуст');
     let prev = -1;
     for (const k of keys) {
@@ -5854,7 +5915,7 @@ test('000230.08 H7: все 25 — валидны по schema.json (минива�
     const f = fileById.get(id);
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
-    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const errors = validateData(schema, j, f);
     assert.deepEqual(errors, [],
       f + ': валиден по schema.json; факт: ' + errors.join('; '));
@@ -6117,10 +6178,9 @@ const SCROLL_VALUE_07 = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
 test('000235.07 W-06: 25 свитков — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>}, tier = уровень спелла, weight 0.2, name «Свиток: …», value по тьеру, зеркало ≡ JSON', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   FIRE07_SCROLLS.forEach(([spellId, level], i) => {
@@ -6524,7 +6584,7 @@ test('000230.09 EN6: порядок ключей JSON 50 файлов — под
       + 'не добавлена)');
     const f = fileById.get(id);
     const keys = Object.keys(JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
     assert.ok(keys.length > 0, f + ': файл не пуст');
     let prev = -1;
     for (const k of keys) {
@@ -6548,7 +6608,7 @@ test('000230.09 EN7: все 50 — валидны по schema.json (минива
     const f = fileById.get(id);
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
-    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const errors = validateData(schema, j, f);
     assert.deepEqual(errors, [],
       f + ': валиден по schema.json; факт: ' + errors.join('; '));
@@ -6725,10 +6785,9 @@ const SCROLL_VALUE_08 = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
 test('000235.08 W-06: 25 свитков 000133–00157 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/loot НЕТ, icon = assets/sprites/items/<id>.svg (ре-пин 000302.02: пин «icon НЕТ» устарел), зеркало ≡ JSON', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   const tierCount = {};
@@ -6775,7 +6834,7 @@ test('000235.08 W-06: 25 свитков 000133–00157 — id <spell>_scroll, ki
 // affix-матрица §2.2, наборы §2.3, иконки §2.6; решения D-01–D-17 §0).
 // RED (TDD): в каталоге 0 предметов slot 'torso' (у 3 legacy-броней
 // поля slot НЕТ — фолбэк slotOf 000230.02), файлов
-// assets/items/000208–000232.json нет, зеркало не регенерировано —
+// файлов каталога №№ 000208–000232 нет, зеркало не регенерировано —
 // тесты ниже падают по ОСМЫСЛЕННОЙ причине («волна не добавлена» /
 // «нет поля slot»), а не по синтаксису. Тесты читают РЕАЛЬНЫЙ
 // каталог (JSON + зеркало), не фикстуры (паттерн .08/.09 H/EN).
@@ -6870,7 +6929,7 @@ test('000230.10 T1: remap — 3 legacy-брони получают ЯВНОЕ "s
   for (const [id, file, name, armor, weight, value, base, desc]
       of TORSO_REMAP_00023010) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(file)), 'utf8'));
     assert.equal(j.id, id, file + ': id');
     assert.equal(j.slot, 'torso',
       file + ': ЯВНОЕ "slot":"torso" (краснота: у legacy-брони '
@@ -7202,7 +7261,7 @@ test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap
       + 'не добавлена)');
     const f = fileById.get(id);
     const keys = Object.keys(JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
     assert.ok(keys.length > 0, f + ': файл не пуст');
     let prev = -1;
     for (const k of keys) {
@@ -7217,7 +7276,7 @@ test('000230.10 T7: порядок ключей JSON — 25 новых + 3 remap
   }
   for (const [id, file] of TORSO_REMAP_00023010) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(file)), 'utf8'));
     const keys = Object.keys(j);
     assert.deepEqual(keys,
       ['id', 'name', 'kind', 'weight', 'value', 'base_price',
@@ -7243,7 +7302,7 @@ test('000230.10 T8: все 25 новых — валидны по schema.json (м
     const f = fileById.get(id);
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
-    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const errors = validateData(schema, j, f);
     assert.deepEqual(errors, [],
       f + ': валиден по schema.json; факт: ' + errors.join('; '));
@@ -7254,7 +7313,7 @@ test('000230.10 T8: все 25 новых — валидны по schema.json (м
   }
   for (const [id, file] of TORSO_REMAP_00023010) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(file)), 'utf8'));
     const it = I.getItem(id);
     assert.ok(it, 'зеркало items-data.js: ' + id);
     assert.deepEqual(it, j, file + ': зеркало ≡ JSON (remap '
@@ -7301,10 +7360,9 @@ const SCROLL_VALUE_09 = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
 test('000235.09 W-06: 25 свитков 000233–000257 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/loot НЕТ, icon = assets/sprites/items/<id>.svg (ре-пин 000302.03: пин «icon НЕТ» устарел), зеркало ≡ JSON', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   const tierCount = {};
@@ -7378,10 +7436,9 @@ const SCROLL_VALUE_11 = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
 test('000235.11 W-06: 25 свитков 000460–000484 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции (stony_hide → «Свиток: Каменный панцирь»), value 45/60/115/240, rarity/loot НЕТ, icon = assets/sprites/items/<id>.svg (ре-пин 000302.05: пин «icon НЕТ» устарел), зеркало ≡ JSON', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   const tierCount = {};
@@ -7426,7 +7483,7 @@ test('000235.11 W-06: 25 свитков 000460–000484 — id <spell>_scroll, k
 // Контракт — memory/000230.11-forearms-palms-items-wave.md §2 (ростер
 // §2.1, affix-матрица §2.2, наборы §2.3, иконки §2.6; решения D-01–
 // D-20 §0). RED (TDD): в каталоге 0 предметов slot 'forearms'/'palms',
-// файлов assets/items/000283–000332.json нет, зеркало не
+// файлов каталога №№ 000283–000332 нет, зеркало не
 // регенерировано — тесты ниже падают по ОСМЫСЛЕННОЙ причине («волна не
 // добавлена» / «нет файлов/иконок/записей»), а не по синтаксису.
 // Тесты читают РЕАЛЬНЫЙ каталог (JSON + зеркало), не фикстуры
@@ -7854,7 +7911,7 @@ test('000230.11 T6: порядок ключей JSON — 50 новых: подм
       + 'не добавлена)');
     const f = fileById.get(id);
     const keys = Object.keys(JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
     assert.ok(keys.length > 0, f + ': файл не пуст');
     let prev = -1;
     for (const k of keys) {
@@ -7880,7 +7937,7 @@ test('000230.11 T7: все 50 новых — валидны по schema.json (м
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const errors = validateData(schema, j, f);
     assert.deepEqual(errors, [],
       f + ': валиден по schema.json; факт: ' + errors.join('; '));
@@ -7905,7 +7962,7 @@ test('000230.11 T7: все 50 новых — валидны по schema.json (м
 // §2.2, наборы §2.3, иконки §2.6; решения D-01–D-17 §0). RED (TDD): в
 // каталоге 0 предметов slot 'right_hand' / subtype 'staff' / kind
 // 'tool' (у 7 legacy-оружий поля slot НЕТ — фолбэк slotOf 000230.02),
-// файлов assets/items/000333–000357.json нет, зеркало не
+// файлов каталога №№ 000333–000357 нет, зеркало не
 // регенерировано — тесты ниже падают по ОСМЫСЛЕННОЙ причине («волна
 // не добавлена» / «нет поля slot»), а не по синтаксису. Тесты читают
 // РЕАЛЬНЫЙ каталог (JSON + зеркало), не фикстуры (паттерн .08/.10).
@@ -8165,7 +8222,7 @@ test('000230.12 R7: remap — 7 legacy-оружий получают ЯВНОЕ 
       damage, desc]
       of RIGHT_HAND_REMAP_00023012) {
     const j = JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, file), 'utf8'));
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(file)), 'utf8'));
     assert.equal(j.id, id, file + ': id');
     assert.equal(j.slot, 'right_hand',
       file + ': ЯВНОЕ "slot":"right_hand" (краснота: у legacy-оружия '
@@ -8273,7 +8330,7 @@ test('000230.12 R8: наборы — РОВНО 2: harvester {wood_scyte, steel_
 // affix-матрица §2.2, наборы §2.3, рецепты §2.4, иконки §2.6;
 // решения D-01–D-17 §0).
 // RED (TDD): в каталоге 0 предметов slot 'left_hand' (kinds
-// shield/artifact тоже 0), файлов assets/items/000358–000382.json
+// shield/artifact тоже 0), файлов каталога №№ 000358–000382
 // нет, иконок нет, зеркало не регенерировано — тесты ниже падают по
 // ОСМЫСЛЕННОЙ причине («волна не добавлена» / «нет предмета» /
 // ENOENT), а не по синтаксису. Тесты читают РЕАЛЬНЫЙ каталог
@@ -8676,7 +8733,7 @@ test('000230.13 T6: JSON-гигиена + зеркало — 25 новых: ка
     const f = fileById.get(id);
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
-    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const errors = validateData(schema, j, f);
     assert.deepEqual(errors, [],
       f + ': валиден по schema.json; факт: ' + errors.join('; '));
@@ -9283,7 +9340,7 @@ test('000230.14 T6: порядок ключей JSON — 25 колец: подм
     const f = fileById.get(id);
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
-    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const keys = Object.keys(j);
     assert.ok(keys.length > 0, f + ': файл не пуст');
     let prev = -1;
@@ -9345,10 +9402,9 @@ const SCROLL_VALUE_10 = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
 test('000235.10 W-06: 25 свитков 000258–000282 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/loot НЕТ, icon = assets/sprites/items/<id>.svg (ре-пин 000302.04: пин «icon НЕТ» устарел), зеркало ≡ JSON', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   const tierCount = {};
@@ -9927,10 +9983,12 @@ test('000230.15 LF6: EQUIP_POOLS — lengths 232/161/117/46/23 (ре-пин 0003
       + L.EQUIP_POOLS[t].length + ')');
   }
   for (const t of L.RARITY) {
-    assert.deepEqual(L.EQUIP_POOLS[t.id],
-      I.allItems().filter((it) => it.rarity === t.id).map((it) => it.id),
-      'пул «' + t.id + '» ≡ live-каталог по редкости (каталожный '
-      + 'порядок; CH4-эквивалентность)');
+    assert.deepEqual([...L.EQUIP_POOLS[t.id]].sort(),
+      I.allItems().filter((it) => it.rarity === t.id)
+        .map((it) => it.id).sort(),
+      'пул «' + t.id + '» ≡ live-каталог по редкости — set-равенство '
+      + '(ре-пин 000318.08 F2-P1: порядок пула запечён числовым каталогом, '
+      + 'зеркало — лекс по id; CH4-эквивалентность)');
   }
   assert.deepEqual(L.EQUIP_POOLS.common.slice(-142),
     [...LEGSFEET_POOL_TAILS_00023015.common,
@@ -10047,7 +10105,7 @@ test('000230.15 LF7: зеркала — items-data 864 (52 id: getItem ≡ JSON 
     const f = fileById.get(id);
     assert.ok(f, 'файл предмета "' + id + '" (краснота: волна не '
       + 'добавлена)');
-    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
+    const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8'));
     const errors = validateData(schema, j, f);
     assert.deepEqual(errors, [],
       f + ': валиден по schema.json; факт: ' + errors.join('; '));
@@ -10271,7 +10329,7 @@ test('000230.19 T2 (node, зелёный пин): ростер 2 построч�
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   for (const [f, expected] of ROSTER) {
-    const p = path.join(ITEMS_DIR, f);
+    const p = path.join(ITEMS_DIR, DISK_I08(f));
     assert.ok(fs.existsSync(p), f + ': файл существует');
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
     assert.deepEqual(j, expected,
@@ -10299,7 +10357,7 @@ test('000230.19 T2 (node, зелёный пин): ростер 2 построч�
   }
 });
 
-test('000230.19 T4 (node, зелёный пин): 2 базовых рецепта (D-03; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000416 «Плетение страннического плаща»: тип столярное_дело (ткань, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002] (паттерн straw_hat/fur_hat), исходники hide×2 (000037) + wood_log×1 (000035), результат assets/items/000458.json (id traveler_cloak); 000417 «Зачарование мистической сутаны»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018] (без литерального пина), навыки [runes 000027, meditation 000029 — НЕ 000014, это step] (паттерн «2 навыка: runes + тематический»), заклинания ["prayer"] ≥1, ID ∈ каталогу (000114 «Молитва»; в 144 зачарованиях не используется), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038), результат assets/items/000459.json (id mystic_sutan); оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id', () => {
+test('000230.19 T4 (node, зелёный пин): 2 базовых рецепта (D-03; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000416 «Плетение страннического плаща»: тип столярное_дело (ткань, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002] (паттерн straw_hat/fur_hat), исходники hide×2 (000037) + wood_log×1 (000035), результат assets/items/traveler_cloak.json; 000417 «Зачарование мистической сутаны»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018] (без литерального пина), навыки [runes 000027, meditation 000029 — НЕ 000014, это step] (паттерн «2 навыка: runes + тематический»), заклинания ["prayer"] ≥1, ID ∈ каталогу (000114 «Молитва»; в 144 зачарованиях не используется), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038), результат assets/items/mystic_sutan.json; оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id', () => {
   const ROOT = path.join(__dirname, '..');
   const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
   const schema = JSON.parse(
@@ -10314,9 +10372,9 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
       'здания': ['assets/buildings/wanderer_shop.json'],
       'навыки': ['assets/skills/000002.json'],
       'заклинания': undefined,
-      'исходники': ['assets/items/000037.json:2',
-        'assets/items/000035.json:1'],
-      'результат': ['assets/items/000458.json', 'traveler_cloak'],
+      'исходники': ['assets/items/hide.json:2',
+        'assets/items/wood_log.json:1'],
+      'результат': ['assets/items/traveler_cloak.json', 'traveler_cloak'],
       'зеркало': {
         'результат': { 'предмет': 'traveler_cloak', 'количество': 1 },
         'исходники': [{ 'предмет': 'hide', 'количество': 2 },
@@ -10333,9 +10391,9 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
       'навыки': ['assets/skills/000027.json',
         'assets/skills/000029.json'],
       'заклинания': ['prayer'],
-      'исходники': ['assets/items/000061.json:1',
-        'assets/items/000052.json:1', 'assets/items/000038.json:2'],
-      'результат': ['assets/items/000459.json', 'mystic_sutan'],
+      'исходники': ['assets/items/amethyst.json:1',
+        'assets/items/silver_ore.json:1', 'assets/items/coal.json:2'],
+      'результат': ['assets/items/mystic_sutan.json', 'mystic_sutan'],
       'зеркало': {
         'результат': { 'предмет': 'mystic_sutan', 'количество': 1 },
         'исходники': [{ 'предмет': 'amethyst', 'количество': 1 },
@@ -10457,9 +10515,10 @@ test('000230.19 T5 (node, зелёный пин): пул дропа src/loot-equ
     'impossible']) {
     const cat = all.filter((it) => it['rarity'] === t)
       .map((it) => it['id']);
-    assert.deepEqual(P[t], cat,
-      t + ': пул ≡ live-каталогу по редкости в каталожном '
-      + 'порядке (EQ2/CH4-инвариант)');
+    assert.deepEqual([...P[t]].sort(), [...cat].sort(),
+      t + ': пул ≡ live-каталогу по редкости — set-равенство '
+      + '(ре-пин 000318.08 F2-P1: пул запечён числовым порядком, '
+      + 'каталог — лекс по id; EQ2/CH4-инвариант)');
   }
 });
 
@@ -10628,7 +10687,7 @@ test('000277 S2 (vm, e2e): РЕАЛЬНЫЕ предметы live-каталог
   }
 });
 
-test('000277 T1: ростер 2 построчно (D-05) — 000485 traveler_bracer «Страннический наручник»: armor, weight 0.6 (верх common-полосы forearms 0.2–0.6), value 35 (верх common-лестницы 10–35), stats {armor:1}, desc «Страннический наручник: шаг ровный, как тропа.», icon assets/sprites/items/traveler_bracer.svg (файл существует), slot forearms, rarity common, set traveller, affixes [{skill step 0.05}] (common 0.03–0.05), set_bonus {"2":{"armor":1},"3":{"armor":2},"4":{"armor":3}} БАЙТ-В-БИТ с 000083/000086/000458; 000486 mystic_wraps «Мистические обмотки»: armor, weight 0.9 (epic-полоса palms 0.5–1.0), value 280 (epic-лестница 180–320), stats {armor:3} (epic-полоса 2–3), desc «Мистические обмотки: слово не срывается с ладони.», icon assets/sprites/items/mystic_wraps.svg (файл существует), slot palms, rarity epic, set mystic, affixes [{skill meditation 0.15}] (epic 0.15–0.20), set_bonus {"2":[{skill meditation 0.05}],"3":[{skill meditation 0.10}],"4":[{skill meditation 0.15}]} БАЙТ-В-БИТ с 000100/000101/000459; subtype/tier/effect/loot отсутствуют; порядок ключей ⊆ 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн); валидны по schema.json; зеркало items-data.js ≡ JSON (краснота: ENOENT assets/items/000485.json — предметы не добавлены)', () => {
+test('000277 T1: ростер 2 построчно (D-05) — 000485 traveler_bracer «Страннический наручник»: armor, weight 0.6 (верх common-полосы forearms 0.2–0.6), value 35 (верх common-лестницы 10–35), stats {armor:1}, desc «Страннический наручник: шаг ровный, как тропа.», icon assets/sprites/items/traveler_bracer.svg (файл существует), slot forearms, rarity common, set traveller, affixes [{skill step 0.05}] (common 0.03–0.05), set_bonus {"2":{"armor":1},"3":{"armor":2},"4":{"armor":3}} БАЙТ-В-БИТ с 000083/000086/000458; 000486 mystic_wraps «Мистические обмотки»: armor, weight 0.9 (epic-полоса palms 0.5–1.0), value 280 (epic-лестница 180–320), stats {armor:3} (epic-полоса 2–3), desc «Мистические обмотки: слово не срывается с ладони.», icon assets/sprites/items/mystic_wraps.svg (файл существует), slot palms, rarity epic, set mystic, affixes [{skill meditation 0.15}] (epic 0.15–0.20), set_bonus {"2":[{skill meditation 0.05}],"3":[{skill meditation 0.10}],"4":[{skill meditation 0.15}]} БАЙТ-В-БИТ с 000100/000101/000459; subtype/tier/effect/loot отсутствуют; порядок ключей ⊆ 17 канонических KEYS sync-items-data.js в канон-порядке (E1b-паттерн); валидны по schema.json; зеркало items-data.js ≡ JSON (краснота: ENOENT assets/items/traveler_bracer.json — предметы не добавлены)', () => {
   const ROOT = path.join(__dirname, '..');
   const ROSTER = [
     ['000485.json', {
@@ -10677,7 +10736,7 @@ test('000277 T1: ростер 2 построчно (D-05) — 000485 traveler_br
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
   for (const [f, expected, band] of ROSTER) {
-    const p = path.join(ITEMS_DIR, f);
+    const p = path.join(ITEMS_DIR, DISK_I08(f));
     assert.ok(fs.existsSync(p),
       f + ': файл существует (краснота: ENOENT — предмет не добавлен)');
     const j = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -10724,7 +10783,7 @@ test('000277 T1: ростер 2 построчно (D-05) — 000485 traveler_br
   }
 });
 
-test('000277 T4: 2 базовых рецепта построчно (D-07; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000418 «Плетение страннического наручника»: тип столярное_дело (кожа/дерево, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002], исходники hide×2 (000037) + wood_log×1 (000035) (паттерн 000416), результат assets/items/000485.json (id traveler_bracer); 000419 «Зачарование мистических обмоток»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018], навыки [runes 000027, meditation 000029 — НЕ 000014, это step], заклинания ["prayer"] (000114 «Молитва» — ID ∈ каталогу spells), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038) (паттерн 000417), результат assets/items/000486.json (id mystic_wraps); оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id (краснота: ENOENT assets/craft/traveler_bracer.json — рецепты не добавлены)', () => {
+test('000277 T4: 2 базовых рецепта построчно (D-07; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000418 «Плетение страннического наручника»: тип столярное_дело (кожа/дерево, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002], исходники hide×2 (000037) + wood_log×1 (000035) (паттерн 000416), результат assets/items/traveler_bracer.json; 000419 «Зачарование мистических обмоток»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018], навыки [runes 000027, meditation 000029 — НЕ 000014, это step], заклинания ["prayer"] (000114 «Молитва» — ID ∈ каталогу spells), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038) (паттерн 000417), результат assets/items/mystic_wraps.json; оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id (краснота: ENOENT assets/craft/traveler_bracer.json — рецепты не добавлены)', () => {
   const ROOT = path.join(__dirname, '..');
   const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
   const schema = JSON.parse(
@@ -10739,9 +10798,9 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
       'здания': ['assets/buildings/wanderer_shop.json'],
       'навыки': ['assets/skills/000002.json'],
       'заклинания': undefined,
-      'исходники': ['assets/items/000037.json:2',
-        'assets/items/000035.json:1'],
-      'результат': ['assets/items/000485.json', 'traveler_bracer'],
+      'исходники': ['assets/items/hide.json:2',
+        'assets/items/wood_log.json:1'],
+      'результат': ['assets/items/traveler_bracer.json', 'traveler_bracer'],
       'зеркало': {
         'результат': { 'предмет': 'traveler_bracer', 'количество': 1 },
         'исходники': [{ 'предмет': 'hide', 'количество': 2 },
@@ -10758,9 +10817,9 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
       'навыки': ['assets/skills/000027.json',
         'assets/skills/000029.json'],
       'заклинания': ['prayer'],
-      'исходники': ['assets/items/000061.json:1',
-        'assets/items/000052.json:1', 'assets/items/000038.json:2'],
-      'результат': ['assets/items/000486.json', 'mystic_wraps'],
+      'исходники': ['assets/items/amethyst.json:1',
+        'assets/items/silver_ore.json:1', 'assets/items/coal.json:2'],
+      'результат': ['assets/items/mystic_wraps.json', 'mystic_wraps'],
       'зеркало': {
         'результат': { 'предмет': 'mystic_wraps', 'количество': 1 },
         'исходники': [{ 'предмет': 'amethyst', 'количество': 1 },
@@ -10963,9 +11022,10 @@ test('000277 T5: пул дропа src/loot-equip-data.js (D-09, append-only) �
     'impossible']) {
     const cat = all.filter((it) => it['rarity'] === t)
       .map((it) => it['id']);
-    assert.deepEqual(P[t], cat,
-      t + ': пул ≡ live-каталогу по редкости в каталожном '
-      + 'порядке (EQ2/CH4-инвариант)');
+    assert.deepEqual([...P[t]].sort(), [...cat].sort(),
+      t + ': пул ≡ live-каталогу по редкости — set-равенство '
+      + '(ре-пин 000318.08 F2-P1: пул запечён числовым порядком, '
+      + 'каталог — лекс по id; EQ2/CH4-инвариант)');
   }
 });
 
@@ -11032,10 +11092,9 @@ const NATURE12_SCROLL_VALUE = { 1: 45, 2: 60, 3: 115, 4: 240 };
 
 test('000235.12 W-06: 25 свитков 000487–000511 — id <spell>_scroll, kind spell_scroll, effect {kind:spell, spell:<id>} ∈ каталогу, tier = уровень спелла (ПИН), weight 0.2, name/desc по конвенции, value 45/60/115/240, rarity/loot НЕТ, icon = assets/sprites/items/<id>.svg (ре-пин 000302.06: пин «icon НЕТ» устарел), зеркало ≡ JSON', () => {
   const byFile = new Map();
-  for (const f of fs.readdirSync(ITEMS_DIR)
-      .filter((x) => /^\d{6}\.json$/.test(x))) {
-    byFile.set(f, JSON.parse(
-      fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  for (const f of ITEMSFILES_I08()) {
+    byFile.set(NUMNAMEI08(f), JSON.parse(
+      fs.readFileSync(path.join(ITEMS_DIR, DISK_I08(f)), 'utf8')));
   }
   const jsById = new Map(I.allItems().map((it) => [it.id, it]));
   const tierCount = {};

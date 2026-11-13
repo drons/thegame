@@ -29,17 +29,17 @@
   "торговля": {
     "предметы": [
       {
-        "предмет": "assets/items/000039.json",
+        "предмет": "assets/items/herb_healing.json",
         "mult_продажи": 0.5,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000040.json",
+        "предмет": "assets/items/herb_mana.json",
         "mult_продажи": 0.6,
         "количество": 1
       },
       {
-        "предмет": "assets/items/000041.json",
+        "предмет": "assets/items/herb_bitter.json",
         "mult_продажи": 0.5,
         "количество": 1
       }

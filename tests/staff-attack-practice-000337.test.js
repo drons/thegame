@@ -54,7 +54,8 @@ const skillFileById = (id) => {
 
 // Все дисковые посохи (kind weapon, subtype staff) — динамически.
 const staffItems = () => fs.readdirSync(ITEMS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f)).sort()
+  .filter((f) => f !== 'schema.json'
+    && /^[a-z][a-z0-9_]*\.json$/.test(f)).sort()
   .map((f) => ({
     file: f,
     data: JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')),

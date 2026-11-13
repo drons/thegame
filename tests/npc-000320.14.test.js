@@ -138,12 +138,12 @@ test('T2: assets/npc/000032.json валиден по schema; ключи в по�
   assert.notDeepEqual(validateData(SCHEMA, badPath, 'npc/badpath'), [],
     'постройки без пути assets/buildings/ — вне паттерна схемы');
   const zeroQty = JSON.parse(JSON.stringify(data));
-  zeroQty.торговля = { предметы: [{ предмет: 'assets/items/000012.json',
+  zeroQty.торговля = { предметы: [{ предмет: 'assets/items/healing_potion.json',
     mult_продажи: 0.5, количество: 0 }] };
   assert.notDeepEqual(validateData(SCHEMA, zeroQty, 'npc/zeroqty'), [],
     'количество 0 (фиктивная торговля) — вне схемы (minimum 1)');
   const legacyEntry = JSON.parse(JSON.stringify(data));
-  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/000012.json',
+  legacyEntry.торговля = { предметы: [{ предмет: 'assets/items/healing_potion.json',
     mult_продажи: 0.5, количество: 1, цена_покупки: 10, цена_продажи: 5 }] };
   assert.notDeepEqual(validateData(SCHEMA, legacyEntry, 'npc/legacyentry'), [],
     'legacy-вход торговли цена_покупки/цена_продажи — вне схемы '

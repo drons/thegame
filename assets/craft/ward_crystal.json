@@ -3,20 +3,20 @@
   "название": "Зачарование хранящего кристалла",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000375.json",
+    "предмет": "assets/items/ward_crystal.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000059.json",
+      "предмет": "assets/items/sapphire.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000052.json",
+      "предмет": "assets/items/silver_ore.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

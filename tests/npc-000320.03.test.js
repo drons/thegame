@@ -59,7 +59,10 @@ function readJson(file) {
 function listItemRefs() {
   const refs = new Set();
   for (const f of fs.readdirSync(path.join(ROOT, 'assets', 'items'))) {
-    if (/^\d{6}\.json$/.test(f)) refs.add('assets/items/' + f);
+    // 000318.08: assets/items — имя = id (slug).
+    if (f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f)) {
+      refs.add('assets/items/' + f);
+    }
   }
   return refs;
 }

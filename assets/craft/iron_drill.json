@@ -3,20 +3,20 @@
   "название": "Ковка железного сверла",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000738.json",
+    "предмет": "assets/items/iron_drill.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000036.json",
+      "предмет": "assets/items/stone_chunk.json",
       "количество": 1
     }
   ],

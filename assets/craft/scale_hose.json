@@ -3,24 +3,24 @@
   "название": "Ковка чешуйчатых шоссов",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000604.json",
+    "предмет": "assets/items/scale_hose.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000037.json",
+      "предмет": "assets/items/hide.json",
       "количество": 1
     }
   ],

@@ -44,8 +44,12 @@ const CRAFT_REF_RE = /^assets\/craft\/[a-z][a-z0-9_]*\.json$/;
 
 const SCROLL_FORMAT_EXCEPTIONS_000326 = [];
 
-function dataFiles(dir) {
-  return fs.readdirSync(dir).filter((f) => /^\d{6}\.json$/.test(f)).sort();
+// 000318.08: items — slug из живого реестра; schema.json — исключение.
+function itemDataFiles(dir) {
+  const JR = require('../scripts/lib/json-ref.js');
+  return fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.items].test(f)).sort();
 }
 
 // 000318.05: spells — slug из живого реестра; schema.json — исключение.
@@ -83,7 +87,7 @@ function checkScrollLinks(itemsDir, spellsDir, craftDir) {
       craftRefs.set('assets/craft/' + f, j.id);
     }
   }
-  for (const f of dataFiles(itemsDir)) {
+  for (const f of itemDataFiles(itemsDir)) {
     const j = readJson(itemsDir, f);
     const kind = j.kind;
     if (typeof kind !== 'string' || !kind.endsWith('_scroll')) continue;
@@ -125,7 +129,7 @@ function checkScrollLinks(itemsDir, spellsDir, craftDir) {
 }
 
 test('000326 T1: sweep JSON-каталога — spell_scroll: effect.kind «spell» + effect.spell ∈ id assets/spells; craft_scroll: effect.kind «craft_recipe» + recipe — путь assets/craft/<id>.json (slug с 000318.07), файл существует с id; resurrection_scroll: effect {kind:«resurrect»} БЕЗ spell/recipe (by design); свитков без effect — 0', () => {
-  const files = dataFiles(ITEMS_DIR);
+  const files = itemDataFiles(ITEMS_DIR);
   assert.ok(files.length > 0, 'каталог assets/items не пуст');
   const v = checkScrollLinks(ITEMS_DIR, SPELLS_DIR, CRAFT_DIR);
   assert.deepEqual(v, [], v.join('; '));
@@ -135,7 +139,7 @@ test('000326 T2: зеркало src/items-data.js — effect.spell spell_scroll 
   const { ITEMS } = require('../src/items-data.js');
   const { SPELLS_BY_ID } = require('../src/spells-data.js');
   const byId = new Map();
-  for (const f of dataFiles(ITEMS_DIR)) {
+  for (const f of itemDataFiles(ITEMS_DIR)) {
     const j = readJson(ITEMS_DIR, f);
     byId.set(j.id, { f, j });
   }
@@ -202,36 +206,36 @@ test('000326 T3: self-check чекера — чистая фикстура []; �
     };
     const clean = mk('clean', {
       items: {
-        '000001.json': { id: 's1', kind: 'spell_scroll', effect: { kind: 'spell', spell: 'fireball' } },
-        '000002.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/iron_sword.json' } },
-        '000003.json': { id: 'r1', kind: 'resurrection_scroll', effect: { kind: 'resurrect' } },
+        's1.json': { id: 's1', kind: 'spell_scroll', effect: { kind: 'spell', spell: 'fireball' } },
+        'c1.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/iron_sword.json' } },
+        'r1.json': { id: 'r1', kind: 'resurrection_scroll', effect: { kind: 'resurrect' } },
       },
     });
     assert.deepEqual(clean, [], 'чистая фикстура — без нарушений: ' + JSON.stringify(clean));
     const badSpell = mk('bad-spell', {
-      items: { '000001.json': { id: 's1', kind: 'spell_scroll', effect: { kind: 'spell', spell: 'bad_spell_x' } } },
+      items: { 's1.json': { id: 's1', kind: 'spell_scroll', effect: { kind: 'spell', spell: 'bad_spell_x' } } },
     });
     assert.ok(badSpell.some((s) => s.includes('bad_spell_x')),
       'чекер не сообщил нарушение для кривого spell-id «bad_spell_x»: ' + JSON.stringify(badSpell));
     const idFormRecipe = mk('id-form-recipe', {
-      items: { '000001.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'iron_sword' } } },
+      items: { 'c1.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'iron_sword' } } },
       craft: { 'iron_sword.json': { id: 'iron_sword' } },
     });
     assert.ok(idFormRecipe.some((s) => s.includes('iron_sword') && s.includes('assets/craft')),
       'чекер не сообщил нарушение для recipe в id-форме вместо пути: ' + JSON.stringify(idFormRecipe));
     const noFile = mk('craft-no-file', {
-      items: { '000001.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/no_such_recipe.json' } } },
+      items: { 'c1.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/no_such_recipe.json' } } },
     });
     assert.ok(noFile.some((s) => s.includes('no_such_recipe')),
       'чекер не сообщил нарушение для битого пути craft «assets/craft/no_such_recipe.json»: '
       + JSON.stringify(noFile));
     const noEffect = mk('no-effect', {
-      items: { '000001.json': { id: 's1', kind: 'spell_scroll' } },
+      items: { 's1.json': { id: 's1', kind: 'spell_scroll' } },
     });
     assert.ok(noEffect.some((s) => s.includes('effect')),
       'чекер не сообщил нарушение для свитка без effect: ' + JSON.stringify(noEffect));
     const resWithSpell = mk('resurrect-spell', {
-      items: { '000001.json': { id: 'r1', kind: 'resurrection_scroll', effect: { kind: 'resurrect', spell: 'fireball' } } },
+      items: { 'r1.json': { id: 'r1', kind: 'resurrection_scroll', effect: { kind: 'resurrect', spell: 'fireball' } } },
       spells: { 'fireball.json': { id: 'fireball' } },
     });
     assert.ok(resWithSpell.some((s) => s.includes('resurrect') && s.includes('spell')),
@@ -243,7 +247,7 @@ test('000326 T3: self-check чекера — чистая фикстура []; �
 
 test('000326 T4: roundtrip-заморозка свитков — множество файлов kind *_scroll, где JSON.stringify(obj, null, 2) + nl ≠ исходник, = exclusion-списку (пуст — у свитков legacy нет) БИТ-В-БИТ', () => {
   const drift = [];
-  for (const f of dataFiles(ITEMS_DIR)) {
+  for (const f of itemDataFiles(ITEMS_DIR)) {
     const raw = fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8');
     const j = JSON.parse(raw);
     if (typeof j.kind !== 'string' || !j.kind.endsWith('_scroll')) continue;

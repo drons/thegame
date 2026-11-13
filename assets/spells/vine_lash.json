@@ -10,7 +10,7 @@
   "мани": 11,
   "действие": "урон",
   "предметы": [
-    "assets/items/000490.json"
+    "assets/items/vine_lash_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

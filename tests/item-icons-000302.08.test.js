@@ -27,29 +27,29 @@ const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 
 const LEGACY_GEAR_00030208 = [
-  ['000001.json', 'wood_sword'],
-  ['000002.json', 'iron_sword'],
-  ['000003.json', 'steel_sword'],
-  ['000004.json', 'short_bow'],
-  ['000005.json', 'hunting_bow'],
-  ['000006.json', 'battle_axe'],
-  ['000007.json', 'war_hammer'],
-  ['000008.json', 'leather_armor'],
-  ['000009.json', 'chainmail'],
-  ['000010.json', 'knight_plate'],
-  ['000011.json', 'minor_healing'],
-  ['000012.json', 'healing_potion'],
-  ['000013.json', 'greater_healing'],
-  ['000014.json', 'mana_potion'],
-  ['000015.json', 'mana_elixir'],
-  ['000016.json', 'bread'],
-  ['000017.json', 'meat'],
-  ['000018.json', 'honey_cake'],
-  ['000022.json', 'sulfur'],
-  ['000024.json', 'phoenix_feather'],
-  ['000036.json', 'stone_chunk'],
-  ['000038.json', 'coal'],
-  ['000042.json', 'stone_chisel'],
+  ['wood_sword.json', 'wood_sword'],
+  ['iron_sword.json', 'iron_sword'],
+  ['steel_sword.json', 'steel_sword'],
+  ['short_bow.json', 'short_bow'],
+  ['hunting_bow.json', 'hunting_bow'],
+  ['battle_axe.json', 'battle_axe'],
+  ['war_hammer.json', 'war_hammer'],
+  ['leather_armor.json', 'leather_armor'],
+  ['chainmail.json', 'chainmail'],
+  ['knight_plate.json', 'knight_plate'],
+  ['minor_healing.json', 'minor_healing'],
+  ['healing_potion.json', 'healing_potion'],
+  ['greater_healing.json', 'greater_healing'],
+  ['mana_potion.json', 'mana_potion'],
+  ['mana_elixir.json', 'mana_elixir'],
+  ['bread.json', 'bread'],
+  ['meat.json', 'meat'],
+  ['honey_cake.json', 'honey_cake'],
+  ['sulfur.json', 'sulfur'],
+  ['phoenix_feather.json', 'phoenix_feather'],
+  ['stone_chunk.json', 'stone_chunk'],
+  ['coal.json', 'coal'],
+  ['stone_chisel.json', 'stone_chisel'],
 ];
 
 const NON_EQUIP_000335 = new Set([
@@ -87,7 +87,8 @@ for (const [file, id] of LEGACY_GEAR_00030208) {
 
 test('000302.08 SWEEP: live-каталог — 0 без icon (финальная дочерняя 000302); у всех 864 icon по паттерну схемы + svg-файл существует (ре-пин 000333: +2 свитка навигации; ре-пин 000321.01: +50 оружия с icon 000514–000563; ре-пин 000321.02: +50 брони с icon 000564–000613; ре-пин 000321.03: +50 щитов с icon 000614–000663; ре-пин 000321.04: +50 артефактов с icon 000664–000713; ре-пин 000321.05: +50 инструментов с icon 000714–000763; ре-пин 000348: +1 свиток Декаданс с icon 000764; ре-пин 000321.06: +50 колец с icon 000765–000814; ре-пин 000321.07: +50 зелий с icon 000815–000864)', () => {
   const files = fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(f)).sort();
   assert.equal(files.length, 864,
     'каталог — ровно 864 JSON (live-скан; ре-пин 000333: 511 → 513; '
     + 'ре-пин 000321.01: 513 → 563; ре-пин 000321.02: 563 → 613; '

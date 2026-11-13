@@ -8,7 +8,7 @@
 //        canMentorCraft; сейчас единственный живой наставник крафта
 //        — Торн (blacksmith) → кузнечное_дело).
 //   D6 — сундуки: каждый чертёж — РОВНО в одном пуле, append КОНЦОМ
-//        «предметов» (ref-форма assets/items/NNNNNN.json); простая
+//        «предметов» (ref-форма assets/items/<id>.json, slug с 000318.08); простая
 //        пещера (id 0) — БЕЗ ИЗМЕНЕНИЙ; зеркало src/dungeons-data.js
 //        ≡ JSON (ref→id); FALLBACK_DUNGEONS (src/dungeon.js,
 //        DUNGEON_ITEMS) — синхронно 1:1 с зеркалом.
@@ -49,12 +49,12 @@ const BLUEPRINT_TYPE = {
   blueprint_runecraft: 'рунопись',
 };
 const BLUEPRINT_REF = {
-  'assets/items/000077.json': 'blueprint_forge',
-  'assets/items/000078.json': 'blueprint_alchemy',
-  'assets/items/000079.json': 'blueprint_carving',
-  'assets/items/000080.json': 'blueprint_woodwork',
-  'assets/items/000081.json': 'blueprint_enchant',
-  'assets/items/000082.json': 'blueprint_runecraft',
+  'assets/items/blueprint_forge.json': 'blueprint_forge',
+  'assets/items/blueprint_alchemy.json': 'blueprint_alchemy',
+  'assets/items/blueprint_carving.json': 'blueprint_carving',
+  'assets/items/blueprint_woodwork.json': 'blueprint_woodwork',
+  'assets/items/blueprint_enchant.json': 'blueprint_enchant',
+  'assets/items/blueprint_runecraft.json': 'blueprint_runecraft',
 };
 
 function track() {

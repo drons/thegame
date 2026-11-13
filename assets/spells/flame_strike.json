@@ -10,7 +10,7 @@
   "мани": 12,
   "действие": "урон",
   "предметы": [
-    "assets/items/000113.json"
+    "assets/items/flame_strike_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

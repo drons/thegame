@@ -3,20 +3,20 @@
   "название": "Зачарование латунных щипцов",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000745.json",
+    "предмет": "assets/items/brass_tongs.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000034.json",
+      "предмет": "assets/items/copper_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000055.json",
+      "предмет": "assets/items/quartz.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

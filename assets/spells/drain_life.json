@@ -13,7 +13,7 @@
     "value": 0.5
   },
   "предметы": [
-    "assets/items/000234.json"
+    "assets/items/drain_life_scroll.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

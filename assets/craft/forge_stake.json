@@ -3,16 +3,16 @@
   "название": "Ковка рогача",
   "тип": "кузнечное_дело",
   "результат": {
-    "предмет": "assets/items/000739.json",
+    "предмет": "assets/items/forge_stake.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000033.json",
+      "предмет": "assets/items/iron_ore.json",
       "количество": 2
     },
     {
-      "предмет": "assets/items/000035.json",
+      "предмет": "assets/items/wood_log.json",
       "количество": 2
     }
   ],

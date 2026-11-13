@@ -14,7 +14,7 @@
   },
   "вне_боя": true,
   "предметы": [
-    "assets/items/000510.json"
+    "assets/items/beast_friend_scroll.json"
   ],
   "здания": [
     "assets/buildings/healing_temple.json",

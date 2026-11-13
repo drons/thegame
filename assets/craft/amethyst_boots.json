@@ -3,20 +3,20 @@
   "название": "Зачарование аметистовых ботинок",
   "тип": "зачарование",
   "результат": {
-    "предмет": "assets/items/000448.json",
+    "предмет": "assets/items/amethyst_boots.json",
     "количество": 1
   },
   "исходники": [
     {
-      "предмет": "assets/items/000061.json",
+      "предмет": "assets/items/amethyst.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000037.json",
+      "предмет": "assets/items/hide.json",
       "количество": 1
     },
     {
-      "предмет": "assets/items/000038.json",
+      "предмет": "assets/items/coal.json",
       "количество": 1
     }
   ],

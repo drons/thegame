@@ -32,7 +32,8 @@
 //     «наставник вида обязан продавать чертёж этого вида» —
 //     canMentorCraft(Тигель, …, «алхимия») === ok (навык alchemy ↔
 //     вид алхимия; Аптекарь 000003 ∈ здания рецептов алхимии), значит
-//     витрина — blueprint_alchemy (assets/items/000078.json, base_price
+//     витрина — blueprint_alchemy (assets/items/blueprint_alchemy.json
+//     (000318.08), base_price
 //     120, mult_продажи 0.5 = тон Милы/Торна, количество 1,
 //     mult_покупки — ключ отсутствует). ОТКЛОНЕНИЕ ОТ ТЕКСТА ТЗ
 //     «блоков торговля нет»: ТЗ вычислялся без учёта SRC-1; без
@@ -333,7 +334,7 @@ test('T6: блок «обучение» — форма 000005 (ключи нав
     + 'не делает — ассортимент Милы/Отвара/Полыни не дублирует), факт: '
     + trade.предметы.length);
   const bp = trade.предметы[0];
-  assert.equal(bp.предмет, 'assets/items/000078.json',
+  assert.equal(bp.предмет, 'assets/items/blueprint_alchemy.json',
     'витрина — blueprint_alchemy (000078) — чертёж вида «алхимия»');
   const bpItem = readJson(path.join(ROOT, bp.предмет));
   assert.equal(bpItem.id, 'blueprint_alchemy',

@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000267.json"
+    "assets/items/guardian_blessing_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

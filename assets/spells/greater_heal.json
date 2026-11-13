@@ -9,7 +9,7 @@
   "уровень": 3,
   "мани": 11,
   "действие": "лечение",
-  "предметы": ["assets/items/000023.json", "assets/items/000024.json"],
+  "предметы": ["assets/items/moonstone.json", "assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/healing_temple.json"],
   "описание": "Совершенствование «Света исцеления»: сильное восстановление, снимает лёгкие недуги (яд, замедление).",
   "icon": "assets/spell-icons/greater_heal.svg",

@@ -14,7 +14,7 @@
     "turns": 3
   },
   "предметы": [
-    "assets/items/000271.json"
+    "assets/items/unholy_wrath_scroll.json"
   ],
   "здания": [
     "assets/buildings/monastery.json",

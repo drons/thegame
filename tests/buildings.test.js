@@ -30,7 +30,12 @@ const vm = require('node:vm');
 // memory/000211.07-buildings-sprites-trains-refs.md §4.2 T2).
 // НЕ-ссылка (имя — данные не миграированы) — throw: краснота
 // осмысленная, терпимый no-op отклонён (серийный паттерн 000211.08).
-const ITEM_REF_RE = /^assets\/items\/\d{6}\.json$/;
+// 000318.08: assets/items — файлы <id>.json; реестр «номер → id» даёт
+// пин-таблицам прежних номеров их диски-имена.
+const ITEM_REF_RE = /^assets\/items\/[a-z][a-z0-9_]*\.json$/;
+const NUM2ID_I08 = require(path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json'));
+const SLUG_I08 = (n) => NUM2ID_I08[n];
 const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
 // 000318.06: assets/buildings — slug-имена (номер файла больше не id);
 // обход каталога по id — через эти хелперы.
@@ -1101,7 +1106,7 @@ test('000148.04 R14: ссылочная целостность: каждый п�
   const ITEMS_DIR = path.join(__dirname, '..', 'assets', 'items');
   const byId = {};
   for (const f of fs.readdirSync(ITEMS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))) {
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))) {
     const j = JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8'));
     byId[j.id] = j;
   }
@@ -1192,7 +1197,7 @@ function readBuildingRaw_000207(n) {
   return JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
 }
 
-test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/\\d{6}\\.json$); ровно 22 здания D3, 24 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
+test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/<id>.json$ — ре-пин 000318.08: slug); ровно 22 здания D3, 24 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
   const files = buildingsFiles_00031806();
   assert.equal(files.length, 55,
     'каталог: ровно 55 slug-файлов (000318.06)');
@@ -1247,8 +1252,8 @@ test('000207 R2: assets/buildings: целостность ссылок: кажд
       assert.ok(fs.existsSync(target),
         `${n} ${j.название}: ссылка «${ref}» — файл-цель отсутствует `
         + `(путь от корня) — ссылки ещё не существуют (0/22 резолвится)`);
-      assert.equal(ref, 'assets/items/' + itemsFile + '.json',
-        `${n} ${j.название}: позиция ${i} — ссылка «assets/items/${itemsFile}.json» (пин-таблица 000207; получено «${ref}»)`);
+      assert.equal(ref, 'assets/items/' + SLUG_I08(itemsFile) + '.json', // 000318.08
+        `${n} ${j.название}: позиция ${i} — ссылка «assets/items/${SLUG_I08(itemsFile)}.json» (пин-таблица 000207; получено «${ref}»)`);
       const tj = JSON.parse(fs.readFileSync(target, 'utf8'));
       assert.ok(tj && typeof tj.id === 'string' && tj.id !== '',
         `${n}: файл-цель «${ref}» — id: непустая строка (получено ${JSON.stringify(tj && tj.id)})`);
@@ -1334,7 +1339,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
       if (s) {
         const rows = REF_PIN_000207[n];
         s.исходники.forEach((e, i) => {
-          e.предмет = 'assets/items/' + rows[i][2] + '.json';
+          e.предмет = 'assets/items/' + SLUG_I08(rows[i][2]) + '.json'; // 000318.08
         });
       }
       if (TRAINS_PIN_000211_07[n]) {
@@ -1386,7 +1391,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
     const p1 = path.join(tmp, 'assets', 'buildings',
       buildingFileById_00031806(1));
     const j1 = JSON.parse(fs.readFileSync(p1, 'utf8'));
-    j1.особые_параметры.стройка.исходники[0].предмет = 'assets/items/999999.json';
+    j1.особые_параметры.стройка.исходники[0].предмет = 'assets/items/no_such_item_000318.json';
     fs.writeFileSync(p1, JSON.stringify(j1, null, 2));
     const res2 = spawnSync(process.execPath, [script],
       { cwd: tmp, encoding: 'utf8' });
@@ -1413,7 +1418,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
   }
 });
 
-test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/\\d{6}\\.json$); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все 55 файлов каталога валидны', () => {
+test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/<id>.json$ — ре-пин 000318.08); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все 55 файлов каталога валидны', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   const rec = readBuildingRaw_000207(1);
@@ -1442,7 +1447,7 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
           additionalProperties: false,
           required: ['предмет', 'количество'],
           properties: {
-            предмет: { type: 'string', pattern: '^assets/items/\\d{6}\\.json$' },
+            предмет: { type: 'string', pattern: '^assets/items/[a-z][a-z0-9_]*\\.json$' }, // 000318.08
             количество: { type: 'integer', minimum: 1 },
           },
         },
@@ -1452,7 +1457,7 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
   assert.notEqual(oschema.additionalProperties, false,
     'особые_параметры остаётся СВОБОДНЫМ объектом (без additionalProperties:false)');
   const refd = JSON.parse(JSON.stringify(rec));
-  refd.особые_параметры.стройка.исходники[0].предмет = 'assets/items/000035.json';
+  refd.особые_параметры.стройка.исходники[0].предмет = 'assets/items/wood_log.json'; // 000318.08
   assert.deepEqual(validateData(schema, refd, buildingFileById_00031806(1)), [],
     'запись со ссылкой на файл items — валидна');
   for (const f of buildingsFiles_00031806()) {
@@ -1763,7 +1768,7 @@ test('000211.07 R4: sync-buildings-data.js — "тренирует"-ссылки
       if (s) {
         const rows = REF_PIN_000207[n];
         s.исходники.forEach((e, i) => {
-          e.предмет = 'assets/items/' + rows[i][2] + '.json';
+          e.предмет = 'assets/items/' + SLUG_I08(rows[i][2]) + '.json'; // 000318.08
         });
       }
       if (TRAINS_PIN_000211_07[n]) {
