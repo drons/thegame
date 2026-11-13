@@ -32,18 +32,23 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { isRefPath } = require('./lib/json-ref.js');
+const { isRefPath, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
+  require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
 const OUT_FILE = path.join(ROOT, 'src', 'craft-data.js');
 
 // --- Чтение каталога ---
+// Форма имени — из ЖИВОГО реестра lib (000318.07: craft — slug, имя файла
+// == его id); slug-regex матчит и schema.json — исключаем явно (прецедент
+// .02/.06).
 const files = fs.readdirSync(CRAFT_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.craft].test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/craft: не найдено ни одного файла 0000NN.json');
+  console.error('assets/craft: не найдено ни одного файла каталога');
   process.exit(1);
 }
 
@@ -114,6 +119,12 @@ for (const f of files) {
   }
   recipes.push({ file: f, data: resolveRecipeData(data, f) });
 }
+// Порядок записей — по data.id (000318.07): сравнение строк «<» — тот же
+// code-unit порядок, что и у сортировки по именам файлов (имя == id), но
+// контракт закреплен за ДАННЫМИ, а не за совпадением имени: на дереве,
+// где basename ≠ id (tmp-перестановка), выход остаётся id-упорядоченным.
+recipes.sort((a, b) => (a.data.id < b.data.id ? -1
+  : a.data.id > b.data.id ? 1 : 0));
 
 // Канонический порядок ключей (схема assets/craft/schema.json).
 const KEYS = ['id', 'название', 'тип', 'база', 'результат', 'исходники',

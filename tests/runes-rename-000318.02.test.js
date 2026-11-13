@@ -123,8 +123,8 @@ test('000318.02 T4: runes вне мишеней ссылок навсегда �
     'isRef — false (AR2/AR5/AR14-минимум)');
   assert.equal(mod.isRefPathFull('assets/runes/stone_hide.json'), false);
   assert.equal(mod.REF_RE.source,
-    '^assets\\/(items|skills|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|buildings|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    '^assets\\/(items|skills|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
     'REF_RE — ДВЕ группы после 000318.05/.06 (spells/mobs/mob_groups/'
     + ' ref-мишени, их флипы в slug меняют source; флипы runes/visuals ∉ '
     + 'ref-группам его НЕ меняли; пин AR11 дублирован страховкой)');

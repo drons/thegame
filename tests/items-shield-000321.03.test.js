@@ -189,6 +189,14 @@ const REC_SKILL_00032103 = {
 
 const OLD_MAX = 613; // анти-страж «НОВЫХ реагентов нет»: исходники ∈ старый каталог
 
+// 000318.07: craft — файл <id>.json (basename === id рецепта).
+const JRC = require('../scripts/lib/json-ref.js');
+const CRAFT_FILE_RE = JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.craft];
+function craftDataFiles(dir) {
+  return fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json' && CRAFT_FILE_RE.test(f)).sort();
+}
+
 function refNum(ref) {
   const m = /(\d{6})\.json$/.exec(ref);
   return m ? m[1] : null;
@@ -559,9 +567,8 @@ test('000321.03 T7: иконки — у 50 новых поле icon ↔ файл
 
 // --- T8: рецепты ------------------------------------------------------
 
-test('000321.03 T8: 50 рецептов 000520–000569 подряд; результат покрывает НОВЫЕ предметы 1:1 (тот же порядок); id рецепта = id результата; тип-состав РОВНО столярное 20 / кузнечное 30; здания: столярка [5], кузнечное rare [8], кузнечное epic+ [8,25] (факт старых щитов 000260–000271); навыки по типу (dexterity/forge); «заклинания» отсутствуют (не зачарование); «база» отсутствует (схема не требует; improved-семантика 000230.11 не в 1:1-диапазоне); «уровень» ∈ полосе редкости результата; исходники ∈ СТАРЫЙ каталог 000001–000613 (НОВЫХ реагентов нет — прецедент .01/.02); «название»/«описание» рецептов уникальны по каталогу craft; roundtrip-канон (краснота: каталог craft 443 — рецептов нет)', () => {
-  const files = fs.readdirSync(CRAFT_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+test('000321.03 T8: 50 рецептов — файлы по id (прежние номера 000520–000569, 000318.07: basename === id); результат покрывает НОВЫЕ предметы 1:1 (тот же порядок); id рецепта = id результата; тип-состав РОВНО столярное 20 / кузнечное 30; здания: столярка [5], кузнечное rare [8], кузнечное epic+ [8,25] (факт старых щитов 000260–000271); навыки по типу (dexterity/forge); «заклинания» отсутствуют (не зачарование); «база» отсутствует (схема не требует; improved-семантика 000230.11 не в 1:1-диапазоне); «уровень» ∈ полосе редкости результата; исходники ∈ СТАРЫЙ каталог 000001–000613 (НОВЫХ реагентов нет — прецедент .01/.02); «название»/«описание» рецептов уникальны по каталогу craft; roundtrip-канон (краснота: каталог craft 443 — рецептов нет)', () => {
+  const files = craftDataFiles(CRAFT_DIR);
   assert.equal(files.length, 643,
     'craft — 643 файла (443 + 50 рецептов 000321.03 + 50 рецептов '
     + '000321.04 + 50 рецептов 000321.05 + 50 рецептов 000321.06); факт: '
@@ -599,12 +606,12 @@ test('000321.03 T8: 50 рецептов 000520–000569 подряд; резул
   ROSTER_00032103.forEach(([num, id, name, rarity, armor, value, weight,
       skill, amount, fc, set, тип, level], i) => {
     const recNum = REC_FROM + i;
-    const f = String(recNum).padStart(6, '0') + '.json';
-    assert.equal(files[files.length - 200 + i], f,
-      'каталожный порядок: 50 рецептов щитов — подряд, ПЕРЕД 50 '
-      + 'рецептов артефактов 000321.04, 50 рецептов инструментов '
-      + '000321.05 и 50 рецептов колец 000321.06 (ре-пин 000321.06), '
-      + f);
+    const f = id + '.json';
+    assert.ok(files.includes(f),
+      'рецепт щита (прежний номер ' + String(recNum).padStart(6, '0')
+      + ') — файл ' + f + ' ∈ assets/craft (000318.07: имя файла === id, '
+      + 'окно позиций по номерам заменено свипом присутствия + '
+      + 'basename === id; memory/000318.07-craft-slug-rename.md)');
     const raw = fs.readFileSync(path.join(CRAFT_DIR, f), 'utf8');
     const j = JSON.parse(raw);
     assert.deepEqual(validateData(schema, j, f), [], f + ': схема');
@@ -679,7 +686,7 @@ test('000321.03 T9: зеркала — src/items-data.js содержит 50 н�
   assert.equal(CRD.CRAFT.length, 643,
     'craft-data — 643; факт: ' + CRD.CRAFT.length);
   ROSTER_00032103.forEach(([, id], i) => {
-    const f = String(REC_FROM + i).padStart(6, '0') + '.json';
+    const f = id + '.json';
     const j = JSON.parse(fs.readFileSync(path.join(CRAFT_DIR, f), 'utf8'));
     const m = CRD.CRAFT_BY_ID[id];
     assert.ok(m, 'craft-data: рецепт «' + id + '» (' + f + ')');
@@ -756,8 +763,7 @@ test('000321.03 T10: регресс-канарейки — каталог 814 �
     + '000321.06); факт: '
     + Object.values(sets).reduce((a, v) => a + v.length, 0));
   assert.equal(sets.bulwark.length, 6, 'bulwark — 6 членов');
-  const craftFiles = fs.readdirSync(CRAFT_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f));
+  const craftFiles = craftDataFiles(CRAFT_DIR);
   assert.equal(craftFiles.length, 643, 'craft — 643');
   const ct = {};
   for (const f of craftFiles) {

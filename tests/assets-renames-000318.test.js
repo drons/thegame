@@ -19,8 +19,9 @@
 //     (REF_CATALOGS минус visuals и portraits); ref-eligibility ≠ name-shape
 //     (visuals/runes при ЛЮБОМ шейпе НЕ ref); refPath/isRefPathFull.
 //   * RN2 — покаталожный свип: каждый JSON (кроме schema.json) в форме из
-//     таблицы шейпов lib; номера уникальны и идут ПОДРЯД 1..N; craft —
-//     явное пин-исключение (файлы сегментами с дырами, memory); slug-шейп —
+//     таблицы шейпов lib; номера уникальны и идут ПОДРЯД 1..N (прежнее
+//     пин-исключение craft с дырами сегментов снято 000318.07 — каталог
+//     slug, «подряд» несвойственен имени); slug-шейп —
 //     basename == имени из NAME_OF_000318 (runes — id; visuals — basename
 //     «спрайт», id числовой остаётся в JSON).
 //   * RN3 — каждая межкаталожная ссылка в каждом файловом данных 11
@@ -47,9 +48,10 @@ const MOD_PATH = path.join(ROOT, 'scripts', 'lib', 'json-ref.js');
 // не был мишенью ссылок, но каталог нумерованный).
 const NUMBERED = ['items', 'skills', 'spells', 'mobs', 'mob_groups',
   'buildings', 'craft', 'dungeons', 'npc', 'runes', 'visuals'];
-// Непрерывная нумерация 1..N НЕ пиннится только здесь (дыры сегментов —
-// memory/000318-asset-rename.md).
-const GAPPED = new Set(['craft']);
+// Непрерывная нумерация 1..N НЕ пиннится только здесь. Пусто с 000318.07:
+// единственное исключение (craft — файлы сегментами с дырами,
+// memory/000318-asset-rename.md) снято вместе с number-шейпом каталога.
+const GAPPED = new Set();
 const REF_LINKED_EXPECTED = ['items', 'skills', 'spells', 'mobs',
   'mob_groups', 'buildings', 'craft', 'dungeons', 'npc'];
 
@@ -100,7 +102,8 @@ function withTmpRoot(files, fn) {
 // Имя-носитель для slug-каталогов (по умолчанию basename === id + '.json'):
 // runes (000318.02) — id; visuals (000318.03) — basename поля «спрайт»
 // (id каталога ЧИСЛОВОЙ 1..13, имя — по спрайту); mobs (000318.04) — id
-// (строковый, default). mob_groups/dungeons (000318.04) — ИМЕНА РУКОПИСНЫЕ
+// (строковый, default); craft (000318.07) — id (строковый, default).
+// mob_groups/dungeons (000318.04) — ИМЕНА РУКОПИСНЫЕ
 // (id числовой, имя не выводится из данных): честный пин — таблица id→slug
 // задачи .04 (память memory/000318-asset-rename.md), а не ослабление свипа.
 const MOB_GROUP_SLUG_00031804 = {
@@ -165,7 +168,7 @@ function renameViolations(mod, dir, cat) {
 // 'number'; остальные NUMBERED остаются number до своих дочерних.
 const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug',
   mobs: 'slug', mob_groups: 'slug', dungeons: 'slug',
-  spells: 'slug', buildings: 'slug' }; // .02, .03, .04, .05, .06
+  spells: 'slug', buildings: 'slug', craft: 'slug' }; // .02, .03, .04, .05, .06, .07
 
 test('RN1: реестр шейпов — переименованные каталоги по таблице, прочие number, portraits named, 9 мишеней', () => {
   const mod = loadShapes();
@@ -174,7 +177,8 @@ test('RN1: реестр шейпов — переименованные ката
       SHAPES_EXPECTED_000318[cat] || 'number',
       cat + ': шейп по таблице переименований 000318 (.01 — все number; '
       + '.02 переименовал runes в slug; .03 — visuals; .04 — '
-      + 'mobs/mob_groups/dungeons; .05 — spells; .06 — buildings)');
+      + 'mobs/mob_groups/dungeons; .05 — spells; .06 — buildings; '
+      + '.07 — craft)');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE, вне SHAPE_BASENAME_RES)');
@@ -202,7 +206,7 @@ test('RN1: реестр шейпов — переименованные ката
     '7 цифр — не ref');
 });
 
-test('RN2: свип каталогов — имена по форме lib; number — номера подряд (craft — дыры), slug — basename == NameOf (runes — id, visuals — спрайт, mobs — id, mob_groups/dungeons — таблицы 000318.04)', () => {
+test('RN2: свип каталогов — имена по форме lib; number — номера подряд, slug — basename == NameOf (runes/mobs/craft — id, visuals — спрайт, mob_groups/dungeons — таблицы 000318.04)', () => {
   const mod = loadShapes();
   for (const cat of NUMBERED) {
     const files = dataFiles(ROOT, cat);

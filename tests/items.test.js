@@ -10186,7 +10186,7 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
   const CD = require('../src/craft-data.js');
   const { SPELLS_BY_ID } = require('../src/spells-data.js');
   const ROSTER = [
-    ['000416.json', {
+    ['traveler_cloak.json', {
       'тип': 'столярное_дело',
       'уровень': 8,
       'полоса': [1, 10],
@@ -10204,7 +10204,7 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
         'здания': [5]
       }
     }],
-    ['000417.json', {
+    ['mystic_sutan.json', {
       'тип': 'зачарование',
       'уровень': 45,
       'полоса': [30, 60],
@@ -10603,7 +10603,7 @@ test('000277 T1: ростер 2 построчно (D-05) — 000485 traveler_br
   }
 });
 
-test('000277 T4: 2 базовых рецепта построчно (D-07; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000418 «Плетение страннического наручника»: тип столярное_дело (кожа/дерево, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002], исходники hide×2 (000037) + wood_log×1 (000035) (паттерн 000416), результат assets/items/000485.json (id traveler_bracer); 000419 «Зачарование мистических обмоток»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018], навыки [runes 000027, meditation 000029 — НЕ 000014, это step], заклинания ["prayer"] (000114 «Молитва» — ID ∈ каталогу spells), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038) (паттерн 000417), результат assets/items/000486.json (id mystic_wraps); оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id (краснота: ENOENT assets/craft/000418.json — рецепты не добавлены)', () => {
+test('000277 T4: 2 базовых рецепта построчно (D-07; improved — ТОЛЬКО legendary/impossible → у наших НЕТ) — 000418 «Плетение страннического наручника»: тип столярное_дело (кожа/дерево, §5.3.6), уровень 8 (common 1–10; = уровню set-головой fur_hat 000035), здания [000005] ⊆ союза столярного вида [5] (craft-core литерал), навыки [dexterity 000002], исходники hide×2 (000037) + wood_log×1 (000035) (паттерн 000416), результат assets/items/000485.json (id traveler_bracer); 000419 «Зачарование мистических обмоток»: тип зачарование, уровень 45 (epic 30–60; = уровню set-головой gold_helm 000050), здания [000018], навыки [runes 000027, meditation 000029 — НЕ 000014, это step], заклинания ["prayer"] (000114 «Молитва» — ID ∈ каталогу spells), исходники amethyst×1 (000061) + silver_ore×1 (000052) + coal×2 (000038) (паттерн 000417), результат assets/items/000486.json (id mystic_wraps); оба — валидны по schema.json; зеркало craft-data.js — ссылки резолвлены в id (краснота: ENOENT assets/craft/traveler_bracer.json — рецепты не добавлены)', () => {
   const ROOT = path.join(__dirname, '..');
   const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
   const schema = JSON.parse(
@@ -10611,7 +10611,7 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
   const CD = require('../src/craft-data.js');
   const { SPELLS_BY_ID } = require('../src/spells-data.js');
   const ROSTER = [
-    ['000418.json', {
+    ['traveler_bracer.json', {
       'тип': 'столярное_дело',
       'уровень': 8,
       'полоса': [1, 10],
@@ -10629,7 +10629,7 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
         'здания': [5]
       }
     }],
-    ['000419.json', {
+    ['mystic_wraps.json', {
       'тип': 'зачарование',
       'уровень': 45,
       'полоса': [30, 60],

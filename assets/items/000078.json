@@ -8,7 +8,7 @@
   "desc": "Изучает вид крафта «алхимия»: его рецепты появляются в диалоге крафта.",
   "effect": {
     "kind": "craft_recipe",
-    "recipe": "assets/craft/000004.json"
+    "recipe": "assets/craft/healing_potion.json"
   },
   "icon": "assets/sprites/items/blueprint_alchemy.svg"
 }

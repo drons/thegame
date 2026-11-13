@@ -8,7 +8,7 @@
   "desc": "Изучает вид крафта «рунопись»: его рецепты появляются в диалоге крафта.",
   "effect": {
     "kind": "craft_recipe",
-    "recipe": "assets/craft/000019.json"
+    "recipe": "assets/craft/moonstone_runes.json"
   },
   "icon": "assets/sprites/items/blueprint_runecraft.svg"
 }

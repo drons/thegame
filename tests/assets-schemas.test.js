@@ -30,7 +30,9 @@ const {
 } = require('./json-schema.js');
 
 const ROOT = path.join(__dirname, '..');
-const CATALOGS = ['items', 'npc', 'skills', 'buildings', 'dungeons', 'mob_groups', 'visuals', 'mobs'];
+// 000318.07: += craft — перешёл в slug-шейп, сегментный пин с дырами
+// заменён свипом basename === id (memory/000318.07-craft-slug-rename.md §3).
+const CATALOGS = ['items', 'npc', 'skills', 'buildings', 'dungeons', 'mob_groups', 'visuals', 'mobs', 'craft'];
 
 const { ASSET_NAME_SHAPES, SHAPE_BASENAME_RES } =
   require('../scripts/lib/json-ref.js');
@@ -96,6 +98,13 @@ const SLUG_PINNED_000318 = {
   mob_groups: MOB_GROUPS_SLUGS_000318,
   dungeons: DUNGEONS_SLUGS_000318,
   buildings: BUILDINGS_SLUGS_000318,
+};
+
+// 000318.07: craft — slug-каталог, чей состав НЕ фиксируют массивом имён
+// (643 строки), а проверяют свипом basename === data.id + счётчиком.
+// Числовые «сегменты с резервами-дырами» после rename бессмысленны.
+const SLUG_SWEEP_000318 = {
+  craft: { count: 643 },
 };
 
 function catalogDir(name) {
@@ -295,6 +304,9 @@ for (const name of CATALOGS) {
         + '(000318.04: mobs — id, mob_groups/dungeons — таблица id→slug; '
         + '000318.06: buildings — «спрайт»/таблица id→slug), '
         + 'каталог не пуст'
+    : SLUG_SWEEP_000318[name] !== undefined
+      ? name + ': файлы каталога — свип basename === id (000318.07: slug-шейп —'
+        + ' числовые сегменты и резервы-дыры теряют смысл), каталог не пуст'
     : `${name}: файлы 000001.json … N.json подряд${name === 'items'
       ? ' (ре-пин 000235.10: +25 свитков 000258–000282 — резервная '
       + 'дыра закрыта; ре-пин 000230.11: +50 рук 000283–000332; '
@@ -359,16 +371,41 @@ for (const name of CATALOGS) {
     // 000765–000814 заполнены (50 колец) — items 000001–000814 подряд,
     // дыр нет; craft 000360..000669 → 000360..000719 (+50 рецептов
     // 000670–000719, сегмент сливается), резерв с 000720.
+    // Ре-пин 000318.07: craft ∈ CATALOGS и переведён в slug-шейп —
+    // пятисегментный пин (с дырами-резервами) заменён свипом
+    // basename === id со счётчиком 643 (SLUG_SWEEP_000318); до .07 craft
+    // в CATALOGS не входил, и его сегментная ветка была мертва
+    // (memory/000318.07-craft-slug-rename.md §3).
     if (SLUG_PINNED_000318[name] !== undefined) {
       // 000318.03/.04: slug-каталог — вместо числовых сегментов пин
       // фиксированным множеством имён (носитель состава — сам сет).
       assert.deepEqual(files, SLUG_PINNED_000318[name],
-        name + ': имена файлов ≡ контрактованному множеству slug');    } else {
+        name + ': имена файлов ≡ контрактованному множеству slug');    } else if (
+      SLUG_SWEEP_000318[name] !== undefined) {
+      // 000318.07: сегментный пин «000001..000199, 000210..000237, …» с
+      // резервами-дырами снят — файловых номеров больше нет; состав держит
+      // свип basename === id + счётчик + лексикографический порядок имён.
+      const expected = SLUG_SWEEP_000318[name].count;
+      assert.equal(files.length, expected,
+        name + ': каталог — РОВНО ' + expected + ' файлов (000318.07: '
+        + 'счётчик снят диском после rename в <id>.json)');
+      const ids = [];
+      for (const f of files) {
+        assert.ok(!SHAPE_BASENAME_RES.number.test(f),
+          name + ': в slug-каталоге остался числовой файл ' + f);
+        const data = JSON.parse(
+          fs.readFileSync(path.join(catalogDir(name), f), 'utf8'));
+        assert.equal(f, data.id + '.json',
+          name + ': basename === id для ' + f);
+        ids.push(data.id);
+      }
+      assert.equal(new Set(ids).size, ids.length, name + ': id уникальны');
+      assert.deepEqual(files, [...files].sort(),
+        name + ': имена файлов в лексикографическом порядке');
+    } else {
       const segments = name === 'items'
         ? [[1, 814]]
-        : name === 'craft'
-          ? [[1, 199], [210, 237], [260, 287], [310, 337], [360, 719]]
-          : [[1, files.length]];
+        : [[1, files.length]];
       let i = 0;
       for (const [from, to] of segments) {
         for (let n = from; n <= to; n++, i++) {

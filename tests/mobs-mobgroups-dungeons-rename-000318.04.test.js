@@ -229,8 +229,8 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
 
 test('000318.04 T4: REF_RE — побайтовый пин ДВУХгруппного source + таблица истинности формы × каталога', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|skills|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|buildings|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    '^assets\\/(items|skills|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
     'REF_RE группами по шейпам: number-группа (items первым в '
     + 'REF_LINKED_CATALOGS) + slug-группа (spells с .05, mobs) — drift '
     + 'узаконен .04/.05; рантайм-носитель pattern обновлён в '

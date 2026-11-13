@@ -5,7 +5,7 @@
 //   пинит ФОРМУ id, каталожность — canLearn/getSpell при применении и
 //   этот sweep); НЕ путь файла.
 // * craft_scroll: effect.recipe в JSON-каталоге — ФАЙЛОВАЯ ссылка
-//   assets/craft/NNNNNN.json (source of truth, src/items/schema.json
+//   assets/craft/<id>.json (source of truth, src/items/schema.json
 //   паттерн), в зеркале src/items-data.js — id рецепта
 //   (scripts/sync-items-data.js резолвит через scripts/lib/json-ref.js,
 //   битая ссылка — exit 1; convention 000211 «пути в assets, id в src»;
@@ -39,7 +39,8 @@ const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
 
 const SPELL_ID_RE = /^[a-z][a-z0-9_]*$/;
-const CRAFT_REF_RE = /^assets\/craft\/\d{6}\.json$/;
+// 000318.07:craft — файл <id>.json (basename === id рецепта).
+const CRAFT_REF_RE = /^assets\/craft\/[a-z][a-z0-9_]*\.json$/;
 
 const SCROLL_FORMAT_EXCEPTIONS_000326 = [];
 
@@ -55,6 +56,14 @@ function spellDataFiles(dir) {
       && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
 }
 
+// 000318.07: craft — slug из живого реестра; schema.json — исключение.
+function craftDataFiles(dir) {
+  const JR = require('../scripts/lib/json-ref.js');
+  return fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.craft].test(f)).sort();
+}
+
 function readJson(dir, f) {
   return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
 }
@@ -67,7 +76,7 @@ function checkScrollLinks(itemsDir, spellsDir, craftDir) {
     if (typeof id === 'string' && id) spellIds.add(id);
   }
   const craftRefs = new Map();
-  for (const f of dataFiles(craftDir)) {
+  for (const f of craftDataFiles(craftDir)) {
     const j = readJson(craftDir, f);
     if (j !== null && typeof j === 'object'
       && Object.prototype.hasOwnProperty.call(j, 'id')) {
@@ -96,7 +105,7 @@ function checkScrollLinks(itemsDir, spellsDir, craftDir) {
         v.push(f + ': craft_scroll — effect.kind ≠ «craft_recipe»');
       } else if (typeof e.recipe !== 'string' || !CRAFT_REF_RE.test(e.recipe)) {
         v.push(f + ': «effect.recipe» «' + String(e.recipe)
-          + '» — не файловая ссылка assets/craft/NNNNNN.json (в JSON — путь, id — только в зеркале)');
+          + '» — не файловая ссылка assets/craft/<id>.json (в JSON — путь, id — только в зеркале)');
       } else if (!craftRefs.has(e.recipe)) {
         v.push(f + ': «effect.recipe» «' + e.recipe + '» — no-file/no-id в assets/craft');
       }
@@ -115,7 +124,7 @@ function checkScrollLinks(itemsDir, spellsDir, craftDir) {
   return v;
 }
 
-test('000326 T1: sweep JSON-каталога — spell_scroll: effect.kind «spell» + effect.spell ∈ id assets/spells; craft_scroll: effect.kind «craft_recipe» + recipe — путь assets/craft/NNNNNN.json, файл существует с id; resurrection_scroll: effect {kind:«resurrect»} БЕЗ spell/recipe (by design); свитков без effect — 0', () => {
+test('000326 T1: sweep JSON-каталога — spell_scroll: effect.kind «spell» + effect.spell ∈ id assets/spells; craft_scroll: effect.kind «craft_recipe» + recipe — путь assets/craft/<id>.json (slug с 000318.07), файл существует с id; resurrection_scroll: effect {kind:«resurrect»} БЕЗ spell/recipe (by design); свитков без effect — 0', () => {
   const files = dataFiles(ITEMS_DIR);
   assert.ok(files.length > 0, 'каталог assets/items не пуст');
   const v = checkScrollLinks(ITEMS_DIR, SPELLS_DIR, CRAFT_DIR);
@@ -131,7 +140,7 @@ test('000326 T2: зеркало src/items-data.js — effect.spell spell_scroll 
     byId.set(j.id, { f, j });
   }
   const craftIds = new Set();
-  for (const f of dataFiles(CRAFT_DIR)) {
+  for (const f of craftDataFiles(CRAFT_DIR)) {
     const id = readJson(CRAFT_DIR, f).id;
     if (typeof id === 'string' && id) craftIds.add(id);
   }
@@ -155,7 +164,7 @@ test('000326 T2: зеркало src/items-data.js — effect.spell spell_scroll 
       assert.ok(craftIds.has(it.effect.recipe),
         it.id + ': recipe «' + it.effect.recipe + '» — нет среди id assets/craft');
       assert.match(src.j.effect.recipe, CRAFT_REF_RE,
-        it.id + ': recipe JSON — файловая ссылка assets/craft/NNNNNN.json');
+        it.id + ': recipe JSON — файловая ссылка assets/craft/<id>.json');
       const refFile = path.join(ROOT, src.j.effect.recipe);
       assert.ok(fs.existsSync(refFile),
         it.id + ': JSON-ссылка «' + src.j.effect.recipe + '» — файла нет (no-file)');
@@ -176,7 +185,7 @@ test('000326 T3: self-check чекера — чистая фикстура []; �
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'scroll-spell-links-000326-'));
   try {
     const mk = (name, { items, spells = { 'fireball.json': { id: 'fireball' } },
-      craft = { '000001.json': { id: 'iron_sword' } } }) => {
+      craft = { 'iron_sword.json': { id: 'iron_sword' } } }) => {
       const d = path.join(tmp, name);
       for (const sub of ['items', 'spells', 'craft']) {
         fs.mkdirSync(path.join(d, sub), { recursive: true });
@@ -194,7 +203,7 @@ test('000326 T3: self-check чекера — чистая фикстура []; �
     const clean = mk('clean', {
       items: {
         '000001.json': { id: 's1', kind: 'spell_scroll', effect: { kind: 'spell', spell: 'fireball' } },
-        '000002.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/000001.json' } },
+        '000002.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/iron_sword.json' } },
         '000003.json': { id: 'r1', kind: 'resurrection_scroll', effect: { kind: 'resurrect' } },
       },
     });
@@ -206,15 +215,16 @@ test('000326 T3: self-check чекера — чистая фикстура []; �
       'чекер не сообщил нарушение для кривого spell-id «bad_spell_x»: ' + JSON.stringify(badSpell));
     const idFormRecipe = mk('id-form-recipe', {
       items: { '000001.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'iron_sword' } } },
-      craft: { '000001.json': { id: 'iron_sword' } },
+      craft: { 'iron_sword.json': { id: 'iron_sword' } },
     });
     assert.ok(idFormRecipe.some((s) => s.includes('iron_sword') && s.includes('assets/craft')),
       'чекер не сообщил нарушение для recipe в id-форме вместо пути: ' + JSON.stringify(idFormRecipe));
     const noFile = mk('craft-no-file', {
-      items: { '000001.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/999999.json' } } },
+      items: { '000001.json': { id: 'c1', kind: 'craft_scroll', effect: { kind: 'craft_recipe', recipe: 'assets/craft/no_such_recipe.json' } } },
     });
-    assert.ok(noFile.some((s) => s.includes('999999')),
-      'чекер не сообщил нарушение для битого пути craft «assets/craft/999999.json»: ' + JSON.stringify(noFile));
+    assert.ok(noFile.some((s) => s.includes('no_such_recipe')),
+      'чекер не сообщил нарушение для битого пути craft «assets/craft/no_such_recipe.json»: '
+      + JSON.stringify(noFile));
     const noEffect = mk('no-effect', {
       items: { '000001.json': { id: 's1', kind: 'spell_scroll' } },
     });

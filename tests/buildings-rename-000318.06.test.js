@@ -237,12 +237,13 @@ test('000318.06 T2: зеркало — BUILDINGS id-порядок СТРОГО 
 
 test('000318.06 T3: REF_RE — побайтовый пин НОВОГО двухгруппного source со buildings в slug-ветке + таблица истинности', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|skills|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|buildings|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
-    'REF_RE группами по шейпам: number (items/skills/craft/npc) + slug '
-    + '(spells/mobs/mob_groups/buildings/dungeons — buildings встал после '
-    + 'mob_groups по REF_LINKED_CATALOGS); прежний source (buildings в '
-    + 'number-группе) — «до 000318.06»; рантайм-носитель — pattern в '
+    '^assets\\/(items|skills|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    'REF_RE группами по шейпам: number (items/skills/npc) + slug '
+    + '(spells/mobs/mob_groups/buildings/craft/dungeons — buildings встал после '
+    + 'mob_groups по REF_LINKED_CATALOGS, craft — после buildings в 000318.07); '
+    + 'прежний source (craft в number-группе) — «до 000318.07»; '
+    + 'рантайм-носитель — pattern в '
     + 'assets/skills/schema.json (SR5/skills.test сверяют живо)');
   for (const [p, want] of [
     ['assets/buildings/weapons_shop.json', true],
@@ -251,7 +252,7 @@ test('000318.06 T3: REF_RE — побайтовый пин НОВОГО двух
     ['assets/buildings/' + '000001' + '.json', false],
     ['assets/buildings/' + '000054' + '.json', false],
     ['assets/items/000001.json', true],
-    ['assets/craft/000031.json', true],
+    ['assets/craft/iron_sword.json', true],
     ['assets/spells/spark.json', true],
     ['assets/dungeons/abyss.json', true],
     ['assets/npc/000018.json', true],
@@ -273,8 +274,8 @@ test('000318.06 T4: схемы-носители — skills ×2 ≡ живой RE
     'skills/schema.json: secondary.requires.skill ≢ живому REF_RE.source');
   const dungs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'dungeons', 'schema.json'), 'utf8'));
-  const UNION = '^assets/((items|skills|craft|npc)/\\d{6}'
-    + '|(spells|mobs|mob_groups|buildings|dungeons)/[a-z][a-z0-9_]*)\\.json$';
+  const UNION = '^assets/((items|skills|npc)/\\d{6}'
+    + '|(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
   assert.equal(dungs.properties.мобы.items.pattern, UNION,
     'dungeons/schema.json: «мобы» — buildings не в slug-ветке');
   assert.equal(dungs.properties.предметы.items.pattern, UNION,

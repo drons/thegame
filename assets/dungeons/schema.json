@@ -17,7 +17,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^assets/((items|skills|craft|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|dungeons)/[a-z][a-z0-9_]*)\\.json$"
+        "pattern": "^assets/((items|skills|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$"
       }
     },
     "предметы": {
@@ -25,7 +25,7 @@
       "minItems": 1,
       "items": {
         "type": "string",
-        "pattern": "^assets/((items|skills|craft|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|dungeons)/[a-z][a-z0-9_]*)\\.json$"
+        "pattern": "^assets/((items|skills|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$"
       }
     },
     "размер": {
@@ -35,7 +35,7 @@
     },
     "постройка": {
       "type": "string",
-      "pattern": "^assets/((items|skills|craft|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|dungeons)/[a-z][a-z0-9_]*)\\.json$"
+      "pattern": "^assets/((items|skills|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$"
     },
     "объекты_стен": {
       "type": "array",
@@ -55,7 +55,7 @@
         "properties": {
           "предмет": {
             "type": "string",
-            "pattern": "^assets/((items|skills|craft|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|dungeons)/[a-z][a-z0-9_]*)\\.json$"
+            "pattern": "^assets/((items|skills|npc)/\\d{6}|(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$"
           },
           "вид": {
             "type": "string",

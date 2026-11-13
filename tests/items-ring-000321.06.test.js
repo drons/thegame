@@ -199,8 +199,9 @@ function loadItemFile(num) {
   return fs.readFileSync(p, 'utf8');
 }
 
-function loadRecFile(num) {
-  const f = String(num).padStart(6, '0') + '.json';
+// 000318.07: craft — файл <id>.json (basename === id рецепта).
+function loadRecFile(id) {
+  const f = id + '.json';
   const p = path.join(CRAFT_DIR, f);
   assert.ok(fs.existsSync(p),
     'assets/craft/' + f + ' существует (краснота: рецептов нет)');
@@ -221,9 +222,11 @@ function itemFiles() {
     .filter((f) => /^\d{6}\.json$/.test(f)).sort();
 }
 
+const JRC_REC = require('../scripts/lib/json-ref.js');
+const CRAFT_FILE_RE = JRC_REC.SHAPE_BASENAME_RES[JRC_REC.ASSET_NAME_SHAPES.craft];
 function recFiles() {
   return fs.readdirSync(CRAFT_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+    .filter((f) => f !== 'schema.json' && CRAFT_FILE_RE.test(f)).sort();
 }
 
 // --- T1: форма 50 предметов ------------------------------------------
@@ -612,7 +615,7 @@ test('000321.06 T7: иконки — у 50 новых поле icon ↔ файл
 
 // --- T8: рецепты ---------------------------------------------------------
 
-test('000321.06 T8: 50 рецептов 000670–000719 подряд; результат покрывает НОВЫЕ кольца 1:1 (тот же порядок); id рецепта = id результата; тип-состав резьба_по_камню 25 / зачарование 25 (масштаб факта 15/13 старых); здания: резьба [rune_stone, ruins], зачарование [mage_tower]; навыки: резьба [runes], зачарование [runes + навык-аффикс результата]; «заклинания» РОВНО 1 ∈ assets/spells только у зачарования (у free_cast-колец — свой spell); «база» отсутствует; «уровень» ∈ полосе редкости результата; исходники ∈ СТАРЫЙ каталог (НОВЫХ реагентов нет); «название»/«описание» уникальны по craft; roundtrip-канон (краснота: craft 593 — рецептов нет)', () => {
+test('000321.06 T8: 50 рецептов — файлы по id (прежние номера 000670–000719, 000318.07: basename === id); результат покрывает НОВЫЕ кольца 1:1 (тот же порядок); id рецепта = id результата; тип-состав резьба_по_камню 25 / зачарование 25 (масштаб факта 15/13 старых); здания: резьба [rune_stone, ruins], зачарование [mage_tower]; навыки: резьба [runes], зачарование [runes + навык-аффикс результата]; «заклинания» РОВНО 1 ∈ assets/spells только у зачарования (у free_cast-колец — свой spell); «база» отсутствует; «уровень» ∈ полосе редкости результата; исходники ∈ СТАРЫЙ каталог (НОВЫХ реагентов нет); «название»/«описание» уникальны по craft; roundtrip-канон (краснота: craft 593 — рецептов нет)', () => {
   const files = recFiles();
   assert.equal(files.length, 643,
     'craft — 643 файла (593 + 50); факт: ' + files.length
@@ -646,10 +649,13 @@ test('000321.06 T8: 50 рецептов 000670–000719 подряд; резул
   ROSTER_00032106.forEach(([num, id, , rarity, , , skill, , , fc,
       recType, recName, level, spell, sources, , recDesc], i) => {
     const recNum = REC_FROM + i;
-    const f = String(recNum).padStart(6, '0') + '.json';
-    assert.equal(files[files.length - 50 + i], f,
-      'каталожный порядок: 50 новых — последние 50 подряд, ' + f);
-    const raw = loadRecFile(recNum);
+    const f = id + '.json';
+    assert.ok(files.includes(f),
+      'рецепт кольца (прежний номер ' + String(recNum).padStart(6, '0')
+      + ') — файл ' + f + ' ∈ assets/craft (000318.07: имя файла === id, '
+      + 'окно позиций по номерам заменено свипом присутствия + '
+      + 'basename === id; memory/000318.07-craft-slug-rename.md)');
+    const raw = loadRecFile(id);
     const j = JSON.parse(raw);
     assert.deepEqual(validateData(schema, j, f), [], f + ': схема');
     assert.equal(j['id'], id, f + ': id рецепта = id результата');
@@ -737,9 +743,9 @@ test('000321.06 T9: зеркала — src/items-data.js содержит 50 н�
   }
   assert.equal(CRD.CRAFT.length, 643,
     'craft-data — 643; факт: ' + CRD.CRAFT.length);
-  ROSTER_00032106.forEach(([, id], i) => {
-    const f = String(REC_FROM + i).padStart(6, '0') + '.json';
-    const j = JSON.parse(loadRecFile(REC_FROM + i));
+  ROSTER_00032106.forEach(([, id]) => {
+    const f = id + '.json';
+    const j = JSON.parse(loadRecFile(id));
     const m = CRD.CRAFT_BY_ID[id];
     assert.ok(m, 'craft-data: рецепт «' + id + '» (' + f + ')');
     const itemById = (ref) => JSON.parse(fs.readFileSync(

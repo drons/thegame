@@ -77,7 +77,7 @@ function withGame(game, fn) {
   }
 }
 
-test('Q-1: useQuickItem — чертёж blueprint_forge: успех — изучен ВИД (isTypeLearned=true), слот очищен, r.craft/message дословно (якорь assets/craft/000001.json)', () =>
+test('Q-1: useQuickItem — чертёж blueprint_forge: успех — изучен ВИД (isTypeLearned=true), слот очищен, r.craft/message дословно (якорь assets/craft/iron_sword.json)', () =>
   withGame({ Craft: C }, () => {
     const c = createCharacter();
     const add = I.addItem(c, 'blueprint_forge');

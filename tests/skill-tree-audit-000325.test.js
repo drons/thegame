@@ -281,8 +281,10 @@ test('000325 T3: контракт домена крафта: CRAFT_TYPES ≡ к�
     Object.keys(CR.CRAFT_TYPE_SKILL).sort(),
     'CRAFT_TYPES ≢ ключи CRAFT_TYPE_SKILL');
   const craftDir = path.join(ROOT, 'assets', 'craft');
+  const JRC = require('../scripts/lib/json-ref.js');
   const types = [...new Set(jsonFiles(craftDir)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.craft].test(f))
     .map((f) => readJson(craftDir, f).тип))];
   assert.ok(types.length > 0, 'каталог recipes assets/craft пуст');
   const outside = types.filter((t) => !CR.CRAFT_TYPES.includes(t));

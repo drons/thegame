@@ -242,7 +242,11 @@ function loadCatalog(ROOT) {
   }
 
   const craftDir = path.join(ROOT, 'assets', 'craft');
-  const crafts = fs.readdirSync(craftDir).filter((f) => NUM6.test(f)).map((f) => JSON.parse(fs.readFileSync(path.join(craftDir, f), 'utf8')));
+  const JRC = require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
+  const CRAFT_RE = JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.craft];
+  const crafts = fs.readdirSync(craftDir)
+    .filter((f) => f !== 'schema.json' && CRAFT_RE.test(f))
+    .map((f) => JSON.parse(fs.readFileSync(path.join(craftDir, f), 'utf8')));
   const rarityNum = new Set(rarity.map((x) => x.num));
   const byItem = {};
   let rarityEquip = 0;

@@ -6,7 +6,7 @@
 //
 // Контракты — memory/000232-craft-learned-kinds.md:
 //   D1 — JSON: effect { kind:'craft_recipe',
-//        recipe:'assets/craft/NNNNNN.json' } (явная файловая ссылка —
+//        recipe:'assets/craft/<id>.json' } (явная файловая ссылка —
 //        ТОЛЬКО в assets); зеркало src/items-data.js — id-форма;
 //        schema.json: kind enum += 'craft_scroll' (append),
 //        effect.kind enum += 'craft_recipe', effect.recipe — анкорный
@@ -48,22 +48,22 @@ const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 // ПЕРВЫЙ/низший уровень вида) → вид. Якорь задаёт имя/вид свитка.
 const BLUEPRINTS_000232 = [
   { file: '000077.json', id: 'blueprint_forge',
-    name: 'Чертёж: кузнечное дело', recipe: 'assets/craft/000001.json',
+    name: 'Чертёж: кузнечное дело', recipe: 'assets/craft/iron_sword.json',
     type: 'кузнечное_дело' },
   { file: '000078.json', id: 'blueprint_alchemy',
-    name: 'Чертёж: алхимия', recipe: 'assets/craft/000004.json',
+    name: 'Чертёж: алхимия', recipe: 'assets/craft/healing_potion.json',
     type: 'алхимия' },
   { file: '000079.json', id: 'blueprint_carving',
-    name: 'Чертёж: резьба по камню', recipe: 'assets/craft/000013.json',
+    name: 'Чертёж: резьба по камню', recipe: 'assets/craft/stone_chisel.json',
     type: 'резьба_по_камню' },
   { file: '000080.json', id: 'blueprint_woodwork',
-    name: 'Чертёж: столярное дело', recipe: 'assets/craft/000011.json',
+    name: 'Чертёж: столярное дело', recipe: 'assets/craft/wood_sword.json',
     type: 'столярное_дело' },
   { file: '000081.json', id: 'blueprint_enchant',
-    name: 'Чертёж: зачарование', recipe: 'assets/craft/000008.json',
+    name: 'Чертёж: зачарование', recipe: 'assets/craft/hunting_bow.json',
     type: 'зачарование' },
   { file: '000082.json', id: 'blueprint_runecraft',
-    name: 'Чертёж: рунопись', recipe: 'assets/craft/000019.json',
+    name: 'Чертёж: рунопись', recipe: 'assets/craft/moonstone_runes.json',
     type: 'рунопись' },
 ];
 
@@ -91,7 +91,7 @@ function withGame232(game, fn) {
   }
 }
 
-test('CR-1: items.js — ITEM_KINDS.CRAFT_SCROLL / EFFECT_KINDS.CRAFT_RECIPE; schema.json — kind enum += craft_scroll, effect.kind enum += craft_recipe, effect.recipe — анкорный паттерн ^assets/craft/\\d{6}\\.json$ (опционально), additionalProperties:false сохранён', () => {
+test('CR-1: items.js — ITEM_KINDS.CRAFT_SCROLL / EFFECT_KINDS.CRAFT_RECIPE; schema.json — kind enum += craft_scroll, effect.kind enum += craft_recipe, effect.recipe — анкорный паттерн ^assets/craft/[a-z][a-z0-9_]*\\.json$ (slug с 000318.07) (опционально), additionalProperties:false сохранён', () => {
   assert.equal(I.ITEM_KINDS.CRAFT_SCROLL, 'craft_scroll',
     'краснота: kind craft_scroll отсутствует в items.js');
   assert.equal(I.EFFECT_KINDS.CRAFT_RECIPE, 'craft_recipe',
@@ -107,8 +107,9 @@ test('CR-1: items.js — ITEM_KINDS.CRAFT_SCROLL / EFFECT_KINDS.CRAFT_RECIPE; sc
   assert.ok(recipe && typeof recipe === 'object',
     'краснота: schema effect без свойства recipe');
   assert.equal(recipe.type, 'string', 'recipe — строка-ссылка');
-  assert.equal(recipe.pattern, '^assets/craft/\\d{6}\\.json$',
-    'recipe — анкорный паттерн на каталог craft (явная ссылка, ТЗ)');
+  assert.equal(recipe.pattern, '^assets/craft/[a-z][a-z0-9_]*\\.json$',
+    'recipe — анкорный паттерн на каталог craft (явная ссылка, ТЗ; '
+    + 'slug-форма имени файла с 000318.07)');
   assert.equal(schema.properties.effect.additionalProperties, false,
     'effect.additionalProperties:false сохранён (recipe — объявленный ключ)');
 });

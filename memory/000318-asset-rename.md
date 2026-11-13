@@ -15,7 +15,7 @@ tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
 | mobs | slug (000318.04; было number) | 36 — <id>.json (id строка === basename) | да |
 | mob_groups | slug (000318.04; было number) | 7 — рукописный slug (id 1..7 числовой в JSON — НЕ basename) | да |
 | buildings | slug (000318.06; было number) | 55 — рукописный slug (id 1..55 числовой в JSON — НЕ basename; 29 = basename «спрайт», 26 — таблица) | да |
-| craft | number | 343 (max 000419 — СЕГМЕНТАМИ, дыры) | да |
+| craft | slug (000318.07; было number — «сегментами с дырами», ТЗ-число 343 устарело) | 643 — <id>.json (id строка === basename) | да |
 | dungeons | slug (000318.04; было number) | 5 — рукописный slug (id 0..4 числовой в JSON — НЕ basename) | да |
 | npc | number | 22 | да |
 | runes | slug (000318.02; было number) | 55 — <id>.json | НЕТ (никогда не был в REF_RE) |
@@ -56,6 +56,14 @@ name-shape ('number'/'slug') ≠ 'named' (portraits). Переименовани
   AR11 + побайтовые дубли .02/.03/.04/.05 + носители pattern
   skills/craft/spells/npc/dungeons/mob_groups schema.json — ре-пин в том
   же коммите (memory/000318-buildings.md).
+  ПОСЛЕ 000318.07 кslug-группе добавился craft (ЧЕТВЁРТАЯ флипающаяся
+  МИШЕНЬ): текущий source — `…(items|skills|npc)/\d{6}…` +
+  `…(spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*…`
+  (в number-ветке осталось ТРИ каталога); AR11 + схемы-носители
+  craft/schema.json («база»), items/schema.json (`effect.recipe`),
+  skills ×2 + dungeons ×4 (≡ живому source) — ре-пин в том же коммите;
+  побайтовые дубли в тестах .02…/.06 заменены ПРОИЗВОДНЫМИ от
+  `mod.REF_RE.source` (memory/000318.07-craft-slug-rename.md §1).
 * Lib обязан остаться ОДНИМ файлом без внутренних require-соседей:
   tests/items.test.js копирует в tmp ровно файл json-ref.js.
 * Производительность: ни одного new RegExp на вызов (isRef гоняется по
@@ -80,7 +88,11 @@ buildings/skills-refs копируют ВЕСЬ scripts/lib — их трога�
 НЕ переведены и НЕ должны: `.filter(/^\d{6}\.json$/).sort()` в 10+
 sync-скриптах — ЭТО КОНТРАКТ ПОРЯДКА зеркала (позиционные MOB_GROUP_TYPES
 src/map.js и формулы визуалов/сидов); перевод сортировки на по-id — задача
-соответствующих дочерних .YY при переименовании каталога.
+соответствующих дочерних .YY при переименовании каталога. ПЕРЕВЕДЁН
+sync-craft-data.js (000318.07): фильтр — форма из живого реестра +
+исключение `schema.json`, порядок — по `data.id` (единственный потребитель
+порядка `DISASSEMBLY_BY_ITEM` не изменился: единственный тай разрешается
+прежнему победителю).
 
 ## 4. Правила переименований для дочерних 000318.02+
 
@@ -101,7 +113,14 @@ src/map.js и формулы визуалов/сидов); перевод сор
   spells 169, ссылки 1259/477/473 и т.п.) — при переименовании НЕ должны
   меняться (rename не меняет число ссылок); сменятся только path-строки.
 * craft-дыры: непрерывность 1..N пиннится для 10 каталогов, craft —
-  явное пин-исключение «с дырами» (RN2).
+  явное пин-исключение «с дырами» (RN2). ИСПОЛНЕНО 000318.07: с переходом
+  craft в slug-шейп файловых номеров нет вовсе — исключение снято
+  (`GAPPED` = пустое множество, механизм оставлен для будущих number-
+  каталогов), сегментный пин заменён свипом `basename === id` — в ДВУХ
+  носителях: `tests/craft.test.js` и `tests/assets-schemas.test.js`
+  (последний до .07 craft в `CATALOGS` НЕ содержал ⇒ его крафтовая
+  сегментная ветка была мертва; теперь `CATALOGS += craft` и ветка
+  `SLUG_SWEEP_000318` — memory/000318.07-craft-slug-rename.md §3).
 
 ## 4.1. Переименованные каталоги (итоги дочерних)
 
@@ -155,6 +174,24 @@ src/map.js и формулы визуалов/сидов); перевод сор
   теряются в маппинге). Порядок зеркала BUILDINGS по id = прежний
   файтовый ⇒ 635 non-comment строк блока бит-в-бит, CHANGELOG не
   требовался. Детали, ростер и матрица — memory/000318-buildings.md.
+* craft → slug (000318.07, 643 файла <id>.json: 600 R100 + 43 с правкой
+  self-«база»; + 6 `effect.recipe` в assets/items 000077–000082): ЧЕТВЁРТАЯ
+  флипающаяся МИШЕНЬ, `NameOf === id` (не рукописный, как .06). ТЗ-премисса
+  «343 файла» устарела (000321.01…06 долили 5×50 — последние 50
+  переименованы этим же коммитом). Зеркало `src/craft-data.js` — lex по id
+  (`adobe_shield … yew_longbow`), порядок сменился ЦЕЛИКОМ (6206/6206
+  строк), но `src/items-data.js` 0-diff и тай `DISASSEMBLY_BY_ITEM`
+  (единственный) разрешается прежнему победителю ⇒ golden/rng 0-diff,
+  CHANGELOG не требовался. Сегментный пин «с дырами» → свип basename === id,
+  `GAPPED` пуст. Формула 000230.11 T9 (`parseInt` от имени файла → NaN)
+  переведена на порядок ростера. Сегментный пин из ТЗ жил в
+  `tests/assets-schemas.test.js`, но craft в `CATALOGS` там не было —
+  ветка мертва; с .07 `CATALOGS += craft` + свип-ветка `SLUG_SWEEP_000318`
+  (+4 теста: craft получил общую сетку покрытия, включая валидность всех
+  643 файлов по своей схеме). Карта ре-пинов и грабли
+  (`$'` в `String.replace`, slug-regex ловит `schema.json`, позиционные
+  окна `files.length − K + i` в пяти wave-тестах, локальные имена
+  `craftFiles`) — memory/000318.07-craft-slug-rename.md.
 
 ## 5. Памятка оркестратору волн
 
@@ -168,6 +205,13 @@ buildings-rename-000318.06/assets-renames-000318); numeric-путь
 `assets/buildings/000NNN.json` — НЕ ref (REF_RE/sync-резолюции/schema-
 паттерны его не принимают; AR8/AR9 его НЕ видят — guard'ы только
 перевёрнутые pattern'ы схем + zero-sweep T5 в buildings-rename-тесте).
+С 000318.07 в волнах: рецепты — `assets/craft/<id>.json` (self-«база» и
+`effect.recipe` чертежей); numeric-путь `assets/craft/000NNN.json` — НЕ ref
+(REF_RE/схема/sync-резолвция его не принимают), а числовые «номера рецептов»
+в текстах задач и тестов — история, а не путь. Долг: `spec/items.md:305`
+всё ещё описывает `assets/craft/NNNNNN.json` — docs-эррата отдельной задачей
+(scope .07 — только line-neutral `spec/craft.md`).
+
 spec/runes.md:47 оставался устаревшим (числовой naming руны) — 0-diff по
 решению 000318.02, не «чинить» попутно. ИСПРАВЛЕНО 000360 (errata): путь →
 `assets/buildings/rune_stone.json`, line-neutral, SPEC_FILE_LINES=68 не двигался.

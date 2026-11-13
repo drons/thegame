@@ -27,7 +27,7 @@
         "amount": { "type": "number", "minimum": 1, "maximum": 500 },
         "skill": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
         "spell": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
-        "recipe": { "type": "string", "pattern": "^assets/craft/\\d{6}\\.json$" }
+        "recipe": { "type": "string", "pattern": "^assets/craft/[a-z][a-z0-9_]*\\.json$" }
       },
       "additionalProperties": false
     },

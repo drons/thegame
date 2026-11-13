@@ -168,7 +168,7 @@ test('AR2: isRef — якорный паттерн 9 каталогов (+/−)'
     'assets/mobs/abomination.json',      // mobs — slug с 000318.04
     'assets/mob_groups/abyss_spirit.json',  // mob_groups — slug с 000318.04
     'assets/buildings/city_54.json',    // buildings — slug с 000318.06
-    'assets/craft/000031.json',
+    'assets/craft/iron_sword.json',    // craft — slug с 000318.07
     'assets/spells/resurrect.json',    // spells — slug с 000318.05
     'assets/npc/000018.json',
   ]) {
@@ -178,6 +178,7 @@ test('AR2: isRef — якорный паттерн 9 каталогов (+/−)'
     'assets/visuals/000001.json',  // visuals вне паттерна (прямые svg-пути)
     'assets/mobs/000001.json',     // mobs slug с 000318.04: номер — не ref
     'assets/buildings/' + '000054' + '.json', // buildings slug с 000318.06: номер — не ref
+    'assets/craft/' + '000031' + '.json', // craft slug с 000318.07: номер — не ref
     'assets/mobs/00001.json',      // 5 цифр
     'assets/mobs/0000001.json',    // 7 цифр
     'assets/items/1.json',
@@ -317,7 +318,7 @@ function loadShapes() {
 
 test('AR10: поверхность 000318.01 — реестр шейпов и резолверы формы', () => {
   const mod = loadShapes();
-  for (const cat of ['items', 'skills', 'craft', 'npc']) {
+  for (const cat of ['items', 'skills', 'npc']) {
     assert.equal(mod.ASSET_NAME_SHAPES[cat], 'number',
       cat + ': не переименован дочерними 000318 — шейп number');
   }
@@ -344,6 +345,12 @@ test('AR10: поверхность 000318.01 — реестр шейпов и р
     'buildings (000318.06): slug-имя — ref');
   assert.equal(mod.isRefPath('buildings', '000047.json'), false,
     'buildings (000318.06): прежняя номерная форма — НЕ ref');
+  assert.equal(mod.ASSET_NAME_SHAPES.craft, 'slug',
+    'craft — slug (переименован 000318.07: имя файла === id рецепта)');
+  assert.equal(mod.isRefPath('craft', 'iron_sword.json'), true,
+    'craft (000318.07): slug-имя — ref');
+  assert.equal(mod.isRefPath('craft', '000001.json'), false,
+    'craft (000318.07): прежняя номерная форма — НЕ ref');
   assert.equal(mod.ASSET_NAME_SHAPES.runes, 'slug',
     'runes — slug (переименован 000318.02; мишенью ссылок не был никогда)');
   assert.equal(mod.ASSET_NAME_SHAPES.visuals, 'slug',
@@ -355,8 +362,8 @@ test('AR10: поверхность 000318.01 — реестр шейпов и р
     'items', 'skills', 'spells', 'mobs', 'mob_groups',
     'buildings', 'craft', 'dungeons', 'npc',
   ], 'REF_LINKED_CATALOGS — РОВНО 9 мишеней (REF_CATALOGS минус visuals/portraits)');
-  assert.equal(mod.refPath('craft', '000031.json'),
-    'assets/craft/000031.json', 'refPath — сборка корневого пути');
+  assert.equal(mod.refPath('craft', 'iron_sword.json'),
+    'assets/craft/iron_sword.json', 'refPath — сборка корневого пути');
   assert.equal(mod.isRefPath('items', '000001.json'), true);
   assert.equal(mod.isRefPath('items', '0000001.json'), false, '7 цифр — не ref');
   assert.equal(mod.isRefPath('items', 'wood_sword.json'), false,
@@ -371,13 +378,13 @@ test('AR10: поверхность 000318.01 — реестр шейпов и р
 test('AR11: REF_RE.source — побайтовый пин обратной совместимости', () => {
   const mod = loadRef();
   assert.equal(mod.REF_RE.source,
-    '^assets\\/(items|skills|craft|npc)\\/\\d{6}\\.json$'
-    + '|^assets\\/(spells|mobs|mob_groups|buildings|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
-    'REF_RE выводится из шейпов группами; с 000318.06 — ДВЕ группы '
-    + '(number: items/skills/craft/npc; slug: spells/mobs/mob_groups/'
-    + 'buildings/dungeons — buildings перешёл из number-группы по '
-    + 'REF_LINKED_CATALOGS). Прежний литерал ДО .06 (buildings в number-'
-    + 'группе); рантайм-носитель: pattern в assets/skills/schema.json, '
+    '^assets\\/(items|skills|npc)\\/\\d{6}\\.json$'
+    + '|^assets\\/(spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$',
+    'REF_RE выводится из шейпов группами; с 000318.07 — ДВЕ группы '
+    + '(number: items/skills/npc; slug: spells/mobs/mob_groups/buildings/'
+    + 'craft/dungeons — craft перешёл из number-группы по '
+    + 'REF_LINKED_CATALOGS). Прежний литерал ДО .07 (craft в number-группе); '
+    + 'рантайм-носитель: pattern в assets/skills/schema.json, '
     + 'SR5/skills.test');
 });
 

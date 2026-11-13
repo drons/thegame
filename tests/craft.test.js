@@ -1,7 +1,8 @@
 // Каталог крафта (assets/craft) — задача 000024.
 //
 // Проверяем:
-//  * нумерацию файлов 000001.json … N подряд, без чужих файлов;
+//  * именование файлов `<id>.json` (basename === id; 000318.07 — до этого
+//    «номера подряд сегментами»), без чужих файлов;
 //  * валидность каждого файла по assets/craft/schema.json (минимальный
 //    валидатор, допустимые ключи — ALLOWED_SCHEMA_KEYS, задача 000015);
 //  * правила каталога: уникальные id, тип из списка видов,
@@ -36,9 +37,12 @@ const CRAFT_TYPES = new Set([
   'столярное_дело', 'зачарование', 'рунопись',
 ]);
 
+// Форма имени — из ЖИВОГО реестра lib (000318.07: craft — slug, имя == id);
+// slug-regex матчит и schema.json — исключаем явно (прецедент .02/.06).
 function listCraftFiles() {
   return fs.readdirSync(DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.craft].test(f))
     .sort();
 }
 
@@ -48,8 +52,10 @@ function loadCatalog() {
   const byId = new Map();
   for (const f of all) {
     if (f === 'schema.json') continue;
-    assert.match(f, /^\d{6}\.json$/, `чужой файл в каталоге крафта: ${f}`);
+    assert.match(f, JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.craft],
+      `чужой файл в каталоге крафта: ${f}`);
     const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(f, `${data.id}.json`, `имя файла != id рецепта: ${f}`);
     assert.ok(!byId.has(data.id), `дубликат id рецепта "${data.id}" в ${f}`);
     byId.set(data.id, { file: f, data });
   }
@@ -84,7 +90,7 @@ function loadSpellIds() {
 const REF_ITEMS = /^assets\/items\/\d{6}\.json$/;
 const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
-const REF_CRAFT = /^assets\/craft\/\d{6}\.json$/;
+const REF_CRAFT = /^assets\/craft\/[a-z][a-z0-9_]*\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
 
 // Числовые id сырого каталога зданий (000211.04: membership вместо
@@ -144,37 +150,28 @@ function loadSchema() {
   return JSON.parse(fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
 }
 
-// --- Нумерация ---
+// --- Именование файлов каталога ---
 
-test('каталог: нумерация файлов — сегменты подряд: 000001..000199 + 000210..000237 + 000260..000287 + 000310..000337 + 000360..000419 + 000420..000469 + 000470..000519 + 000520..000569 + 000570..000619 + 000620..000669 + 000670..000719 (ре-пин 000321.06: +50 рецептов колец 000670–000719; ре-пин 000321.05: +50 рецептов инструментов 000620–000669; ре-пин 000321.04: +50 рецептов артефактов 000570–000619; ре-пин 000321.03: +50 рецептов щитов 000520–000569; ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000230.11: 000144–000199 руки; ре-пин 000230.12: 000210–000237 «правая рука»; ре-пин 000230.13: 000260–000287 left_hand; ре-пин 000230.14: 000310–000337 кольца; ре-пин 000230.15: 000360–000415 ноги/ступни; ре-пин 000230.19: +2 set 000416–000417; ре-пин 000277: +2 set 000418–000419 — девятисегментный каталог)', () => {
+// 000318.07: сегментный пин номеров (000001..000199 + 000210..000237 + … +
+// 000670..000719) ЗАМЕНЁН свипом basename === id: «дыры» между сегментами
+// были артефактом номерования и при slug-именовании теряют смысл (решение —
+// memory/000318.07-craft-slug-rename.md; счётчик каталога закреплён ниже).
+test('каталог: именование файлов — basename === id (000318.07: свип вместо сегментного пина номеров)', () => {
   const files = listCraftFiles();
   assert.ok(files.length >= 8, 'каталог подозрительно маленький');
-  let i = 0;
-  for (const [from, to] of [[1, 199], [210, 237], [260, 287], [310, 337], [360, 419], [420, 469], [470, 519], [520, 569], [570, 619], [620, 669], [670, 719]]) {
-    for (let n = from; n <= to; n++, i++) {
-      assert.equal(files[i], String(n).padStart(6, '0') + '.json',
-        `пробел в нумерации на позиции ${i + 1}: ${files[i]}`);
-    }
+  for (const f of files) {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
+    assert.equal(f, data.id + '.json',
+      `${f}: basename != id рецепта (000318.07: имя файла === id)`);
   }
-  assert.equal(i, files.length,
-    'число файлов = сумма сегментов (ре-пин 000230.11: 199; '
-    + 'ре-пин 000230.13: +28 = 227; '
-    + 'ре-пин 000230.14: +28 = 255; '
-    + 'ре-пин 000230.12: +28 = 283; '
-    + 'ре-пин 000230.15: +56 = 339; '
-    + 'ре-пин 000230.19: +2 set = 341; '
-    + 'ре-пин 000277: +2 set = 343; '
-    + 'ре-пин 000321.01: +50 оружия 000420–000469 = 393; '
-    + 'ре-пин 000321.02: +50 брони 000470–000519 = 443; '
-    + 'ре-пин 000321.03: +50 рецептов щитов 000520–000569 = 493; '
-    + 'ре-пин 000321.04: +50 рецептов артефактов 000570–000619 = 543; '
-    + 'ре-пин 000321.05: +50 рецептов инструментов 000620–000669 = 593; '
-    + 'ре-пин 000321.06: +50 рецептов колец 000670–000719 = 643)');
+  assert.deepEqual(files, [...files].sort(),
+    'имена файлов по порядку (лекс) — каталог детерминирован');
 });
 
-test('каталог: чужих файлов нет (только NNNNNN.json и schema.json)', () => {
+test('каталог: чужих файлов нет (только <id>.json и schema.json)', () => {
   for (const f of fs.readdirSync(DIR).sort()) {
-    assert.ok(/^\d{6}\.json$/.test(f) || f === 'schema.json',
+    assert.ok(JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.craft].test(f)
+      || f === 'schema.json',
       `чужой файл в каталоге крафта: ${f}`);
   }
 });
@@ -498,49 +495,24 @@ const ORES_015701 = ['silver_ore', 'gold_ore', 'mithril_ore', 'quartz',
   'obsidian', 'phosphorite', 'ruby', 'sapphire', 'emerald', 'amethyst',
   'diamond'];
 
-test('000157.04 R1: каталог — ровно 643 файлов: 000001..000199 подряд + 000210..000237 подряд + 000260..000287 подряд + 000310..000337 подряд + 000360..000419 подряд + 000420..000469 подряд + 000470..000519 подряд + 000520..000569 подряд + 000570..000619 подряд + 000620..000669 подряд + 000670..000719 подряд (ре-пин 000321.06: +50 рецептов колец 000670–000719; ре-пин 000321.05: +50 рецептов инструментов 000620–000669; ре-пин 000321.04: +50 рецептов артефактов 000570–000619; ре-пин 000321.03: +50 рецептов щитов 000520–000569; ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.01: +50 оружия 000420–000469; (ре-пин 000230.08: +28 000032–000059; ре-пин 000230.09: +56 000060–000115; ре-пин 000230.10: +28 torso 000116–000143; ре-пин 000230.11: +56 рук 000144–000199; ре-пин 000230.12: +28 right-hand 000210–000237; ре-пин 000230.13: +28 left_hand 000260–000287; ре-пин 000230.14: +28 колец 000310–000337; ре-пин 000230.15: +56 ног/ступней 000360–000415; ре-пин 000230.19: +2 set 000416–000417; ре-пин 000277: +2 set 000418–000419; дыры 000200–000209, 000238–000259, 000288–000309, 000338–000359 — девятисегментный каталог)', () => {
+// 000318.07: прежний пин «000001..000199 подряд + …» и циклы existsSync по
+// номерам сняты — номера потеряли смысл (имя файла === id); существование
+// рецептов каждой волны закреплено ростерами C1/C2/T9/T10/R12/LF9/LF10 по
+// id, здесь — счётчик каталога и целостность имён.
+test('000157.04 R1: каталог — ровно 643 файлов (000318.07: имя === id, сегменты «подряд» сняты — цепочка роста по волнам в сообщении)', () => {
   const files = listCraftFiles();
   assert.equal(files.length, 643,
-    'ровно 643 рецепт (31 до 000230.08 + 28 head 000032–000059 '
-    + '+ 56 уши/шея 000060–000115 + 28 torso 000116–000143 '
-    + '+ 56 рук 000144–000199 + 28 right-hand 000210–000237 '
-    + '+ 28 left_hand 000260–000287 + 28 колец 000310–000337 '
-    + '+ 56 ног/ступней 000360–000415 + 2 set 000416–000417 '
-    + '+ 2 set 000418–000419 + 50 оружия 000420–000469 (000321.01) + 50 брони 000470–000519 (000321.02) + 50 рецептов щитов 000520–000569 (000321.03) + 50 рецептов артефактов 000570–000619 (000321.04) + 50 рецептов инструментов 000620–000669 (000321.05) + 50 рецептов колец 000670–000719 (000321.06)), '
-    + 'а есть: ' + files.length);
-  files.forEach((f, i) => {
-    const expected = i < 199
-      ? String(i + 1).padStart(6, '0') + '.json'
-      : i < 227
-        ? String(210 + i - 199).padStart(6, '0') + '.json'
-        : i < 255
-          ? String(260 + i - 227).padStart(6, '0') + '.json'
-          : i < 283
-            ? String(310 + i - 255).padStart(6, '0') + '.json'
-            : String(360 + i - 283).padStart(6, '0') + '.json';
-    assert.equal(f, expected,
-      `пробел в нумерации на позиции ${i + 1}: ${f} (ожидается ${expected})`);
-  });
-  for (let n = 20; n <= 199; n++) {
-    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
-      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — новые рецепты не созданы)`);
-  }
-  for (let n = 210; n <= 237; n++) {
-    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
-      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — right-hand-рецепты не созданы)`);
-  }
-  for (let n = 260; n <= 287; n++) {
-    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
-      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — left_hand-рецепты не созданы)`);
-  }
-  for (let n = 310; n <= 337; n++) {
-    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
-      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — ring-рецепты не созданы)`);
-  }
-  for (let n = 360; n <= 419; n++) {
-    assert.ok(fs.existsSync(path.join(DIR, String(n).padStart(6, '0') + '.json')),
-      `файл ${String(n).padStart(6, '0')}.json существует (краснота: ENOENT — legs/feet-рецепты не созданы; 000416–000419 — set-рецепты 000230.19/000277)`);
-  }
+    'ровно 643 рецепт (31 до 000230.08 + 28 head 000230.08 + 56 уши/шея .09 '
+    + '+ 28 torso .10 + 56 рук .11 + 28 right-hand .12 + 28 left_hand .13 '
+    + '+ 28 колец .14 + 56 ног/ступней .15 + 2 set .19 + 2 set 000277 '
+    + '+ 50 оружия 000321.01 + 50 брони .02 + 50 щитов .03 + 50 артефактов .04 '
+    + '+ 50 инструментов .05 + 50 рецептов колец .06), а есть: '
+    + files.length);
+  const ids = files.map((f) => JSON.parse(
+    fs.readFileSync(path.join(DIR, f), 'utf8')).id);
+  assert.deepEqual(ids.map((id) => id + '.json'), files,
+    'имя каждого файла === id рецепта (000318.07)');
+  assert.equal(new Set(ids).size, ids.length, 'дублей id нет');
 });
 
 test('000157.04 R2: 12 именованных рецептов (id/тип/результат; огранки без «база»)', () => {
@@ -833,6 +805,12 @@ const FIXTURE_BASE_RECIPE = {
   'описание': 'Фикстура 000211.09: цель self-ссылки «база»',
 };
 
+// Имена tmp-файлов — slug-формы (000318.07: sync-фильтр каталога по форме
+// имени); цель «база» сортируется ПОСЛЕ носителя (приставка общая), иначе
+// цикл спотыкается об отсутствующий id раньше, чем доходит до refId «база».
+const FIXTURE_FILE = 'test_recipe.json';
+const FIXTURE_BASE_FILE = 'test_recipe_base.json';
+
 // tmp-«репозиторий»: копия реального sync-craft-data.js +
 // write-atomic.js + json-ref.js (общий резолвер форм, 000318.01) +
 // фикстура assets (рецепт в ссылочной форме).
@@ -912,7 +890,7 @@ test('000208 R2: все 643 рецепт — результат/исходник
 
 test('000208 R3: sync-craft-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
   const dir = makeTmpCraftRepo(
-    { '000001.json': JSON.stringify(FIXTURE_RECIPE) }, FIXTURE_TARGETS);
+    { [FIXTURE_FILE]: JSON.stringify(FIXTURE_RECIPE) }, FIXTURE_TARGETS);
   try {
     const script = path.join(dir, 'scripts', 'sync-craft-data.js');
     const run1 = spawnSync(process.execPath, [script], { encoding: 'utf8' });
@@ -949,7 +927,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
     const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
     recipe.результат.предмет = 'assets/items/000009.json';
     const dir = makeTmpCraftRepo(
-      { '000001.json': JSON.stringify(recipe) }, FIXTURE_TARGETS);
+      { [FIXTURE_FILE]: JSON.stringify(recipe) }, FIXTURE_TARGETS);
     try {
       const r = spawnSync(process.execPath,
         [path.join(dir, 'scripts', 'sync-craft-data.js')],
@@ -974,7 +952,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
       buildings: { 'apothecary.json': '{"id": 3}\n' },
     };
     const dir = makeTmpCraftRepo(
-      { '000001.json': JSON.stringify(FIXTURE_RECIPE) }, targets);
+      { [FIXTURE_FILE]: JSON.stringify(FIXTURE_RECIPE) }, targets);
     try {
       const r = spawnSync(process.execPath,
         [path.join(dir, 'scripts', 'sync-craft-data.js')],
@@ -1003,7 +981,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
 test('000211.09 R1: schema.json — «база» закреплена per-catalog паттерном', () => {
   const schema = loadSchema();
   assert.deepEqual(schema.properties.база,
-    { type: 'string', pattern: '^assets/craft/\\d{6}\\.json$' },
+    { type: 'string', pattern: '^assets/craft/[a-z][a-z0-9_]*\\.json$' },
     '«база» — self-ссылка на файл каталога assets/craft '
     + '(type string без смены типа, null-ветки нет — ключ опционален)');
 });
@@ -1042,10 +1020,10 @@ test('000211.09 R2: все 43 «база» — self-ссылки: per-catalog п
 
 test('000211.09 R3: sync-craft-data.js запекает «база» в id-форму (tmp-репозиторий)', () => {
   const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
-  recipe.база = 'assets/craft/000002.json';
+  recipe.база = 'assets/craft/' + FIXTURE_BASE_FILE;
   const dir = makeTmpCraftRepo(
-    { '000001.json': JSON.stringify(recipe),
-      '000002.json': JSON.stringify(FIXTURE_BASE_RECIPE) },
+    { [FIXTURE_FILE]: JSON.stringify(recipe),
+      [FIXTURE_BASE_FILE]: JSON.stringify(FIXTURE_BASE_RECIPE) },
     FIXTURE_TARGETS);
   try {
     const script = path.join(dir, 'scripts', 'sync-craft-data.js');
@@ -1060,7 +1038,7 @@ test('000211.09 R3: sync-craft-data.js запекает «база» в id-фо�
       '«база» — резолв-ид рецепта-цели');
     // Scope на строку данных: шапка «// Рецепты (assets/craft/…)»
     // легитимно содержит craft-путь — глобальный пин здесь неверен.
-    assert.doesNotMatch(text, /база: "assets\/craft\/\d{6}\.json"/,
+    assert.doesNotMatch(text, /база: "assets\/craft\/[a-z][a-z0-9_]*\.json"/,
       'в данных модуля нет сырой self-ссылки «база»');
     assert.doesNotMatch(text, /assets\/(items|skills|buildings)\//,
       'в данных модуля нет сырых ссылок «assets/…» (пин 000208)');
@@ -1077,12 +1055,12 @@ test('000211.09 R3: sync-craft-data.js запекает «база» в id-фо�
 });
 
 test('000211.09 R4: sync-craft-data.js — битая «база» → exit 1 + имя ссылки в stderr', () => {
-  // 1. Нет цели self-ссылки (000009.json — нет в tmp-каталоге).
+  // 1. Нет цели self-ссылки (no_such_recipe.json — нет в tmp-каталоге).
   {
     const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
-    recipe.база = 'assets/craft/000009.json';
+    recipe.база = 'assets/craft/no_such_recipe.json';
     const dir = makeTmpCraftRepo(
-      { '000001.json': JSON.stringify(recipe) }, FIXTURE_TARGETS);
+      { [FIXTURE_FILE]: JSON.stringify(recipe) }, FIXTURE_TARGETS);
     try {
       const r = spawnSync(process.execPath,
         [path.join(dir, 'scripts', 'sync-craft-data.js')],
@@ -1090,20 +1068,21 @@ test('000211.09 R4: sync-craft-data.js — битая «база» → exit 1 + 
       assert.equal(r.status, 1,
         'битая «база» (нет цели) обязана дать exit 1: '
         + (r.stdout || '') + (r.stderr || ''));
-      assert.match(r.stderr || '', /assets\/craft\/000009\.json/,
+      assert.match(r.stderr || '', /assets\/craft\/no_such_recipe\.json/,
         'в stderr — имя битой self-ссылки (нет цели)');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   }
-  // 2. Цель существует, но без id (fires на 000001: refId «база» раньше,
-  // чем цикл дойдёт до 000002).
+  // 2. Цель существует, но без id (fires на носителе «база»: refId
+  // «база» раньше, чем цикл дойдёт до цели — цель сортируется ПОСЛЕ
+  // носителя по имени FIXTURE_BASE_FILE).
   {
     const recipe = JSON.parse(JSON.stringify(FIXTURE_RECIPE));
-    recipe.база = 'assets/craft/000002.json';
+    recipe.база = 'assets/craft/' + FIXTURE_BASE_FILE;
     const dir = makeTmpCraftRepo(
-      { '000001.json': JSON.stringify(recipe),
-        '000002.json': '{"name": "без id"}\n' }, FIXTURE_TARGETS);
+      { [FIXTURE_FILE]: JSON.stringify(recipe),
+        [FIXTURE_BASE_FILE]: '{"name": "без id"}\n' }, FIXTURE_TARGETS);
     try {
       const r = spawnSync(process.execPath,
         [path.join(dir, 'scripts', 'sync-craft-data.js')],
@@ -1111,7 +1090,7 @@ test('000211.09 R4: sync-craft-data.js — битая «база» → exit 1 + 
       assert.equal(r.status, 1,
         'цель «база» без id обязана дать exit 1: '
         + (r.stdout || '') + (r.stderr || ''));
-      assert.match(r.stderr || '', /assets\/craft\/000002\.json/,
+      assert.match(r.stderr || '', /assets\/craft\/[a-z][a-z0-9_]*\.json/,
         'в stderr — имя self-ссылки на цель без id');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
@@ -1133,63 +1112,63 @@ test('000211.09 R4: sync-craft-data.js — битая «база» → exit 1 + 
 // [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
 //  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
 const HEAD_RECIPES_00023008 = [
-  ['straw_hat', '000032.json', 'столярное_дело', 3, [5],
+  ['straw_hat', 'straw_hat.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'straw_hat', [['wood_log', 2], ['herb_bitter', 1]], null],
-  ['wool_cap', '000033.json', 'столярное_дело', 2, [5],
+  ['wool_cap', 'wool_cap.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'wool_cap', [['hide', 1], ['herb_bitter', 1]], null],
-  ['leather_cap', '000034.json', 'столярное_дело', 4, [5],
+  ['leather_cap', 'leather_cap.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'leather_cap', [['hide', 2], ['coal', 1]], null],
-  ['fur_hat', '000035.json', 'столярное_дело', 8, [5],
+  ['fur_hat', 'fur_hat.json', 'столярное_дело', 8, [5],
    ['dexterity'], 'fur_hat', [['hide', 3], ['wood_log', 1]], null],
-  ['cloth_band', '000036.json', 'столярное_дело', 2, [5],
+  ['cloth_band', 'cloth_band.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'cloth_band', [['wood_log', 1], ['herb_bitter', 1]], null],
-  ['wanderer_cap', '000037.json', 'столярное_дело', 3, [5],
+  ['wanderer_cap', 'wanderer_cap.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'wanderer_cap', [['hide', 1], ['wood_log', 1]], null],
-  ['hood_common', '000038.json', 'столярное_дело', 4, [5],
+  ['hood_common', 'hood_common.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hood_common', [['hide', 1], ['herb_bitter', 1]], null],
-  ['linen_cloth', '000039.json', 'столярное_дело', 2, [5],
+  ['linen_cloth', 'linen_cloth.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'linen_cloth', [['wood_log', 1], ['herb_healing', 1]], null],
-  ['felt_hat', '000040.json', 'столярное_дело', 6, [5],
+  ['felt_hat', 'felt_hat.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'felt_hat', [['hide', 2], ['coal', 1]], null],
-  ['travel_cloth', '000041.json', 'столярное_дело', 5, [5],
+  ['travel_cloth', 'travel_cloth.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'travel_cloth', [['hide', 1], ['herb_mana', 1]], null],
-  ['silver_band', '000042.json', 'кузнечное_дело', 12, [8, 25],
+  ['silver_band', 'silver_band.json', 'кузнечное_дело', 12, [8, 25],
    ['forge'], 'silver_band', [['silver_ore', 2], ['coal', 1]], null],
-  ['copper_band', '000043.json', 'кузнечное_дело', 10, [8, 25],
+  ['copper_band', 'copper_band.json', 'кузнечное_дело', 10, [8, 25],
    ['forge'], 'copper_band', [['copper_ore', 2], ['coal', 1]], null],
-  ['obsidian_cloth', '000044.json', 'зачарование', 22, [18],
+  ['obsidian_cloth', 'obsidian_cloth.json', 'зачарование', 22, [18],
    ['runes', 'precog'], 'obsidian_cloth',
    [['obsidian', 1], ['wood_log', 1]], ['chill']],
-  ['amethyst_band', '000045.json', 'кузнечное_дело', 16, [8, 25],
+  ['amethyst_band', 'amethyst_band.json', 'кузнечное_дело', 16, [8, 25],
    ['forge'], 'amethyst_band',
    [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['quartz_cloth', '000046.json', 'зачарование', 25, [18],
+  ['quartz_cloth', 'quartz_cloth.json', 'зачарование', 25, [18],
    ['runes', 'meditation'], 'quartz_cloth',
    [['quartz', 1], ['wood_log', 1]], ['vine']],
-  ['bone_band', '000047.json', 'кузнечное_дело', 14, [8, 25],
+  ['bone_band', 'bone_band.json', 'кузнечное_дело', 14, [8, 25],
    ['forge'], 'bone_band', [['stone_chunk', 2], ['coal', 1]], null],
-  ['mystic_cloth', '000048.json', 'зачарование', 30, [18],
+  ['mystic_cloth', 'mystic_cloth.json', 'зачарование', 30, [18],
    ['runes', 'meditation'], 'mystic_cloth',
    [['amethyst', 1], ['herb_mana', 1]], ['light_heal']],
-  ['silver_helm', '000049.json', 'кузнечное_дело', 35, [8, 25],
+  ['silver_helm', 'silver_helm.json', 'кузнечное_дело', 35, [8, 25],
    ['forge'], 'silver_helm', [['silver_ore', 4], ['coal', 2]], null],
-  ['gold_helm', '000050.json', 'кузнечное_дело', 45, [8, 25],
+  ['gold_helm', 'gold_helm.json', 'кузнечное_дело', 45, [8, 25],
    ['forge'], 'gold_helm', [['gold_ore', 4], ['coal', 2]], null],
-  ['sapphire_helm', '000051.json', 'кузнечное_дело', 55, [8, 25],
+  ['sapphire_helm', 'sapphire_helm.json', 'кузнечное_дело', 55, [8, 25],
    ['forge'], 'sapphire_helm',
    [['sapphire', 1], ['silver_ore', 3], ['coal', 2]], null],
-  ['mithril_helm', '000052.json', 'кузнечное_дело', 60, [8, 25],
+  ['mithril_helm', 'mithril_helm.json', 'кузнечное_дело', 60, [8, 25],
    ['forge'], 'mithril_helm', [['mithril_ore', 3], ['coal', 2]], null],
-  ['emerald_helm', '000053.json', 'кузнечное_дело', 50, [8, 25],
+  ['emerald_helm', 'emerald_helm.json', 'кузнечное_дело', 50, [8, 25],
    ['forge'], 'emerald_helm',
    [['emerald', 1], ['silver_ore', 3], ['coal', 2]], null],
-  ['rune_hoop', '000054.json', 'зачарование', 65, [18],
+  ['rune_hoop', 'rune_hoop.json', 'зачарование', 65, [18],
    ['runes', 'perception'], 'rune_hoop',
    [['amethyst', 2], ['silver_ore', 2], ['wood_log', 1]], ['stone_skin']],
-  ['star_hoop', '000055.json', 'зачарование', 75, [18],
+  ['star_hoop', 'star_hoop.json', 'зачарование', 75, [18],
    ['runes', 'perception'], 'star_hoop',
    [['sapphire', 2], ['gold_ore', 2], ['wood_log', 1]], ['magic_shield']],
-  ['crown_flame', '000056.json', 'кузнечное_дело', 95, [8, 25],
+  ['crown_flame', 'crown_flame.json', 'кузнечное_дело', 95, [8, 25],
    ['forge'], 'crown_flame',
    [['gold_ore', 4], ['mithril_ore', 2], ['diamond', 1],
     ['ruby', 2], ['coal', 4]], null],
@@ -1265,9 +1244,9 @@ test('000230.08 C1: 25 базовых рецептов (ростер §2.4: id/�
 
 // [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04)]
 const HEAD_IMPROVED_00023008 = [
-  ['rune_hoop_mithril', '000057.json', 'rune_hoop', 80, 'mithril_ore'],
-  ['star_hoop_mithril', '000058.json', 'star_hoop', 88, 'mithril_ore'],
-  ['crown_flame_diamond', '000059.json', 'crown_flame', 100, 'diamond'],
+  ['rune_hoop_mithril', 'rune_hoop_mithril.json', 'rune_hoop', 80, 'mithril_ore'],
+  ['star_hoop_mithril', 'star_hoop_mithril.json', 'star_hoop', 88, 'mithril_ore'],
+  ['crown_flame_diamond', 'crown_flame_diamond.json', 'crown_flame', 100, 'diamond'],
 ];
 
 test('000230.08 C2: 3 улучшенных (000057–000059) — «база» = rune_hoop/star_hoop/crown_flame (000054/000055/000056), тот же тип/результат, уровень ≥ базы (80/88/100), исходники ⊇ базы (по qty), цепочка «база» ациклична, +t4-руда/камень (tier 4) в исходниках (000157.04)', () => {
@@ -1344,131 +1323,131 @@ test('000230.08 C2: 3 улучшенных (000057–000059) — «база» = 
 // самоцветы/магия/«вера» — зачарование (навыки [runes, тематический],
 // здания [18], ≥1 заклинание в ID-форме, maxItems 4).
 const EARSNECK_RECIPES_00023009 = [
-  ['copper_hoop', '000060.json', 'резьба_по_камню', 2, [40, 48],
+  ['copper_hoop', 'copper_hoop.json', 'резьба_по_камню', 2, [40, 48],
    ['runes'], 'copper_hoop', [['copper_ore', 2], ['stone_chunk', 1]], null],
-  ['bone_stud', '000061.json', 'резьба_по_камню', 3, [40, 48],
+  ['bone_stud', 'bone_stud.json', 'резьба_по_камню', 3, [40, 48],
    ['runes'], 'bone_stud', [['stone_chunk', 2], ['hide', 1]], null],
-  ['leather_loop', '000062.json', 'резьба_по_камню', 3, [40, 48],
+  ['leather_loop', 'leather_loop.json', 'резьба_по_камню', 3, [40, 48],
    ['runes'], 'leather_loop', [['hide', 2], ['coal', 1]], null],
-  ['clay_dangle', '000063.json', 'резьба_по_камню', 4, [40, 48],
+  ['clay_dangle', 'clay_dangle.json', 'резьба_по_камню', 4, [40, 48],
    ['runes'], 'clay_dangle', [['stone_chunk', 2], ['coal', 1]], null],
-  ['wood_bead', '000064.json', 'резьба_по_камню', 4, [40, 48],
+  ['wood_bead', 'wood_bead.json', 'резьба_по_камню', 4, [40, 48],
    ['runes'], 'wood_bead', [['wood_log', 2], ['stone_chunk', 1]], null],
-  ['copper_dangle', '000065.json', 'резьба_по_камню', 5, [40, 48],
+  ['copper_dangle', 'copper_dangle.json', 'резьба_по_камню', 5, [40, 48],
    ['runes'], 'copper_dangle', [['copper_ore', 2], ['coal', 1]], null],
-  ['shell_hoop', '000066.json', 'резьба_по_камню', 5, [40, 48],
+  ['shell_hoop', 'shell_hoop.json', 'резьба_по_камню', 5, [40, 48],
    ['runes'], 'shell_hoop', [['stone_chunk', 2], ['hide', 1]], null],
-  ['faith_stud', '000067.json', 'зачарование', 7, [18],
+  ['faith_stud', 'faith_stud.json', 'зачарование', 7, [18],
    ['runes', 'meditation'], 'faith_stud',
    [['copper_ore', 1], ['herb_healing', 1]], ['mend']],
-  ['twine_hoop', '000068.json', 'резьба_по_камню', 8, [40, 48],
+  ['twine_hoop', 'twine_hoop.json', 'резьба_по_камню', 8, [40, 48],
    ['runes'], 'twine_hoop', [['wood_log', 2], ['hide', 1]], null],
-  ['antler_hook', '000069.json', 'резьба_по_камню', 9, [40, 48],
+  ['antler_hook', 'antler_hook.json', 'резьба_по_камню', 9, [40, 48],
    ['runes'], 'antler_hook', [['hide', 2], ['stone_chunk', 1]], null],
-  ['stone_bead', '000070.json', 'резьба_по_камню', 12, [40, 48],
+  ['stone_bead', 'stone_bead.json', 'резьба_по_камню', 12, [40, 48],
    ['runes'], 'stone_bead', [['stone_chunk', 3], ['coal', 1]], null],
-  ['silver_hoop', '000071.json', 'резьба_по_камню', 12, [40, 48],
+  ['silver_hoop', 'silver_hoop.json', 'резьба_по_камню', 12, [40, 48],
    ['runes'], 'silver_hoop', [['silver_ore', 2], ['coal', 1]], null],
-  ['moonstone_dangle', '000072.json', 'зачарование', 16, [18],
+  ['moonstone_dangle', 'moonstone_dangle.json', 'зачарование', 16, [18],
    ['runes', 'artist'], 'moonstone_dangle',
    [['moonstone', 1], ['silver_ore', 1], ['coal', 1]], ['nature_blessing']],
-  ['quartz_bead', '000073.json', 'резьба_по_камню', 14, [40, 48],
+  ['quartz_bead', 'quartz_bead.json', 'резьба_по_камню', 14, [40, 48],
    ['runes'], 'quartz_bead',
    [['quartz', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['silver_stud', '000074.json', 'резьба_по_камню', 16, [40, 48],
+  ['silver_stud', 'silver_stud.json', 'резьба_по_камню', 16, [40, 48],
    ['runes'], 'silver_stud', [['silver_ore', 2], ['stone_chunk', 1]], null],
-  ['obsidian_stud', '000075.json', 'резьба_по_камню', 18, [40, 48],
+  ['obsidian_stud', 'obsidian_stud.json', 'резьба_по_камню', 18, [40, 48],
    ['runes'], 'obsidian_stud',
    [['obsidian', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['amethyst_dangle', '000076.json', 'зачарование', 20, [18],
+  ['amethyst_dangle', 'amethyst_dangle.json', 'зачарование', 20, [18],
    ['runes', 'orator'], 'amethyst_dangle',
    [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], ['frost_bolt']],
-  ['sapphire_hoop', '000077.json', 'резьба_по_камню', 35, [40, 48],
+  ['sapphire_hoop', 'sapphire_hoop.json', 'резьба_по_камню', 35, [40, 48],
    ['runes'], 'sapphire_hoop',
    [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
-  ['emerald_stud', '000078.json', 'зачарование', 38, [18],
+  ['emerald_stud', 'emerald_stud.json', 'зачарование', 38, [18],
    ['runes', 'meditation'], 'emerald_stud',
    [['emerald', 1], ['gold_ore', 1], ['coal', 2]], ['ward']],
-  ['ruby_bell', '000079.json', 'зачарование', 42, [18],
+  ['ruby_bell', 'ruby_bell.json', 'зачарование', 42, [18],
    ['runes', 'orator'], 'ruby_bell',
    [['ruby', 1], ['gold_ore', 1], ['coal', 2]], ['flame_burst']],
-  ['gold_dangle', '000080.json', 'зачарование', 45, [18],
+  ['gold_dangle', 'gold_dangle.json', 'зачарование', 45, [18],
    ['runes', 'artist'], 'gold_dangle',
    [['gold_ore', 2], ['ruby', 1], ['coal', 1]], ['spark']],
-  ['mithril_hoop', '000081.json', 'резьба_по_камню', 55, [40, 48],
+  ['mithril_hoop', 'mithril_hoop.json', 'резьба_по_камню', 55, [40, 48],
    ['runes'], 'mithril_hoop', [['mithril_ore', 2], ['coal', 2]], null],
-  ['star_earring', '000082.json', 'зачарование', 65, [18],
+  ['star_earring', 'star_earring.json', 'зачарование', 65, [18],
    ['runes', 'perception'], 'star_earring',
    [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['magic_shield']],
-  ['whisper_hoop', '000083.json', 'зачарование', 70, [18],
+  ['whisper_hoop', 'whisper_hoop.json', 'зачарование', 70, [18],
    ['runes', 'elder'], 'whisper_hoop',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['shadow_bolt']],
-  ['soul_bell', '000084.json', 'зачарование', 95, [18],
+  ['soul_bell', 'soul_bell.json', 'зачарование', 95, [18],
    ['runes', 'orator'], 'soul_bell',
    [['gold_ore', 4], ['phoenix_feather', 2], ['ruby', 2],
     ['coal', 3]], ['inferno']],
-  ['copper_chain', '000085.json', 'резьба_по_камню', 2, [40, 48],
+  ['copper_chain', 'copper_chain.json', 'резьба_по_камню', 2, [40, 48],
    ['runes'], 'copper_chain', [['copper_ore', 2], ['coal', 1]], null],
-  ['bone_beads', '000086.json', 'резьба_по_камню', 3, [40, 48],
+  ['bone_beads', 'bone_beads.json', 'резьба_по_камню', 3, [40, 48],
    ['runes'], 'bone_beads', [['stone_chunk', 2], ['hide', 1]], null],
-  ['twine_amulet', '000087.json', 'резьба_по_камню', 4, [40, 48],
+  ['twine_amulet', 'twine_amulet.json', 'резьба_по_камню', 4, [40, 48],
    ['runes'], 'twine_amulet', [['wood_log', 2], ['hide', 1]], null],
-  ['clay_pendant', '000088.json', 'резьба_по_камню', 4, [40, 48],
+  ['clay_pendant', 'clay_pendant.json', 'резьба_по_камню', 4, [40, 48],
    ['runes'], 'clay_pendant', [['stone_chunk', 2], ['coal', 1]], null],
-  ['wood_pendant', '000089.json', 'резьба_по_камню', 5, [40, 48],
+  ['wood_pendant', 'wood_pendant.json', 'резьба_по_камню', 5, [40, 48],
    ['runes'], 'wood_pendant', [['wood_log', 2], ['stone_chunk', 1]], null],
-  ['copper_pendant', '000090.json', 'резьба_по_камню', 5, [40, 48],
+  ['copper_pendant', 'copper_pendant.json', 'резьба_по_камню', 5, [40, 48],
    ['runes'], 'copper_pendant', [['copper_ore', 2], ['hide', 1]], null],
-  ['shell_beads', '000091.json', 'резьба_по_камню', 6, [40, 48],
+  ['shell_beads', 'shell_beads.json', 'резьба_по_камню', 6, [40, 48],
    ['runes'], 'shell_beads', [['stone_chunk', 2], ['coal', 1]], null],
-  ['faith_necklace', '000092.json', 'зачарование', 8, [18],
+  ['faith_necklace', 'faith_necklace.json', 'зачарование', 8, [18],
    ['runes', 'meditation'], 'faith_necklace',
    [['copper_ore', 1], ['herb_healing', 1], ['coal', 1]], ['mend']],
-  ['leather_choker', '000093.json', 'резьба_по_камню', 8, [40, 48],
+  ['leather_choker', 'leather_choker.json', 'резьба_по_камню', 8, [40, 48],
    ['runes'], 'leather_choker', [['hide', 2], ['coal', 1]], null],
-  ['stone_beads', '000094.json', 'резьба_по_камню', 9, [40, 48],
+  ['stone_beads', 'stone_beads.json', 'резьба_по_камню', 9, [40, 48],
    ['runes'], 'stone_beads', [['stone_chunk', 3], ['hide', 1]], null],
-  ['bone_pendant', '000095.json', 'резьба_по_камню', 12, [40, 48],
+  ['bone_pendant', 'bone_pendant.json', 'резьба_по_камню', 12, [40, 48],
    ['runes'], 'bone_pendant', [['stone_chunk', 2], ['coal', 1]], null],
-  ['silver_chain', '000096.json', 'резьба_по_камню', 13, [40, 48],
+  ['silver_chain', 'silver_chain.json', 'резьба_по_камню', 13, [40, 48],
    ['runes'], 'silver_chain', [['silver_ore', 2], ['coal', 1]], null],
-  ['quartz_amulet', '000097.json', 'резьба_по_камню', 14, [40, 48],
+  ['quartz_amulet', 'quartz_amulet.json', 'резьба_по_камню', 14, [40, 48],
    ['runes'], 'quartz_amulet',
    [['quartz', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['moonstone_chain', '000098.json', 'зачарование', 16, [18],
+  ['moonstone_chain', 'moonstone_chain.json', 'зачарование', 16, [18],
    ['runes', 'artist'], 'moonstone_chain',
    [['moonstone', 1], ['silver_ore', 1], ['coal', 1]], ['nature_blessing']],
-  ['faith_amulet', '000099.json', 'зачарование', 18, [18],
+  ['faith_amulet', 'faith_amulet.json', 'зачарование', 18, [18],
    ['runes', 'elder'], 'faith_amulet',
    [['amethyst', 1], ['herb_mana', 1], ['coal', 1]], ['light_heal']],
-  ['obsidian_pendant', '000100.json', 'резьба_по_камню', 18, [40, 48],
+  ['obsidian_pendant', 'obsidian_pendant.json', 'резьба_по_камню', 18, [40, 48],
    ['runes'], 'obsidian_pendant',
    [['obsidian', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['amethyst_choker', '000101.json', 'зачарование', 20, [18],
+  ['amethyst_choker', 'amethyst_choker.json', 'зачарование', 20, [18],
    ['runes', 'precog'], 'amethyst_choker',
    [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], ['chill']],
-  ['sapphire_pendant', '000102.json', 'резьба_по_камню', 35, [40, 48],
+  ['sapphire_pendant', 'sapphire_pendant.json', 'резьба_по_камню', 35, [40, 48],
    ['runes'], 'sapphire_pendant',
    [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
-  ['emerald_amulet', '000103.json', 'зачарование', 40, [18],
+  ['emerald_amulet', 'emerald_amulet.json', 'зачарование', 40, [18],
    ['runes', 'meditation'], 'emerald_amulet',
    [['emerald', 1], ['gold_ore', 2], ['coal', 2]], ['greater_heal']],
-  ['ruby_pendant', '000104.json', 'зачарование', 42, [18],
+  ['ruby_pendant', 'ruby_pendant.json', 'зачарование', 42, [18],
    ['runes', 'precog'], 'ruby_pendant',
    [['ruby', 1], ['gold_ore', 2], ['coal', 2]], ['fireball']],
-  ['gold_chain', '000105.json', 'зачарование', 48, [18],
+  ['gold_chain', 'gold_chain.json', 'зачарование', 48, [18],
    ['runes', 'orator'], 'gold_chain',
    [['gold_ore', 3], ['ruby', 1], ['coal', 2]], ['flame_burst']],
-  ['mithril_choker', '000106.json', 'резьба_по_камню', 55, [40, 48],
+  ['mithril_choker', 'mithril_choker.json', 'резьба_по_камню', 55, [40, 48],
    ['runes'], 'mithril_choker',
    [['mithril_ore', 2], ['silver_ore', 1], ['coal', 2]], null],
-  ['rune_necklace', '000107.json', 'зачарование', 68, [18],
+  ['rune_necklace', 'rune_necklace.json', 'зачарование', 68, [18],
    ['runes', 'perception'], 'rune_necklace',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['stone_skin']],
-  ['star_pendant', '000108.json', 'зачарование', 72, [18],
+  ['star_pendant', 'star_pendant.json', 'зачарование', 72, [18],
    ['runes', 'precog'], 'star_pendant',
    [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
-  ['dawn_pendant', '000109.json', 'зачарование', 97, [18],
+  ['dawn_pendant', 'dawn_pendant.json', 'зачарование', 97, [18],
    ['runes', 'meditation'], 'dawn_pendant',
    [['gold_ore', 4], ['diamond', 2], ['phoenix_feather', 1],
     ['coal', 4]], ['light_heal']],
@@ -1542,12 +1521,12 @@ test('000230.09 C1: 50 базовых рецептов (ростер §2.4: id/�
 // 6 улучшенных — 2 legendary + 1 impossible на часть (паттерн .08);
 // все — на зачарованиях.
 const EARSNECK_IMPROVED_00023009 = [
-  ['star_earring_mithril', '000110.json', 'star_earring', 80, 'mithril_ore'],
-  ['whisper_hoop_diamond', '000111.json', 'whisper_hoop', 85, 'diamond'],
-  ['soul_bell_mithril', '000112.json', 'soul_bell', 100, 'mithril_ore'],
-  ['star_pendant_mithril', '000113.json', 'star_pendant', 85, 'mithril_ore'],
-  ['rune_necklace_diamond', '000114.json', 'rune_necklace', 82, 'diamond'],
-  ['dawn_pendant_diamond', '000115.json', 'dawn_pendant', 100, 'diamond'],
+  ['star_earring_mithril', 'star_earring_mithril.json', 'star_earring', 80, 'mithril_ore'],
+  ['whisper_hoop_diamond', 'whisper_hoop_diamond.json', 'whisper_hoop', 85, 'diamond'],
+  ['soul_bell_mithril', 'soul_bell_mithril.json', 'soul_bell', 100, 'mithril_ore'],
+  ['star_pendant_mithril', 'star_pendant_mithril.json', 'star_pendant', 85, 'mithril_ore'],
+  ['rune_necklace_diamond', 'rune_necklace_diamond.json', 'rune_necklace', 82, 'diamond'],
+  ['dawn_pendant_diamond', 'dawn_pendant_diamond.json', 'dawn_pendant', 100, 'diamond'],
 ];
 
 test('000230.09 C2: 6 улучшенных (000110–000115) — «база» = star_earring/whisper_hoop/soul_bell/star_pendant/rune_necklace/dawn_pendant (000082/000083/000084/000108/000107/000109), тот же тип/результат, уровень ≥ базы, исходники ⊇ базы (по qty), цепочка «база» ациклична, +t4-руда/камень (tier 4) в исходниках (000157.04)', () => {
@@ -1621,66 +1600,66 @@ test('000230.09 C2: 6 улучшенных (000110–000115) — «база» = 
 // [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
 //  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
 const TORSO_RECIPES_00023010 = [
-  ['linen_shirt', '000116.json', 'столярное_дело', 2, [5],
+  ['linen_shirt', 'linen_shirt.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'linen_shirt', [['wood_log', 2], ['coal', 1]], null],
-  ['wool_shirt', '000117.json', 'столярное_дело', 3, [5],
+  ['wool_shirt', 'wool_shirt.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'wool_shirt', [['hide', 1], ['coal', 1]], null],
-  ['cloth_tunic', '000118.json', 'столярное_дело', 3, [5],
+  ['cloth_tunic', 'cloth_tunic.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'cloth_tunic', [['wood_log', 2], ['herb_bitter', 1]], null],
-  ['linen_gown', '000119.json', 'столярное_дело', 4, [5],
+  ['linen_gown', 'linen_gown.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'linen_gown', [['wood_log', 2], ['coal', 1]], null],
-  ['hemp_robe', '000120.json', 'столярное_дело', 4, [5],
+  ['hemp_robe', 'hemp_robe.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hemp_robe', [['wood_log', 3], ['coal', 1]], null],
-  ['rough_kaftan', '000121.json', 'столярное_дело', 5, [5],
+  ['rough_kaftan', 'rough_kaftan.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'rough_kaftan', [['hide', 2], ['coal', 1]], null],
-  ['wool_gown', '000122.json', 'столярное_дело', 6, [5],
+  ['wool_gown', 'wool_gown.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'wool_gown', [['hide', 1], ['wood_log', 2], ['coal', 1]], null],
-  ['cloth_sutan', '000123.json', 'столярное_дело', 6, [5],
+  ['cloth_sutan', 'cloth_sutan.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'cloth_sutan', [['wood_log', 2], ['herb_bitter', 1]], null],
-  ['linen_tunic', '000124.json', 'столярное_дело', 7, [5],
+  ['linen_tunic', 'linen_tunic.json', 'столярное_дело', 7, [5],
    ['dexterity'], 'linen_tunic', [['wood_log', 2], ['coal', 2]], null],
-  ['wool_kaftan', '000125.json', 'столярное_дело', 9, [5],
+  ['wool_kaftan', 'wool_kaftan.json', 'столярное_дело', 9, [5],
    ['dexterity'], 'wool_kaftan', [['hide', 2], ['coal', 2]], null],
-  ['wool_sutan', '000126.json', 'столярное_дело', 12, [5],
+  ['wool_sutan', 'wool_sutan.json', 'столярное_дело', 12, [5],
    ['dexterity'], 'wool_sutan', [['hide', 2], ['wood_log', 2], ['coal', 1]], null],
-  ['leather_kaftan', '000127.json', 'кузнечное_дело', 14, [8, 25],
+  ['leather_kaftan', 'leather_kaftan.json', 'кузнечное_дело', 14, [8, 25],
    ['dexterity'], 'leather_kaftan', [['hide', 3], ['coal', 2]], null],
-  ['embroidered_kaftan', '000128.json', 'столярное_дело', 16, [5],
+  ['embroidered_kaftan', 'embroidered_kaftan.json', 'столярное_дело', 16, [5],
    ['dexterity'], 'embroidered_kaftan',
    [['wood_log', 2], ['herb_bitter', 2], ['coal', 1]], null],
-  ['cloth_robe', '000129.json', 'столярное_дело', 18, [5],
+  ['cloth_robe', 'cloth_robe.json', 'столярное_дело', 18, [5],
    ['dexterity'], 'cloth_robe', [['wood_log', 3], ['coal', 2]], null],
-  ['leather_gown', '000130.json', 'кузнечное_дело', 20, [8, 25],
+  ['leather_gown', 'leather_gown.json', 'кузнечное_дело', 20, [8, 25],
    ['dexterity'], 'leather_gown',
    [['hide', 3], ['coal', 2], ['wood_log', 1]], null],
-  ['monk_sutan', '000131.json', 'столярное_дело', 22, [5],
+  ['monk_sutan', 'monk_sutan.json', 'столярное_дело', 22, [5],
    ['dexterity'], 'monk_sutan',
    [['wood_log', 2], ['herb_bitter', 2], ['coal', 2]], null],
-  ['fine_kaftan', '000132.json', 'столярное_дело', 25, [5],
+  ['fine_kaftan', 'fine_kaftan.json', 'столярное_дело', 25, [5],
    ['dexterity'], 'fine_kaftan',
    [['hide', 2], ['wood_log', 2], ['coal', 3]], null],
-  ['ember_robe', '000133.json', 'зачарование', 35, [18],
+  ['ember_robe', 'ember_robe.json', 'зачарование', 35, [18],
    ['runes', 'endurance'], 'ember_robe',
    [['silver_ore', 1], ['gold_ore', 1], ['coal', 2]], ['heat_shield']],
-  ['stone_robe', '000134.json', 'зачарование', 38, [18],
+  ['stone_robe', 'stone_robe.json', 'зачарование', 38, [18],
    ['runes', 'golem'], 'stone_robe',
    [['obsidian', 1], ['silver_ore', 1], ['coal', 2]], ['stone_skin']],
-  ['shadow_robe', '000135.json', 'зачарование', 42, [18],
+  ['shadow_robe', 'shadow_robe.json', 'зачарование', 42, [18],
    ['runes', 'hide'], 'shadow_robe',
    [['amethyst', 1], ['silver_ore', 1], ['coal', 2]], ['stone_skin']],
-  ['deep_breath_robe', '000136.json', 'зачарование', 45, [18],
+  ['deep_breath_robe', 'deep_breath_robe.json', 'зачарование', 45, [18],
    ['runes', 'breath'], 'deep_breath_robe',
    [['quartz', 1], ['silver_ore', 2], ['coal', 2]], ['nature_blessing']],
-  ['meditating_robe', '000137.json', 'зачарование', 55, [18],
+  ['meditating_robe', 'meditating_robe.json', 'зачарование', 55, [18],
    ['runes', 'meditation'], 'meditating_robe',
    [['emerald', 1], ['gold_ore', 1], ['coal', 2]], ['mend']],
-  ['pilgrim_sutan', '000138.json', 'зачарование', 70, [18],
+  ['pilgrim_sutan', 'pilgrim_sutan.json', 'зачарование', 70, [18],
    ['runes', 'endurance'], 'pilgrim_sutan',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['greater_heal']],
-  ['void_robe', '000139.json', 'зачарование', 80, [18],
+  ['void_robe', 'void_robe.json', 'зачарование', 80, [18],
    ['runes', 'golem'], 'void_robe',
    [['sapphire', 2], ['gold_ore', 2], ['coal', 3]], ['shadow_bolt']],
-  ['aegis_mantle', '000140.json', 'зачарование', 95, [18],
+  ['aegis_mantle', 'aegis_mantle.json', 'зачарование', 95, [18],
    ['runes', 'hide'], 'aegis_mantle',
    [['gold_ore', 4], ['phoenix_feather', 2], ['ruby', 2], ['coal', 3]],
    ['magic_shield']],
@@ -1752,10 +1731,10 @@ test('000230.10 T11: 25 базовых рецептов (ростер §2.4: id/
 
 // [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04)]
 const TORSO_IMPROVED_00023010 = [
-  ['pilgrim_sutan_mithril', '000141.json', 'pilgrim_sutan', 85,
+  ['pilgrim_sutan_mithril', 'pilgrim_sutan_mithril.json', 'pilgrim_sutan', 85,
    'mithril_ore'],
-  ['void_robe_diamond', '000142.json', 'void_robe', 88, 'diamond'],
-  ['aegis_mantle_mithril', '000143.json', 'aegis_mantle', 100,
+  ['void_robe_diamond', 'void_robe_diamond.json', 'void_robe', 88, 'diamond'],
+  ['aegis_mantle_mithril', 'aegis_mantle_mithril.json', 'aegis_mantle', 100,
    'mithril_ore'],
 ];
 
@@ -1765,7 +1744,8 @@ const TORSO_IMPROVED_00023010 = [
 // (000144–000193: 16 столярное_дело [5] dexterity + 21
 // кузнечное_дело [8,25] forge + 13 зачарование [18] runes+first-
 // affix-skill) + 6 улучшенных (000194–000199). 1:1-формула: рецепт
-// NNNNNN ↔ предмет 000283+(NNNNN−144); id базового рецепта == id
+// (прежний номер NNNNNN, с 000318.07 — файл <id>.json) ↔ предмет
+// 000283+row по порядку ростера; id базового рецепта == id
 // предмета; id улучшенного = <item>_<mat>; «база» улучшенного —
 // ИСПРАВЛЕННЫЕ (D-16) id базовых 000166/000167/000168/000191/000192/
 // 000193. Точные qty — green-таблица (D-08): здесь пинуются КОНТРАКТНЫЕ
@@ -1779,105 +1759,105 @@ const TORSO_IMPROVED_00023010 = [
 // [id, файл, тип, уровень, здания (resolved), навыки (resolved),
 //  первичный материал, заклинания (null — отсутствуют)]
 const HANDS_RECIPES_00023011 = [
-  ['cloth_cuff', '000144.json', 'столярное_дело', 2, [5],
+  ['cloth_cuff', 'cloth_cuff.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'wood_log', null],
-  ['leather_cuff', '000145.json', 'столярное_дело', 4, [5],
+  ['leather_cuff', 'leather_cuff.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hide', null],
-  ['hemp_bracer', '000146.json', 'столярное_дело', 5, [5],
+  ['hemp_bracer', 'hemp_bracer.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'wood_log', null],
-  ['rough_bracer', '000147.json', 'кузнечное_дело', 5, [8, 25],
+  ['rough_bracer', 'rough_bracer.json', 'кузнечное_дело', 5, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['leather_garter', '000148.json', 'столярное_дело', 6, [5],
+  ['leather_garter', 'leather_garter.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'hide', null],
-  ['cloth_wrap', '000149.json', 'столярное_дело', 7, [5],
+  ['cloth_wrap', 'cloth_wrap.json', 'столярное_дело', 7, [5],
    ['dexterity'], 'wood_log', null],
-  ['iron_cuff', '000150.json', 'кузнечное_дело', 7, [8, 25],
+  ['iron_cuff', 'iron_cuff.json', 'кузнечное_дело', 7, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['bone_bracer', '000151.json', 'кузнечное_дело', 8, [8, 25],
+  ['bone_bracer', 'bone_bracer.json', 'кузнечное_дело', 8, [8, 25],
    ['forge'], 'stone_chunk', null],
-  ['wood_brace', '000152.json', 'столярное_дело', 8, [5],
+  ['wood_brace', 'wood_brace.json', 'столярное_дело', 8, [5],
    ['dexterity'], 'wood_log', null],
-  ['hide_cuff', '000153.json', 'столярное_дело', 10, [5],
+  ['hide_cuff', 'hide_cuff.json', 'столярное_дело', 10, [5],
    ['dexterity'], 'hide', null],
-  ['studded_bracer', '000154.json', 'кузнечное_дело', 12, [8, 25],
+  ['studded_bracer', 'studded_bracer.json', 'кузнечное_дело', 12, [8, 25],
    ['forge'], 'copper_ore', null],
-  ['copper_brace', '000155.json', 'кузнечное_дело', 15, [8, 25],
+  ['copper_brace', 'copper_brace.json', 'кузнечное_дело', 15, [8, 25],
    ['forge'], 'copper_ore', null],
-  ['archer_brace', '000156.json', 'столярное_дело', 16, [5],
+  ['archer_brace', 'archer_brace.json', 'столярное_дело', 16, [5],
    ['dexterity'], 'hide', null],
-  ['silver_cuff', '000157.json', 'кузнечное_дело', 18, [8, 25],
+  ['silver_cuff', 'silver_cuff.json', 'кузнечное_дело', 18, [8, 25],
    ['forge'], 'silver_ore', null],
-  ['shadow_wrap', '000158.json', 'зачарование', 20, [18],
+  ['shadow_wrap', 'shadow_wrap.json', 'зачарование', 20, [18],
    ['runes', 'thief'], 'obsidian', ['shadow_bind']],
-  ['iron_elbow', '000159.json', 'кузнечное_дело', 22, [8, 25],
+  ['iron_elbow', 'iron_elbow.json', 'кузнечное_дело', 22, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['runic_cuff', '000160.json', 'зачарование', 25, [18],
+  ['runic_cuff', 'runic_cuff.json', 'зачарование', 25, [18],
    ['runes', 'step'], 'quartz', ['blazing_speed']],
-  ['steel_bracers', '000161.json', 'кузнечное_дело', 35, [8, 25],
+  ['steel_bracers', 'steel_bracers.json', 'кузнечное_дело', 35, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['gold_brace', '000162.json', 'кузнечное_дело', 42, [8, 25],
+  ['gold_brace', 'gold_brace.json', 'кузнечное_дело', 42, [8, 25],
    ['forge'], 'gold_ore', null],
-  ['sapphire_bracer', '000163.json', 'кузнечное_дело', 50, [8, 25],
+  ['sapphire_bracer', 'sapphire_bracer.json', 'кузнечное_дело', 50, [8, 25],
    ['forge'], 'sapphire', null],
-  ['ghost_cuff', '000164.json', 'зачарование', 50, [18],
+  ['ghost_cuff', 'ghost_cuff.json', 'зачарование', 50, [18],
    ['runes', 'thief'], 'amethyst', ['invisibility']],
-  ['swift_brace', '000165.json', 'зачарование', 55, [18],
+  ['swift_brace', 'swift_brace.json', 'зачарование', 55, [18],
    ['runes', 'step'], 'quartz', ['winter_haste']],
-  ['rune_bracers', '000166.json', 'зачарование', 70, [18],
+  ['rune_bracers', 'rune_bracers.json', 'зачарование', 70, [18],
    ['runes', 'swordsman'], 'amethyst', ['night_blade']],
-  ['star_armguard', '000167.json', 'зачарование', 80, [18],
+  ['star_armguard', 'star_armguard.json', 'зачарование', 80, [18],
    ['runes', 'fists'], 'obsidian', ['hellfire']],
-  ['titan_brace', '000168.json', 'кузнечное_дело', 95, [8, 25],
+  ['titan_brace', 'titan_brace.json', 'кузнечное_дело', 95, [8, 25],
    ['forge'], 'gold_ore', null],
-  ['cloth_gloves', '000169.json', 'столярное_дело', 2, [5],
+  ['cloth_gloves', 'cloth_gloves.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'wood_log', null],
-  ['leather_gloves', '000170.json', 'столярное_дело', 4, [5],
+  ['leather_gloves', 'leather_gloves.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hide', null],
-  ['hide_gloves', '000171.json', 'столярное_дело', 5, [5],
+  ['hide_gloves', 'hide_gloves.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'hide', null],
-  ['rough_gauntlets', '000172.json', 'кузнечное_дело', 5, [8, 25],
+  ['rough_gauntlets', 'rough_gauntlets.json', 'кузнечное_дело', 5, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['archer_gloves', '000173.json', 'столярное_дело', 6, [5],
+  ['archer_gloves', 'archer_gloves.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'hide', null],
-  ['linen_wraps', '000174.json', 'столярное_дело', 7, [5],
+  ['linen_wraps', 'linen_wraps.json', 'столярное_дело', 7, [5],
    ['dexterity'], 'wood_log', null],
-  ['iron_gauntlets', '000175.json', 'кузнечное_дело', 7, [8, 25],
+  ['iron_gauntlets', 'iron_gauntlets.json', 'кузнечное_дело', 7, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['bone_grips', '000176.json', 'кузнечное_дело', 8, [8, 25],
+  ['bone_grips', 'bone_grips.json', 'кузнечное_дело', 8, [8, 25],
    ['forge'], 'stone_chunk', null],
-  ['wood_guards', '000177.json', 'столярное_дело', 8, [5],
+  ['wood_guards', 'wood_guards.json', 'столярное_дело', 8, [5],
    ['dexterity'], 'wood_log', null],
-  ['fine_gloves', '000178.json', 'столярное_дело', 10, [5],
+  ['fine_gloves', 'fine_gloves.json', 'столярное_дело', 10, [5],
    ['dexterity'], 'hide', null],
-  ['studded_gloves', '000179.json', 'кузнечное_дело', 12, [8, 25],
+  ['studded_gloves', 'studded_gloves.json', 'кузнечное_дело', 12, [8, 25],
    ['forge'], 'copper_ore', null],
-  ['copper_gauntlets', '000180.json', 'кузнечное_дело', 15, [8, 25],
+  ['copper_gauntlets', 'copper_gauntlets.json', 'кузнечное_дело', 15, [8, 25],
    ['forge'], 'copper_ore', null],
-  ['quiver_gloves', '000181.json', 'столярное_дело', 16, [5],
+  ['quiver_gloves', 'quiver_gloves.json', 'столярное_дело', 16, [5],
    ['dexterity'], 'hide', null],
-  ['silver_gauntlets', '000182.json', 'кузнечное_дело', 18, [8, 25],
+  ['silver_gauntlets', 'silver_gauntlets.json', 'кузнечное_дело', 18, [8, 25],
    ['forge'], 'silver_ore', null],
-  ['night_gloves', '000183.json', 'зачарование', 20, [18],
+  ['night_gloves', 'night_gloves.json', 'зачарование', 20, [18],
    ['runes', 'thief'], 'obsidian', ['shroud']],
-  ['iron_wraps', '000184.json', 'кузнечное_дело', 22, [8, 25],
+  ['iron_wraps', 'iron_wraps.json', 'кузнечное_дело', 22, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['wind_gloves', '000185.json', 'зачарование', 25, [18],
+  ['wind_gloves', 'wind_gloves.json', 'зачарование', 25, [18],
    ['runes', 'step'], 'quartz', ['flame_step']],
-  ['steel_gauntlets', '000186.json', 'кузнечное_дело', 35, [8, 25],
+  ['steel_gauntlets', 'steel_gauntlets.json', 'кузнечное_дело', 35, [8, 25],
    ['forge'], 'iron_ore', null],
-  ['gold_gloves', '000187.json', 'кузнечное_дело', 42, [8, 25],
+  ['gold_gloves', 'gold_gloves.json', 'кузнечное_дело', 42, [8, 25],
    ['forge'], 'gold_ore', null],
-  ['emerald_gauntlets', '000188.json', 'кузнечное_дело', 50, [8, 25],
+  ['emerald_gauntlets', 'emerald_gauntlets.json', 'кузнечное_дело', 50, [8, 25],
    ['forge'], 'emerald', null],
-  ['phantom_gloves', '000189.json', 'зачарование', 50, [18],
+  ['phantom_gloves', 'phantom_gloves.json', 'зачарование', 50, [18],
    ['runes', 'thief'], 'amethyst', ['veil_of_night']],
-  ['haste_wraps', '000190.json', 'зачарование', 55, [18],
+  ['haste_wraps', 'haste_wraps.json', 'зачарование', 55, [18],
    ['runes', 'step'], 'quartz', ['blazing_speed']],
-  ['rune_gauntlets', '000191.json', 'зачарование', 70, [18],
+  ['rune_gauntlets', 'rune_gauntlets.json', 'зачарование', 70, [18],
    ['runes', 'fists'], 'amethyst', ['night_blade']],
-  ['star_gloves', '000192.json', 'зачарование', 80, [18],
+  ['star_gloves', 'star_gloves.json', 'зачарование', 80, [18],
    ['runes', 'archer'], 'obsidian', ['void_arrow']],
-  ['void_gauntlet', '000193.json', 'зачарование', 95, [18],
+  ['void_gauntlet', 'void_gauntlet.json', 'зачарование', 95, [18],
    ['runes', 'thief'], 'obsidian', ['shadowflame']],
 ];
 
@@ -1897,17 +1877,17 @@ const HANDS_ALLOWED_INPUTS_00023011 = {
 };
 const HANDS_ENCHANT_GEMS_00023011 = new Set(
   ['obsidian', 'amethyst', 'quartz']);
-// Точный паттерн impossible-кузнечного (crown_flame, 000056.json):
+// Точный паттерн impossible-кузнечного (crown_flame.json):
 const CROWN_FLAME_INPUTS_00023011 = [
   ['gold_ore', 4], ['mithril_ore', 2], ['diamond', 1],
   ['ruby', 2], ['coal', 4],
 ];
 
-test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/файл/тип/уровень/здания/навыки/результат/исходники/заклинания; 16 столярное_дело [5] dexterity + 21 кузнечное_дело [8,25] forge + 13 зачарование [18] runes+first-affix-skill); 1:1-формула: результат = assets/items/000283+(NNNNN−144).json, id рецепта == id предмета (D-01); материалы ⊆ контрактного множества по типу+редкости результата (D-08: qty — green-таблица) + первичный материал строки + ≥2 различных; зачарование — ровно 3 различных (silver_ore + coal + ровно 1 самоцвет = первичный); кузнечное — coal обязателен, ≤4; столярное — ≤3; impossible-кузнечное (titan_brace) — ТОЧНЫЙ паттерн crown_flame; «уровень» в диапазоне редкости РЕЗУЛЬТАТА (пин); зачарование — 1–4 заклинания (ID-форма, live); каждый из 50 forearms/palms-предметов — ровно 1 базовый рецепт-результат (краснота: рецептов волны нет)', () => {
+test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/файл/тип/уровень/здания/навыки/результат/исходники/заклинания; 16 столярное_дело [5] dexterity + 21 кузнечное_дело [8,25] forge + 13 зачарование [18] runes+first-affix-skill); 1:1-формула: результат = assets/items/000283+i.json по строке ростера i (000318.07: номера файлов вытеснены id-именами — формула по порядку ростера, он === прежнему порядку 000144..000193), id рецепта == id предмета (D-01); материалы ⊆ контрактного множества по типу+редкости результата (D-08: qty — green-таблица) + первичный материал строки + ≥2 различных; зачарование — ровно 3 различных (silver_ore + coal + ровно 1 самоцвет = первичный); кузнечное — coal обязателен, ≤4; столярное — ≤3; impossible-кузнечное (titan_brace) — ТОЧНЫЙ паттерн crown_flame; «уровень» в диапазоне редкости РЕЗУЛЬТАТА (пин); зачарование — 1–4 заклинания (ID-форма, live); каждый из 50 forearms/palms-предметов — ровно 1 базовый рецепт-результат (краснота: рецептов волны нет)', () => {
   const { byId } = loadCatalog();
   const spellIds = loadSpellIds();
-  for (const [id, file, type, level, buildings, skills, primaryMat,
-      spells] of HANDS_RECIPES_00023011) {
+  for (const [row, [id, file, type, level, buildings, skills, primaryMat,
+      spells]] of HANDS_RECIPES_00023011.entries()) {
     const r = byId.get(id);
     assert.ok(r, 'рецепт «' + id + '» (' + file + ') в каталоге '
       + '(краснота: рецепт волны не создан)');
@@ -1923,13 +1903,14 @@ test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/�
       skills, id + ': навыки (resolved id)');
     assert.equal(r.data['база'], undefined,
       id + ': базовый рецепт (без «база»); улучшенные — T10');
-    const n = parseInt(file, 10);
     const resPath = r.data['результат']['предмет'];
     assert.equal(
       resPath, 'assets/items/'
-        + String(283 + (n - 144)).padStart(6, '0') + '.json',
-      id + ': 1:1-формула — результат assets/items/000283+('
-      + n + '−144).json (D-01)');
+        + String(283 + row).padStart(6, '0') + '.json',
+      id + ': 1:1-формула — результат assets/items/'
+      + String(283 + row).padStart(6, '0')
+      + '.json (строка ростера ' + row + ' ↔ прежний номер 000'
+      + (144 + row) + '; D-01)');
     const resId = refId(resPath, REF_ITEMS, r.file);
     assert.equal(resId, id,
       id + ': id базового рецепта == id предмета (1:1, D-01)');
@@ -2039,24 +2020,25 @@ test('000230.11 T9: 50 базовых рецептов (ростер §2.4: id/�
 });
 
 // [id, файл, «база» (id), файл «база», уровень, t4-материал (tier 4)]
-// 6 улучшенных (D-16: ИСПРАВЛЕННЫЕ «база» — 000166/000167/000168/
-// 000191/000192/000193, НЕ архитектурный черновик); id = <item>_<mat>.
+// 6 улучшенных (D-16: ИСПРАВЛЕННЫЕ «база» — rune_bracers/star_armguard/
+// titan_brace/rune_gauntlets/star_gloves/void_gauntlet, НЕ архитектурный
+// черновик); id = <item>_<mat>.
 const HANDS_IMPROVED_00023011 = [
-  ['rune_bracers_mithril', '000194.json', 'rune_bracers',
-   '000166.json', 85, 'mithril_ore'],
-  ['star_armguard_diamond', '000195.json', 'star_armguard',
-   '000167.json', 88, 'diamond'],
-  ['titan_brace_mithril', '000196.json', 'titan_brace',
-   '000168.json', 100, 'mithril_ore'],
-  ['rune_gauntlets_mithril', '000197.json', 'rune_gauntlets',
-   '000191.json', 85, 'mithril_ore'],
-  ['star_gloves_diamond', '000198.json', 'star_gloves',
-   '000192.json', 88, 'diamond'],
-  ['void_gauntlet_mithril', '000199.json', 'void_gauntlet',
-   '000193.json', 100, 'mithril_ore'],
+  ['rune_bracers_mithril', 'rune_bracers_mithril.json', 'rune_bracers',
+   'rune_bracers.json', 85, 'mithril_ore'],
+  ['star_armguard_diamond', 'star_armguard_diamond.json', 'star_armguard',
+   'star_armguard.json', 88, 'diamond'],
+  ['titan_brace_mithril', 'titan_brace_mithril.json', 'titan_brace',
+   'titan_brace.json', 100, 'mithril_ore'],
+  ['rune_gauntlets_mithril', 'rune_gauntlets_mithril.json', 'rune_gauntlets',
+   'rune_gauntlets.json', 85, 'mithril_ore'],
+  ['star_gloves_diamond', 'star_gloves_diamond.json', 'star_gloves',
+   'star_gloves.json', 88, 'diamond'],
+  ['void_gauntlet_mithril', 'void_gauntlet_mithril.json', 'void_gauntlet',
+   'void_gauntlet.json', 100, 'mithril_ore'],
 ];
 
-test('000230.11 T10: 6 улучшенных (000194–000199) — id = <item>_<mat>; «база» = ИСПРАВЛЕННЫЕ (D-16) assets/craft/000166/000167/000168/000191/000192/000193.json (рune_bracers/star_armguard/titan_brace/rune_gauntlets/star_gloves/void_gauntlet); тот же тип/результат, что у базы; уровень ровно 85/88/100/85/88/100 (не ниже базового); исходники ⊇ базовых (по qty); +t4-руда/камень (tier 4) в исходниках; цепочка «база» ациклична (краснота: улучшенные рецепты не созданы)', () => {
+test('000230.11 T10: 6 улучшенных (000194–000199) — id = <item>_<mat>; «база» = ИСПРАВЛЕННЫЕ (D-16) assets/craft/rune_bracers/star_armguard/titan_brace/rune_gauntlets/star_gloves/void_gauntlet.json (рune_bracers/star_armguard/titan_brace/rune_gauntlets/star_gloves/void_gauntlet); тот же тип/результат, что у базы; уровень ровно 85/88/100/85/88/100 (не ниже базового); исходники ⊇ базовых (по qty); +t4-руда/камень (tier 4) в исходниках; цепочка «база» ациклична (краснота: улучшенные рецепты не созданы)', () => {
   const { byId } = loadCatalog();
   for (const [id, file, baseId, baseFile, level, t4]
       of HANDS_IMPROVED_00023011) {
@@ -2194,70 +2176,70 @@ test('000230.10 T12: 3 улучшенных (000141–000143) — «база» =
 // [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
 //  результат (id), исходники [[id, qty]], заклинания (null — поля нет)]
 const LEFT_HAND_RECIPES_00023013 = [
-  ['wooden_buckler', '000260.json', 'столярное_дело', 2, [5],
+  ['wooden_buckler', 'wooden_buckler.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'wooden_buckler', [['wood_log', 2], ['coal', 1]], null],
-  ['leather_shield', '000261.json', 'столярное_дело', 3, [5],
+  ['leather_shield', 'leather_shield.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'leather_shield', [['hide', 2], ['coal', 1]], null],
-  ['cloth_shield', '000262.json', 'столярное_дело', 3, [5],
+  ['cloth_shield', 'cloth_shield.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'cloth_shield',
    [['wood_log', 2], ['herb_bitter', 1]], null],
-  ['wicker_buckler', '000263.json', 'столярное_дело', 4, [5],
+  ['wicker_buckler', 'wicker_buckler.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'wicker_buckler',
    [['wood_log', 1], ['herb_mana', 1]], null],
-  ['oiled_shield', '000264.json', 'столярное_дело', 5, [5],
+  ['oiled_shield', 'oiled_shield.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'oiled_shield', [['wood_log', 2], ['coal', 2]], null],
-  ['bone_shield', '000265.json', 'столярное_дело', 5, [5],
+  ['bone_shield', 'bone_shield.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'bone_shield', [['stone_chunk', 2], ['coal', 1]], null],
-  ['horn_shield', '000266.json', 'столярное_дело', 6, [5],
+  ['horn_shield', 'horn_shield.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'horn_shield', [['stone_chunk', 1], ['hide', 1]], null],
-  ['palm_shield', '000267.json', 'столярное_дело', 7, [5],
+  ['palm_shield', 'palm_shield.json', 'столярное_дело', 7, [5],
    ['dexterity'], 'palm_shield',
    [['wood_log', 2], ['herb_bitter', 1]], null],
-  ['ash_shield', '000268.json', 'столярное_дело', 8, [5],
+  ['ash_shield', 'ash_shield.json', 'столярное_дело', 8, [5],
    ['dexterity'], 'ash_shield', [['wood_log', 3], ['coal', 1]], null],
-  ['clay_buckler', '000269.json', 'столярное_дело', 10, [5],
+  ['clay_buckler', 'clay_buckler.json', 'столярное_дело', 10, [5],
    ['dexterity'], 'clay_buckler', [['stone_chunk', 2], ['coal', 1]], null],
-  ['iron_round', '000270.json', 'кузнечное_дело', 15, [8, 25],
+  ['iron_round', 'iron_round.json', 'кузнечное_дело', 15, [8, 25],
    ['forge'], 'iron_round', [['iron_ore', 2], ['coal', 1]], null],
-  ['steel_buckler', '000271.json', 'кузнечное_дело', 20, [8, 25],
+  ['steel_buckler', 'steel_buckler.json', 'кузнечное_дело', 20, [8, 25],
    ['forge'], 'steel_buckler', [['iron_ore', 3], ['coal', 2]], null],
-  ['rune_charm', '000272.json', 'зачарование', 12, [18],
+  ['rune_charm', 'rune_charm.json', 'зачарование', 12, [18],
    ['runes', 'scholar'], 'rune_charm',
    [['obsidian', 1], ['wood_log', 1]], ['spark']],
-  ['guard_amulet', '000273.json', 'зачарование', 15, [18],
+  ['guard_amulet', 'guard_amulet.json', 'зачарование', 15, [18],
    ['runes', 'perception'], 'guard_amulet',
    [['moonstone', 1], ['silver_ore', 1], ['coal', 1]], ['ward']],
-  ['ember_focus', '000274.json', 'зачарование', 18, [18],
+  ['ember_focus', 'ember_focus.json', 'зачарование', 18, [18],
    ['runes', 'firelord'], 'ember_focus',
    [['phosphorite', 1], ['coal', 1]], ['flame_burst']],
-  ['frost_charm', '000275.json', 'зачарование', 22, [18],
+  ['frost_charm', 'frost_charm.json', 'зачарование', 22, [18],
    ['runes', 'icelord'], 'frost_charm',
    [['quartz', 1], ['silver_ore', 1], ['coal', 1]], ['frost_bolt']],
-  ['scholar_pendant', '000276.json', 'зачарование', 25, [18],
+  ['scholar_pendant', 'scholar_pendant.json', 'зачарование', 25, [18],
    ['runes', 'scholar'], 'scholar_pendant',
    [['moonstone', 1], ['wood_log', 1]], ['firelight']],
-  ['ward_crystal', '000277.json', 'зачарование', 35, [18],
+  ['ward_crystal', 'ward_crystal.json', 'зачарование', 35, [18],
    ['runes', 'perception'], 'ward_crystal',
    [['sapphire', 1], ['silver_ore', 1], ['coal', 1]], ['magic_shield']],
-  ['cinder_eye', '000278.json', 'зачарование', 40, [18],
+  ['cinder_eye', 'cinder_eye.json', 'зачарование', 40, [18],
    ['runes', 'firelord'], 'cinder_eye',
    [['ruby', 1], ['obsidian', 1], ['coal', 1]], ['fire_aura']],
-  ['frost_orb', '000279.json', 'зачарование', 45, [18],
+  ['frost_orb', 'frost_orb.json', 'зачарование', 45, [18],
    ['runes', 'icelord'], 'frost_orb',
    [['quartz', 1], ['moonstone', 1], ['coal', 1]], ['ice_armor']],
-  ['rune_sphere', '000280.json', 'зачарование', 50, [18],
+  ['rune_sphere', 'rune_sphere.json', 'зачарование', 50, [18],
    ['runes', 'scholar'], 'rune_sphere',
    [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], ['shatter']],
-  ['mind_pendant', '000281.json', 'зачарование', 55, [18],
+  ['mind_pendant', 'mind_pendant.json', 'зачарование', 55, [18],
    ['runes', 'precog'], 'mind_pendant',
    [['amethyst', 1], ['gold_ore', 1], ['coal', 1]], ['veil_of_night']],
-  ['arcane_eye', '000282.json', 'зачарование', 70, [18],
+  ['arcane_eye', 'arcane_eye.json', 'зачарование', 70, [18],
    ['runes', 'precog'], 'arcane_eye',
    [['sapphire', 2], ['gold_ore', 1], ['coal', 1]], ['shroud']],
-  ['snow_focus', '000283.json', 'зачарование', 80, [18],
+  ['snow_focus', 'snow_focus.json', 'зачарование', 80, [18],
    ['runes', 'scholar'], 'snow_focus',
    [['quartz', 2], ['gold_ore', 1], ['coal', 2]], ['ice_armor']],
-  ['heart_of_elements', '000284.json', 'зачарование', 95, [18],
+  ['heart_of_elements', 'heart_of_elements.json', 'зачарование', 95, [18],
    ['runes', 'firelord'], 'heart_of_elements',
    [['gold_ore', 4], ['phoenix_feather', 2], ['ruby', 1],
     ['coal', 3]], ['inferno']],
@@ -2329,10 +2311,10 @@ test('000230.13 T11: 25 базовых рецептов (ростер §2.4: id/
 
 // [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04)]
 const LEFT_HAND_IMPROVED_00023013 = [
-  ['arcane_eye_diamond', '000285.json', 'arcane_eye', 85, 'diamond'],
-  ['snow_focus_mithril', '000286.json', 'snow_focus', 88,
+  ['arcane_eye_diamond', 'arcane_eye_diamond.json', 'arcane_eye', 85, 'diamond'],
+  ['snow_focus_mithril', 'snow_focus_mithril.json', 'snow_focus', 88,
    'mithril_ore'],
-  ['heart_of_elements_mithril', '000287.json', 'heart_of_elements', 100,
+  ['heart_of_elements_mithril', 'heart_of_elements_mithril.json', 'heart_of_elements', 100,
    'mithril_ore'],
 ];
 
@@ -2403,68 +2385,68 @@ test('000230.13 T12: 3 улучшенных (000285–000287) — «база» =
 // [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
 //  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
 const RING_RECIPES_00023014 = [
-  ['copper_ring', '000310.json', 'резьба_по_камню', 2, [40, 48],
+  ['copper_ring', 'copper_ring.json', 'резьба_по_камню', 2, [40, 48],
    ['runes'], 'copper_ring', [['copper_ore', 2], ['coal', 1]], null],
-  ['bone_ring', '000311.json', 'резьба_по_камню', 3, [40, 48],
+  ['bone_ring', 'bone_ring.json', 'резьба_по_камню', 3, [40, 48],
    ['runes'], 'bone_ring', [['stone_chunk', 2], ['hide', 1]], null],
-  ['iron_ring', '000312.json', 'резьба_по_камню', 3, [40, 48],
+  ['iron_ring', 'iron_ring.json', 'резьба_по_камню', 3, [40, 48],
    ['runes'], 'iron_ring', [['iron_ore', 2], ['coal', 1]], null],
-  ['thread_ring', '000313.json', 'резьба_по_камню', 4, [40, 48],
+  ['thread_ring', 'thread_ring.json', 'резьба_по_камню', 4, [40, 48],
    ['runes'], 'thread_ring', [['hide', 2], ['coal', 1]], null],
-  ['stone_ring', '000314.json', 'резьба_по_камню', 4, [40, 48],
+  ['stone_ring', 'stone_ring.json', 'резьба_по_камню', 4, [40, 48],
    ['runes'], 'stone_ring', [['stone_chunk', 3], ['coal', 1]], null],
-  ['clay_ring', '000315.json', 'резьба_по_камню', 5, [40, 48],
+  ['clay_ring', 'clay_ring.json', 'резьба_по_камню', 5, [40, 48],
    ['runes'], 'clay_ring', [['stone_chunk', 2], ['coal', 1]], null],
-  ['wood_ring', '000316.json', 'резьба_по_камню', 5, [40, 48],
+  ['wood_ring', 'wood_ring.json', 'резьба_по_камню', 5, [40, 48],
    ['runes'], 'wood_ring', [['wood_log', 2], ['stone_chunk', 1]], null],
-  ['leather_ring', '000317.json', 'резьба_по_камню', 6, [40, 48],
+  ['leather_ring', 'leather_ring.json', 'резьба_по_камню', 6, [40, 48],
    ['runes'], 'leather_ring', [['hide', 2], ['coal', 1]], null],
-  ['silver_ring', '000318.json', 'резьба_по_камню', 8, [40, 48],
+  ['silver_ring', 'silver_ring.json', 'резьба_по_камню', 8, [40, 48],
    ['runes'], 'silver_ring', [['silver_ore', 2], ['coal', 1]], null],
-  ['silver_signet', '000319.json', 'зачарование', 9, [18],
+  ['silver_signet', 'silver_signet.json', 'зачарование', 9, [18],
    ['runes', 'orator'], 'silver_signet',
    [['silver_ore', 1], ['moonstone', 1], ['coal', 1]], ['flame_burst']],
-  ['gold_ring', '000320.json', 'резьба_по_камню', 12, [40, 48],
+  ['gold_ring', 'gold_ring.json', 'резьба_по_камню', 12, [40, 48],
    ['runes'], 'gold_ring', [['gold_ore', 2], ['coal', 1]], null],
-  ['glacier_ring', '000321.json', 'резьба_по_камню', 14, [40, 48],
+  ['glacier_ring', 'glacier_ring.json', 'резьба_по_камню', 14, [40, 48],
    ['runes'], 'glacier_ring',
    [['moonstone', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['quartz_ring', '000322.json', 'резьба_по_камню', 16, [40, 48],
+  ['quartz_ring', 'quartz_ring.json', 'резьба_по_камню', 16, [40, 48],
    ['runes'], 'quartz_ring',
    [['quartz', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['obsidian_ring', '000323.json', 'резьба_по_камню', 18, [40, 48],
+  ['obsidian_ring', 'obsidian_ring.json', 'резьба_по_камню', 18, [40, 48],
    ['runes'], 'obsidian_ring',
    [['obsidian', 1], ['silver_ore', 1], ['coal', 1]], null],
-  ['amethyst_ring', '000324.json', 'зачарование', 20, [18],
+  ['amethyst_ring', 'amethyst_ring.json', 'зачарование', 20, [18],
    ['runes', 'meditation'], 'amethyst_ring',
    [['amethyst', 1], ['silver_ore', 1], ['coal', 1]], ['ward']],
-  ['sapphire_ring', '000325.json', 'резьба_по_камню', 22, [40, 48],
+  ['sapphire_ring', 'sapphire_ring.json', 'резьба_по_камню', 22, [40, 48],
    ['runes'], 'sapphire_ring',
    [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
-  ['gold_signet', '000326.json', 'резьба_по_камню', 25, [40, 48],
+  ['gold_signet', 'gold_signet.json', 'резьба_по_камню', 25, [40, 48],
    ['runes'], 'gold_signet', [['gold_ore', 2], ['coal', 1]], null],
-  ['emerald_signet', '000327.json', 'зачарование', 35, [18],
+  ['emerald_signet', 'emerald_signet.json', 'зачарование', 35, [18],
    ['runes', 'nature'], 'emerald_signet',
    [['emerald', 1], ['gold_ore', 2], ['coal', 2]], ['vine']],
-  ['ruby_ring', '000328.json', 'зачарование', 40, [18],
+  ['ruby_ring', 'ruby_ring.json', 'зачарование', 40, [18],
    ['runes', 'firelord'], 'ruby_ring',
    [['ruby', 1], ['gold_ore', 2], ['coal', 2]], ['fireball']],
-  ['frost_ring', '000329.json', 'зачарование', 45, [18],
+  ['frost_ring', 'frost_ring.json', 'зачарование', 45, [18],
    ['runes', 'icelord'], 'frost_ring',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['ice_armor']],
-  ['rune_ring', '000330.json', 'зачарование', 50, [18],
+  ['rune_ring', 'rune_ring.json', 'зачарование', 50, [18],
    ['runes', 'runes'], 'rune_ring',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['magic_shield']],
-  ['scholar_ring', '000331.json', 'зачарование', 55, [18],
+  ['scholar_ring', 'scholar_ring.json', 'зачарование', 55, [18],
    ['runes', 'scholar'], 'scholar_ring',
    [['amethyst', 1], ['gold_ore', 2], ['coal', 2]], ['light_heal']],
-  ['star_signet', '000332.json', 'зачарование', 70, [18],
+  ['star_signet', 'star_signet.json', 'зачарование', 70, [18],
    ['runes', 'precog'], 'star_signet',
    [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
-  ['void_ring', '000333.json', 'зачарование', 80, [18],
+  ['void_ring', 'void_ring.json', 'зачарование', 80, [18],
    ['runes', 'unkill'], 'void_ring',
    [['obsidian', 2], ['gold_ore', 2], ['coal', 2]], ['void_horror']],
-  ['phoenix_ring', '000334.json', 'зачарование', 95, [18],
+  ['phoenix_ring', 'phoenix_ring.json', 'зачарование', 95, [18],
    ['runes', 'firelord'], 'phoenix_ring',
    [['gold_ore', 4], ['diamond', 2], ['phoenix_feather', 2],
     ['coal', 3]], ['phoenix']],
@@ -2537,10 +2519,10 @@ test('000230.14 T9: 25 базовых рецептов (000310–000334, кат�
 // 3 улучшенных — 2 legendary + 1 impossible (паттерн .10 single-part;
 // «база» = self-ref на базовый рецепт, результат НЕ меняется).
 const RING_IMPROVED_00023014 = [
-  ['star_signet_mithril', '000335.json', 'star_signet', 85,
+  ['star_signet_mithril', 'star_signet_mithril.json', 'star_signet', 85,
    'mithril_ore'],
-  ['void_ring_diamond', '000336.json', 'void_ring', 88, 'diamond'],
-  ['phoenix_ring_mithril', '000337.json', 'phoenix_ring', 100,
+  ['void_ring_diamond', 'void_ring_diamond.json', 'void_ring', 88, 'diamond'],
+  ['phoenix_ring_mithril', 'phoenix_ring_mithril.json', 'phoenix_ring', 100,
    'mithril_ore'],
 ];
 
@@ -2613,71 +2595,71 @@ test('000230.14 T10: 3 улучшенных (000335–000337) — «база» =
 // [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
 //  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
 const RIGHT_HAND_RECIPES_00023012 = [
-  ['wood_scyte', '000210.json', 'кузнечное_дело', 3, [8], ['forge'],
+  ['wood_scyte', 'wood_scyte.json', 'кузнечное_дело', 3, [8], ['forge'],
    'wood_scyte', [['wood_log', 2], ['coal', 1]], null],
-  ['iron_scyte', '000211.json', 'кузнечное_дело', 4, [8], ['forge'],
+  ['iron_scyte', 'iron_scyte.json', 'кузнечное_дело', 4, [8], ['forge'],
    'iron_scyte', [['iron_ore', 2], ['coal', 1]], null],
-  ['wood_pitchfork', '000212.json', 'кузнечное_дело', 3, [8], ['forge'],
+  ['wood_pitchfork', 'wood_pitchfork.json', 'кузнечное_дело', 3, [8], ['forge'],
    'wood_pitchfork', [['wood_log', 2], ['stone_chunk', 1]], null],
-  ['iron_pitchfork', '000213.json', 'кузнечное_дело', 4, [8], ['forge'],
+  ['iron_pitchfork', 'iron_pitchfork.json', 'кузнечное_дело', 4, [8], ['forge'],
    'iron_pitchfork', [['iron_ore', 2], ['stone_chunk', 1]], null],
-  ['copper_scyte', '000214.json', 'кузнечное_дело', 6, [8], ['forge'],
+  ['copper_scyte', 'copper_scyte.json', 'кузнечное_дело', 6, [8], ['forge'],
    'copper_scyte', [['copper_ore', 2], ['coal', 2]], null],
-  ['iron_hammer', '000215.json', 'кузнечное_дело', 2, [8], ['forge'],
+  ['iron_hammer', 'iron_hammer.json', 'кузнечное_дело', 2, [8], ['forge'],
    'iron_hammer', [['iron_ore', 1], ['coal', 1]], null],
-  ['iron_tongs', '000216.json', 'кузнечное_дело', 3, [8], ['forge'],
+  ['iron_tongs', 'iron_tongs.json', 'кузнечное_дело', 3, [8], ['forge'],
    'iron_tongs', [['iron_ore', 1], ['stone_chunk', 2]], null],
-  ['clay_crucible', '000217.json', 'алхимия', 2, [17], ['alchemy'],
+  ['clay_crucible', 'clay_crucible.json', 'алхимия', 2, [17], ['alchemy'],
    'clay_crucible', [['stone_chunk', 2], ['coal', 1]], null],
-  ['stone_mortar', '000218.json', 'алхимия', 3, [17], ['alchemy'],
+  ['stone_mortar', 'stone_mortar.json', 'алхимия', 3, [17], ['alchemy'],
    'stone_mortar', [['stone_chunk', 3], ['coal', 1]], null],
-  ['bone_graver', '000219.json', 'зачарование', 5, [18], ['runes'],
+  ['bone_graver', 'bone_graver.json', 'зачарование', 5, [18], ['runes'],
    'bone_graver', [['quartz', 1], ['stone_chunk', 1]], ['spark']],
-  ['steel_scyte', '000220.json', 'кузнечное_дело', 15, [8, 25], ['forge'],
+  ['steel_scyte', 'steel_scyte.json', 'кузнечное_дело', 15, [8, 25], ['forge'],
    'steel_scyte', [['iron_ore', 3], ['silver_ore', 1], ['coal', 2]],
    null],
-  ['steel_pitchfork', '000221.json', 'кузнечное_дело', 16, [8, 25], ['forge'],
+  ['steel_pitchfork', 'steel_pitchfork.json', 'кузнечное_дело', 16, [8, 25], ['forge'],
    'steel_pitchfork', [['iron_ore', 3], ['amethyst', 1], ['coal', 2]],
    null],
-  ['ember_staff', '000222.json', 'зачарование', 18, [18], ['runes', 'firelord'],
+  ['ember_staff', 'ember_staff.json', 'зачарование', 18, [18], ['runes', 'firelord'],
    'ember_staff', [['quartz', 1], ['amethyst', 1], ['coal', 2]],
    ['flame_burst']],
-  ['rime_staff', '000223.json', 'зачарование', 20, [18], ['runes', 'icelord'],
+  ['rime_staff', 'rime_staff.json', 'зачарование', 20, [18], ['runes', 'icelord'],
    'rime_staff', [['quartz', 2], ['silver_ore', 1], ['coal', 2]],
    ['chill']],
-  ['rune_staff', '000224.json', 'зачарование', 24, [18], ['runes'],
+  ['rune_staff', 'rune_staff.json', 'зачарование', 24, [18], ['runes'],
    'rune_staff', [['amethyst', 2], ['silver_ore', 1], ['coal', 2]],
    ['ward']],
-  ['steel_hammer', '000225.json', 'кузнечное_дело', 14, [8, 25], ['forge'],
+  ['steel_hammer', 'steel_hammer.json', 'кузнечное_дело', 14, [8, 25], ['forge'],
    'steel_hammer', [['iron_ore', 3], ['silver_ore', 1], ['coal', 2]],
    null],
-  ['rune_stylus', '000226.json', 'зачарование', 16, [18], ['runes'],
+  ['rune_stylus', 'rune_stylus.json', 'зачарование', 16, [18], ['runes'],
    'rune_stylus', [['quartz', 2], ['amethyst', 1], ['coal', 1]],
    ['ward']],
-  ['harvest_scyte', '000227.json', 'кузнечное_дело', 40, [8, 25],
+  ['harvest_scyte', 'harvest_scyte.json', 'кузнечное_дело', 40, [8, 25],
    ['forge', 'heavy'], 'harvest_scyte',
    [['gold_ore', 2], ['silver_ore', 3], ['coal', 2]], null],
-  ['flame_staff', '000228.json', 'зачарование', 45, [18], ['runes', 'firelord'],
+  ['flame_staff', 'flame_staff.json', 'зачарование', 45, [18], ['runes', 'firelord'],
    'flame_staff',
    [['ruby', 1], ['gold_ore', 1], ['silver_ore', 3], ['coal', 2]],
    ['fireball']],
-  ['ice_staff', '000229.json', 'зачарование', 48, [18], ['runes', 'icelord'],
+  ['ice_staff', 'ice_staff.json', 'зачарование', 48, [18], ['runes', 'icelord'],
    'ice_staff',
    [['sapphire', 1], ['gold_ore', 1], ['silver_ore', 3], ['coal', 2]],
    ['frost_bolt']],
-  ['silver_crucible', '000230.json', 'алхимия', 38, [17], ['alchemy'],
+  ['silver_crucible', 'silver_crucible.json', 'алхимия', 38, [17], ['alchemy'],
    'silver_crucible', [['silver_ore', 3], ['gold_ore', 1], ['coal', 2]],
    null],
-  ['rune_chisel', '000231.json', 'зачарование', 42, [18], ['runes'],
+  ['rune_chisel', 'rune_chisel.json', 'зачарование', 42, [18], ['runes'],
    'rune_chisel', [['sapphire', 1], ['gold_ore', 1], ['silver_ore', 3]],
    ['magic_shield']],
-  ['sage_staff', '000232.json', 'зачарование', 70, [18], ['runes', 'scholar'],
+  ['sage_staff', 'sage_staff.json', 'зачарование', 70, [18], ['runes', 'scholar'],
    'sage_staff', [['mithril_ore', 1], ['sapphire', 2], ['gold_ore', 2]],
    ['greater_heal']],
-  ['mithril_hammer', '000233.json', 'кузнечное_дело', 75, [8, 25],
+  ['mithril_hammer', 'mithril_hammer.json', 'кузнечное_дело', 75, [8, 25],
    ['forge', 'heavy'], 'mithril_hammer',
    [['mithril_ore', 2], ['gold_ore', 2], ['sapphire', 1]], null],
-  ['philosopher_staff', '000234.json', 'зачарование', 95, [18],
+  ['philosopher_staff', 'philosopher_staff.json', 'зачарование', 95, [18],
    ['runes', 'alchemy'], 'philosopher_staff',
    [['gold_ore', 3], ['ruby', 2], ['diamond', 1], ['coal', 3]],
    ['mend']],
@@ -2686,12 +2668,12 @@ const RIGHT_HAND_RECIPES_00023012 = [
 // [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04),
 //  исходники (ТОЧНО: ⊇ базовых по qty + t4-материал)]
 const RIGHT_HAND_IMPROVED_00023012 = [
-  ['sage_staff_mithril', '000235.json', 'sage_staff', 85, 'mithril_ore',
+  ['sage_staff_mithril', 'sage_staff_mithril.json', 'sage_staff', 85, 'mithril_ore',
    [['mithril_ore', 2], ['sapphire', 2], ['gold_ore', 2]]],
-  ['mithril_hammer_diamond', '000236.json', 'mithril_hammer', 88,
+  ['mithril_hammer_diamond', 'mithril_hammer_diamond.json', 'mithril_hammer', 88,
    'diamond',
    [['mithril_ore', 2], ['gold_ore', 2], ['sapphire', 1], ['diamond', 1]]],
-  ['philosopher_staff_mithril', '000237.json', 'philosopher_staff', 100,
+  ['philosopher_staff_mithril', 'philosopher_staff_mithril.json', 'philosopher_staff', 100,
    'mithril_ore',
    [['gold_ore', 3], ['ruby', 2], ['diamond', 1], ['coal', 3],
     ['mithril_ore', 1]]],
@@ -2902,133 +2884,133 @@ test('000230.12 R13: ре-пин 000208-R2 — каталог 643 рецепт (
 // [id, файл, тип, уровень, здания (resolved id), навыки (resolved id),
 //  результат (id), исходники [[id, qty]], заклинания (null — поле нет)]
 const LEGSFEET_RECIPES_00023015 = [
-  ['linen_trousers', '000360.json', 'столярное_дело', 2, [5],
+  ['linen_trousers', 'linen_trousers.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'linen_trousers', [['wood_log', 2], ['herb_bitter', 1]],
    null],
-  ['wool_trousers', '000361.json', 'столярное_дело', 3, [5],
+  ['wool_trousers', 'wool_trousers.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'wool_trousers', [['hide', 1], ['wood_log', 2]], null],
-  ['hemp_breeches', '000362.json', 'столярное_дело', 4, [5],
+  ['hemp_breeches', 'hemp_breeches.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hemp_breeches', [['wood_log', 2], ['stone_chunk', 1]],
    null],
-  ['felt_trousers', '000363.json', 'столярное_дело', 5, [5],
+  ['felt_trousers', 'felt_trousers.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'felt_trousers', [['hide', 2], ['coal', 1]], null],
-  ['leather_pants', '000364.json', 'столярное_дело', 6, [5],
+  ['leather_pants', 'leather_pants.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'leather_pants', [['hide', 2], ['coal', 1]], null],
-  ['traveler_breeches', '000365.json', 'столярное_дело', 7, [5],
+  ['traveler_breeches', 'traveler_breeches.json', 'столярное_дело', 7, [5],
    ['dexterity'], 'traveler_breeches', [['wood_log', 2], ['hide', 1]],
    null],
-  ['hide_wrap', '000366.json', 'столярное_дело', 4, [5],
+  ['hide_wrap', 'hide_wrap.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hide_wrap', [['hide', 2], ['coal', 1]], null],
-  ['twine_wraps', '000367.json', 'столярное_дело', 5, [5],
+  ['twine_wraps', 'twine_wraps.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'twine_wraps', [['wood_log', 2], ['hide', 1]], null],
-  ['rough_chaps', '000368.json', 'столярное_дело', 8, [5],
+  ['rough_chaps', 'rough_chaps.json', 'столярное_дело', 8, [5],
    ['dexterity'], 'rough_chaps', [['hide', 2], ['stone_chunk', 1]],
    null],
-  ['cloth_loincloth', '000369.json', 'столярное_дело', 3, [5],
+  ['cloth_loincloth', 'cloth_loincloth.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'cloth_loincloth', [['wood_log', 2], ['herb_bitter', 1]],
    null],
-  ['bone_greaves', '000370.json', 'кузнечное_дело', 12, [8, 25],
+  ['bone_greaves', 'bone_greaves.json', 'кузнечное_дело', 12, [8, 25],
    ['forge'], 'bone_greaves', [['stone_chunk', 2], ['coal', 1]], null],
-  ['copper_greaves', '000371.json', 'кузнечное_дело', 14, [8, 25],
+  ['copper_greaves', 'copper_greaves.json', 'кузнечное_дело', 14, [8, 25],
    ['forge'], 'copper_greaves', [['copper_ore', 2], ['coal', 1]], null],
-  ['silver_chaps', '000372.json', 'кузнечное_дело', 16, [8, 25],
+  ['silver_chaps', 'silver_chaps.json', 'кузнечное_дело', 16, [8, 25],
    ['forge'], 'silver_chaps', [['silver_ore', 2], ['coal', 1]], null],
-  ['stone_greaves', '000373.json', 'кузнечное_дело', 13, [8, 25],
+  ['stone_greaves', 'stone_greaves.json', 'кузнечное_дело', 13, [8, 25],
    ['forge'], 'stone_greaves', [['stone_chunk', 3], ['coal', 1]], null],
-  ['obsidian_greaves', '000374.json', 'зачарование', 20, [18],
+  ['obsidian_greaves', 'obsidian_greaves.json', 'зачарование', 20, [18],
    ['runes', 'hide'], 'obsidian_greaves',
    [['obsidian', 1], ['wood_log', 1], ['coal', 1]], ['shadow_bolt']],
-  ['amethyst_pants', '000375.json', 'зачарование', 22, [18],
+  ['amethyst_pants', 'amethyst_pants.json', 'зачарование', 22, [18],
    ['runes', 'breath'], 'amethyst_pants',
    [['amethyst', 1], ['wood_log', 1], ['coal', 1]], ['frost_bolt']],
-  ['mystic_breeches', '000376.json', 'зачарование', 24, [18],
+  ['mystic_breeches', 'mystic_breeches.json', 'зачарование', 24, [18],
    ['runes', 'step'], 'mystic_breeches',
    [['amethyst', 1], ['herb_mana', 1], ['wood_log', 1]],
    ['nature_blessing']],
-  ['sapphire_leggings', '000377.json', 'кузнечное_дело', 35, [8, 25],
+  ['sapphire_leggings', 'sapphire_leggings.json', 'кузнечное_дело', 35, [8, 25],
    ['forge'], 'sapphire_leggings',
    [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
-  ['ember_pants', '000378.json', 'зачарование', 38, [18],
+  ['ember_pants', 'ember_pants.json', 'зачарование', 38, [18],
    ['runes', 'step'], 'ember_pants',
    [['root_ember', 2], ['wood_log', 2], ['coal', 2]], ['blazing_speed']],
-  ['emerald_greaves', '000379.json', 'кузнечное_дело', 40, [8, 25],
+  ['emerald_greaves', 'emerald_greaves.json', 'кузнечное_дело', 40, [8, 25],
    ['forge'], 'emerald_greaves',
    [['emerald', 1], ['silver_ore', 1], ['coal', 2]], null],
-  ['gold_leggings', '000380.json', 'кузнечное_дело', 45, [8, 25],
+  ['gold_leggings', 'gold_leggings.json', 'кузнечное_дело', 45, [8, 25],
    ['forge'], 'gold_leggings', [['gold_ore', 2], ['coal', 2]], null],
-  ['mithril_greaves', '000381.json', 'кузнечное_дело', 50, [8, 25],
+  ['mithril_greaves', 'mithril_greaves.json', 'кузнечное_дело', 50, [8, 25],
    ['forge'], 'mithril_greaves', [['mithril_ore', 2], ['coal', 2]], null],
-  ['rune_greaves', '000382.json', 'зачарование', 65, [18],
+  ['rune_greaves', 'rune_greaves.json', 'зачарование', 65, [18],
    ['runes', 'hide'], 'rune_greaves',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['stone_skin']],
-  ['storm_leggings', '000383.json', 'зачарование', 70, [18],
+  ['storm_leggings', 'storm_leggings.json', 'зачарование', 70, [18],
    ['runes', 'step'], 'storm_leggings',
    [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
-  ['titan_greaves', '000384.json', 'кузнечное_дело', 95, [8, 25],
+  ['titan_greaves', 'titan_greaves.json', 'кузнечное_дело', 95, [8, 25],
    ['forge'], 'titan_greaves',
    [['gold_ore', 3], ['mithril_ore', 2], ['diamond', 2], ['coal', 3]],
    null],
-  ['straw_sandals', '000385.json', 'столярное_дело', 2, [5],
+  ['straw_sandals', 'straw_sandals.json', 'столярное_дело', 2, [5],
    ['dexterity'], 'straw_sandals', [['wood_log', 2], ['herb_bitter', 1]],
    null],
-  ['cloth_sandals', '000386.json', 'столярное_дело', 3, [5],
+  ['cloth_sandals', 'cloth_sandals.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'cloth_sandals', [['wood_log', 2], ['stone_chunk', 1]],
    null],
-  ['leather_sandals', '000387.json', 'столярное_дело', 4, [5],
+  ['leather_sandals', 'leather_sandals.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'leather_sandals', [['hide', 2], ['coal', 1]], null],
-  ['wool_boots', '000388.json', 'столярное_дело', 5, [5],
+  ['wool_boots', 'wool_boots.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'wool_boots', [['hide', 1], ['wood_log', 2]], null],
-  ['felt_boots', '000389.json', 'столярное_дело', 6, [5],
+  ['felt_boots', 'felt_boots.json', 'столярное_дело', 6, [5],
    ['dexterity'], 'felt_boots', [['hide', 2], ['coal', 1]], null],
-  ['leather_boots', '000390.json', 'столярное_дело', 7, [5],
+  ['leather_boots', 'leather_boots.json', 'столярное_дело', 7, [5],
    ['dexterity'], 'leather_boots', [['hide', 2], ['stone_chunk', 1]],
    null],
-  ['travel_boots', '000391.json', 'столярное_дело', 8, [5],
+  ['travel_boots', 'travel_boots.json', 'столярное_дело', 8, [5],
    ['dexterity'], 'travel_boots', [['wood_log', 2], ['hide', 1]], null],
-  ['hide_boots', '000392.json', 'столярное_дело', 5, [5],
+  ['hide_boots', 'hide_boots.json', 'столярное_дело', 5, [5],
    ['dexterity'], 'hide_boots', [['hide', 2], ['coal', 1]], null],
-  ['wooden_sandals', '000393.json', 'столярное_дело', 3, [5],
+  ['wooden_sandals', 'wooden_sandals.json', 'столярное_дело', 3, [5],
    ['dexterity'], 'wooden_sandals', [['wood_log', 3]], null],
-  ['hemp_sandals', '000394.json', 'столярное_дело', 4, [5],
+  ['hemp_sandals', 'hemp_sandals.json', 'столярное_дело', 4, [5],
    ['dexterity'], 'hemp_sandals', [['wood_log', 2], ['herb_bitter', 1]],
    null],
-  ['bone_sandals', '000395.json', 'кузнечное_дело', 12, [8, 25],
+  ['bone_sandals', 'bone_sandals.json', 'кузнечное_дело', 12, [8, 25],
    ['forge'], 'bone_sandals', [['stone_chunk', 2], ['coal', 1]], null],
-  ['copper_boots', '000396.json', 'кузнечное_дело', 14, [8, 25],
+  ['copper_boots', 'copper_boots.json', 'кузнечное_дело', 14, [8, 25],
    ['forge'], 'copper_boots', [['copper_ore', 2], ['coal', 1]], null],
-  ['silver_boots', '000397.json', 'кузнечное_дело', 16, [8, 25],
+  ['silver_boots', 'silver_boots.json', 'кузнечное_дело', 16, [8, 25],
    ['forge'], 'silver_boots', [['silver_ore', 2], ['coal', 1]], null],
-  ['stone_sandals', '000398.json', 'кузнечное_дело', 13, [8, 25],
+  ['stone_sandals', 'stone_sandals.json', 'кузнечное_дело', 13, [8, 25],
    ['forge'], 'stone_sandals', [['stone_chunk', 3], ['coal', 1]], null],
-  ['obsidian_sandals', '000399.json', 'зачарование', 20, [18],
+  ['obsidian_sandals', 'obsidian_sandals.json', 'зачарование', 20, [18],
    ['runes', 'breath'], 'obsidian_sandals',
    [['obsidian', 1], ['hide', 1], ['coal', 1]], ['chill']],
-  ['amethyst_boots', '000400.json', 'зачарование', 22, [18],
+  ['amethyst_boots', 'amethyst_boots.json', 'зачарование', 22, [18],
    ['runes', 'endurance'], 'amethyst_boots',
    [['amethyst', 1], ['hide', 1], ['coal', 1]], ['frost_bolt']],
-  ['mystic_sandals', '000401.json', 'зачарование', 24, [18],
+  ['mystic_sandals', 'mystic_sandals.json', 'зачарование', 24, [18],
    ['runes', 'step'], 'mystic_sandals',
    [['amethyst', 1], ['herb_mana', 1], ['hide', 1]], ['spark']],
-  ['sapphire_boots', '000402.json', 'кузнечное_дело', 35, [8, 25],
+  ['sapphire_boots', 'sapphire_boots.json', 'кузнечное_дело', 35, [8, 25],
    ['forge'], 'sapphire_boots',
    [['sapphire', 1], ['silver_ore', 2], ['coal', 2]], null],
-  ['frost_sandals', '000403.json', 'зачарование', 42, [18],
+  ['frost_sandals', 'frost_sandals.json', 'зачарование', 42, [18],
    ['runes', 'step'], 'frost_sandals',
    [['root_moon', 2], ['hide', 2], ['coal', 2]], ['winter_haste']],
-  ['emerald_boots', '000404.json', 'кузнечное_дело', 40, [8, 25],
+  ['emerald_boots', 'emerald_boots.json', 'кузнечное_дело', 40, [8, 25],
    ['forge'], 'emerald_boots',
    [['emerald', 1], ['silver_ore', 1], ['coal', 2]], null],
-  ['gold_sandals', '000405.json', 'кузнечное_дело', 45, [8, 25],
+  ['gold_sandals', 'gold_sandals.json', 'кузнечное_дело', 45, [8, 25],
    ['forge'], 'gold_sandals', [['gold_ore', 2], ['coal', 2]], null],
-  ['mithril_boots', '000406.json', 'кузнечное_дело', 50, [8, 25],
+  ['mithril_boots', 'mithril_boots.json', 'кузнечное_дело', 50, [8, 25],
    ['forge'], 'mithril_boots', [['mithril_ore', 2], ['coal', 2]], null],
-  ['storm_sandals', '000407.json', 'зачарование', 70, [18],
+  ['storm_sandals', 'storm_sandals.json', 'зачарование', 70, [18],
    ['runes', 'step'], 'storm_sandals',
    [['sapphire', 2], ['gold_ore', 2], ['coal', 2]], ['blizzard']],
-  ['rune_boots', '000408.json', 'зачарование', 65, [18],
+  ['rune_boots', 'rune_boots.json', 'зачарование', 65, [18],
    ['runes', 'hide'], 'rune_boots',
    [['sapphire', 1], ['gold_ore', 2], ['coal', 2]], ['magic_shield']],
-  ['swift_boots', '000409.json', 'зачарование', 97, [18],
+  ['swift_boots', 'swift_boots.json', 'зачарование', 97, [18],
    ['runes', 'step'], 'swift_boots',
    [['phoenix_feather', 2], ['gold_ore', 3], ['diamond', 1], ['coal', 3]],
    ['blazing_speed']],
@@ -3111,17 +3093,17 @@ test('000230.15 LF9: 50 базовых рецептов (ростер §2.4: id/
 // [id, файл, «база» (id), уровень, t4-материал (tier 4, 000157.04)]
 // 6 улучшенных — 5 зачарование + 1 кузнечное (titan_greaves_diamond).
 const LEGSFEET_IMPROVED_00023015 = [
-  ['rune_greaves_mithril', '000410.json', 'rune_greaves', 80,
+  ['rune_greaves_mithril', 'rune_greaves_mithril.json', 'rune_greaves', 80,
    'mithril_ore'],
-  ['storm_leggings_diamond', '000411.json', 'storm_leggings', 85,
+  ['storm_leggings_diamond', 'storm_leggings_diamond.json', 'storm_leggings', 85,
    'diamond'],
-  ['titan_greaves_diamond', '000412.json', 'titan_greaves', 100,
+  ['titan_greaves_diamond', 'titan_greaves_diamond.json', 'titan_greaves', 100,
    'diamond'],
-  ['rune_boots_mithril', '000413.json', 'rune_boots', 80,
+  ['rune_boots_mithril', 'rune_boots_mithril.json', 'rune_boots', 80,
    'mithril_ore'],
-  ['storm_sandals_diamond', '000414.json', 'storm_sandals', 85,
+  ['storm_sandals_diamond', 'storm_sandals_diamond.json', 'storm_sandals', 85,
    'diamond'],
-  ['swift_boots_diamond', '000415.json', 'swift_boots', 100,
+  ['swift_boots_diamond', 'swift_boots_diamond.json', 'swift_boots', 100,
    'diamond'],
 ];
 

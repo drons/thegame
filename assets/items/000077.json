@@ -8,7 +8,7 @@
   "desc": "Изучает вид крафта «кузнечное_дело»: его рецепты появляются в диалоге крафта.",
   "effect": {
     "kind": "craft_recipe",
-    "recipe": "assets/craft/000001.json"
+    "recipe": "assets/craft/iron_sword.json"
   },
   "icon": "assets/sprites/items/blueprint_forge.svg"
 }

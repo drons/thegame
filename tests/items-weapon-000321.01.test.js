@@ -235,6 +235,14 @@ for (let n = NEW_FROM; n <= NEW_TO; n++) {
   NEW_FILES.push(String(n).padStart(6, '0') + '.json');
 }
 
+// 000318.07: craft — файл <id>.json (basename === id рецепта).
+const JRC = require('../scripts/lib/json-ref.js');
+const CRAFT_FILE_RE = JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.craft];
+function craftFiles(dir) {
+  return fs.readdirSync(dir)
+    .filter((f) => f !== 'schema.json' && CRAFT_FILE_RE.test(f)).sort();
+}
+
 function refNum(ref) {
   const m = /(\d{6})\.json$/.exec(ref);
   return m ? m[1] : null;
@@ -405,9 +413,8 @@ test('000321.01 T3: уникум id и имён — sweep против ВСЕХ 
 
 // --- T4: рецепты -----------------------------------------------------
 
-test('000321.01 T4: 50 рецептов 000420–000469 подряд; результат покрывает НОВЫЕ предметы 1:1 (тот же порядок); id рецепта = id результата (конвенция); тип-состав РОВНО кузнечное 30 / зачарование 15 / столярное 5; здания по типу (common-кузнечное [8], кузнечное rare+ [8,25], столярное [5], зачарование [18]); у каждого зачарования «заклинания» ≥1 ∈ каталог; «база» отсутствует (базовые рецепты); навыки/исходники/здания ∈ каталогу (динамический sweep); «уровень» ∈ диапазону редкости результата (краснота: каталог craft 343 — рецептов нет)', () => {
-  const files = fs.readdirSync(CRAFT_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)).sort();
+test('000321.01 T4: 50 рецептов — файлы по id (прежние номера 000420–000469, 000318.07: basename === id); результат покрывает НОВЫЕ предметы 1:1 (тот же порядок); id рецепта = id результата (конвенция); тип-состав РОВНО кузнечное 30 / зачарование 15 / столярное 5; здания по типу (common-кузнечное [8], кузнечное rare+ [8,25], столярное [5], зачарование [18]); у каждого зачарования «заклинания» ≥1 ∈ каталог; «база» отсутствует (базовые рецепты); навыки/исходники/здания ∈ каталогу (динамический sweep); «уровень» ∈ диапазону редкости результата (краснота: каталог craft 343 — рецептов нет)', () => {
+  const files = craftFiles(CRAFT_DIR);
   assert.equal(files.length, 643,
     'craft — 643 файла (343 + 50 рецептов 000321.01 + 50 рецептов '
     + '000321.02 + 50 рецептов 000321.03 + 50 рецептов 000321.04 + 50 рецептов 000321.05 + 50 рецептов 000321.06); '
@@ -426,15 +433,12 @@ test('000321.01 T4: 50 рецептов 000420–000469 подряд; резул
   const typeCount = {};
   const results = [];
   for (const [num, id, тип, level, spellz] of RECIPES_00032101) {
-    const f = String(num).padStart(6, '0') + '.json';
-    assert.equal(files[files.length - 300 + num - RECIPES_00032101[0][0]], f,
-      'каталожный порядок: позиция ' + num + ' — ' + f + ' ' +
-      '(ре-пин 000321.06: рецепты колец 000670–000719 — новый конец; ' +
-      'ре-пин 000321.02: рецепты брони 000470–000519; ' +
-      'ре-пин 000321.03: рецепты щитов 000520–000569; ' +
-      'ре-пин 000321.04: рецепты артефактов 000570–000619; ' +
-      'ре-пин 000321.05: рецепты инструментов 000620–000669 — ' +
-      'новый конец каталога, окно сфиксировано по номеру)');
+    const f = id + '.json';
+    assert.ok(files.includes(f),
+      'рецепт волны (прежний номер ' + String(num).padStart(6, '0')
+      + ') — файл ' + f + ' ∈ assets/craft (000318.07: имя файла === id, '
+      + 'позиционное окно номеров заменено свипом присутствия + '
+      + 'basename === id; memory/000318.07-craft-slug-rename.md)');
     const raw = fs.readFileSync(path.join(CRAFT_DIR, f), 'utf8');
     const j = JSON.parse(raw);
     assert.deepEqual(validateData(schema, j, f), [], f + ': схема');
@@ -621,7 +625,7 @@ test('000321.01 T7: зеркала — src/items-data.js содержит 50 н�
   assert.equal(CRD.CRAFT.length, 643,
     'craft-data — 643; факт: ' + CRD.CRAFT.length);
   for (const [num, id, тип, level, spellz] of RECIPES_00032101) {
-    const f = String(num).padStart(6, '0') + '.json';
+    const f = id + '.json';
     const j = JSON.parse(fs.readFileSync(path.join(CRAFT_DIR, f), 'utf8'));
     const m = CRD.CRAFT_BY_ID[id];
     assert.ok(m, 'craft-data: рецепт «' + id + '» (' + f + ')');
