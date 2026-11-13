@@ -1,0 +1,14 @@
+{
+  "id": "sun_potion",
+  "name": "Солнечное зелье",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 38,
+  "base_price": 40,
+  "desc": "Солнечное зелье: в склянке держится лето.",
+  "effect": {
+    "kind": "heal",
+    "amount": 45
+  },
+  "icon": "assets/sprites/items/sun_potion.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "quartz_tonic",
+  "name": "Кварцевый тоник",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 70,
+  "base_price": 72,
+  "desc": "Кварцевый тоник: на дне склянки поблёскивает крошка кварца.",
+  "effect": {
+    "kind": "mp",
+    "amount": 55
+  },
+  "icon": "assets/sprites/items/quartz_tonic.svg"
+}

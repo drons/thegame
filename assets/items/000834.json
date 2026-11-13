@@ -1,0 +1,14 @@
+{
+  "id": "silver_tonic",
+  "name": "Серебряный настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 90,
+  "base_price": 92,
+  "desc": "Серебряный настой: серебро в осадке, чистота в действии.",
+  "effect": {
+    "kind": "heal",
+    "amount": 95
+  },
+  "icon": "assets/sprites/items/silver_tonic.svg"
+}

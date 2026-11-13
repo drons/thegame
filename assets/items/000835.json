@@ -1,0 +1,14 @@
+{
+  "id": "ruby_draught",
+  "name": "Рубиновый отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 96,
+  "base_price": 98,
+  "desc": "Рубиновый отвар: красный, тяжёлый, дорогущий.",
+  "effect": {
+    "kind": "heal",
+    "amount": 100
+  },
+  "icon": "assets/sprites/items/ruby_draught.svg"
+}

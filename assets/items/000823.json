@@ -1,0 +1,14 @@
+{
+  "id": "dawn_tonic",
+  "name": "Рассветный настой",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 30,
+  "base_price": 31,
+  "desc": "Рассветный настой: варят на первом свету, пьют на последнем.",
+  "effect": {
+    "kind": "heal",
+    "amount": 35
+  },
+  "icon": "assets/sprites/items/dawn_tonic.svg"
+}

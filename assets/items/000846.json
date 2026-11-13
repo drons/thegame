@@ -1,0 +1,14 @@
+{
+  "id": "frost_draught",
+  "name": "Морозный настой",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 15,
+  "base_price": 16,
+  "desc": "Морозный настой: иней на горлышке, сила на кончиках пальцев.",
+  "effect": {
+    "kind": "mp",
+    "amount": 12
+  },
+  "icon": "assets/sprites/items/frost_draught.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "honey_brew",
+  "name": "Медовый отвар",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 18,
+  "base_price": 19,
+  "desc": "Медовый отвар: сладкий на язык, бодрый на сердце.",
+  "effect": {
+    "kind": "heal",
+    "amount": 22
+  },
+  "icon": "assets/sprites/items/honey_brew.svg"
+}

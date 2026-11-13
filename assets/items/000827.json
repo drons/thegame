@@ -1,0 +1,14 @@
+{
+  "id": "deep_balm",
+  "name": "Глубинный бальзам",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 52,
+  "base_price": 54,
+  "desc": "Глубинный бальзам: тёмный, холодный, из пещерных трав.",
+  "effect": {
+    "kind": "heal",
+    "amount": 60
+  },
+  "icon": "assets/sprites/items/deep_balm.svg"
+}

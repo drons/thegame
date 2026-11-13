@@ -1,0 +1,14 @@
+{
+  "id": "amethyst_draught",
+  "name": "Аметистовый отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 125,
+  "base_price": 127,
+  "desc": "Аметистовый отвар: дымит фиолетовым и снимает жар.",
+  "effect": {
+    "kind": "heal",
+    "amount": 130
+  },
+  "icon": "assets/sprites/items/amethyst_draught.svg"
+}

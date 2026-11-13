@@ -1,0 +1,14 @@
+{
+  "id": "ember_tonic",
+  "name": "Угольный настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 62,
+  "base_price": 64,
+  "desc": "Угольный настой: терпкий дымком, согревает до костей.",
+  "effect": {
+    "kind": "heal",
+    "amount": 70
+  },
+  "icon": "assets/sprites/items/ember_tonic.svg"
+}

@@ -180,7 +180,19 @@ test('000317-T1. ассортимент строго шире с уровнем:
 // 4-арг. makeShop — семантика «как до изменения».
 const GOLDEN_MAKESHOP = {
   '10,20,2,1': {
-    stock: { healing_potion: 3, greater_healing: 3, mana_potion: 2, mana_elixir: 3, bread: 1, meat: 2 },
+    stock: { healing_potion: 3, greater_healing: 3, mana_potion: 2, mana_elixir: 3, bread: 1, meat: 2,
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула апотекаря [potion, food] → += 33;
+    // не выпали: herb_draught/honey_brew/oak_tonic/dawn_tonic/forge_tonic/gale_tonic/pearl_draught/sapphire_balm/emerald_tonic/moonlight_draught/mint_draught/blue_sip/star_tonic/tide_draught/quartz_tonic/eclipse_draught/void_tonic — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 3, forest_balm: 2, crimson_sip: 1, field_tonic: 2,
+    resin_brew: 2, sun_potion: 1, amber_elixir: 1, deep_balm: 1,
+    alpine_brew: 2, ember_tonic: 2, marsh_balm: 3, stone_brew: 2,
+    silver_tonic: 2, ruby_draught: 2, amethyst_draught: 3, obsidian_balm: 1,
+    phoenix_tonic: 2, diamond_draught: 1, night_brew: 2, frost_draught: 3,
+    glass_tonic: 2, violet_brew: 1, rain_draught: 2, indigo_brew: 2,
+    azure_tonic: 3, glacier_draught: 2, dusk_brew: 3, phosphor_brew: 3,
+    shadow_tonic: 2, argent_draught: 2, royal_elixir: 1, arcane_tonic: 3,
+    ash_elixir: 2,},
     seed: baseSeed(10, 20, 2),
   },
 };
@@ -676,50 +688,97 @@ test('000317-T6. spec/buildings.md «Содержимое города»: асс
     'RED: нет ценового контракта');
 });
 
+// Гарантированная строка makeShop при L≥2 (merge(kindPool[0].id, 1)) и
+// её hash-ранг в expansion — живые свидетели того, что присутствие
+// pool[0] на L≥2 держится merge-строкой, а не потоком и не расширением.
+function shopKindPool(bt) {
+  const kinds = I.shopKindsFor(bt);
+  return I.allItems().filter((it) => kinds.includes(it.kind));
+}
+
+function fnv1a(s) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+function expandRankOf(bt, x, y) {
+  const pool = shopKindPool(bt);
+  const expSeed = (perlin.hash2(x, y, 0x45585031) ^ (bt + 1)) >>> 0;
+  const ranked = pool.slice().sort((a, b) => {
+    const ha = (expSeed ^ fnv1a(a.id)) >>> 0;
+    const hb = (expSeed ^ fnv1a(b.id)) >>> 0;
+    return (ha - hb) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  });
+  return ranked.findIndex((it) => it.id === pool[0].id);
+}
+
 // ============================================================
-// T7. fallback ⊇ страж: пустой поток + расширение НЕ вытесняет pool[0]
+// T7. guaranteed ⊇ страж: pool[0] вне потока L1 → живёт на всех
+// L≥2 (живой класс после 000321.07; старый fallback-класс «пустой
+// поток» вырожден ростом каталога — см. память 000317/000321)
 // ============================================================
 
-test('000317-T7. fallback-класс: пустой поток → L1 = {pool[0]: 1} и этот ключ живёт на всех L≥2 (страж «stock(L) ⊇ fallback-L1»); координата класса (1082,5771,bt2,w0) + свип bt×богатство 0/1 — без потери ключей и количеств', () => {
-  // Координата класса из аудита: поток w=wealth пуст (малый пул видов
-  // bt=2 при богатстве 0) → L1 — fallback-строка. Префиксер терял её
-  // уже на L2 (expansion глушил fallback) — нога красная до фикса.
-  const FX = 1082, FY = 5771, FBT = 2, FW = 0;
-  const base = I.makeShop(FX, FY, FBT, FW);
-  const bk = Object.keys(base.stock);
-  assert.equal(bk.length, 1,
-    'координата класса (' + FX + ',' + FY + ',' + FBT + ',' + FW +
-    ') — L1 из ОДНОЙ fallback-строки (пустой поток): ' +
-    JSON.stringify(base.stock));
-  assert.equal(base.stock[bk[0]], 1, 'fallback — количество 1');
-  for (let L = 2; L <= 7; L++) {
-    assertSuperset(base, I.makeShop(FX, FY, FBT, FW, L),
-      'RED: fallback ⊇ на L' + L + ' — расширение не вытесняет pool[0]');
+test('000317-T7. guaranteed-класс: pool[0] вне потока L1 и вне top-6 расширения → живёт на всех L≥2 (страж merge(kindPool[0]) при L≥2 вместо вырожденного fallback-класса «пустой поток»); координаты класса (0,1,bt2,w0), (0,3,bt11,w0) + свип bt×богатство 0/1 — без потери ключей и количеств', () => {
+  // Эмпирика диска 000321.07: минимальный пул видов 49 позиций (bt3),
+  // P(пустой поток) = 0.45^49 ≈ 1e-15 — класс «L1 из одной
+  // fallback-строки» недостижим (свип 9M точек: empty=0), зуб стража
+  // перенесён на инвариантную строку merge(kindPool[0].id, 1) при L≥2:
+  // свидетель класса — pool[0] не выпал в поток L1 И сидит вне top-6
+  // expansion на всех L≤7 (hash-ранг ≥ 7). Вычёркивание merge-строки ⇒
+  // pool[0] отсутствует в stock(2) — нога красная.
+  for (const [FX, FY, FBT, FW] of [[0, 1, 2, 0], [0, 3, 11, 0]]) {
+    const pool0 = shopKindPool(FBT)[0].id;
+    const rank = expandRankOf(FBT, FX, FY);
+    assert.ok(rank >= 6,
+      'координата класса (' + FX + ',' + FY + ',bt' + FBT + ',w' + FW +
+      '): pool[0] (' + pool0 + ') вне top-6 expansion для L≤7 (ранг ' +
+      rank + ')');
+    const base = I.makeShop(FX, FY, FBT, FW);
+    assert.ok(!(pool0 in base.stock),
+      'координата класса (' + FX + ',' + FY + ',bt' + FBT + ',w' + FW +
+      '): pool[0] (' + pool0 + ') не выпал в поток L1: ' +
+      JSON.stringify(base.stock));
+    for (let L = 2; L <= 7; L++) {
+      const s = I.makeShop(FX, FY, FBT, FW, L);
+      assertSuperset(base, s,
+        'RED: guaranteed ⊇ на L' + L + ' — расширение не вытесняет pool[0]');
+      assert.ok(pool0 in s.stock,
+        'RED: merge(kindPool[0]) при L' + L + ' — pool[0] (' + pool0 +
+        ') в стоке, хотя его нет в потоке');
+    }
   }
   // Свип-страж класса: на ВСЕХ координатах stock(L) ⊇ stock(1)
-  // (⊇-контракт уровня, включая fallback-подмножество), и класс в
-  // свипе непуст (иначе страж вырождается; точки перепикинуются при
-  // росте каталога — прецедент стражей T2).
-  let fallbacks = 0;
+  // (⊇-контракт уровня) и pool[0] ∈ stock(L) при L≥2 (инвариант
+  // merge-строки), живой класс в свипе непуст (иначе страж вырождается;
+  // точки перепикинуются при росте каталога — прецедент стражей T2).
+  let missed = 0;
   for (const bt of [0, 1, 2, 3, 11]) {
+    const pool0 = shopKindPool(bt)[0].id;
     for (const w of [0, 1]) {
       for (let x = 0; x < 24; x++) {
         for (let y = 0; y < 24; y++) {
           const s1 = I.makeShop(x, y, bt, w);
-          const keys = Object.keys(s1.stock);
-          if (keys.length === 1 && s1.stock[keys[0]] === 1) fallbacks++;
+          if (!(pool0 in s1.stock)) missed++;
           for (const L of [2, 3, 5, 7]) {
-            assertSuperset(s1, I.makeShop(x, y, bt, w, L),
+            const sL = I.makeShop(x, y, bt, w, L);
+            assertSuperset(s1, sL,
               'свип (' + x + ',' + y + ',bt' + bt + ',w' + w +
               '): stock(L' + L + ') ⊇ stock(1)');
+            assert.ok(pool0 in sL.stock,
+              'свип (' + x + ',' + y + ',bt' + bt + ',w' + w + '): pool[0] (' +
+              pool0 + ') на L' + L + ' — merge-строка безусловна');
           }
         }
       }
     }
   }
-  assert.ok(fallbacks > 0,
-    'в свипе есть хотя бы одна fallback-координата (пустой поток): ' +
-    fallbacks);
+  assert.ok(missed > 0,
+    'в свипе есть хотя бы одна координата с pool[0] вне потока L1: ' +
+    missed);
 });
 
 // ============================================================
@@ -728,45 +787,61 @@ test('000317-T7. fallback-класс: пустой поток → L1 = {pool[0]:
 // kindPool[0] живёт на всех L≥2)
 // ============================================================
 
-test('000317-T8. цепочка effWealth min(3,w+floor((L−1)/2)): ⊇/qty на КАЖДОМ шаге L→L+1 (L=1..6) — координаты класса (0,1,bt2,w0), (−34,48,bt2,w0), (−54,51,bt2,w0), (−53,10,bt11,w1) + свип bt×богатство 0/1×сетка 24×24; код раунда 1 терял minor_healing на шаге богатства L2→L3', () => {
+test('000317-T8. цепочка effWealth min(3,w+floor((L−1)/2)): ⊇/qty на КАЖДОМ шаге L→L+1 (L=1..6) + guaranteed pool[0] вне потока L1 живёт на всех L≥2 (живой класс вместо вырожденного «пустого потока» после роста каталога) — координаты класса (0,1,bt2,w0), (0,5,bt2,w0), (0,11,bt2,w0), (0,3,bt11,w1) + свип bt×богатство 0/1×сетка 24×24', () => {
   const eff = (w, L) => Math.min(3, w + Math.floor((L - 1) / 2));
+  // Класс раундов 1/2 (однострочный L1 из пустого потока) недостижим
+  // после 000321.07 (P ≈ 1e-15; свип 9M точек) — класс бага «потеря на
+  // шаге богатства» покрывают живые свидетели: pool[0] вне базового
+  // потока И вне top-6 expansion (ранг ≥ 7) ⇒ на L=2 его держит ТОЛЬКО
+  // unconditional merge(kindPool[0]); код раунда 1 терял именно такие
+  // точки на шаге L2→L3 (условный fallback, minor_healing).
   const chain = (x, y, bt, w, label) => {
+    const pool0 = shopKindPool(bt)[0].id;
     let prev = I.makeShop(x, y, bt, eff(w, 1), 1);
     for (let L = 2; L <= 7; L++) {
       const next = I.makeShop(x, y, bt, eff(w, L), L);
       assertSuperset(prev, next, label + ' L' + (L - 1) + '→L' + L +
         ' (effWealth ' + eff(w, L - 1) + '→' + eff(w, L) + ')');
+      assert.ok(pool0 in next.stock, label + ': pool[0] (' + pool0 +
+        ') на L' + L + ' — merge-строка не зависит от богатства');
       prev = next;
     }
   };
-  // Координаты класса: пустой поток при базовом богатстве → fallback-
-  // строка на L1-L2; на шаге effWealth 0→1 (L2→L3) непустой поток
-  // поднятого богатства в коде раунда 1 глушил условный fallback —
-  // minor_healing исчезала (нога красная против того кода).
   const pinned = [
     ['(0,1,bt2,w0)', 0, 1, 2, 0],
-    ['(−34,48,bt2,w0)', -34, 48, 2, 0],
-    ['(−54,51,bt2,w0)', -54, 51, 2, 0],
-    ['(−53,10,bt11,w1)', -53, 10, 11, 1],
+    ['(0,5,bt2,w0)', 0, 5, 2, 0],
+    ['(0,11,bt2,w0)', 0, 11, 2, 0],
+    ['(0,3,bt11,w1)', 0, 3, 11, 1],
   ];
   for (const [label, x, y, bt, w] of pinned) {
+    const pool0 = shopKindPool(bt)[0].id;
+    assert.ok(expandRankOf(bt, x, y) >= 6,
+      label + ': pool[0] (' + pool0 + ') вне top-6 expansion для L≤7');
     const l1 = I.makeShop(x, y, bt, eff(w, 1), 1);
-    assert.equal(Object.keys(l1.stock).length, 1,
-      label + ': L1 — одна fallback-строка (пустой поток): ' +
+    assert.ok(!(pool0 in l1.stock),
+      label + ': L1 — pool[0] (' + pool0 + ') не выпал в поток (живой класс): ' +
       JSON.stringify(l1.stock));
     chain(x, y, bt, w, label);
   }
   // Свип-страж цепочки: на всех координатах ⊇/qty по effWealth-цепочке
   // на каждом шаге (не только «stock(L) ⊇ stock(1)» — вытеснение
-  // возможно и на промежуточном шаге богатства).
+  // возможно и на промежуточном шаге богатства) + инвариант pool[0] на
+  // L≥2; живой класс непуст в свипе.
+  let missed = 0;
   for (const bt of [0, 1, 2, 3, 11]) {
+    const pool0 = shopKindPool(bt)[0].id;
     for (const w of [0, 1]) {
       for (let x = 0; x < 24; x++) {
         for (let y = 0; y < 24; y++) {
+          const l1 = I.makeShop(x, y, bt, eff(w, 1), 1);
+          if (!(pool0 in l1.stock)) missed++;
           chain(x, y, bt, w, 'цепочка (' + x + ',' + y + ',bt' + bt +
             ',w' + w + ')');
         }
       }
     }
   }
+  assert.ok(missed > 0,
+    'в свипе цепочки есть хотя бы одна координата с pool[0] вне L1: ' +
+    missed);
 });

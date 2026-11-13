@@ -1,0 +1,14 @@
+{
+  "id": "mint_draught",
+  "name": "Мятный настой",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 6,
+  "base_price": 7,
+  "desc": "Мятный настой: холодит язык, прочищает разум.",
+  "effect": {
+    "kind": "mp",
+    "amount": 4
+  },
+  "icon": "assets/sprites/items/mint_draught.svg"
+}

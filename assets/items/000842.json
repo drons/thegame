@@ -1,0 +1,14 @@
+{
+  "id": "diamond_draught",
+  "name": "Алмазный эликсир",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 205,
+  "base_price": 207,
+  "desc": "Алмазный эликсир: прозрачный, как капля, и крепче гранита.",
+  "effect": {
+    "kind": "heal",
+    "amount": 200
+  },
+  "icon": "assets/sprites/items/diamond_draught.svg"
+}

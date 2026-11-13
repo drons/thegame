@@ -795,7 +795,21 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         swift_boots: 4, mystic_sutan: 1, traveler_bracer: 4,
         mystic_wraps: 3} },    { x: 10, y: 20, type: B.APOTHECARY, w: 2, seed: 3248047079,
       stock: { minor_healing: 3, greater_healing: 4, mana_potion: 3,
-        mana_elixir: 3, bread: 1, meat: 2 } },
+        mana_elixir: 3, bread: 1, meat: 2,
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt2 → += 42;
+    // не выпали: dawn_tonic/marsh_balm/silver_tonic/emerald_tonic/moonlight_draught/indigo_brew/azure_tonic/shadow_tonic — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 3, herb_draught: 2, forest_balm: 2, crimson_sip: 2,
+    field_tonic: 4, honey_brew: 3, resin_brew: 4, oak_tonic: 1, sun_potion: 1,
+    forge_tonic: 1, amber_elixir: 3, deep_balm: 2, alpine_brew: 4,
+    ember_tonic: 3, stone_brew: 1, gale_tonic: 3, pearl_draught: 4,
+    ruby_draught: 4, sapphire_balm: 2, amethyst_draught: 2, obsidian_balm: 1,
+    phoenix_tonic: 2, diamond_draught: 3, mint_draught: 2, blue_sip: 2,
+    night_brew: 4, frost_draught: 2, glass_tonic: 2, violet_brew: 4,
+    star_tonic: 2, rain_draught: 4, glacier_draught: 4, dusk_brew: 2,
+    tide_draught: 3, quartz_tonic: 1, phosphor_brew: 4, argent_draught: 2,
+    royal_elixir: 3, arcane_tonic: 2, eclipse_draught: 3, void_tonic: 1,
+    ash_elixir: 4,} },
     // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
     // каталога, rng-хвост пула [reagent, skill_book] → += 6 новых
     // reagent, остальные ключи стока не сдвинулись (симуляция:
@@ -815,7 +829,18 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         mushroom_grey: 1, mushroom_ink: 1 } },
     { x: 5, y: 7, type: B.TAVERN, w: 0, seed: 766909004,
       stock: { healing_potion: 2, greater_healing: 2, mana_potion: 2,
-        mana_elixir: 1, bread: 1, meat: 2 } },
+        mana_elixir: 1, bread: 1, meat: 2,
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt11 → += 30;
+    // не выпали: weak_healing/crimson_sip/field_tonic/honey_brew/sun_potion/alpine_brew/stone_brew/silver_tonic/sapphire_balm/moonlight_draught/night_brew/glass_tonic/rain_draught/azure_tonic/dusk_brew/tide_draught/phosphor_brew/shadow_tonic/argent_draught/ash_elixir — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    herb_draught: 1, forest_balm: 1, resin_brew: 1, oak_tonic: 2,
+    dawn_tonic: 2, forge_tonic: 1, amber_elixir: 2, deep_balm: 2,
+    ember_tonic: 1, marsh_balm: 2, gale_tonic: 1, pearl_draught: 2,
+    ruby_draught: 1, emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 2,
+    phoenix_tonic: 1, diamond_draught: 1, mint_draught: 1, blue_sip: 2,
+    frost_draught: 1, violet_brew: 1, star_tonic: 2, indigo_brew: 2,
+    glacier_draught: 2, quartz_tonic: 1, royal_elixir: 1, arcane_tonic: 2,
+    eclipse_draught: 2, void_tonic: 1,} },
     // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
     // заклинаний (000043-000050) добавлены КОНЦОМ каталога →
     // существующие стоки не сдвинулись, += свитки, вытянутые rng-хвостом
@@ -1084,8 +1109,22 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         silver_frost: 1, icewalker: 4, clay_warden: 5, ink_signet: 5,
         root_braid: 5, augur_band: 5, selenite_ring: 2, tidebreath: 4,
         moon_crown: 2, frost_squall: 2, undying_bough: 3, forewarning: 2,
-        eclipse_band: 4, caldera_core: 1
-      } },
+        eclipse_band: 4, caldera_core: 1,
+      
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула allItems (универсам) → += 41;
+    // не выпали: field_tonic/dawn_tonic/amber_elixir/obsidian_balm/blue_sip/glacier_draught/dusk_brew/argent_draught/eclipse_draught — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 1, herb_draught: 4, forest_balm: 2, crimson_sip: 4,
+    honey_brew: 5, resin_brew: 5, oak_tonic: 2, sun_potion: 4, forge_tonic: 3,
+    deep_balm: 2, alpine_brew: 5, ember_tonic: 2, marsh_balm: 5,
+    stone_brew: 1, gale_tonic: 5, pearl_draught: 1, silver_tonic: 1,
+    ruby_draught: 2, sapphire_balm: 3, emerald_tonic: 3, amethyst_draught: 4,
+    moonlight_draught: 3, phoenix_tonic: 3, diamond_draught: 3,
+    mint_draught: 1, night_brew: 1, frost_draught: 3, glass_tonic: 1,
+    violet_brew: 5, star_tonic: 1, rain_draught: 5, indigo_brew: 3,
+    azure_tonic: 1, tide_draught: 4, quartz_tonic: 5, phosphor_brew: 5,
+    shadow_tonic: 4, royal_elixir: 1, arcane_tonic: 3, void_tonic: 4,
+    ash_elixir: 2,} },
   ];
   for (const g of GOLDEN) {
     const s = I.makeShop(g.x, g.y, g.type, g.w);
@@ -1197,10 +1236,22 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         emerald_boots: 3, storm_sandals: 2, rune_boots: 4, swift_boots: 3,
         traveler_cloak: 4, mystic_sutan: 3,
         traveler_bracer: 1,
-        copper_short_sword: 4, drill_sword: 1, poacher_dirk: 4, kopis_curved: 2, legion_sword: 4, battered_falx: 4, merchant_sword: 3, patrol_sword: 2, lumber_machete: 4, sapling_bow: 1, trade_bow: 2, poacher_bow: 2, stone_mace: 3, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2, legion_gladius: 4, arming_sword: 4, warder_sword: 3, silver_inlaid_bow: 3, scout_bow: 2, silvered_mace: 3, storm_maul: 4, silver_bound_staff: 3, warden_quarterstaff: 2, gilded_broadsword: 4, damascus_blade: 2, thunder_maul: 2, goldstring_bow: 3, windfletch_bow: 1, tempest_staff: 2, hoarfrost_staff: 3, archivist_staff: 4, gate_hammer: 1, aurora_bow: 3, fate_cleaver: 1, genesis_staff: 4
+        copper_short_sword: 4, drill_sword: 1, poacher_dirk: 4, kopis_curved: 2, legion_sword: 4, battered_falx: 4, merchant_sword: 3, patrol_sword: 2, lumber_machete: 4, sapling_bow: 1, trade_bow: 2, poacher_bow: 2, stone_mace: 3, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2, legion_gladius: 4, arming_sword: 4, warder_sword: 3, silver_inlaid_bow: 3, scout_bow: 2, silvered_mace: 3, storm_maul: 4, silver_bound_staff: 3, warden_quarterstaff: 2, gilded_broadsword: 4, damascus_blade: 2, thunder_maul: 2, goldstring_bow: 3, windfletch_bow: 1, tempest_staff: 2, hoarfrost_staff: 3, archivist_staff: 4, gate_hammer: 1, aurora_bow: 3, fate_cleaver: 1, genesis_staff: 4,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+      
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 33;
+    // не выпали: weak_healing/herb_draught/field_tonic/honey_brew/oak_tonic/deep_balm/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/azure_tonic/dusk_brew/quartz_tonic/ash_elixir — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    forest_balm: 2, crimson_sip: 1, resin_brew: 1, dawn_tonic: 1,
+    sun_potion: 4, forge_tonic: 3, amber_elixir: 4, alpine_brew: 3,
+    ember_tonic: 4, marsh_balm: 1, stone_brew: 2, gale_tonic: 3,
+    pearl_draught: 3, silver_tonic: 3, ruby_draught: 2, sapphire_balm: 4,
+    emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 1, phoenix_tonic: 1,
+    blue_sip: 4, night_brew: 2, violet_brew: 4, indigo_brew: 4,
+    glacier_draught: 2, tide_draught: 2, phosphor_brew: 4, shadow_tonic: 3,
+    argent_draught: 3, royal_elixir: 1, arcane_tonic: 2, eclipse_draught: 3,
+    void_tonic: 2,} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 17 torso (не выпали: wool_shirt/cloth_tunic/hemp_robe/embroidered_kaftan/cloth_robe/fine_kaftan/ember_robe/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1270,10 +1321,23 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         stone_sandals: 3, amethyst_boots: 3, sapphire_boots: 3, frost_sandals: 1, emerald_boots: 2,
         gold_sandals: 3, mithril_boots: 2, storm_sandals: 4, rune_boots: 1, swift_boots: 3,
         traveler_cloak: 4, mystic_wraps: 3,
-        copper_short_sword: 1, poacher_dirk: 1, kopis_curved: 3, legion_sword: 1, battered_falx: 2, merchant_sword: 2, patrol_sword: 4, trade_bow: 3, poacher_bow: 4, yew_longbow: 2, copper_maul: 1, stone_mace: 1, flanged_mace: 2, miner_pickaxe: 4, campaign_maul: 3, silvered_sword: 3, arming_sword: 1, rebel_brand: 4, warder_sword: 3, silver_inlaid_bow: 2, long_warbow: 3, scout_bow: 4, silvered_mace: 2, storm_maul: 1, siege_axe: 4, silver_bound_staff: 4, warden_quarterstaff: 2, vine_staff: 1, gilded_broadsword: 1, damascus_blade: 2, gilt_war_hammer: 4, thunder_maul: 3, windfletch_bow: 3, pyre_staff: 4, hoarfrost_staff: 1, archivist_staff: 3, dawnedge_blade: 1, fate_cleaver: 3, genesis_staff: 4
+        copper_short_sword: 1, poacher_dirk: 1, kopis_curved: 3, legion_sword: 1, battered_falx: 2, merchant_sword: 2, patrol_sword: 4, trade_bow: 3, poacher_bow: 4, yew_longbow: 2, copper_maul: 1, stone_mace: 1, flanged_mace: 2, miner_pickaxe: 4, campaign_maul: 3, silvered_sword: 3, arming_sword: 1, rebel_brand: 4, warder_sword: 3, silver_inlaid_bow: 2, long_warbow: 3, scout_bow: 4, silvered_mace: 2, storm_maul: 1, siege_axe: 4, silver_bound_staff: 4, warden_quarterstaff: 2, vine_staff: 1, gilded_broadsword: 1, damascus_blade: 2, gilt_war_hammer: 4, thunder_maul: 3, windfletch_bow: 3, pyre_staff: 4, hoarfrost_staff: 1, archivist_staff: 3, dawnedge_blade: 1, fate_cleaver: 3, genesis_staff: 4,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+      
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 39;
+    // не выпали: weak_healing/sun_potion/marsh_balm/stone_brew/silver_tonic/amethyst_draught/mint_draught/night_brew/glass_tonic/dusk_brew/argent_draught — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    herb_draught: 1, forest_balm: 4, crimson_sip: 2, field_tonic: 3,
+    honey_brew: 3, resin_brew: 4, oak_tonic: 3, dawn_tonic: 1, forge_tonic: 1,
+    amber_elixir: 1, deep_balm: 4, alpine_brew: 3, ember_tonic: 2,
+    gale_tonic: 2, pearl_draught: 2, ruby_draught: 1, sapphire_balm: 4,
+    emerald_tonic: 4, obsidian_balm: 4, moonlight_draught: 1,
+    phoenix_tonic: 1, diamond_draught: 3, blue_sip: 3, frost_draught: 1,
+    violet_brew: 3, star_tonic: 2, rain_draught: 4, indigo_brew: 2,
+    azure_tonic: 4, glacier_draught: 2, tide_draught: 1, quartz_tonic: 2,
+    phosphor_brew: 3, shadow_tonic: 2, royal_elixir: 2, arcane_tonic: 4,
+    eclipse_draught: 2, void_tonic: 2, ash_elixir: 4,} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 15 torso (не выпали: wool_shirt/cloth_tunic/rough_kaftan/linen_tunic/leather_kaftan/monk_sutan/fine_kaftan/ember_robe/pilgrim_sutan/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1331,10 +1395,20 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         felt_boots: 2, leather_boots: 1, hide_boots: 2, wooden_sandals: 1, hemp_sandals: 1,
         bone_sandals: 1, copper_boots: 1, obsidian_sandals: 2, emerald_boots: 2, swift_boots: 2,
         mystic_sutan: 1,
-        copper_short_sword: 1, drill_sword: 1, poacher_dirk: 1, kopis_curved: 2, legion_sword: 2, merchant_sword: 2, patrol_sword: 2, lumber_machete: 2, patrol_bow: 1, poacher_bow: 2, stone_mace: 2, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2, silvered_sword: 1, arming_sword: 2, silver_inlaid_bow: 2, storm_maul: 1, vine_staff: 1, gilt_war_hammer: 1, thunder_maul: 2, goldstring_bow: 2, windfletch_bow: 1, archivist_staff: 1, gate_hammer: 2, aurora_bow: 2, fate_cleaver: 2
+        copper_short_sword: 1, drill_sword: 1, poacher_dirk: 1, kopis_curved: 2, legion_sword: 2, merchant_sword: 2, patrol_sword: 2, lumber_machete: 2, patrol_bow: 1, poacher_bow: 2, stone_mace: 2, lumber_axe: 2, miner_pickaxe: 1, campaign_maul: 2, silvered_sword: 1, arming_sword: 2, silver_inlaid_bow: 2, storm_maul: 1, vine_staff: 1, gilt_war_hammer: 1, thunder_maul: 2, goldstring_bow: 2, windfletch_bow: 1, archivist_staff: 1, gate_hammer: 2, aurora_bow: 2, fate_cleaver: 2,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
+      
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 27;
+    // не выпали: herb_draught/forest_balm/field_tonic/honey_brew/dawn_tonic/forge_tonic/ember_tonic/stone_brew/gale_tonic/silver_tonic/amethyst_draught/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/indigo_brew/quartz_tonic/shadow_tonic/argent_draught/eclipse_draught — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 1, crimson_sip: 1, resin_brew: 2, oak_tonic: 1,
+    sun_potion: 1, amber_elixir: 1, deep_balm: 1, alpine_brew: 1,
+    marsh_balm: 1, pearl_draught: 2, ruby_draught: 1, sapphire_balm: 1,
+    emerald_tonic: 1, obsidian_balm: 1, phoenix_tonic: 2, blue_sip: 2,
+    night_brew: 2, violet_brew: 1, azure_tonic: 1, glacier_draught: 2,
+    dusk_brew: 2, tide_draught: 2, phosphor_brew: 1, royal_elixir: 2,
+    arcane_tonic: 2, void_tonic: 1, ash_elixir: 2,} },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 21 torso (не выпали: cloth_tunic/hemp_robe/cloth_sutan/embroidered_kaftan), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
     // byte-identical).
@@ -1411,10 +1485,24 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
         mithril_boots: 1, storm_sandals: 5, rune_boots: 2, swift_boots: 5,
         traveler_cloak: 4, mystic_sutan: 4, traveler_bracer: 2,
         mystic_wraps: 5,
-        copper_short_sword: 1, drill_sword: 2, poacher_dirk: 3, kopis_curved: 5, battered_falx: 4, patrol_sword: 2, lumber_machete: 1, sapling_bow: 2, trade_bow: 4, patrol_bow: 4, copper_maul: 4, stone_mace: 3, flanged_mace: 2, lumber_axe: 1, miner_pickaxe: 4, silvered_sword: 2, legion_gladius: 3, arming_sword: 5, rebel_brand: 5, warder_sword: 2, long_warbow: 3, scout_bow: 3, silvered_mace: 1, storm_maul: 2, silver_bound_staff: 3, warden_quarterstaff: 4, gilded_broadsword: 1, damascus_blade: 3, thunder_maul: 2, goldstring_bow: 4, windfletch_bow: 1, tempest_staff: 2, pyre_staff: 2, hoarfrost_staff: 3, dawnedge_blade: 1, starvault_staff: 5, fate_cleaver: 2, genesis_staff: 3
+        copper_short_sword: 1, drill_sword: 2, poacher_dirk: 3, kopis_curved: 5, battered_falx: 4, patrol_sword: 2, lumber_machete: 1, sapling_bow: 2, trade_bow: 4, patrol_bow: 4, copper_maul: 4, stone_mace: 3, flanged_mace: 2, lumber_axe: 1, miner_pickaxe: 4, silvered_sword: 2, legion_gladius: 3, arming_sword: 5, rebel_brand: 5, warder_sword: 2, long_warbow: 3, scout_bow: 3, silvered_mace: 1, storm_maul: 2, silver_bound_staff: 3, warden_quarterstaff: 4, gilded_broadsword: 1, damascus_blade: 3, thunder_maul: 2, goldstring_bow: 4, windfletch_bow: 1, tempest_staff: 2, pyre_staff: 2, hoarfrost_staff: 3, dawnedge_blade: 1, starvault_staff: 5, fate_cleaver: 2, genesis_staff: 3,
         // Ре-пин 000321.01: оружие 000514–000563 — КОНЕЦ каталога, rng-хвост;
         // остальные ключи стока не сдвинулись (seed byte-identical).
-      }
+      
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 44;
+    // не выпали: forest_balm/alpine_brew/ruby_draught/sapphire_balm/diamond_draught/star_tonic — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 1, herb_draught: 4, crimson_sip: 1, field_tonic: 2,
+    honey_brew: 3, resin_brew: 4, oak_tonic: 4, dawn_tonic: 3, sun_potion: 5,
+    forge_tonic: 1, amber_elixir: 2, deep_balm: 1, ember_tonic: 1,
+    marsh_balm: 5, stone_brew: 5, gale_tonic: 2, pearl_draught: 5,
+    silver_tonic: 5, emerald_tonic: 4, amethyst_draught: 4, obsidian_balm: 4,
+    moonlight_draught: 2, phoenix_tonic: 4, mint_draught: 3, blue_sip: 4,
+    night_brew: 1, frost_draught: 3, glass_tonic: 3, violet_brew: 2,
+    rain_draught: 1, indigo_brew: 2, azure_tonic: 3, glacier_draught: 3,
+    dusk_brew: 3, tide_draught: 1, quartz_tonic: 5, phosphor_brew: 1,
+    shadow_tonic: 5, argent_draught: 4, royal_elixir: 5, arcane_tonic: 4,
+    eclipse_draught: 2, void_tonic: 1, ash_elixir: 2,}
       },
   ];
   for (const g of GOLDEN_CAMP) {
@@ -1612,7 +1700,18 @@ test('vm-песочница: items.js без каталога — фолбэк-�
   assert.ok(s, 'таверна в песочнице — магазин');
   assert.equal(s.seed, 766909004, 'seed — как в node');
   assert.deepEqual(fromVm(s.stock),
-    { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2 });
+    { healing_potion: 2, greater_healing: 2, mana_potion: 2, mana_elixir: 1, bread: 1, meat: 2,
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула таверны [food, potion] → += 30;
+    // не выпали: weak_healing/crimson_sip/field_tonic/honey_brew/sun_potion/alpine_brew/stone_brew/silver_tonic/sapphire_balm/moonlight_draught/night_brew/glass_tonic/rain_draught/azure_tonic/dusk_brew/tide_draught/phosphor_brew/shadow_tonic/argent_draught/ash_elixir — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    herb_draught: 1, forest_balm: 1, resin_brew: 1, oak_tonic: 2,
+    dawn_tonic: 2, forge_tonic: 1, amber_elixir: 2, deep_balm: 2,
+    ember_tonic: 1, marsh_balm: 2, gale_tonic: 1, pearl_draught: 2,
+    ruby_draught: 1, emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 2,
+    phoenix_tonic: 1, diamond_draught: 1, mint_draught: 1, blue_sip: 2,
+    frost_draught: 1, violet_brew: 1, star_tonic: 2, indigo_brew: 2,
+    glacier_draught: 2, quartz_tonic: 1, royal_elixir: 1, arcane_tonic: 2,
+    eclipse_draught: 2, void_tonic: 1,});
 });
 
 test('vm-песочница: каталог подхватывается лениво и является источником истины (000060)', () => {
@@ -1931,8 +2030,8 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 000487-000511 — 25 свитков волны Природа); слоты не сдвигаются.
   // Ре-пин 000333: каталог растёт 511 → 513 (добавляются
   // 000512-000513 — 2 свитка навигации); слоты не сдвигаются.
-  assert.equal(files.length, 814,
-    'каталог — 814 файла (краснота: ' + files.length
+  assert.equal(files.length, 864,
+    'каталог — 864 файла (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
     + '000230.13/000230.14/000230.15/000230.19/000235.11/000277/'
@@ -2003,9 +2102,10 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000277: 484 → 486 (000485-000486 — 2 set-предмета).
   // Ре-пин 000235.12: 486 → 511 (000487-000511 — 25 свитков волны Природа).
   // Ре-пин 000333: 511 → 513 (000512-000513 — 2 свитка навигации).
-  // Ре-пин 000321.06: 764 → 814 (000765-000814 — 50 колец).
-  assert.equal(I.allItems().length, 814,
-    'allItems — 814 предмета (краснота: ' + I.allItems().length
+  // Ре-пин 000321.06: 764 → 814 (000765-000814 — 50 колец); ре-пин 000321.07:
+  // 814 → 864 (000815-000864 — 50 зелий).
+  assert.equal(I.allItems().length, 864,
+    'allItems — 864 предмета (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
     + '000230.13/000230.14/000230.15/000230.19/000235.11/000277/'
@@ -2147,14 +2247,15 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // 25 свитков волны Природа); слоты не сдвигаются.
   // Ре-пин 000333: каталог растёт 511 → 513 (000512-000513 —
   // 2 свитка навигации); слоты не сдвигаются.
-  assert.equal(files.length, 814,
-    'каталог — 814 файла (краснота: ' + files.length + ')');
+  assert.equal(files.length, 864,
+    'каталог — 864 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 814,
-    'allItems — 814 предмета (краснота: ' + I.allItems().length
+  assert.equal(I.allItems().length, 864,
+    'allItems — 864 предмета (краснота: ' + I.allItems().length
     + '; ре-пин 000333: +2 свитка навигации; ре-пин 000321.04: +50 артефактов; '
-    + 'ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец)');
+    + 'ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец; '
+    + 'ре-пин 000321.07: +50 зелий)');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -2397,7 +2498,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 781, 'прочих предметов — ровно 781 (каталог 814 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set; 000235.12: +25 свитков волны Природа; 000333: +2 свитка навигации — все без loot; 000321.01: +50 оружия — все без loot; 000321.02: +50 брони — все без loot; 000321.03: +50 щитов — все без loot; 000321.04: +50 артефактов — все без loot; 000321.05: +50 инструментов — все без loot; 000348: +1 свиток Декаданс — без loot; 000321.06: +50 колец — все без loot)');
+  assert.equal(others, 831, 'прочих предметов — ровно 831 (каталог 864 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set; 000235.12: +25 свитков волны Природа; 000333: +2 свитка навигации — все без loot; 000321.01: +50 оружия — все без loot; 000321.02: +50 брони — все без loot; 000321.03: +50 щитов — все без loot; 000321.04: +50 артефактов — все без loot; 000321.05: +50 инструментов — все без loot; 000348: +1 свиток Декаданс — без loot; 000321.06: +50 колец — все без loot; 000321.07: +50 зелий — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2648,7 +2749,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 //     terrains + строковый id — тот же строгий фильтр, что map.js
 //     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js; 000220:
 //     +5 строительных reagent) — icon = конвенции, 33/33 svg существует;
-//   * прочие 0 предметов — icon НЕ задан / 814 с icon (финал
+//   * прочие 0 предметов — icon НЕ задан / 864 с icon (финал
 //     000302.08: каталог 511 = 511 + 0; ре-пин 000333: каталог
 //     513 = 513 + 0; пин «не тронуто», L3-форма;
 //     5 reagent'ов 000220 — с loot+icon);
@@ -2663,7 +2764,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / 814 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / 864 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; ре-пин 000321.07: +50 зелий с icon в items/ — в исключении, каталог 864; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = fs.readdirSync(ITEMS_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f))
     .sort();
@@ -2967,6 +3068,21 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'root_braid', 'augur_band', 'selenite_ring', 'tidebreath',
     'moon_crown', 'frost_squall', 'undying_bough', 'forewarning',
     'eclipse_band', 'caldera_core']);
+  // Ре-пин 000321.07: 50 зелий (000815-000864) — icon в
+  // assets/sprites/items/ (паттерн RINGS_00032106) — исключение из
+  // пина «icon НЕ задан».
+  const POTIONS_00032107 = new Set([
+    'weak_healing', 'herb_draught', 'forest_balm', 'crimson_sip', 'field_tonic', 'honey_brew',
+    'resin_brew', 'oak_tonic', 'dawn_tonic', 'sun_potion', 'forge_tonic', 'amber_elixir',
+    'deep_balm', 'alpine_brew', 'ember_tonic', 'marsh_balm', 'stone_brew', 'gale_tonic',
+    'pearl_draught', 'silver_tonic', 'ruby_draught', 'sapphire_balm', 'emerald_tonic',
+    'amethyst_draught', 'obsidian_balm', 'moonlight_draught', 'phoenix_tonic',
+    'diamond_draught', 'mint_draught', 'blue_sip', 'night_brew', 'frost_draught',
+    'glass_tonic', 'violet_brew', 'star_tonic', 'rain_draught', 'indigo_brew', 'azure_tonic',
+    'glacier_draught', 'dusk_brew', 'tide_draught', 'quartz_tonic', 'phosphor_brew',
+    'shadow_tonic', 'argent_draught', 'royal_elixir', 'arcane_tonic', 'eclipse_draught',
+    'void_tonic', 'ash_elixir'
+  ]);
   const WEAPONS_00032101 = new Set(['copper_short_sword', 'drill_sword', 'poacher_dirk', 'kopis_curved', 'legion_sword', 'battered_falx', 'merchant_sword', 'patrol_sword', 'lumber_machete', 'sapling_bow', 'trade_bow', 'patrol_bow', 'poacher_bow', 'yew_longbow', 'copper_maul', 'stone_mace', 'flanged_mace', 'lumber_axe', 'miner_pickaxe', 'campaign_maul', 'silvered_sword', 'legion_gladius', 'arming_sword', 'rebel_brand', 'warder_sword', 'silver_inlaid_bow', 'long_warbow', 'scout_bow', 'silvered_mace', 'storm_maul', 'siege_axe', 'silver_bound_staff', 'warden_quarterstaff', 'vine_staff', 'gilded_broadsword', 'damascus_blade', 'gilt_war_hammer', 'thunder_maul', 'goldstring_bow', 'windfletch_bow', 'tempest_staff', 'pyre_staff', 'hoarfrost_staff', 'archivist_staff', 'dawnedge_blade', 'gate_hammer', 'aurora_bow', 'starvault_staff', 'fate_cleaver', 'genesis_staff']);
   let others = 0;
   for (const it of byId.values()) {
@@ -2996,7 +3112,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || ARTIFACTS_00032104.has(it.id)
         || TOOLS_00032105.has(it.id)
         || DECADANCE_000348.has(it.id)
-        || RINGS_00032106.has(it.id)) continue;
+        || RINGS_00032106.has(it.id)
+        || POTIONS_00032107.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -3037,10 +3154,11 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + 'исключении; ре-пин 000321.05: +50 инструментов с icon — в '
     + 'исключении; ре-пин 000348: +1 свиток Декаданс с icon — в '
     + 'исключении; ре-пин 000321.06: +50 колец с icon — в '
-    + 'исключении; 814 − 814 = 0)');
+    + 'исключении; ре-пин 000321.07: +50 зелий с icon — в '
+    + 'исключении; 864 − 864 = 0)');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 814,
-    'icon — ровно у 814 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 864,
+    'icon — ровно у 864 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
@@ -3076,9 +3194,10 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
     'icon НЕ в required (без icon — 0 предметов; финал 000302.08: '
-    + 'каталог 814 = 814 с icon; финал 000243.01: 318 с icon + '
+    + 'каталог 864 = 864 с icon; финал 000243.01: 318 с icon + '
     + '193 без; ре-пин 000333: +2 свитка навигации с icon; '
-    + 'ре-пин 000321.06: +50 колец с icon); '
+    + 'ре-пин 000321.06: +50 колец с icon; '
+    + 'ре-пин 000321.07: +50 зелий с icon); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');
@@ -3104,7 +3223,7 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
 //     slot/rarity/set/affixes/«kind требует slot» в validateItem нет;
 //   E20 — sync-items-data.js: KEYS без 4 новых ключей → tmp-репо:
 //     «ключи вне схемы» → exit 1.
-// Гарды (зелёные с первого запуска): E9 (каталог — 814 предметов без
+// Гарды (зелёные с первого запуска): E9 (каталог — 864 предметов без
 // ре-пин 000333: +2 свитка навигации без equip-полей — в гарде
 // новых полей; ре-пин 000321.01: +50 оружия 000514–000563; ре-пин 000321.02: +50 брони 000564–000613; ре-пин 000321.03: +50 щитов 000614–000663; ре-пин 000321.05: +50 инструментов 000714–000763), E19 (armor со ВСЕМИ валидными новыми полями — без
 // броска, без console.error, поля сохранены), E22 (D4-каталожность —
@@ -3474,7 +3593,7 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 814 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.01: +50 оружия; ре-пин 000321.02: +50 брони 000564–000613; ре-пин 000321.03: +50 щитов 000614–000663; ре-пин 000321.04: +50 артефактов 000664–000713; ре-пин 000321.05: +50 инструментов 000714–000763; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.06: +50 колец 000765–000814), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 864 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.01: +50 оружия; ре-пин 000321.02: +50 брони 000564–000613; ре-пин 000321.03: +50 щитов 000614–000663; ре-пин 000321.04: +50 артефактов 000664–000713; ре-пин 000321.05: +50 инструментов 000714–000763; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.06: +50 колец 000765–000814; ре-пин 000321.07: +50 зелий 000815–000864), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
   // Ре-пин 000235.10: каталог 257 → 282 (+25 свитков волны Исцеление).
   // Ре-пин 000230.11: каталог 282 → 332 (+50 рук).
@@ -3489,8 +3608,9 @@ test('000230.01 E9 (ГАРД): каталог — ровно 814 предмет�
   // Ре-пин 000333: каталог 511 → 513 (+2 свитка навигации).
   // Ре-пин 000348: каталог 763 → 764 (+1 свиток Декаданс).
   // Ре-пин 000321.06: каталог 764 → 814 (+50 колец с equip-полями —
-  // все в EQUIP_FIELDS_00023001).
-  assert.equal(items.length, 814, 'каталог — ровно 814 предмета');
+  // все в EQUIP_FIELDS_00023001); ре-пин 000321.07: каталог 814 → 864
+  // (+50 зелий без equip-полей — в прочие).
+  assert.equal(items.length, 864, 'каталог — ровно 864 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -3504,7 +3624,7 @@ test('000230.01 E9 (ГАРД): каталог — ровно 814 предмет�
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 225, 'прочих предметов — ровно 225 (ре-пин 000230.09: '
+  assert.equal(others, 275, 'прочих предметов — ровно 275 (ре-пин 000230.09: '
     + '182 − 75 equip-исключений = 107 (25 head + 50 уши/шея); '
     + 'ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: '
     + '+25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны '
@@ -3540,7 +3660,8 @@ test('000230.01 E9 (ГАРД): каталог — ровно 814 предмет�
     + 'свиток Декаданс без slot → 764 − 539 equip-исключений = 225; '
     + 'ре-пин 000321.06: +50 колец с equip-полями → '
     + '814 − 589 equip-исключений = 225 (все 50 колец в '
-    + 'исключениях))');
+    + 'исключениях); ре-пин 000321.07: +50 зелий без slot → '
+    + '864 − 589 equip-исключений = 275);');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -7857,12 +7978,12 @@ const RIGHT_HAND_ROSTER_00023012 = [
 const RIGHT_HAND_IDS_00023012 = RIGHT_HAND_ROSTER_00023012.map((r) => r[0]);
 const RIGHT_HAND_ID_SET_00023012 = new Set(RIGHT_HAND_IDS_00023012);
 
-test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; ре-пин 000230.19: каталог 459 (000458–000459 — set-предмета, после блока ноги/ступни); ре-пин 000277: каталог 486 (000485–000486 — set-предмета, после блока set); ре-пин 000235.12: каталог 511 (000487–000511 — свитки волны Природа, после set-блока); ре-пин 000333: каталог 513 (000512–000513 — свитки навигации, конец каталога); ре-пин 000321.01: каталог 563 (000514–000563 — оружие, новый конец каталога); ре-пин 000321.02: каталог 613 (000564–000613 — броня); ре-пин 000321.03: каталог 663 (000614–000663 — щиты); ре-пин 000321.04: каталог 713 (000664–000713 — артефакты); ре-пин 000321.05: каталог 763 (000714–000763 — инструменты, новый конец каталога); ре-пин 000348: каталог 764 (000764 — свиток Декаданс, новый конец каталога); ре-пин 000321.06: каталог 814 (000765–000814 — кольца, новый конец каталога); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни, затем 000458–000486 set, затем 000487–000511 свитки Природа); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
+test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; ре-пин 000230.19: каталог 459 (000458–000459 — set-предмета, после блока ноги/ступни); ре-пин 000277: каталог 486 (000485–000486 — set-предмета, после блока set); ре-пин 000235.12: каталог 511 (000487–000511 — свитки волны Природа, после set-блока); ре-пин 000333: каталог 513 (000512–000513 — свитки навигации, конец каталога); ре-пин 000321.01: каталог 563 (000514–000563 — оружие, новый конец каталога); ре-пин 000321.02: каталог 613 (000564–000613 — броня); ре-пин 000321.03: каталог 663 (000614–000663 — щиты); ре-пин 000321.04: каталог 713 (000664–000713 — артефакты); ре-пин 000321.05: каталог 763 (000714–000763 — инструменты, новый конец каталога); ре-пин 000348: каталог 764 (000764 — свиток Декаданс, новый конец каталога); ре-пин 000321.06: каталог 814 (000765–000814 — кольца, новый конец каталога); ре-пин 000321.07: каталог 864 (000815–000864 — зелья, новый конец каталога); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни, затем 000458–000486 set, затем 000487–000511 свитки Природа); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
   const { files, byFile } = catalogScan00023008();
-  assert.equal(files.length, 814,
-    'каталог — 814 файла (332 + 25 .13 + 25 .14 + 25 свитков '
+  assert.equal(files.length, 864,
+    'каталог — 864 файла (332 + 25 .13 + 25 .14 + 25 свитков '
     + '000235.10 + 50 .15 + 2 .19 set + 25 свитков 000235.11 '
-    + '+ 2 000277 set + 25 свитков 000235.12 + 2 свитка 000333 + 50 оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 + 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06); '
+    + '+ 2 000277 set + 25 свитков 000235.12 + 2 свитка 000333 + 50 оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 + 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07); '
     + 'факт: ' + files.length);
   const p0 = files.filter((f) =>
     Number(f.slice(0, 6)) < 333).length;
@@ -9400,7 +9521,7 @@ const FEET_IDS_00023015 = LEGSFEET_ROSTER_00023015
 // Ре-пин 000321.02: +7 legs (000600–000606) и +7 feet (000607–000613)
 const LEGS_ADD_00032102 = ['coarse_trousers', 'hide_hose', 'wool_breeches', 'vigil_greaves', 'scale_hose', 'sigil_greaves', 'dusk_greaves'];
 const FEET_ADD_00032102 = ['woven_sandals', 'tar_boots', 'traveler_boots', 'nailed_boots', 'thorn_boots', 'pathfinder_boots', 'lostroad_boots'];
-test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони 000321.02) И set(ids slot feet) = 32 id (§2.1 25 + 7 брони 000321.02); allItems() = 814 (486+25 свитков 000235.12+2 свитка 000333+50 оружия 000321.01+50 брони 000321.02+50 щитов 000321.03+50 артефактов 000321.04+50 инструментов 000321.05+1 свиток Декаданс 000348+50 колец 000321.06, 50 id в items-data.js; ре-пин merge .10–.14; ре-пин 000230.19: +2 set — id-множества legs/feet без смены, torso не входит; ре-пин 000277: forearms/palms — id-множества legs/feet без смены; ре-пин 000235.12: +25 свитков волны Природа — id-множества legs/feet без смены; ре-пин 000321.02: +7 legs 000600–000606 + 7 feet 000607–000613 — ПОСЛЕ блока, блок — первые 50); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
+test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони 000321.02) И set(ids slot feet) = 32 id (§2.1 25 + 7 брони 000321.02); allItems() = 864 (486+25 свитков 000235.12+2 свитка 000333+50 оружия 000321.01+50 брони 000321.02+50 щитов 000321.03+50 артефактов 000321.04+50 инструментов 000321.05+1 свиток Декаданс 000348+50 колец 000321.06+50 зелий 000321.07, 50 id в items-data.js; ре-пин merge .10–.14; ре-пин 000230.19: +2 set — id-множества legs/feet без смены, torso не входит; ре-пин 000277: forearms/palms — id-множества legs/feet без смены; ре-пин 000235.12: +25 свитков волны Природа — id-множества legs/feet без смены; ре-пин 000321.02: +7 legs 000600–000606 + 7 feet 000607–000613 — ПОСЛЕ блока, блок — первые 50); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
   const { files, byFile } = catalogScan00023008();
   const legsItems = [...byFile.values()].filter((it) => it.slot === 'legs');
   const feetItems = [...byFile.values()].filter((it) => it.slot === 'feet');
@@ -9422,10 +9543,10 @@ test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони
     [...FEET_IDS_00023015, ...FEET_ADD_00032102].sort(),
     'set(ids slot feet) = 25 id §2.1 + 7 брони 000321.02 '
     + '(000607–000613)');
-  assert.equal(I.allItems().length, 814,
+  assert.equal(I.allItems().length, 864,
     'allItems() = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 = 814 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 = 864 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '
@@ -9898,12 +10019,12 @@ test('000230.15 LF6: EQUIP_POOLS — lengths 232/161/117/46/23 (ре-пин 0003
     'старый impossible-префикс 4 — бит-в-бит (append-only)');
 });
 
-test('000230.15 LF7: зеркала — items-data 814 (52 id: getItem ≡ JSON + валидны по schema.json; ре-пин 000321.02: +50 брони; ре-пин merge .10–.14; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов; ре-пин 000321.05: +50 инструментов; ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец) и craft-data 643 (393 + 50 рецептов 000321.02 + 50 рецептов 000321.03 + 50 рецептов 000321.04 + 50 рецептов 000321.05 + 50 рецептов 000321.06); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
+test('000230.15 LF7: зеркала — items-data 864 (52 id: getItem ≡ JSON + валидны по schema.json; ре-пин 000321.02: +50 брони; ре-пин merge .10–.14; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов; ре-пин 000321.05: +50 инструментов; ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец; ре-пин 000321.07: +50 зелий) и craft-data 693 (393 + 50 рецептов 000321.02 + 50 рецептов 000321.03 + 50 рецептов 000321.04 + 50 рецептов 000321.05 + 50 рецептов 000321.06 + 50 рецептов 000321.07); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
   const ROOT = path.join(__dirname, '..');
-  assert.equal(I.allItems().length, 814,
+  assert.equal(I.allItems().length, 864,
     'items-data = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 = 814 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 = 864 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '
@@ -9911,10 +10032,10 @@ test('000230.15 LF7: зеркала — items-data 814 (52 id: getItem ≡ JSON 
     + 'краснота: зеркало не '
     + 'регенерировано; факт: ' + I.allItems().length + ')');
   const CD = require('../src/craft-data.js');
-  assert.equal(CD.CRAFT.length, 643,
+  assert.equal(CD.CRAFT.length, 693,
     'craft-data = 283 + 56 + 2 + 2 = 343 + 50 рецептов 000321.01 = '
     + '393 + 50 рецептов 000321.02 = 443 + 50 рецептов 000321.03 '
-    + '= 493 + 50 рецептов 000321.04 = 543 + 50 рецептов 000321.05 = 593 + 50 рецептов 000321.06 = 643 '
+    + '= 493 + 50 рецептов 000321.04 = 543 + 50 рецептов 000321.05 = 593 + 50 рецептов 000321.06 = 643 + 50 рецептов 000321.07 = 693 '
     + '(ре-пин 000230.19: +2 set; '
     + 'ре-пин 000277: +2 set; '
     + 'краснота: зеркало не '

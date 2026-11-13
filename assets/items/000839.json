@@ -1,0 +1,14 @@
+{
+  "id": "obsidian_balm",
+  "name": "Обсидиановый бальзам",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 135,
+  "base_price": 137,
+  "desc": "Обсидиановый бальзам: чёрный, блестящий, режет боль начисто.",
+  "effect": {
+    "kind": "heal",
+    "amount": 140
+  },
+  "icon": "assets/sprites/items/obsidian_balm.svg"
+}

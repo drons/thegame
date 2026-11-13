@@ -1,0 +1,14 @@
+{
+  "id": "resin_brew",
+  "name": "Смолистый настой",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 20,
+  "base_price": 21,
+  "desc": "Смолистый настой: липнет к ране и не отпускает боль.",
+  "effect": {
+    "kind": "heal",
+    "amount": 25
+  },
+  "icon": "assets/sprites/items/resin_brew.svg"
+}

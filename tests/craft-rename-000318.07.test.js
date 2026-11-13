@@ -160,11 +160,12 @@ const RECIPE_REFS_00031807 = [
   ['000082.json', 'blueprint_runecraft', '000019', 'moonstone_runes'],
 ];
 
-// Ожидаемое множество id == множество прежних номеров (643) — сверяется
+// Ожидаемое множество id == множество прежних номеров (643 на момент rename;
+// ре-пин 000321.07: +50 рецептов зелий → 693) — сверяется
 // живым свипом каталога в T1.
-const EXPECTED_COUNT = 643;
+const EXPECTED_COUNT = 693;
 
-test('000318.07 T1: ростер assets/craft — шейп slug, 643 файла, 0 numeric-имён, basename == id, id уникальны; schema.json ∈ slug-regex (guard исключения)', () => {
+test('000318.07 T1: ростер assets/craft — шейп slug, 693 файла (ре-пин 000321.07: +50 рецептов зелий), 0 numeric-имён, basename == id, id уникальны; schema.json ∈ slug-regex (guard исключения)', () => {
   assert.equal(JR.ASSET_NAME_SHAPES.craft, 'slug',
     'craft: шейп в реестре — slug (000318.07); факт: «'
     + JR.ASSET_NAME_SHAPES.craft + '»');
@@ -181,8 +182,9 @@ test('000318.07 T1: ростер assets/craft — шейп slug, 643 файла,
     'craft: чужие файлы вне slug-формы: ' + foreign.join(', '));
   const files = craftFiles();
   assert.equal(files.length, EXPECTED_COUNT,
-    'craft: 643 файла (ростер базы c0013918: сегменты 1..199 + 210..237 + '
-    + '260..287 + 310..337 + 360..719); факт: ' + files.length
+    'craft: 693 файла (ростер базы c0013918: сегменты 1..199 + 210..237 + '
+    + '260..287 + 310..337 + 360..719 — 643 на rename 000318.07; '
+    + '+ 50 рецептов зелий 000321.07); факт: ' + files.length
     + ' (краснота: rename не выполнен — slug-фильтр даёт меньше)');
   const ids = [];
   for (const f of files) {
@@ -196,14 +198,14 @@ test('000318.07 T1: ростер assets/craft — шейп slug, 643 файла,
   const dup = ids.filter((v, i) => ids.indexOf(v) !== i);
   assert.deepEqual(dup, [], 'craft: дубликаты id после rename');
   assert.equal(new Set(ids).size, EXPECTED_COUNT,
-    'craft: 643 уникальных id (сегментные дыры прежней нумерации после '
+    'craft: 693 уникальных id (сегментные дыры прежней нумерации после '
     + 'rename теряют смысл — состав сторожат счётчик + basename==id)');
 });
 
 test('000318.07 T2: зеркало src/craft-data.js — CRAFT в строгом lex-порядке по id (≠ прежнему номерному), записи ≡ каталогу (резолв ссылок), комментарии «// <id>.json», numeric-имён нет, шапка-range из slug', () => {
   const { CRAFT, CRAFT_BY_ID } = require(MIRROR);
   assert.equal(CRAFT.length, EXPECTED_COUNT,
-    'craft-data: 643 записи; факт: ' + CRAFT.length);
+    'craft-data: 693 записи; факт: ' + CRAFT.length);
   const ids = CRAFT.map((r) => r.id);
   const sorted = [...ids].sort();
   assert.deepEqual(ids, sorted,
@@ -224,7 +226,7 @@ test('000318.07 T2: зеркало src/craft-data.js — CRAFT в строгом
     const d = readCraft(f);
     return [d.id, d];
   }));
-  assert.equal(byId.size, EXPECTED_COUNT, 'каталог: 643 записей по id');
+  assert.equal(byId.size, EXPECTED_COUNT, 'каталог: 693 записей по id');
   for (const r of CRAFT) {
     assert.equal(byId.has(r.id), true, `craft-data: id «${r.id}» нет в каталоге`);
     assert.equal(CRAFT_BY_ID[r.id], r, `${r.id}: CRAFT_BY_ID — тот же объект`);
@@ -538,7 +540,7 @@ test('000318.07 T7: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.07 T8: 0-diff стражи — src/items-data.js побайтово прежний (чертежи несут РАЗРЕШЁННЫЙ id, не путь) + счётчики craft 643/612/579/546/33 инвариантны', () => {
+test('000318.07 T8: 0-diff стражи — src/items-data.js побайтово прежний (чертежи несут РАЗРЕШЁННЫЙ id, не путь) + счётчики craft 693/612/579/546/33 (ре-пин 000321.07: 612/579/546/33 инвариантны — зелья не экипировка)', () => {
   const before = execFileSync('git',
     ['-C', ROOT, 'show', 'HEAD:src/items-data.js'], { encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024 });
@@ -548,7 +550,7 @@ test('000318.07 T8: 0-diff стражи — src/items-data.js побайтово
     'src/items-data.js ИЗМЕНЁНrename craft его не касается: effect.recipe '
     + 'хранит РАЗРЕШЁННЫЙ id рецепта, а не путь файла');
   const { CRAFT } = require(MIRROR);
-  assert.equal(CRAFT.length, 643, 'craft — 643');
+  assert.equal(CRAFT.length, 693, 'craft — 693 (ре-пин 000321.07: +50 рецептов зелий)');
   const withRarity = CRAFT.filter((r) => {
     const it = require(path.join(ROOT, 'src', 'items.js'))
       .getItem(r.результат.предмет);
@@ -590,7 +592,7 @@ test('000318.07 T9: spec/craft.md § «Архитектура хранения (
   const sec = text.slice(m.index, j === -1 ? text.length : j);
   assert.ok(sec.includes('<id>.json'),
     'RED (000318.07): § не предписывает slug-именование `<id>.json` '
-    + '(каталог — 643 `<id>.json`, numeric-имён 0 — диск пиннут T1)');
+    + '(каталог — 693 `<id>.json`, numeric-имён 0 — диск пиннут T1)');
   assert.ok(sec.includes('basename === `id`'),
     'RED (000318.07): § не связывает имя файла с id (basename === `id` — '
     + 'default NameOf, прецедент runes .02 / spells .05)');
@@ -609,7 +611,7 @@ test('000318.07 T9: spec/craft.md § «Архитектура хранения (
 // тай (предмет iron_sword: рецепты 000001/000015, оба ур. 2), победитель
 // совпадает с lex-меньшим id ⇒ поведение под новым порядком zacherано
 // (проверено полным симуляционным пересчётом 598 записей — 0 смещений).
-test('000318.07 T10: потребитель порядка — DISASSEMBLY_BY_ITEM: 598 канонических рецептов, единственный тай (iron_sword ↔ iron_sword_ore, оба ур. 2) разрешается прежнему победителю (lex-меньший id == прежний первый по номеру)', () => {
+test('000318.07 T10: потребитель порядка — DISASSEMBLY_BY_ITEM: 648 канонических рецептов (ре-пин 000321.07: +50 базовых рецептов зелий), единственный тай (iron_sword ↔ iron_sword_ore, оба ур. 2) разрешается прежнему победителю (lex-меньший id == прежний первый по номеру)', () => {
   const C = require(path.join(ROOT, 'src', 'craft.js'));
   const { CRAFT, CRAFT_BY_ID } = require(MIRROR);
   const map = C.DISASSEMBLY_BY_ITEM;
@@ -625,8 +627,8 @@ test('000318.07 T10: потребитель порядка — DISASSEMBLY_BY_IT
   assert.deepEqual(map, expected,
     'DISASSEMBLY_BY_ITEM ≡ правилу по НОВОМУ порядку зеркала (иначе — '
     + 'порядок каталога поехал мимо правила)');
-  assert.equal(Object.keys(expected).length, 598,
-    'канонических рецептов — 598 (число от порядка НЕ зависит — инвариант '
+  assert.equal(Object.keys(expected).length, 648,
+    'канонических рецептов — 648 (598 + 50 зелий 000321.07; число от порядка НЕ зависит — инвариант '
     + 'состава); факт: ' + Object.keys(expected).length);
   const ties = {};
   const perItem = new Map();

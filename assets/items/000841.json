@@ -1,0 +1,14 @@
+{
+  "id": "phoenix_tonic",
+  "name": "Фениксово зелье",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 175,
+  "base_price": 177,
+  "desc": "Фениксово зелье: в склянке тлеет перо феникса.",
+  "effect": {
+    "kind": "heal",
+    "amount": 175
+  },
+  "icon": "assets/sprites/items/phoenix_tonic.svg"
+}

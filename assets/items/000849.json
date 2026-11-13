@@ -1,0 +1,14 @@
+{
+  "id": "star_tonic",
+  "name": "Звёздный тоник",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 28,
+  "base_price": 30,
+  "desc": "Звёздный тоник: капля светится, как дальняя звезда.",
+  "effect": {
+    "kind": "mp",
+    "amount": 22
+  },
+  "icon": "assets/sprites/items/star_tonic.svg"
+}

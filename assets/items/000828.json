@@ -1,0 +1,14 @@
+{
+  "id": "alpine_brew",
+  "name": "Альпийский отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 58,
+  "base_price": 59,
+  "desc": "Альпийский отвар: горький, как подъём, целительный, как спуск.",
+  "effect": {
+    "kind": "heal",
+    "amount": 65
+  },
+  "icon": "assets/sprites/items/alpine_brew.svg"
+}

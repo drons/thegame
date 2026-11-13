@@ -1,0 +1,14 @@
+{
+  "id": "arcane_tonic",
+  "name": "Арканный настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 138,
+  "base_price": 140,
+  "desc": "Арканный настой: руны на стенках склянки загораются сами.",
+  "effect": {
+    "kind": "mp",
+    "amount": 100
+  },
+  "icon": "assets/sprites/items/arcane_tonic.svg"
+}

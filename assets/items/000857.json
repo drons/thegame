@@ -1,0 +1,14 @@
+{
+  "id": "phosphor_brew",
+  "name": "Фосфорный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 78,
+  "base_price": 79,
+  "desc": "Фосфорный отвар: светится в темноте, жжёт язык.",
+  "effect": {
+    "kind": "mp",
+    "amount": 60
+  },
+  "icon": "assets/sprites/items/phosphor_brew.svg"
+}

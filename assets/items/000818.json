@@ -1,0 +1,14 @@
+{
+  "id": "crimson_sip",
+  "name": "Красный глоток",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 10,
+  "base_price": 11,
+  "desc": "Красный глоток: терпкий, как недозрелая вишня.",
+  "effect": {
+    "kind": "heal",
+    "amount": 12
+  },
+  "icon": "assets/sprites/items/crimson_sip.svg"
+}

@@ -3824,7 +3824,19 @@ test('A57. makeCampShop: сид (tile, day), wealth-кламп 0..3, виды и
     // ключи бит-в-бит (node-пересимуляция; зеркало GOLDEN_CAMP
     // в items.test.js).
     patched_helm: 1, felt_coif: 2, tin_morion: 2, riveted_helm: 3, rune_circlet: 1, spiral_earring: 4, shell_wire_earring: 2, silver_drop_earring: 2, moonstone_stud: 3, mystic_earring: 2, dawn_ear_cuff: 1, fang_lanyard: 1, vial_charm: 2, copper_beads: 4, amethyst_collar: 4, warder_pendant: 3, twilight_necklace: 1, quilted_jack: 2, warder_cuirass: 4, vigil_plate: 2, wool_bracers: 4, silver_bracers: 3, thorn_bracers: 4, engraved_bracers: 4, gilded_vambraces: 3, vigil_vambrace: 1, grip_gloves: 2, frostgrip_gauntlets: 2, coarse_trousers: 4, hide_hose: 3, vigil_greaves: 1, scale_hose: 4, sigil_greaves: 4, dusk_greaves: 4, tar_boots: 2, traveler_boots: 3, nailed_boots: 2, thorn_boots: 1, pathfinder_boots: 1, lostroad_boots: 3,
-  }, 'golden-сток (10,20,день 1,w2)');
+  
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 33;
+    // не выпали: weak_healing/herb_draught/field_tonic/honey_brew/oak_tonic/deep_balm/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/azure_tonic/dusk_brew/quartz_tonic/ash_elixir — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    forest_balm: 2, crimson_sip: 1, resin_brew: 1, dawn_tonic: 1,
+    sun_potion: 4, forge_tonic: 3, amber_elixir: 4, alpine_brew: 3,
+    ember_tonic: 4, marsh_balm: 1, stone_brew: 2, gale_tonic: 3,
+    pearl_draught: 3, silver_tonic: 3, ruby_draught: 2, sapphire_balm: 4,
+    emerald_tonic: 1, amethyst_draught: 2, obsidian_balm: 1, phoenix_tonic: 1,
+    blue_sip: 4, night_brew: 2, violet_brew: 4, indigo_brew: 4,
+    glacier_draught: 2, tide_draught: 2, phosphor_brew: 4, shadow_tonic: 3,
+    argent_draught: 3, royal_elixir: 1, arcane_tonic: 2, eclipse_draught: 3,
+    void_tonic: 2,}, 'golden-сток (10,20,день 1,w2)');
   // Форма обёртки: buildingType — id КАТАЛОГА (47, не слот).
   assert.deepEqual(
     { x: s1.x, y: s1.y, buildingType: s1.buildingType,
@@ -8018,7 +8030,16 @@ test('B26. «Барахолка» e2e (граница): стойка «x,y» Т�
     // ключи бит-в-бит (node-пересимуляция; зеркало GOLDEN_CAMP
     // в items.test.js).
     patched_helm: 2, riveted_helm: 2, boar_tusk_earring: 2, spiral_earring: 2, shell_wire_earring: 1, silver_drop_earring: 2, moonstone_stud: 2, mystic_earring: 2, fang_lanyard: 1, vial_charm: 1, copper_beads: 2, silver_pendant_chain: 1, amethyst_collar: 1, twilight_necklace: 2, quilted_jack: 1, hide_bracers: 1, silver_bracers: 1, thorn_bracers: 1, driver_mitts: 1, grip_gloves: 2, frostgrip_gauntlets: 1, hide_hose: 1, wool_breeches: 2, vigil_greaves: 2, sigil_greaves: 2, dusk_greaves: 2, woven_sandals: 2, traveler_boots: 1, pathfinder_boots: 1,
-  }, 'golden-сток стойки (40,40, день 1, w0)');
+  
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 24;
+    // не выпали 26 зелий;
+    // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
+    herb_draught: 1, forest_balm: 2, crimson_sip: 2, resin_brew: 2,
+    forge_tonic: 1, deep_balm: 1, stone_brew: 2, pearl_draught: 2,
+    silver_tonic: 1, sapphire_balm: 2, emerald_tonic: 2, amethyst_draught: 2,
+    diamond_draught: 1, night_brew: 1, glass_tonic: 2, star_tonic: 1,
+    rain_draught: 2, indigo_brew: 1, azure_tonic: 2, argent_draught: 2,
+    royal_elixir: 2, eclipse_draught: 1, void_tonic: 1, ash_elixir: 1,}, 'golden-сток стойки (40,40, день 1, w0)');
   for (const id of Object.keys(entry0.stock)) {
     assert.ok(['food', 'potion', 'weapon', 'armor']
       .includes(G.getItem(id).kind), id + ': вид из каталога');
@@ -8220,7 +8241,18 @@ test('B27. детерминизм барахолки: два мира, один 
     // ключи бит-в-бит (node-пересимуляция; зеркало GOLDEN_CAMP
     // в items.test.js).
     felt_coif: 2, tin_morion: 1, vigil_helm: 1, spiral_earring: 2, shell_wire_earring: 1, moonstone_stud: 1, mystic_earring: 1, dawn_ear_cuff: 2, fang_lanyard: 1, vial_charm: 2, copper_beads: 1, silver_pendant_chain: 1, quilted_jack: 2, wool_bracers: 2, thorn_bracers: 1, gilded_vambraces: 1, grip_gloves: 2, frostgrip_gauntlets: 1, golem_gauntlets: 1, coarse_trousers: 1, hide_hose: 1, scale_hose: 1, sigil_greaves: 2, dusk_greaves: 2, woven_sandals: 1, traveler_boots: 1, thorn_boots: 2, pathfinder_boots: 1, lostroad_boots: 1,
-  }, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
+  
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 30;
+    // не выпали: weak_healing/forest_balm/resin_brew/oak_tonic/sun_potion/alpine_brew/stone_brew/ruby_draught/sapphire_balm/phoenix_tonic/blue_sip/night_brew/frost_draught/azure_tonic/glacier_draught/dusk_brew/tide_draught/royal_elixir/arcane_tonic/void_tonic — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    herb_draught: 1, crimson_sip: 2, field_tonic: 1, honey_brew: 1,
+    dawn_tonic: 1, forge_tonic: 1, amber_elixir: 2, deep_balm: 1,
+    ember_tonic: 1, marsh_balm: 1, gale_tonic: 2, pearl_draught: 2,
+    silver_tonic: 2, emerald_tonic: 1, amethyst_draught: 1, obsidian_balm: 1,
+    moonlight_draught: 2, diamond_draught: 1, mint_draught: 2, glass_tonic: 2,
+    violet_brew: 1, star_tonic: 2, rain_draught: 1, indigo_brew: 2,
+    quartz_tonic: 2, phosphor_brew: 2, shadow_tonic: 1, argent_draught: 2,
+    eclipse_draught: 1, ash_elixir: 2,}, 'golden-сток дня 2 (40,40, w0) — кросс-реалем-пин формулы');
   assert.equal(s1d2.seed, s2d2.seed, 'seed дня 2 — одинаков');
   assert.deepEqual(JSON.parse(JSON.stringify(s1d2.stock)),
     JSON.parse(JSON.stringify(s2d2.stock)),

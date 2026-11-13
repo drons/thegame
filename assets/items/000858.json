@@ -1,0 +1,14 @@
+{
+  "id": "shadow_tonic",
+  "name": "Теневой настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 90,
+  "base_price": 92,
+  "desc": "Теневой настой: тень в склянке шевелится без ветра.",
+  "effect": {
+    "kind": "mp",
+    "amount": 70
+  },
+  "icon": "assets/sprites/items/shadow_tonic.svg"
+}

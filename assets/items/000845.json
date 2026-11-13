@@ -1,0 +1,14 @@
+{
+  "id": "night_brew",
+  "name": "Ночной отвар",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 11,
+  "base_price": 12,
+  "desc": "Ночной отвар: варён в темноте, светится изнутри.",
+  "effect": {
+    "kind": "mp",
+    "amount": 8
+  },
+  "icon": "assets/sprites/items/night_brew.svg"
+}

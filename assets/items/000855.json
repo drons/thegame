@@ -1,0 +1,14 @@
+{
+  "id": "tide_draught",
+  "name": "Приливный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 64,
+  "base_price": 65,
+  "desc": "Приливный отвар: солёный, как прилив, и такой же сильный.",
+  "effect": {
+    "kind": "mp",
+    "amount": 50
+  },
+  "icon": "assets/sprites/items/tide_draught.svg"
+}

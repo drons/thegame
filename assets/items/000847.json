@@ -1,0 +1,14 @@
+{
+  "id": "glass_tonic",
+  "name": "Стеклянный тоник",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 18,
+  "base_price": 19,
+  "desc": "Стеклянный тоник: прозрачный, как вода, а на вкус — как гроза.",
+  "effect": {
+    "kind": "mp",
+    "amount": 14
+  },
+  "icon": "assets/sprites/items/glass_tonic.svg"
+}

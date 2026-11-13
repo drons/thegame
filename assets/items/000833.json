@@ -1,0 +1,14 @@
+{
+  "id": "pearl_draught",
+  "name": "Жемчужный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 84,
+  "base_price": 85,
+  "desc": "Жемчужный отвар: перламутровый, варится на воде из-под камня.",
+  "effect": {
+    "kind": "heal",
+    "amount": 90
+  },
+  "icon": "assets/sprites/items/pearl_draught.svg"
+}

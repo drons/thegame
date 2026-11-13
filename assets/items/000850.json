@@ -1,0 +1,14 @@
+{
+  "id": "rain_draught",
+  "name": "Дождевой настой",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 32,
+  "base_price": 33,
+  "desc": "Дождевой настой: собирают дождь, копят силу.",
+  "effect": {
+    "kind": "mp",
+    "amount": 25
+  },
+  "icon": "assets/sprites/items/rain_draught.svg"
+}

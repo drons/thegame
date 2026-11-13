@@ -1,0 +1,14 @@
+{
+  "id": "ash_elixir",
+  "name": "Пепельный эликсир",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 220,
+  "base_price": 222,
+  "desc": "Пепельный эликсир: пепел помнит пламя, склянка — колдуна.",
+  "effect": {
+    "kind": "mp",
+    "amount": 150
+  },
+  "icon": "assets/sprites/items/ash_elixir.svg"
+}

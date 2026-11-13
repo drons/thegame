@@ -1,0 +1,14 @@
+{
+  "id": "marsh_balm",
+  "name": "Болотный бальзам",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 68,
+  "base_price": 70,
+  "desc": "Болотный бальзам: запах топи, а лечит по-королевски.",
+  "effect": {
+    "kind": "heal",
+    "amount": 75
+  },
+  "icon": "assets/sprites/items/marsh_balm.svg"
+}

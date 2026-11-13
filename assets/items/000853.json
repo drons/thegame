@@ -1,0 +1,14 @@
+{
+  "id": "glacier_draught",
+  "name": "Ледниковый настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 50,
+  "base_price": 52,
+  "desc": "Ледниковый настой: тают льдинки, крепнут руны.",
+  "effect": {
+    "kind": "mp",
+    "amount": 40
+  },
+  "icon": "assets/sprites/items/glacier_draught.svg"
+}

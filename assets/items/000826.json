@@ -1,0 +1,14 @@
+{
+  "id": "amber_elixir",
+  "name": "Янтарный эликсир",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 48,
+  "base_price": 49,
+  "desc": "Янтарный эликсир: греет изнутри, как печка.",
+  "effect": {
+    "kind": "heal",
+    "amount": 55
+  },
+  "icon": "assets/sprites/items/amber_elixir.svg"
+}

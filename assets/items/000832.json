@@ -1,0 +1,14 @@
+{
+  "id": "gale_tonic",
+  "name": "Ветреный настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 78,
+  "base_price": 80,
+  "desc": "Ветреный настой: пьётся быстро, действует быстрее.",
+  "effect": {
+    "kind": "heal",
+    "amount": 85
+  },
+  "icon": "assets/sprites/items/gale_tonic.svg"
+}

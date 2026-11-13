@@ -1,0 +1,14 @@
+{
+  "id": "moonlight_draught",
+  "name": "Лунный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 148,
+  "base_price": 150,
+  "desc": "Лунный отвар: варят только в полнолуние, хранят в темноте.",
+  "effect": {
+    "kind": "heal",
+    "amount": 150
+  },
+  "icon": "assets/sprites/items/moonlight_draught.svg"
+}

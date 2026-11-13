@@ -1,0 +1,14 @@
+{
+  "id": "azure_tonic",
+  "name": "Лазурный тоник",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 44,
+  "base_price": 46,
+  "desc": "Лазурный тоник: цвет летнего неба, вкус зимней воды.",
+  "effect": {
+    "kind": "mp",
+    "amount": 35
+  },
+  "icon": "assets/sprites/items/azure_tonic.svg"
+}

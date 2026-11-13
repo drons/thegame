@@ -1,0 +1,14 @@
+{
+  "id": "oak_tonic",
+  "name": "Дубильный отвар",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 25,
+  "base_price": 26,
+  "desc": "Дубильный отвар: вяжет во рту, стягивает раны.",
+  "effect": {
+    "kind": "heal",
+    "amount": 30
+  },
+  "icon": "assets/sprites/items/oak_tonic.svg"
+}

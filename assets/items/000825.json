@@ -1,0 +1,14 @@
+{
+  "id": "forge_tonic",
+  "name": "Кузнечное зелье",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 42,
+  "base_price": 44,
+  "desc": "Кузнечное зелье: на вкус как вода, которой остужают сталь.",
+  "effect": {
+    "kind": "heal",
+    "amount": 50
+  },
+  "icon": "assets/sprites/items/forge_tonic.svg"
+}

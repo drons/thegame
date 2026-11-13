@@ -1,0 +1,14 @@
+{
+  "id": "sapphire_balm",
+  "name": "Сапфировый бальзам",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 105,
+  "base_price": 107,
+  "desc": "Сапфировый бальзам: синий, густой, заживляет не торопясь.",
+  "effect": {
+    "kind": "heal",
+    "amount": 110
+  },
+  "icon": "assets/sprites/items/sapphire_balm.svg"
+}

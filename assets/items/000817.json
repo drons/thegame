@@ -1,0 +1,14 @@
+{
+  "id": "forest_balm",
+  "name": "Лесной бальзам",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 7,
+  "base_price": 8,
+  "desc": "Лесной бальзам: пахнет хвоей и мокрой корой.",
+  "effect": {
+    "kind": "heal",
+    "amount": 8
+  },
+  "icon": "assets/sprites/items/forest_balm.svg"
+}

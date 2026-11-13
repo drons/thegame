@@ -1,0 +1,14 @@
+{
+  "id": "stone_brew",
+  "name": "Каменный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 72,
+  "base_price": 74,
+  "desc": "Каменный отвар: целит то, что камень и надломил.",
+  "effect": {
+    "kind": "heal",
+    "amount": 80
+  },
+  "icon": "assets/sprites/items/stone_brew.svg"
+}

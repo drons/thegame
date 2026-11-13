@@ -1,0 +1,14 @@
+{
+  "id": "violet_brew",
+  "name": "Фиалковый отвар",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 24,
+  "base_price": 25,
+  "desc": "Фиалковый отвар: отдаёт синевой в висках.",
+  "effect": {
+    "kind": "mp",
+    "amount": 18
+  },
+  "icon": "assets/sprites/items/violet_brew.svg"
+}

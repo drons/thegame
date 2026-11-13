@@ -388,21 +388,21 @@ test('T6. vm округление на value=1: common buy(w3)=max(1,round(0.7))
 // в stock-rng (seed/состав — базовые литералы)
 // ============================================================
 
-test('T7. golden-стоки: makeShop(30,40,W=3) seed 3346526313 / 688 ключей / 2124 шт (ре-пин 000321.06: 646 → 688 / 1999 → 2124 — +42 кольца в хвост allItems-пула, переснято ЖИВЫМ кодом; camp без изменений) и makeCampShop(40,40,день1,w0) seed 1223027174 / 176 / 257 — множитель цены НЕ в сид-формуле', () => {
+test('T7. golden-стоки: makeShop(30,40,W=3) seed 3346526313 / 688 ключей / 2124 шт (ре-пин 000321.06: 646 → 688 / 1999 → 2124 — +42 кольца в хвост allItems-пула; ре-пин 000321.07: 688 → 729 / 2124 → 2246 — +50 зелий в хвост allItems-пула, переснято ЖИВЫМ кодом) и makeCampShop(40,40,день1,w0) seed 1223027174 / 176 → 200 / 257 → 294 (ре-пин 000321.07: camp-пул видов 000047 включает potion — сток сдвинулся rng-хвостом) — множитель цены НЕ в сид-формуле', () => {
   const s = I.makeShop(30, 40, B.WEAPONS_SHOP, 3);
   assert.equal(s.seed, 3346526313, 'universam seed (живой код базы)');
   const keys = Object.keys(s.stock);
-  assert.equal(keys.length, 688, 'universam: ключей стока (ре-пин 000321.06: 646 → 688)');
+  assert.equal(keys.length, 729, 'universam: ключей стока (ре-пин 000321.06: 646 → 688; ре-пин 000321.07: 688 → 729)');
   let tot = 0;
   for (const k of keys) tot += s.stock[k];
-  assert.equal(tot, 2124, 'universam: суммарное количество (ре-пин 000321.06: 1999 → 2124)');
+  assert.equal(tot, 2246, 'universam: суммарное количество (ре-пин 000321.06: 1999 → 2124; ре-пин 000321.07: 2124 → 2246)');
   const campRec = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'buildings', 'camp.json'), 'utf8'));
   const cs = I.makeCampShop(40, 40, 1, 0, campRec);
   assert.equal(cs.seed, 1223027174, 'camp seed дня 1 (40,40)');
   const ckeys = Object.keys(cs.stock);
-  assert.equal(ckeys.length, 176, 'camp: ключей стока');
+  assert.equal(ckeys.length, 200, 'camp: ключей стока (ре-пин 000321.07: 176 → 200 — зелья концом пула видов 000047)');
   let ctot = 0;
   for (const k of ckeys) ctot += cs.stock[k];
-  assert.equal(ctot, 257, 'camp: суммарное количество');
+  assert.equal(ctot, 294, 'camp: суммарное количество (ре-пин 000321.07: 257 → 294)');
 });

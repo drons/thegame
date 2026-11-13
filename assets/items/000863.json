@@ -1,0 +1,14 @@
+{
+  "id": "void_tonic",
+  "name": "Пустотный настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 200,
+  "base_price": 202,
+  "desc": "Пустотный настой: пустой на вкус, полный на деле.",
+  "effect": {
+    "kind": "mp",
+    "amount": 140
+  },
+  "icon": "assets/sprites/items/void_tonic.svg"
+}

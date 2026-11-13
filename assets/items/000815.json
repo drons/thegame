@@ -1,0 +1,14 @@
+{
+  "id": "weak_healing",
+  "name": "Слабое зелье лечения",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 3,
+  "base_price": 3,
+  "desc": "Слабое зелье лечения: едва греет, но кровь останавливает.",
+  "effect": {
+    "kind": "heal",
+    "amount": 3
+  },
+  "icon": "assets/sprites/items/weak_healing.svg"
+}

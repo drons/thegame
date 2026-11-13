@@ -1,0 +1,14 @@
+{
+  "id": "emerald_tonic",
+  "name": "Изумрудный настой",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 115,
+  "base_price": 117,
+  "desc": "Изумрудный настой: зелёный, как первая трава после боя.",
+  "effect": {
+    "kind": "heal",
+    "amount": 120
+  },
+  "icon": "assets/sprites/items/emerald_tonic.svg"
+}

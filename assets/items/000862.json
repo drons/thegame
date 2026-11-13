@@ -1,0 +1,14 @@
+{
+  "id": "eclipse_draught",
+  "name": "Затменный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 170,
+  "base_price": 172,
+  "desc": "Затменный отвар: две половинки тьмы в одной склянке.",
+  "effect": {
+    "kind": "mp",
+    "amount": 120
+  },
+  "icon": "assets/sprites/items/eclipse_draught.svg"
+}

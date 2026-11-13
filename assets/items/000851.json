@@ -1,0 +1,14 @@
+{
+  "id": "indigo_brew",
+  "name": "Индиговый отвар",
+  "kind": "potion",
+  "weight": 0.4,
+  "value": 38,
+  "base_price": 39,
+  "desc": "Индиговый отвар: густой синий, горький до оскомины.",
+  "effect": {
+    "kind": "mp",
+    "amount": 30
+  },
+  "icon": "assets/sprites/items/indigo_brew.svg"
+}

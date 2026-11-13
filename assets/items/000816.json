@@ -1,0 +1,14 @@
+{
+  "id": "herb_draught",
+  "name": "Травяной отвар",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 5,
+  "base_price": 5,
+  "desc": "Травяной отвар: горчит, зато сращивает рёбра.",
+  "effect": {
+    "kind": "heal",
+    "amount": 5
+  },
+  "icon": "assets/sprites/items/herb_draught.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "argent_draught",
+  "name": "Серебряный отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 104,
+  "base_price": 106,
+  "desc": "Серебряный отвар: посеребрённый, звонкий на вкус.",
+  "effect": {
+    "kind": "mp",
+    "amount": 80
+  },
+  "icon": "assets/sprites/items/argent_draught.svg"
+}

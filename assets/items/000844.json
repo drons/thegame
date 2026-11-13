@@ -1,0 +1,14 @@
+{
+  "id": "blue_sip",
+  "name": "Синий глоток",
+  "kind": "potion",
+  "weight": 0.3,
+  "value": 8,
+  "base_price": 9,
+  "desc": "Синий глоток: один глоток — и пальцы снова слушаются.",
+  "effect": {
+    "kind": "mp",
+    "amount": 6
+  },
+  "icon": "assets/sprites/items/blue_sip.svg"
+}

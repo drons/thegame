@@ -1521,7 +1521,20 @@ const SHOP_GOLDEN = {
   // ре-имплементация стока вместо вызова makeShop ломает пины.
   '100,-40,2,2,44,2': { seed: 7804926, stock: {
     healing_potion: 3, greater_healing: 3, mana_potion: 4,
-    bread: 4, honey_cake: 2 } },
+    bread: 4, honey_cake: 2,
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt44 → += 39;
+    // не выпали: forest_balm/amber_elixir/stone_brew/silver_tonic/obsidian_balm/blue_sip/night_brew/violet_brew/phosphor_brew/shadow_tonic/royal_elixir — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 3, herb_draught: 4, crimson_sip: 4, field_tonic: 3,
+    honey_brew: 4, resin_brew: 1, oak_tonic: 2, dawn_tonic: 4, sun_potion: 2,
+    forge_tonic: 3, deep_balm: 4, alpine_brew: 2, ember_tonic: 3,
+    marsh_balm: 1, gale_tonic: 4, pearl_draught: 3, ruby_draught: 4,
+    sapphire_balm: 3, emerald_tonic: 1, amethyst_draught: 2,
+    moonlight_draught: 1, phoenix_tonic: 2, diamond_draught: 3,
+    mint_draught: 3, frost_draught: 4, glass_tonic: 2, star_tonic: 2,
+    rain_draught: 4, indigo_brew: 1, azure_tonic: 2, glacier_draught: 3,
+    dusk_brew: 1, tide_draught: 3, quartz_tonic: 3, argent_draught: 2,
+    arcane_tonic: 2, eclipse_draught: 4, void_tonic: 2, ash_elixir: 1,} },
   // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
   // заклинаний (000043-000050) добавлены КОНЦОМ каталога → существующие
   // стоки не сдвинулись, += 8 свитков (rng-хвост каталога).
@@ -1817,7 +1830,21 @@ const SHOP_GOLDEN = {
     icewalker: 5,     clay_warden: 2,     ink_signet: 3,     root_braid: 4,     augur_band: 3,
     selenite_ring: 4,     tidebreath: 1,     moon_crown: 2,     frost_squall: 2,     undying_bough: 4,
     eclipse_band: 1,     caldera_core: 4,
-  } },
+  
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула allItems (универсам) → += 43;
+    // не выпали: forest_balm/honey_brew/resin_brew/oak_tonic/star_tonic/tide_draught/quartz_tonic — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 3, herb_draught: 2, crimson_sip: 1, field_tonic: 3,
+    dawn_tonic: 3, sun_potion: 2, forge_tonic: 5, amber_elixir: 4,
+    deep_balm: 2, alpine_brew: 3, ember_tonic: 1, marsh_balm: 2,
+    stone_brew: 4, gale_tonic: 1, pearl_draught: 3, silver_tonic: 4,
+    ruby_draught: 1, sapphire_balm: 2, emerald_tonic: 3, amethyst_draught: 3,
+    obsidian_balm: 4, moonlight_draught: 1, phoenix_tonic: 2,
+    diamond_draught: 4, mint_draught: 4, blue_sip: 4, night_brew: 1,
+    frost_draught: 1, glass_tonic: 2, violet_brew: 5, rain_draught: 2,
+    indigo_brew: 3, azure_tonic: 1, glacier_draught: 1, dusk_brew: 5,
+    phosphor_brew: 2, shadow_tonic: 3, argent_draught: 2, royal_elixir: 2,
+    arcane_tonic: 5, eclipse_draught: 2, void_tonic: 3, ash_elixir: 1,} },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     iron_sword: 3, short_bow: 3, hunting_bow: 3, battle_axe: 1,
     war_hammer: 1,
@@ -1844,7 +1871,19 @@ const SHOP_GOLDEN = {
     aurora_bow: 3,     starvault_staff: 1} },
   '-37,21,1,7,44,1': { seed: 1556417893, stock: {
     minor_healing: 3, greater_healing: 3, mana_potion: 2,
-    mana_elixir: 3, bread: 3, meat: 1, honey_cake: 1 } },
+    mana_elixir: 3, bread: 3, meat: 1, honey_cake: 1,
+    // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt44 → += 36;
+    // не выпали: field_tonic/resin_brew/marsh_balm/stone_brew/emerald_tonic/amethyst_draught/moonlight_draught/violet_brew/star_tonic/azure_tonic/shadow_tonic/argent_draught/royal_elixir/eclipse_draught — ключи стока не сдвинулись
+    // (seed byte-identical; переснято ЖИВЫМ кодом).
+    weak_healing: 1, herb_draught: 1, forest_balm: 3, crimson_sip: 3,
+    honey_brew: 3, oak_tonic: 3, dawn_tonic: 1, sun_potion: 3, forge_tonic: 3,
+    amber_elixir: 2, deep_balm: 2, alpine_brew: 2, ember_tonic: 3,
+    gale_tonic: 3, pearl_draught: 2, silver_tonic: 3, ruby_draught: 2,
+    sapphire_balm: 3, obsidian_balm: 1, phoenix_tonic: 1, diamond_draught: 3,
+    mint_draught: 1, blue_sip: 2, night_brew: 1, frost_draught: 3,
+    glass_tonic: 3, rain_draught: 1, indigo_brew: 2, glacier_draught: 1,
+    dusk_brew: 2, tide_draught: 3, quartz_tonic: 2, phosphor_brew: 2,
+    arcane_tonic: 1, void_tonic: 2, ash_elixir: 2,} },
 };
 
 test('golden: фикс. (якорь, клетка, buildingId, wealth) → фикс. seed/stock (литералы)', () => {

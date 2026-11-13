@@ -1,0 +1,14 @@
+{
+  "id": "dusk_brew",
+  "name": "Вечерний отвар",
+  "kind": "potion",
+  "weight": 0.5,
+  "value": 56,
+  "base_price": 58,
+  "desc": "Вечерний отвар: варят на закате, пьют перед боем.",
+  "effect": {
+    "kind": "mp",
+    "amount": 45
+  },
+  "icon": "assets/sprites/items/dusk_brew.svg"
+}
