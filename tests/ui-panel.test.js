@@ -26,8 +26,11 @@
 //   * состояние вкладки ЖИВЁТ через render(): pane не переключается
 //     и не пересобирается (те же DOM-узлы — форма 000098 опирается
 //     на живость focus);
-//   * CSS index.html: .char-panel — top/left/right, bottom ≥ 56px
-//     (панель ВЫШЕ .fs-btn), НЕТ фиксированного width;
+//   * CSS index.html: .char-panel — top/left/right/bottom = 0 (000377:
+//     ВЕСЬ экран; прежняя формулировка «bottom ≥ 56px — панель ВЫШЕ
+//     .fs-btn» эрратирована: полоса под кнопкой отменена, кнопка при
+//     открытой панели скрыта правилом body.char-panel-open .fs-btn),
+//     НЕТ фиксированного width;
 //     z-index .char-panel (10) < z-index .fs-btn (15);
 //   * [Esc]: document keydown закрывает панель, слушатель СНЯТ,
 //     reopen — снова вешается; чужие клавиши не закрывают;
@@ -482,19 +485,22 @@ test('панель: состояние вкладки живёт через rend
     '.cp-title — тот же DOM-узел после render()');
 });
 
-// --- КРАСНЫЕ: CSS .char-panel (полноэкран, выше .fs-btn) ---
+// --- КРАСНЫЕ: CSS .char-panel (весь экран, 000377; кнопка скрыта) ---
 
-test('CSS: .char-panel — top/left/right, bottom ≥ 56px, НЕТ width; z-index 10 < 15 (.fs-btn)', () => {
+test('CSS: .char-panel — весь экран (top/left/right/bottom = 0, 000377), НЕТ width; z-index 10 < 15 (.fs-btn)', () => {
   const html = page();
   const p = cssRule(html, 'char-panel');
-  assert.ok(p.top, '.char-panel: есть top');
-  assert.ok(p.left, '.char-panel: есть left');
-  assert.ok(p.right, '.char-panel: есть right');
-  assert.ok(p.bottom, '.char-panel: есть bottom');
-  const bottomPx = parseFloat(p.bottom);
-  assert.ok(Number.isFinite(bottomPx) && bottomPx >= 56,
-    'bottom ≥ 56px — нижняя кромка панели ВЫШЕ верхней кромки .fs-btn ' +
-    '(bottom 12 + высота ≈33px): ' + p.bottom);
+  assert.equal(p.top, '0', '.char-panel: top 0');
+  assert.equal(p.left, '0', '.char-panel: left 0');
+  assert.equal(p.right, '0', '.char-panel: right 0');
+  // 000377: прежний контракт «bottom ≥ 56px — панель ВЫШЕ .fs-btn»
+  // эрратирован — полоса под кнопкой отменена, панель занимает ВЕСЬ
+  // экран; кнопка при открытой панели скрыта (body.char-panel-open
+  // .fs-btn — пин tests/ui-panel-fullscreen-000377.test.js P3).
+  assert.equal(p.bottom, '0',
+    'bottom 0 — нижняя кромка экрана (полоса 56px под .fs-btn отменена 000377)');
+  assert.ok(!/\.char-panel\s*{[^}]*bottom:\s*56px/.test(html),
+    'в правиле .char-panel НЕТ bottom: 56px');
   assert.equal(p.width, undefined,
     'фиксированного width НЕТ (380px убран — панель на весь экран)');
   // Нет фиксированной ширины и у столбца — flex:1 (оба пополам).

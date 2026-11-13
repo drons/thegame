@@ -1008,6 +1008,17 @@
     escHandler = null;
   }
 
+  const PANEL_OPEN_TOKEN = 'char-panel-open';
+  function markPanelOpen(on) {
+    const b = document.body;
+    if (!b) return;
+    const parts = String(b.className || '').split(/\s+/).filter(Boolean);
+    const i = parts.indexOf(PANEL_OPEN_TOKEN);
+    if (on && i < 0) parts.push(PANEL_OPEN_TOKEN);
+    if (!on && i >= 0) parts.splice(i, 1);
+    b.className = parts.join(' ');
+  }
+
   function toggle(force, tabId, charId) {
     if (!panel) buildPanel();
     if (!character) return;
@@ -1019,6 +1030,7 @@
     // высотой (контент не скроллился), .cp-close (align-self:flex-end)
     // уходил на левый край.
     panel.style.display = show ? 'flex' : 'none';
+    markPanelOpen(show);
     if (show) {
       // 000145: 3-й аргумент — активный персонаж на открытии (ТЗ
       // дословно: playerUI.toggle(true, 'character', activeId)).
