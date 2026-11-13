@@ -72,8 +72,16 @@ SPEC_FILE_LINES, items-цепочка 764/731, universam/GOLDEN (новый
 
 Условия будущих ре-пинов: +1 spell = та же сетка (spells.test 171,
 rename-множество, magic-schools A3, SB9/SB11, svg-реестр, efir/save);
+пометка эрраты 000368: актуально 172 спелла с `98eec709` (000350
+show_enemies — влился ПОЗЖЕ этой задачи, факт верен на базе записи).
 свиток на attraction — добавить items-цепочку 764→765 и GOLDEN-пробу
-(прецедент 000348).
+(прецедент 000348). Пометка эрраты 000368: актуально цепочка 814→815
+с `c0013918` (000321.06). Формула пересчёта живых счётчиков (контракт
+000362 «значения отсюда не канон, пересчёт свипом»): спеллы —
+`ls assets/spells/*.json | grep -vc schema.json`; предметы и base_price —
+python-свип assets/items/*.json (паттерн «Счётчики диска (пересчёт свипом,
+не отсюда)» memory/000347-temple-scroll-trade.md); NPC —
+`ls assets/npc/*.json | grep -vc schema.json`.
 
 ## Матрица мутаций (стейдж=HEAD; git restore между; фактические красные)
 - M1 вырез ветки attraction в castOutOfCombat → T4,T8–T10 (T5 зелёный:
