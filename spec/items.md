@@ -302,7 +302,7 @@
 * Носитель изучения (000232): `kind` = `craft_scroll`,
   `effect` = {kind: 'craft_recipe', recipe: <ссылка>} — в JSON-
   каталоге assets/items — файловая ссылка
-  `assets/craft/NNNNNN.json` (source of truth), в зеркале
+  `assets/craft/<id>.json` (source of truth), в зеркале
   src/items-data.js — id (sync-items-data.js резолвит; битая
   ссылка — exit 1).
 * Применение — изучение ЦЕЛОГО вида крафта (вид якорного
@@ -321,7 +321,7 @@
 
 ## Архитектура хранения (каталог assets/items)
  * Описание предметов хранится в каталоге assets/items: каждый предмет —
-   отдельный JSON-файл (000001.json, 000002.json, …).
+   отдельный JSON-файл `<id>.json` (basename === `id` + '.json'; переименован 000318.08).
  * Структура файла закреплена JSON-схемой assets/items/schema.json.
  * Игра открывается двойным кликом (file://), где fetch() локальных JSON
    не работает, поэтому каталог дублируется в униформном JS-модуле
