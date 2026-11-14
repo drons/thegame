@@ -12,10 +12,15 @@ Docs-only: src/ assets/ scripts/ golden/ index.html CHANGELOG.md — 0-diff.
 
 ## 1. Дисковая классификация каталогов на базе (гейт-каталог для будущих свипов)
 
-slug (numeric-путь мёртв): items (.318.08, 864 файла + schema), craft (.07),
-buildings (.06), spells (.05), mobs/mob_groups/dungeons (.04), runes (.02), visuals (.03).
-numeric (путь ЖИВОЙ, НЕ трогать до флипа): skills (44 JSON; флип — pending 000318.09),
-npc (47 JSON; флип — pending 000318.10).
+ЭРРАТА 000385 (находка ретро-b23: таблица была инвертирована диском — skills
+флипнут .318.09 ещё до первого выпуска этой памяти). Ниже — по диску финальной
+базы эрраты; счётные значения переснимать диском своей базы перед каждым свипом
+(Р.2). Актуально на 337480e0.
+
+slug (numeric-путь мёртв): items (.318.08, 914 файла + schema), craft (.07),
+buildings (.06), spells (.05), mobs/mob_groups/dungeons (.04), runes (.02),
+visuals (.03), skills (.09 = флип 5c978b06, 44 файла + schema).
+numeric (путь ЖИВОЙ, НЕ трогать до флипа): npc (49 JSON; флип — pending 000318.10).
 
 ## 2. Внесённые эрраты (все line-neutral, правка внутри одной физической строки)
 
@@ -87,6 +92,10 @@ buildings/mobs = 477/523/572/146 побитово в силе).
   на базе; НА ДИСКЕ 9a08623a numeric-путь `assets/skills/<6 цифр>` содержат 770 JSON
   в assets/: craft 693, skills (самоссылки школ) 32, mobs 27, buildings 18, npc 0.
   Волне .318.09 — пересчитать своей формулой isRef при старте.
+  ЭРРАТА 000385: волна .318.09 ВЛИТА (5c978b06) — 770 и разбивка (craft 693,
+  skills 32, mobs 27, buildings 18) остаются ИСТОРИЕЙ скана 9a08623a; факт
+  базы эрраты: numeric-skills-путей в assets-JSON = 0
+  (grep -rlE 'assets/skills/[0-9]{6}' assets/ — пустой список).
 * Нулевые категории (проверено, фиксация против ложных тревог будущих свипов):
   numeric-литералов `assets/(items|craft|spells|mobs|runes|dungeons|mob_groups)/<6 цифр>`
   в tasks/pending — 0 (только buildings, см. (а)); space-формы «assets/<flip-каталог> 000NNN» — 0.
@@ -95,6 +104,11 @@ buildings/mobs = 477/523/572/146 побитово в силе).
 
 `grep -rnE 'assets/(items|craft|spells|mobs|buildings|runes|dungeons|mob_groups|visuals)[ /]+(0[0-9]{5}|N{4,})' spec/ SPEC.md` = 0
 (до задачи: 3 — items.md:305, buildings.md:491, spells.md:409; после: 0).
-Негативный контроль от перегиба: numeric-хиты skills/npc ОБЯЗАНЫ остаться
-(spec/skills.md «000038–000043», spec/spells.md «(enum 000301) … assets/skills (000038–000043)»,
-spec/skills-storage.md, spec/npc-storage.md).
+Негативный контроль от перегиба — только npc-плечо: numeric-хиты npc ОБЯЗАНЫ
+остаться до флипа .318.10 (spec/npc-storage.md «000001.json, 000002.json» —
+строка ИСТИННА; npc — единственный shape 'number' в ASSET_NAME_SHAPES финальной
+базы). ЭРРАТА 000385: прежняя директива «numeric-хиты skills ОБЯЗАНЫ остаться»
+инвертирована диском и СНЯТА — skills флипнут .318.09 (5c978b06), а spec-плечо
+закрыто эрратой .378: numeric-skills-хитов в spec/ = 0 (проверено грепом
+'assets/skills/[0-9]{6}|000038–000043' spec/); её сохранение заставило бы
+будущий свип «дофлипнуть» обратно уже флипнутый каталог.
