@@ -102,22 +102,22 @@ function readJson(file) {
 
 // --- T1: размер каталога ---------------------------------------------------
 
-test('T1: каталог — ровно 49 файлов 000001..000049 подряд; зеркало NPCS 49 записей с sword_instructor', () => {
+test('T1: каталог — ровно 50 файлов 000001..000050 подряд; зеркало NPCS 50 записей с sword_instructor', () => {
   const files = listNpcFiles();
-  assert.equal(files.length, 49,
-    'в каталоге NPC 49 файлов (000320.17: +Переписчик; 000320.18: '
+  assert.equal(files.length, 50,
+    'в каталоге NPC 50 файлов (000320.17: +Переписчик; 000320.18: '
     + '+Странствующий торговец; 000320.19: +Торговец специями; '
     + '000320.20: +Торговец каравана; 000347.02: +жрец солнца, жрица '
     + 'луны, горный жрец; 000320.21: +Проводник; 000320.22: +Перекати; '
-    + '000320.23: +Сарбон; 000320.24: +Просол; 000320.25: +Насечка; 000320.26: +Костяшка; 000320.27: +Кремень; 000320.28: +Шрам), '
+    + '000320.23: +Сарбон; 000320.24: +Просол; 000320.25: +Насечка; 000320.26: +Костяшка; 000320.27: +Кремень; 000320.28: +Шрам; 000320.29: +Свисток), '
     + 'факт: ' + files.length);
   for (let i = 0; i < files.length; i++) {
     assert.equal(files[i],
       String(i + 1).padStart(6, '0') + '.json',
       'нумерация подряд без пропусков: индекс ' + i);
   }
-  assert.equal(NPCS.length, 49,
-    'зеркало src/npc-data.js — 49 записей (sync не прогнан?), факт: '
+  assert.equal(NPCS.length, 50,
+    'зеркало src/npc-data.js — 50 записей (sync не прогнан?), факт: '
     + NPCS.length);
   const last = NPCS[45];
   assert.ok(last, '46-я запись зеркала существует');
@@ -428,11 +428,11 @@ test('T6: профиль обучение — блок {навыки ≡ тре�
 
 // --- T7: ростер Арены — ДВОЕ, Карк первый; дом 5 не тронут ------------------
 
-test('T7: npcsForBuilding(NPCS, 7) — ЧЕТВЕРО Арены в порядке каталога [arena_master, sword_instructor, arena_champion, arena_challenger] (ре-пин 000320.28); npcForBuilding(7) — по-прежнему Карк; дом 5 Лавки странника — ВОСЕМЬ не тронут (.25 — НЕ дом 5!); Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 7) — ПЯВЕРО Арены в порядке каталога [arena_master, sword_instructor, arena_champion, arena_challenger, arena_referee] (ре-пин 000320.29); npcForBuilding(7) — по-прежнему Карк; дом 5 Лавки странника — ВОСЕМЬ не тронут (.25 — НЕ дом 5!); Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 7);
   assert.deepEqual(list.map((n) => n.id),
-    ['arena_master', ID, 'arena_champion', 'arena_challenger'],
-    'Арена (7): Карк (000005) + наставник мечника Насечка (000046) + чемпион Кремень (000048) + вызовший Шрам (000049, ре-пин 000320.28), '
+    ['arena_master', ID, 'arena_champion', 'arena_challenger', 'arena_referee'],
+    'Арена (7): Карк (000005) + наставник мечника Насечка (000046) + чемпион Кремень (000048) + вызовший Шрам (000049) + арбитр Свисток (000050, ре-пин 000320.29), '
     + 'порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 7).id, 'arena_master',
@@ -475,22 +475,24 @@ test('T7: npcsForBuilding(NPCS, 7) — ЧЕТВЕРО Арены в порядк
 
 // --- T8: оверлей Арены — ровно 2 dialog-строки -------------------------------
 
-test('T8: [E]-оверлей Арены — ровно 4 строки (ре-пин 000320.28): dialog (Карк), dialog:sword_instructor (Насечка), dialog:arena_champion (Кремень) — пин создан в 000320.25 (у дома 7 эффектов нет — только dialog-строки); хоткеи Digit1..2; по сводной таблице .26 — ТОЖЕ Арена/наставник-боец/обучение → ростер вырастет до ТРЁХ (диапазон Арены .25–.31 — до ВОСЬМИ NPC, граница /^Digit([1-9])$/ не превышена)', () => {
+test('T8: [E]-оверлей Арены — ровно 5 строк (ре-пин 000320.29): dialog (Карк), dialog:sword_instructor (Насечка), dialog:arena_champion (Кремень) — пин создан в 000320.25 (у дома 7 эффектов нет — только dialog-строки); хоткеи Digit1..2; по сводной таблице .26 — ТОЖЕ Арена/наставник-боец/обучение → ростер вырастет до ТРЁХ (диапазон Арены .25–.31 — до ВОСЬМИ NPC, граница /^Digit([1-9])$/ не превышена)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', 'arena.json'));
   const list = N.npcsForBuilding(NPCS, 7);
   const rows = BE.buildingActions(b, list, { day: 5 });
-  assert.equal(rows.length, 4,
+  assert.equal(rows.length, 5,
     'у здания 7 эффектов нет — список = dialog-строки по каждому NPC '
-    + '(РОВНО ЧЕТЫРЕ после .28), факт: ' + JSON.stringify(rows.map((r) => r.id)));
+    + '(РОВНО ПЯТЬ после .29), факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:' + ID, 'dialog:arena_champion', 'dialog:arena_challenger'],
+    ['dialog', 'dialog:' + ID, 'dialog:arena_champion', 'dialog:arena_challenger',
+      'dialog:arena_referee'],
     'порядок строк = нумерация файлов каталога, Карк по-прежнему '
     + 'ПЕРВЫЙ; факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Карк', 'Диалог: ' + NAME, 'Диалог: Кремень', 'Диалог: Шрам'],
+    ['Диалог: Карк', 'Диалог: ' + NAME, 'Диалог: Кремень', 'Диалог: Шрам',
+      'Диалог: Свисток'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['arena_master', ID, 'arena_champion', 'arena_challenger'],
+    ['arena_master', ID, 'arena_champion', 'arena_challenger', 'arena_referee'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
     + 'Digit1..2 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');
