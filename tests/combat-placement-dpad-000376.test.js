@@ -813,3 +813,60 @@ test('000376-D9: Т2 — предикат touchControlsVisibility НЕ изме�
   assert.notEqual(dpad.style.display, 'none', 'мир: d-pad видим');
   assert.notEqual(action.style.display, 'none', 'мир: [E] видима');
 });
+
+// ---------------------------------------------------------------------------
+// Зуб статической защиты инварианта memory/000376-dpad-placement.md
+// (задача 000381): каждая запись закрытия окна расстановки в combat-ui.js
+// обязана быть покрытой хуком синхронизации d-pad. readFileSync-зуб,
+// соседние тесты не require-ятся (прецеденты 000371/000372/000375);
+// якоря собраны конкатенацией — само-вхождение исключено.
+// ---------------------------------------------------------------------------
+
+test('000376-D10: зуб — каждая запись закрытия окна расстановки в combat-ui.js покрыта хуком d-pad (000381)', () => {
+  const code = src('combat-ui.js');
+  const lineOf = (i) => code.slice(0, i).split('\n').length;
+  const writeRe = new RegExp('place' + 'Open' + '\\s*=\\s*false', 'g');
+  const hookRe = new RegExp('sync' + 'PlacementDpad' + '\\(false\\)', 'g');
+  const writes = [...code.matchAll(writeRe)].map((m) => m.index);
+  const isDecl = (o) => /\blet\s+$/.test(code.slice(Math.max(0, o - 8), o));
+  // Пин Б — форма по ФАКТУ ДИСКА (анализ 000381): запись покрыта, если
+  // (лежит внутри тела closePlacementWindow и хук false строго РАНЬШЕ
+  // неё — общий хук сразу после раннего return-гарда покрывает и
+  // result-ветку, и хвост) ИЛИ хук false лежит в окне ±8 строк
+  // (teardown-блоки finish/catch правила 000170: смещение +5).
+  const i0 = code.indexOf('function close' + 'PlacementWindow(');
+  assert.ok(i0 >= 0,
+    'src/combat-ui.js: определение функции закрытия окна расстановки найдено');
+  const i1 = code.indexOf('\n  }\n', i0);
+  assert.ok(i1 > i0,
+    'src/combat-ui.js: тело функции закрытия окна расстановки извлечено '
+    + '(якорь закрывающей скобки в 2 отступа)');
+  assert.ok(code.indexOf('function ' + 'sync' + 'PlacementDpad(') >= 0,
+    'src/combat-ui.js: определение хука синхронизации d-pad найдено');
+  const bodyStart = lineOf(i0);
+  const bodyEnd = lineOf(i1);
+  const hookLines = [...code.matchAll(hookRe)].map((m) => lineOf(m.index));
+  const uncovered = [];
+  for (const o of writes) {
+    if (isDecl(o)) continue;
+    const ln = lineOf(o);
+    const coveredBody = ln > bodyStart && ln < bodyEnd
+      && hookLines.some((h) => h > bodyStart && h < ln);
+    const coveredNear = hookLines.some((h) => Math.abs(h - ln) <= 8);
+    if (!coveredBody && !coveredNear) uncovered.push('src/combat-ui.js:' + ln);
+  }
+  // Пин А — ФАКТ ДИСКА базы (000381): объявление let + result-ветка +
+  // хвост closePlacementWindow + finish + catch. Живое число в имени
+  // теста НЕ заморожено; при легитимном росте — переснимать ПО ДИСКУ
+  // финальной базы и проверять покрытие новой записи пином Б.
+  assert.equal(writes.length, 5,
+    'src/combat-ui.js: мест закрытия расстановки ожидалось 5 (ФАКТ ДИСКА '
+    + 'базы; при легитимном росте переснимать), факт: ' + writes.length
+    + (uncovered.length ? '; вне покрытия хука: ' + uncovered.join(', ') : ''));
+  assert.equal(writes.filter(isDecl).length, 1,
+    'src/combat-ui.js: объявление с инициализацией должно быть ровно одно');
+  assert.deepEqual(uncovered, [],
+    'src/combat-ui.js: записи закрытия расстановки вне покрытия хука '
+    + 'd-pad (добавьте хук рядом с записью или внутри тела функции '
+    + 'закрытия окна): ' + uncovered.join('; '));
+});
