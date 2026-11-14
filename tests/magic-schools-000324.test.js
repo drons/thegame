@@ -155,10 +155,20 @@ test('A5: schema.oneOf — 3 ветви; третья: type object, additionalPr
   }
 });
 
-// Порядок зеркала/дерева с 000318.09 — lex по id (был порядок файлов
-// 000038–000043 ≡ порядок 000301 — совпадение школы с той же буквой).
-const SCHOOLS_LEX = [...SCHOOLS_EXPECTED]
-  .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+// Порядок зеркала/дерева с 000384 — дизайн-порядок (= порядок ключей
+// замороженного реестра skills-num2id-000318.09.json; для школ это ровно
+// порядок 000301 ≡ SCHOOLS_EXPECTED). lex из 000318.09 — регрессия
+// (ретро-b23 П1): consumer'ы пинуют SCHOOLS_EXPECTED, а не lex-копию.
+const REGISTRY = path.join(ROOT, 'tests', 'scripts',
+  'skills-num2id-000318.09.json');
+
+// sync-skills-data.js читает канон порядка из реестра (страж 000384) —
+// любое tmp-дерево с sync обязано возить его копию.
+function withRegistry(dir) {
+  fs.mkdirSync(path.join(dir, 'tests', 'scripts'), { recursive: true });
+  fs.copyFileSync(REGISTRY, path.join(dir, 'tests', 'scripts',
+    'skills-num2id-000318.09.json'));
+}
 
 // --- B: зеркало и sync ---
 
@@ -167,9 +177,10 @@ test('B1: зеркало — SCHOOLS: массив 6, deepEqual каталогу
   assert.ok(Array.isArray(m.SCHOOLS),
     'зеркало: экспорт SCHOOLS (задача 000324)');
   assert.equal(m.SCHOOLS.length, 6, 'SCHOOLS — 6 школ');
-  const cat = SCHOOLS_LEX.map(([file]) => readSchoolFile(file));
+  const cat = SCHOOLS_EXPECTED.map(([file]) => readSchoolFile(file));
   assert.deepEqual(m.SCHOOLS, cat,
-    'SCHOOLS — deepEqual каталогу в lex-порядку по id (000318.09)');
+    'SCHOOLS — deepEqual каталогу в дизайн-порядку (= ключи реестра, '
+    + '≡ порядок 000301; ре-пин 000384)');
   for (const s of m.SCHOOLS) {
     assert.deepEqual(Object.keys(s),
       ['id', 'type', 'name', 'desc', 'icon'], 'канон-порядок ключей');
@@ -194,6 +205,7 @@ test('B2 (пин): sync над копией реального каталога 
     }
     fs.copyFileSync(path.join(ROOT, 'src', 'skills-data.js'),
       path.join(dir, 'src', 'skills-data.js'));
+    withRegistry(dir); // 000384: sync hard-fail без канона порядка
     const r = spawnSync(process.execPath,
       [path.join(dir, 'scripts', 'sync-skills-data.js')],
       { cwd: dir, encoding: 'utf8' });
@@ -243,6 +255,7 @@ test('B3: sync над миникаталогом со школьным файл�
       fs.writeFileSync(path.join(dir, 'assets', 'skills', f),
         JSON.stringify(d, null, 2) + '\n', 'utf8');
     }
+    withRegistry(dir); // 000384: sync hard-fail без канона порядка
     const r = spawnSync(process.execPath,
       [path.join(dir, 'scripts', 'sync-skills-data.js')],
       { cwd: dir, encoding: 'utf8' });
@@ -415,7 +428,7 @@ test('C1 (ре-пин 000358): [I] — секция «Школы магии» П
   const rows = findAll(sec, 'tr');
   assert.equal(rows.length, 6, '6 строк (по школе)');
   rows.forEach((tr, i) => {
-    const [file, id, name] = SCHOOLS_LEX[i];
+    const [file, id, name] = SCHOOLS_EXPECTED[i];
     const desc = JSON.parse(fs.readFileSync(
       path.join(SKILLS_DIR, file), 'utf8')).desc;
     const nameTd = tr.querySelector('.cp-name');
@@ -483,7 +496,7 @@ test('C3: после setCharacter (новый персонаж) секция «�
   assert.equal(rows.length, 6, 'опять 6 строк');
   rows.forEach((tr, i) => {
     assert.equal(tr.querySelector('.cp-name').textContent,
-      SCHOOLS_LEX[i][2], 'строка ' + i + ': name не задет');
+      SCHOOLS_EXPECTED[i][2], 'строка ' + i + ': name не задет');
   });
   assert.equal(env.errors.length, 0,
     '0 console.error: ' + env.errors.join('; '));

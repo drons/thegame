@@ -633,7 +633,7 @@
   }
 
   return {
-    KINDS, MAX_SKILL_LEVEL, TRAIN_POINTS_PER_LEVEL,
+    KINDS, MAX_SKILL_LEVEL, TRAIN_POINTS_PER_LEVEL, PRIMARY_KEYS,
     createSheet, xpForNext, pointsPerLevel, addXp,
     canRaise, raiseSkill, skillXpForNext, practiceCap, skillLevel,
     practice, reprocessSkillXp, derived,

@@ -139,12 +139,12 @@
     let ok = !!(s.primary && typeof s.primary === 'object' &&
       !Array.isArray(s.primary));
     if (ok) {
-      for (const p of PRIMARY_SKILLS) {
-        const v = s.primary[p.id];
+      for (const key of sheet.PRIMARY_KEYS) {
+        const v = s.primary[key];
         if (typeof v !== 'number' || !Number.isFinite(v) || v < 1) {
           ok = false; break;
         }
-        primary[p.id] = v;
+        primary[key] = v;
       }
     }
     if (!ok) return null;

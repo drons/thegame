@@ -12,13 +12,14 @@
 // После флипа ASSET_NAME_SHAPES.skills='slug' (npc — последняя number-
 // ветка): REF_RE = slug-группа (items|skills|spells|mobs|mob_groups|
 // buildings|craft|dungeons) + '|^assets\/npc\/\d{6}\.json$'; зеркало
-// src/skills-data.js перегенерировано в ПОРЯДКЕ lex по id (компаратор
-// синхронизирован с порядком ссылок — урок .07).
+// src/skills-data.js (ре-пин 000384): компаратор = ПОРЯДОК КЛЮЧЕЙ
+// замороженного реестра (дизайн-порядок numeric-эпохи), а не lex по id —
+// lex из .09 пересортировал панель [I] и байты сейва (ретро-b23 П1).
 //
 // T1  — ростер: 44 slug-файла, basename == id, numeric-имён нет, ≡ реестру.
-// T2  — зеркало: PRIMARY/SCHOOLS/ключи SECONDARY в lex-порядке по id,
-//       комментарии «// <id>.json», numeric-имён и «нумерации» нет,
-//       шапка-ranges в slug-форме.
+// T2  — зеркало: PRIMARY/SCHOOLS/ключи SECONDARY в дизайн-порядке (= ключи
+//       реестра, 000384), комментарии «// <id>.json», numeric-имён и
+//       «нумерации» нет, шапка-ranges в slug-форме.
 // T3  — REF_RE побайтово ≡ новому двухгруппному source (skills в slug-
 //       группе по REF_LINKED_CATALOGS, number-ветка — ОДНА npc) + таблица
 //       истинности + реестр шейпов (skills/npc, порядок 9 мишеней).
@@ -32,21 +33,23 @@
 //       резолвятся; probes — мультимножества basenames ≡ реестру (в т.ч.
 //       «hide» — коллизия id навыка 000018 и предмета 000037).
 // T6  — sync-skills-data.js: фильтр через живой реестр + schema.json
-//       исключён, компаратор по data.id, guard пустого каталога exit 1,
-//       numeric-фильтра/«0000NN»/сортировки по имени файла нет.
-// T7  — tmp-дерево: regen полного каталога побайтово ≡ закоммиченному
-//       зеркалу и идемпотентен; компаратор наблюдаем (имена файлов и ids
-//       переставлены ПРОТИВОПОЛОЖНО — зеркало по id).
+//       исключён, компаратор по позиции data.id в замороженном реестре
+//       (ре-пин 000384), guard пустого каталога exit 1, numeric-фильтра/
+//       «0000NN»/сортировки по имени файла нет.
+// T7  — tmp-дерево (с копией реестра — sync читает канон порядка): regen
+//       полного каталога побайтово ≡ закоммиченному зеркалу и идемпотентен;
+//       компаратор наблюдаем (имена файлов и ids переставлены ПРОТИВОПОЛОЖНО
+//       — зеркало по id; id вне реестра — фолбэк в хвост по lex).
 // T8  — стражи 0-diff: чужие зеркала (items/spells/npc/craft/buildings) и
 //       CHANGELOG побайтово ≡ HEAD; миграция skills — ТОЛЬКО пути
 //       (данные каждого файла ≡ HEAD-версии после denorm по реестру).
 // T9  — spec/skills-storage.md: 38 строк (пин spec-split цел), numeric-
 //       путей и «нумерации» нет, формулировка «<id>.json».
 // T10 — данные зеркала не изменились множеством: мультимножество записей
-//       (id→содержимое) ≡ HEAD-зеркалу (только ПОРЯДОК новый — lex;
-//       потребители порядка — дерево [I]/ключи reprocessSkillXp, RNG-
-//       каналов skills-порядок не питает — tests/spells.test.js сидам
-//       порядок skills не нужен, прецедент анализа .09).
+//       (id→содержимое) ≡ HEAD-зеркалу (изменился только ПОРЯДОК — 000384:
+//       дизайн-порядок реестра; потребители порядка — дерево [I]/ключи
+//       reprocessSkillXp, RNG-каналов skills-порядок не питает —
+//       tests/spells.test.js сидам порядок skills не нужен).
 // T11 — реестр tests/scripts/skills-num2id-000318.09.json: ключи подряд
 //       000001..000044, значения уникальны ≡ множеству id (двусторонне),
 //       disk-файл <value>.json несёт id == value, spot-строки.
@@ -173,37 +176,40 @@ test('000318.09 T1: ростер assets/skills — шейп slug, 44 файла,
     'schema.json совпадает с slug-regex (почему нужно явное исключение)');
 });
 
-test('000318.09 T2: зеркало src/skills-data.js — PRIMARY/SECONDARY-ключи/SCHOOLS в lex-порядке по id, комментарии «// <id>.json», numeric-имён и «нумерации» нет, шапка-ranges в slug-форме', () => {
+test('000318.09 T2 (ре-пин 000384): зеркало src/skills-data.js — PRIMARY/SECONDARY-ключи/SCHOOLS в дизайн-порядке (= порядок ключей замороженного реестра), комментарии «// <id>.json», numeric-имён и «нумерации» нет, шапка-ranges в slug-форме', () => {
   const text = fs.readFileSync(MIRROR, 'utf8');
   assert.doesNotMatch(text, /\b\d{6}\.json\b/,
     'numeric-имён файлов в зеркале остаться 0');
   assert.doesNotMatch(text, /нумерация/);
   const M = require('../src/skills-data.js');
-  const disk = skillFilesAll().map((f) => JSON.parse(
-    fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
-  const lex = (arr) => [...arr].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  const pIds = disk.filter((d) => d.type === 'primary').map((d) => d.id);
-  assert.deepEqual(M.PRIMARY_SKILLS.map((s) => s.id), lex(pIds),
-    'PRIMARY_SKILLS — lex-порядок по id');
-  const sIds = disk.filter((d) => d.type === 'secondary').map((d) => d.id);
-  assert.deepEqual(Object.keys(M.SECONDARY_SKILLS), lex(sIds),
-    'SECONDARY_SKILLS — ключи в lex-порядке по id');
-  const schIds = disk.filter((d) => d.type === 'school').map((d) => d.id);
-  assert.deepEqual(M.SCHOOLS.map((s) => s.id), lex(schIds),
-    'SCHOOLS — lex-порядок по id');
+  const typeById = new Map(skillFilesAll().map((f) => {
+    const d = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
+    return [d.id, d.type];
+  }));
+  const design = (type) => REG_VALUES.filter((id) => typeById.get(id) === type);
+  const pIds = design('primary');
+  assert.deepEqual(M.PRIMARY_SKILLS.map((s) => s.id), pIds,
+    'PRIMARY_SKILLS — дизайн-порядок (ключи реестра 000001..000006: '
+    + 'сила→харизма), не алфавит (регрессия .09 снята 000384)');
+  const sIds = design('secondary');
+  assert.deepEqual(Object.keys(M.SECONDARY_SKILLS), sIds,
+    'SECONDARY_SKILLS — ключи в дизайн-порядке реестра (staff — хвост)');
+  const schIds = design('school');
+  assert.deepEqual(M.SCHOOLS.map((s) => s.id), schIds,
+    'SCHOOLS — дизайн-порядок реестра (protection…shadow ≡ порядок 000301)');
   for (const id of [...pIds, ...sIds, ...schIds]) {
     assert.ok(text.includes('// ' + id + '.json'),
       'комментарий-носитель «// ' + id + '.json» в зеркале');
   }
-  const pin = (ids) => 'assets/skills/' + lex(ids)[0] + '.json … '
-    + lex(ids)[lex(ids).length - 1] + '.json';
+  const pin = (ids) => 'assets/skills/' + ids[0] + '.json … '
+    + ids[ids.length - 1] + '.json';
   assert.ok(text.includes('Основные навыки (' + pin(pIds) + ')'),
-    'шапка primary-ranges — slug endpoints lex (факт: '
+    'шапка primary-ranges — slug endpoints дизайн-порядка (факт: '
     + text.match(/Основные навыки \([^)]*\)/)[0] + ')');
   assert.ok(text.includes('Вторичные навыки (' + pin(sIds) + ')'),
-    'шапка secondary-ranges — slug endpoints lex');
+    'шапка secondary-ranges — slug endpoints дизайн-порядка');
   assert.ok(text.includes('Школы магии (' + pin(schIds) + ')'),
-    'шапка schools-ranges — slug endpoints lex');
+    'шапка schools-ranges — slug endpoints дизайн-порядка');
 });
 
 test('000318.09 T3: REF_RE — побайтовый пин НОВОГО source (skills в slug-группе по REF_LINKED_CATALOGS; number-ветка — ОДНА npc) + таблица истинности + реестр шейпов', () => {
@@ -359,7 +365,7 @@ test('000318.09 T5: referrer-свип — numeric-путей skills РОВНО 0
   assert.equal(req, 14, 'requires.skill-ссылок 14');
 });
 
-test('000318.09 T6: sync-skills-data.js — живой реестр в фильтре, schema.json исключён, компаратор по data.id, guard пустого каталога; numeric-фильтра, «0000NN» и сортировки по имени файла нет', () => {
+test('000318.09 T6 (ре-пин 000384): sync-skills-data.js — живой реестр в фильтре, schema.json исключён, компаратор по позиции data.id в замороженном реестре, guard пустого каталога; numeric-фильтра, «0000NN» и сортировки по имени файла нет', () => {
   const src = fs.readFileSync(SYNC, 'utf8');
   assert.match(src, /SHAPE_BASENAME_RES\[ASSET_NAME_SHAPES\.skills\]/,
     'фильтр каталога — через живой реестр шейпов');
@@ -367,6 +373,9 @@ test('000318.09 T6: sync-skills-data.js — живой реестр в филь�
     'schema.json исключён из фильтра явным условием');
   assert.match(src, /data\.id/,
     'компаратор сортировки — по data.id (не по имени файла — урок .07)');
+  assert.match(src, /skills-num2id-000318\.09\.json/,
+    'канон порядка — замороженный реестр «номер→id» (000384: дизайн-порядок, '
+    + 'не lex по id)');
   assert.doesNotMatch(src, /\\d\{6\}/,
     'numeric-регулярки в sync остаться не должно');
   assert.doesNotMatch(src, /0000NN/,
@@ -383,6 +392,11 @@ function runSyncOn(catalogFiles, dir) {
     fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', f),
       path.join(dir, 'scripts', 'lib', f));
   }
+  // 000384: sync читает канон порядка из замороженного реестра — без него
+  // hard-fail (страж), поэтому tmp-дерево обязано возить его копию.
+  fs.mkdirSync(path.join(dir, 'tests', 'scripts'), { recursive: true });
+  fs.copyFileSync(REGISTRY, path.join(dir, 'tests', 'scripts',
+    'skills-num2id-000318.09.json'));
   for (const [name, content] of catalogFiles) {
     fs.writeFileSync(path.join(dir, 'assets', 'skills', name), content);
   }
@@ -391,7 +405,7 @@ function runSyncOn(catalogFiles, dir) {
     { cwd: dir, encoding: 'utf8' });
 }
 
-test('000318.09 T7: tmp-дерево — regen полного каталога побайтово ≡ закоммиченному зеркалу и идемпотентен; компаратор наблюдаем (имя файла ≠ позиция lex)', () => {
+test('000318.09 T7 (ре-пин 000384): tmp-дерево с реестром — regen полного каталога побайтово ≡ закоммиченному зеркалу и идемпотентен; компаратор наблюдаем (имя файла ≠ позиция в реестре; id вне реестра — хвост по lex)', () => {
   const committed = fs.readFileSync(MIRROR, 'utf8');
   const full = fs.readdirSync(SKILLS_DIR)
     .map((f) => [f, fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')]);
@@ -433,7 +447,8 @@ test('000318.09 T7: tmp-дерево — regen полного каталога �
       + (r.stdout || '') + (r.stderr || ''));
     const m = require(path.join(dir2, 'src', 'skills-data.js'));
     assert.deepEqual(m.PRIMARY_SKILLS.map((s) => s.id), ['alpha', 'zeta'],
-      'компаратор по data.id: PRIMARY в lex ПО ID, имена файлов перевёрнуты');
+      'id вне реестра — фолбэк «в хвост по lex» (000384): сравнение по '
+      + 'data.id, а не по имени файла');
   } finally {
     fs.rmSync(dir2, { recursive: true, force: true });
   }
@@ -478,7 +493,7 @@ test('000318.09 T9: spec/skills-storage.md — 38 строк (line-neutral, пи
     'формулировка имени файла — «<id>.json»');
 });
 
-test('000318.09 T10: данные зеркала ≡ HEAD-зеркалу МНОЖЕСТВОМ (изменился только lex-порядок — потребители по id/ключа intact)', () => {
+test('000318.09 T10 (ре-пин 000384): данные зеркала ≡ HEAD-зеркалу МНОЖЕСТВОМ (изменился только порядок — 000384: дизайн-порядок реестра; потребители по id/ключам intact)', () => {
   const headText = gitShow('src/skills-data.js');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-rename-head-'));
   try {

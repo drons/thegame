@@ -369,3 +369,73 @@ test('панель: неудачный клик — reason 1.5 с, потом п
   assert.equal(heavy.reqTd.textContent, 'Мечник 5',
     'через 1.5 с текст требования восстановлен');
 });
+
+// --- 000384: панель [I] рисует каталог в ЗАДУМАННОМ (дизайн-) порядке ---
+// Регрессия мержа 000318.09: зеркало стало алфавитным, ui-tab-skills.js
+// итерирует его без sort — порядок строк виден игроку. Канон порядка —
+// порядок ключей замороженного реестра tests/scripts/skills-num2id-000318.09.json
+// (пин по id, НЕ по переводу имён).
+
+test('000384: панель [I] — DOM-порядок = дизайн-порядок реестра (основные strength→charisma, группы вторичных по основным, школы protection→shadow)', () => {
+  const M = require('../src/skills-data.js');
+  const DESIGN = Object.values(
+    require('../tests/scripts/skills-num2id-000318.09.json'));
+  const wantPrimary = DESIGN.filter(
+    (id) => M.PRIMARY_SKILLS.some((p) => p.id === id));
+  const wantGroups = new Map();
+  for (const id of DESIGN.filter((id2) => M.SECONDARY_SKILLS[id2])) {
+    const owner = M.SECONDARY_SKILLS[id].primary;
+    if (!wantGroups.has(owner)) wantGroups.set(owner, []);
+    wantGroups.get(owner).push(id);
+  }
+  const wantSchools = DESIGN.filter(
+    (id) => M.SCHOOLS.some((s) => s.id === id));
+
+  const env = loadPlayerUi();
+  const c = env.G.createCharacter();
+  openPanel(env, c);
+  const cols = findAll(env.body, '.cp-column');
+  assert.ok(cols.length >= 1, 'панель персонажа построена');
+  const panes = findAll(cols[0], '.cp-tabpane');
+  assert.ok(panes.length >= 1, '.cp-tabpane в первом столбце');
+  const pane = panes[0];
+
+  const secs = findAll(pane, '.cp-section');
+  const names = secs.map((s) => s.textContent);
+  const iMain = names.indexOf('Основные навыки');
+  const iSchools = names.indexOf('Школы магии');
+  assert.ok(iMain !== -1 && iSchools !== -1,
+    'секции «Основные навыки» и «Школы магии» на месте: '
+    + JSON.stringify(names));
+
+  assert.deepEqual(
+    findAll(secs[iMain], '.cp-btn').map((b) => b.dataset.skill),
+    wantPrimary,
+    'строки основных навыков — дизайн-порядок (Сила→Харизма), не алфавит');
+
+  const groupSecs = secs.slice(iMain + 1, iSchools);
+  assert.equal(groupSecs.length, wantPrimary.length,
+    'секций вторичных — по одной на каждый основной навык: '
+    + JSON.stringify(names));
+  const owners = [];
+  groupSecs.forEach((sec, gi) => {
+    const ids = findAll(sec, '.cp-btn').map((b) => b.dataset.skill);
+    assert.ok(ids.length > 0,
+      'в секции вторичных[' + gi + '] «' + names[iMain + 1 + gi]
+      + '» есть кнопки');
+    owners.push(M.SECONDARY_SKILLS[ids[0]].primary);
+    assert.deepEqual(ids, wantGroups.get(owners[gi]) || [],
+      'секция «' + owners[gi] + '»: порядок вторичных внутри группы — '
+      + 'по реестру (staff в конце группы strength)');
+  });
+  assert.deepEqual(owners, wantPrimary,
+    'последовательность групп вторичных = порядок основных навыков');
+
+  const name2id = new Map(M.SCHOOLS.map((s) => [s.name, s.id]));
+  const gotSchools = findAll(secs[iSchools], 'tr')
+    .map((tr) => name2id.get(tr.querySelector('.cp-name').textContent));
+  assert.deepEqual(gotSchools, wantSchools,
+    'строки школ — пин по id (резолв через живой SCHOOLS, не по переводу): '
+    + JSON.stringify(gotSchools));
+  assert.equal(env.errors.length, 0, '0 console.error: ' + env.errors.join('; '));
+});

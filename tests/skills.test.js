@@ -48,7 +48,9 @@ function listSkillFiles() {
 }
 
 // Каталог: Map<id, {file, data}> (имя файла == id, 000318.09).
-// Порядок вставки — lex по файлам == lex по id = порядку зеркала.
+// Порядок вставки — дизайн-порядок (000384): значения ключей замороженного
+// реестра skills-num2id-000318.09.json (канон порядка зеркала), id вне
+// реестра — хвост по lex.
 function denorm(file, data) {
   if (isRef(data.primary)) {
     const r = resolveRef(ROOT, data.primary);
@@ -65,9 +67,16 @@ function denorm(file, data) {
   return data;
 }
 
+// Порядок ключей замороженного реестра — канон зеркала (000384).
+function registryOrder() {
+  return Object.values(JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'tests', 'scripts', 'skills-num2id-000318.09.json'),
+    'utf8')));
+}
+
 function loadCatalog() {
   const all = fs.readdirSync(SKILLS_DIR).sort();
-  const byId = new Map();
+  const raw = new Map();
   for (const f of all) {
     if (f === 'schema.json') continue;
     assert.match(f, SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.skills],
@@ -76,8 +85,15 @@ function loadCatalog() {
     const data = denorm(f, JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
     assert.equal(data.id, id, `${f}: id != basename файла (000318.09)`);
-    assert.ok(!byId.has(id), `дубликат id навыка: ${f}`);
-    byId.set(id, { file: f, data });
+    assert.ok(!raw.has(id), `дубликат id навыка: ${f}`);
+    raw.set(id, { file: f, data });
+  }
+  const byId = new Map();
+  for (const id of registryOrder()) {
+    if (raw.has(id)) byId.set(id, raw.get(id));
+  }
+  for (const [id, entry] of raw) {
+    if (!byId.has(id)) byId.set(id, entry);
   }
   return { all, byId };
 }
@@ -207,7 +223,8 @@ test('консистентность: вторичные навыки катал
 
 test('skills-data.js — точное зеркало каталога JSON (фолбэк file://)', () => {
   const { byId } = loadCatalog();
-  // Основные: порядок в модуле = lex по id (== lex имён файлов, 000318.09).
+  // Основные: порядок в модуле = дизайн-порядок реестра (000384; lex из
+  // 000318.09 — регрессия, снята).
   const catPrimary = [];
   for (const { data } of byId.values()) {
     if (data.type === 'primary') catPrimary.push(data);
@@ -229,7 +246,7 @@ test('skills-data.js — точное зеркало каталога JSON (фо
   const catCount = [...byId.values()].filter((x) => x.data.type === 'secondary').length;
   assert.equal(Object.keys(skillsData.SECONDARY_SKILLS).length, catCount,
     'skills-data.js: лишний/недостающий вторичный навык');
-  // Школы (000324): порядок в модуле = lex по id (000318.09).
+  // Школы (000324): порядок в модуле = дизайн-порядок реестра (000384).
   const catSchools = [];
   for (const { data } of byId.values()) {
     if (data.type === 'school') catSchools.push(data);

@@ -65,10 +65,30 @@ for (const f of files) {
   skills.push({ file: f, data });
 }
 
-// Порядок записей зеркала — lex по data.id (НЕ по имени файла: «урок .07»
-// — компаратор обязан наблюдать порядок на рассогласованных именах).
-skills.sort((a, b) => (a.data.id < b.data.id ? -1
-  : a.data.id > b.data.id ? 1 : 0));
+// Канон порядка записей зеркала (000384, ретро-b23 П1): ПОРЯДОК КЛЮЧЕЙ
+// замороженного реестра «номер→id» — он равен дизайн-порядку numeric-эпохи
+// (основные Сила→Харизма; вторичные боевые→…→посох; школы protection…
+// shadow), который печатала панель [I] и байты сейва. ЧИТАЕМ ПОСЛЕ цикла
+// resolve: hard-fail на битом каталоге (SR8) обязан давать проверяемую
+// причину, а не «нет реестра». Id вне реестра — фолбэк «в конец по lex»
+// (механизм роста каталога — 000387; свип покрытия — SO6).
+const REGISTRY_REL = path.join('tests', 'scripts',
+  'skills-num2id-000318.09.json');
+let registry;
+try {
+  registry = JSON.parse(fs.readFileSync(path.join(ROOT, REGISTRY_REL), 'utf8'));
+} catch (e) {
+  console.error(`не прочитан канон порядка ${REGISTRY_REL}: ${e.message} `
+    + '(порядок зеркала навыка определяется порядком ключей реестра — 000384)');
+  process.exit(1);
+}
+const DESIGN_POS = new Map(Object.values(registry).map((id, i) => [id, i]));
+skills.sort((a, b) => {
+  const pa = DESIGN_POS.has(a.data.id) ? DESIGN_POS.get(a.data.id) : Infinity;
+  const pb = DESIGN_POS.has(b.data.id) ? DESIGN_POS.get(b.data.id) : Infinity;
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  return a.data.id < b.data.id ? -1 : a.data.id > b.data.id ? 1 : 0;
+});
 
 const primary = skills.filter((s) => s.data.type === 'primary');
 const secondary = skills.filter((s) => s.data.type === 'secondary');

@@ -29,6 +29,16 @@ const { runAll } = require(path.join(ROOT, 'scripts', 'sync-all.js'));
 
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 
+// 000384: sync-skills-data.js читает канон порядка из замороженного
+// реестра (страж — hard-fail без него), любое tmp-дерево с успешным sync
+// обязан возить его копию.
+function withRegistry(dir) {
+  fs.mkdirSync(path.join(dir, 'tests', 'scripts'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'tests', 'scripts', 'skills-num2id-000318.09.json'),
+    path.join(dir, 'tests', 'scripts', 'skills-num2id-000318.09.json'));
+}
+
 function listSkillFiles() {
   return fs.readdirSync(SKILLS_DIR)
     .filter((f) => f !== 'schema.json'
@@ -201,6 +211,7 @@ test('SR6: sync резолвит ссылки → зеркало в id-форм�
         path.join(dir, 'scripts', 'lib', f));
     }
     const fx = buildFixture(dir);
+    withRegistry(dir); // 000384 (id фикстуры вне реестра → хвост по lex)
     const r = spawnSync(process.execPath,
       [path.join(dir, 'scripts', 'sync-skills-data.js')],
       { cwd: dir, encoding: 'utf8' });
@@ -242,6 +253,7 @@ test('SR7 (пин): sync-all --check на копии реального ката
     }
     fs.copyFileSync(path.join(ROOT, 'src', 'skills-data.js'),
       path.join(dir, 'src', 'skills-data.js'));
+    withRegistry(dir); // 000384: sync-all вызывает sync со стражем реестра
     git(dir, ['init', '-q']);
     git(dir, ['add', '-A']);
     git(dir, ['commit', '-qm', 'base']);
