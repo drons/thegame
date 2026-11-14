@@ -1,0 +1,14 @@
+{
+  "id": "zakuska_fish",
+  "name": "Рыбная закуска",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 14,
+  "base_price": 15,
+  "desc": "Рыбная закуска: речная, с укропом и перцем.",
+  "effect": {
+    "kind": "eat",
+    "amount": 18
+  },
+  "icon": "assets/sprites/items/zakuska_fish.svg"
+}

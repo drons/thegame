@@ -1,0 +1,14 @@
+{
+  "id": "zakvaska_hleb",
+  "name": "Заквасочный хлеб",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 19,
+  "base_price": 19,
+  "desc": "Заквасочный хлеб: печён на закваске дня вчерашнего.",
+  "effect": {
+    "kind": "eat",
+    "amount": 23
+  },
+  "icon": "assets/sprites/items/zakvaska_hleb.svg"
+}

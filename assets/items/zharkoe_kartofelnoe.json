@@ -1,0 +1,14 @@
+{
+  "id": "zharkoe_kartofelnoe",
+  "name": "Жаркое картофельное",
+  "kind": "food",
+  "weight": 0.9,
+  "value": 41,
+  "base_price": 41,
+  "desc": "Жаркое картофельное: в горшочке томлено, к вечеру подано.",
+  "effect": {
+    "kind": "eat",
+    "amount": 62
+  },
+  "icon": "assets/sprites/items/zharkoe_kartofelnoe.svg"
+}

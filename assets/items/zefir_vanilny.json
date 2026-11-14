@@ -1,0 +1,14 @@
+{
+  "id": "zefir_vanilny",
+  "name": "Ванильный зефир",
+  "kind": "food",
+  "weight": 0.2,
+  "value": 21,
+  "base_price": 21,
+  "desc": "Ванильный зефир: белый, лёгкий, тает на бегу.",
+  "effect": {
+    "kind": "eat",
+    "amount": 25
+  },
+  "icon": "assets/sprites/items/zefir_vanilny.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zimniy_kompot",
+  "name": "Зимний компот",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 16,
+  "base_price": 17,
+  "desc": "Зимний компот: варен из сада, подан в январе.",
+  "effect": {
+    "kind": "eat",
+    "amount": 20
+  },
+  "icon": "assets/sprites/items/zimniy_kompot.svg"
+}

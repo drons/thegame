@@ -1,0 +1,14 @@
+{
+  "id": "zucchini_boat",
+  "name": "Кабачковая лодочка",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 28,
+  "base_price": 29,
+  "desc": "Кабачковая лодочка: начинка внутри, корочка снаружи.",
+  "effect": {
+    "kind": "eat",
+    "amount": 32
+  },
+  "icon": "assets/sprites/items/zucchini_boat.svg"
+}

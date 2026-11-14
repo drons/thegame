@@ -1,0 +1,14 @@
+{
+  "id": "zapechennaya_kuritsa",
+  "name": "Запечённая курочка",
+  "kind": "food",
+  "weight": 1.2,
+  "value": 50,
+  "base_price": 51,
+  "desc": "Запечённая курочка: румяна, горяча, к столу зовёт.",
+  "effect": {
+    "kind": "eat",
+    "amount": 87
+  },
+  "icon": "assets/sprites/items/zapechennaya_kuritsa.svg"
+}

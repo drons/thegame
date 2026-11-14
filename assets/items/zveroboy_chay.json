@@ -1,0 +1,14 @@
+{
+  "id": "zveroboy_chay",
+  "name": "Зверобойный чай",
+  "kind": "food",
+  "weight": 0.2,
+  "value": 3,
+  "base_price": 3,
+  "desc": "Зверобойный чай: горчит, зато уносит хворь до порога.",
+  "effect": {
+    "kind": "eat",
+    "amount": 5
+  },
+  "icon": "assets/sprites/items/zveroboy_chay.svg"
+}

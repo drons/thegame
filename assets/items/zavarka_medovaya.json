@@ -1,0 +1,14 @@
+{
+  "id": "zavarka_medovaya",
+  "name": "Медовая заварка",
+  "kind": "food",
+  "weight": 0.2,
+  "value": 4,
+  "base_price": 5,
+  "desc": "Медовая заварка: сладка на язык, тепла на сердце.",
+  "effect": {
+    "kind": "eat",
+    "amount": 7
+  },
+  "icon": "assets/sprites/items/zavarka_medovaya.svg"
+}

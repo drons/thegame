@@ -1,0 +1,14 @@
+{
+  "id": "zucchini_soup",
+  "name": "Кабачковый крем-суп",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 29,
+  "base_price": 29,
+  "desc": "Кабачковый крем-суп: густой, бархатный, с сухариком.",
+  "effect": {
+    "kind": "eat",
+    "amount": 34
+  },
+  "icon": "assets/sprites/items/zucchini_soup.svg"
+}

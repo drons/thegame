@@ -835,17 +835,27 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt2 → += 42;
     // не выпали: dawn_tonic/marsh_balm/silver_tonic/emerald_tonic/moonlight_draught/indigo_brew/azure_tonic/shadow_tonic — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула апотекаря [potion, food] → += 38 (не выпали: zveroboy_chay/zakuska_garlic/zefir_yagodny/zhele_limonnoe/zucchini_soup/zubrovka_med/zapechennye_yabloki/zharkoe_myasnoe/zaychatina_tushonaya/zharkoe_lesnoe/zolotoe_zharkoe/zvany_obed);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         alpine_brew: 3, amethyst_draught: 4, arcane_tonic: 3, argent_draught: 3, ash_elixir: 1,
-        azure_tonic: 2, bread: 3, crimson_sip: 2, dawn_tonic: 2, deep_balm: 2, diamond_draught: 4,
-        dusk_brew: 3, eclipse_draught: 4, ember_tonic: 1, field_tonic: 1, forest_balm: 1,
-        forge_tonic: 3, frost_draught: 2, gale_tonic: 4, glacier_draught: 3, greater_healing: 1,
-        healing_potion: 3, herb_draught: 4, honey_cake: 4, indigo_brew: 2, mana_potion: 2,
-        marsh_balm: 1, minor_healing: 2, mint_draught: 3, moonlight_draught: 2, night_brew: 2,
-        oak_tonic: 4, obsidian_balm: 2, pearl_draught: 2, phoenix_tonic: 4, phosphor_brew: 2,
-        quartz_tonic: 4, royal_elixir: 4, ruby_draught: 2, sapphire_balm: 3, shadow_tonic: 1,
-        silver_tonic: 4, stone_brew: 2, sun_potion: 3, tide_draught: 2, violet_brew: 3, void_tonic: 1,
-        weak_healing: 4,
+        azure_tonic: 2, bread: 3, crimson_sip: 2, dawn_tonic: 2, deep_balm: 2,
+        diamond_draught: 4, dusk_brew: 3, eclipse_draught: 4, ember_tonic: 1, field_tonic: 1,
+        forest_balm: 1, forge_tonic: 3, frost_draught: 2, gale_tonic: 4, glacier_draught: 3,
+        greater_healing: 1, healing_potion: 3, herb_draught: 4, honey_cake: 4, indigo_brew: 2,
+        mana_potion: 2, marsh_balm: 1, minor_healing: 2, mint_draught: 3, moonlight_draught: 2,
+        night_brew: 2, oak_tonic: 4, obsidian_balm: 2, pearl_draught: 2, phoenix_tonic: 4,
+        phosphor_brew: 2, quartz_tonic: 4, royal_elixir: 4, ruby_draught: 2, sapphire_balm: 3,
+        shadow_tonic: 1, silver_tonic: 4, stone_brew: 2, sun_potion: 3, tide_draught: 2,
+        violet_brew: 3, void_tonic: 1, weak_healing: 4, yogurt_domashniy: 4, yushka_rybnaya: 3,
+        yuzhny_mors: 2, zakuska_beet: 3, zakuska_cabbage: 1, zakuska_egg: 3, zakuska_fish: 2,
+        zakuska_mushroom: 2, zakvaska_hleb: 2, zapechennaya_kuritsa: 2, zapechenny_gus: 4, zapekanka_kartofelnaya: 4,
+        zapekanka_tvorozhnaya: 1, zapekanka_yablochnaya: 3, zasol_ogurcov: 3, zatirka_lapshovaya: 2, zavarka_medovaya: 4,
+        zefir_shokoladny: 4, zefir_trekhsvetny: 1, zefir_vanilny: 1, zeleny_sup: 4, zeppole_medovye: 4,
+        zernistaya_kasha: 3, zernisty_hleb: 4, zharkoe_kartofelnoe: 2, zharovnya_kuritsa: 1, zhele_yagodnoe: 3,
+        zhulien_gribnoy: 2, zhulien_syrny: 2, zhur_lesnoy: 1, zhyto_kasha: 3, zimniy_kompot: 4,
+        ziti_cheese: 4, ziti_tomato: 1, ziti_zapechennye: 2, zucchini_boat: 2, zucchini_patty: 2,
+        zucchini_salad: 3,
       } },
     // Ре-пин 000157.01: руды/минералы/самоцветы (000052-000062) — КОНЕЦ
     // каталога, rng-хвост пула [reagent, skill_book] → += 6 новых
@@ -871,6 +881,8 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула видов bt11 → += 30;
     // не выпали: weak_healing/crimson_sip/field_tonic/honey_brew/sun_potion/alpine_brew/stone_brew/silver_tonic/sapphire_balm/moonlight_draught/night_brew/glass_tonic/rain_draught/azure_tonic/dusk_brew/tide_draught/phosphor_brew/shadow_tonic/argent_draught/ash_elixir — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула таверны [food, potion] → += 33 (не выпали: zavarka_medovaya/zakvaska_hleb/zhyto_kasha/zefir_vanilny/zefir_yagodny/zucchini_patty/zhele_limonnoe/zucchini_boat/zucchini_soup/ziti_zapechennye/zeppole_medovye/zapekanka_tvorozhnaya/zapekanka_yablochnaya/zubrovka_med/zharkoe_kartofelnoe/zharkoe_lesnoe/zolotoe_zharkoe);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         amber_elixir: 2, amethyst_draught: 2, arcane_tonic: 2, argent_draught: 1, ash_elixir: 1,
         azure_tonic: 2, crimson_sip: 1, dawn_tonic: 1, eclipse_draught: 1, ember_tonic: 2,
@@ -878,7 +890,14 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         glass_tonic: 2, healing_potion: 1, herb_draught: 2, honey_cake: 1, mana_elixir: 1,
         mana_potion: 2, marsh_balm: 2, minor_healing: 1, mint_draught: 1, moonlight_draught: 1,
         night_brew: 2, obsidian_balm: 1, phoenix_tonic: 1, phosphor_brew: 2, rain_draught: 2,
-        royal_elixir: 2, shadow_tonic: 1, sun_potion: 1, tide_draught: 2, violet_brew: 2, void_tonic: 1,
+        royal_elixir: 2, shadow_tonic: 1, sun_potion: 1, tide_draught: 2, violet_brew: 2,
+        void_tonic: 1, yogurt_domashniy: 1, yushka_rybnaya: 1, yuzhny_mors: 2, zakuska_beet: 1,
+        zakuska_cabbage: 2, zakuska_egg: 1, zakuska_fish: 2, zakuska_garlic: 2, zakuska_mushroom: 1,
+        zapechennaya_kuritsa: 1, zapechenny_gus: 1, zapechennye_yabloki: 2, zapekanka_kartofelnaya: 1, zasol_ogurcov: 1,
+        zatirka_lapshovaya: 2, zaychatina_tushonaya: 1, zefir_shokoladny: 2, zefir_trekhsvetny: 2, zeleny_sup: 2,
+        zernistaya_kasha: 2, zernisty_hleb: 1, zharkoe_myasnoe: 1, zharovnya_kuritsa: 2, zhele_yagodnoe: 2,
+        zhulien_gribnoy: 1, zhulien_syrny: 2, zhur_lesnoy: 1, zimniy_kompot: 2, ziti_cheese: 2,
+        ziti_tomato: 2, zucchini_salad: 2, zvany_obed: 2, zveroboy_chay: 2,
       } },
     // Ре-пин 000133: универсам (wealth 3, пул allItems) — свитки
     // заклинаний (000043-000050) добавлены КОНЦОМ каталога →
@@ -1011,156 +1030,163 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула allItems (универсам) → += 41;
     // не выпали: field_tonic/dawn_tonic/amber_elixir/obsidian_balm/blue_sip/glacier_draught/dusk_brew/argent_draught/eclipse_draught — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула allItems (универсам, w3) → += 41 (не выпали: zhur_lesnoy/yogurt_domashniy/zakuska_beet/zimniy_kompot/zucchini_salad/zhele_yagodnoe/zhele_limonnoe/ziti_zapechennye/zapechennye_yabloki);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         acid_splash_scroll: 3, adobe_shield: 3, aegis_scroll: 5, aegis_shield: 3, alchemy_manual: 3,
         alpine_brew: 3, amber_disc: 2, amethyst: 5, amethyst_band: 4, amethyst_boots: 1,
-        amethyst_choker: 1, amethyst_collar: 3, amethyst_dangle: 3, amethyst_draught: 1,
-        amethyst_pants: 5, amethyst_ring: 4, antler_buckler: 1, antler_hook: 1, arcane_diadem: 2,
-        arcane_eye: 1, arcane_nexus: 2, arcane_tonic: 4, archer_brace: 2, archer_gloves: 4,
-        archer_scroll: 3, arctic_touch_scroll: 1, argent_draught: 4, arming_sword: 1, ash_charm: 5,
-        ash_elixir: 5, ash_mallet: 3, ash_shield: 5, ashround_buckler: 5, augur_band: 2,
-        aura_of_protection_scroll: 2, aurora_bow: 5, bark_idol: 4, barkskin_scroll: 3, battered_falx: 5,
-        battle_axe: 5, beast_friend_scroll: 4, berry_blue: 5, berry_red: 3, berry_wild: 4,
-        birch_shield: 3, blackened_band: 3, blacksteel_shield: 5, blacksteel_tongs: 3, blade_braid: 5,
-        blessing_scroll: 3, blizzard_field_scroll: 5, blizzard_scroll: 3, blue_sip: 3,
-        blueprint_alchemy: 4, blueprint_carving: 1, blueprint_enchant: 3, blueprint_forge: 3,
-        blueprint_runecraft: 1, boar_shield: 1, boar_tusk_earring: 4, bone_band: 3, bone_charm: 3,
-        bone_fetish: 3, bone_graver: 2, bone_greaves: 4, bone_grips: 4, bone_pendant: 2, bone_ring: 4,
-        bone_sandals: 3, brass_buckler: 2, brass_signet: 4, brass_tongs: 2, bread: 2, bronze_alembic: 3,
-        bronze_bellows: 2, bronze_loop: 5, bulwark_shield: 5, bulwark_ward_scroll: 4,
-        burning_cage_scroll: 2, burning_ground_scroll: 4, caldera_core: 4, chainmail: 4,
-        chief_signet: 1, chill_scroll: 3, cinder_charm: 1, cinder_eye: 2, cinder_scroll: 1,
-        circle_of_light_scroll: 4, clay_anvil: 5, clay_buckler: 2, clay_dangle: 4, clay_funnel: 3,
-        clay_lens: 4, clay_pendant: 3, clay_ring: 3, clay_warden: 5, cloth_band: 5, cloth_cuff: 2,
-        cloth_gloves: 1, cloth_loincloth: 1, cloth_sandals: 1, cloth_shield: 2, cloth_sutan: 4,
-        cloth_tunic: 1, coarse_trousers: 2, copper_band: 5, copper_beads: 3, copper_boots: 1,
-        copper_brace: 3, copper_chain: 1, copper_dangle: 1, copper_gauntlets: 5, copper_greaves: 4,
-        copper_hoop: 5, copper_maul: 4, copper_ore: 5, copper_pendant: 2, copper_ring: 2,
-        copper_short_sword: 1, copper_tongs: 5, corrode_scroll: 2, cross_file: 3, crown_flame: 4,
-        crown_of_ages: 1, crown_shield: 4, damascus_blade: 1, damascus_hammer: 2,
-        dark_ensnare_scroll: 5, dark_nova_scroll: 5, dawn_pendant: 4, dawn_tonic: 5, dawnedge_blade: 4,
-        dawnwall_shield: 1, decadance_scroll: 4, deep_balm: 1, deep_breath_robe: 2,
-        deep_freeze_scroll: 3, despair_scroll: 3, dew_fetish: 3, dew_measure: 2, diamond: 2,
-        diamond_draught: 2, divine_favor_scroll: 1, divine_protection_scroll: 5, doom_mark_scroll: 3,
+        amethyst_choker: 1, amethyst_collar: 3, amethyst_dangle: 3, amethyst_draught: 1, amethyst_pants: 5,
+        amethyst_ring: 4, antler_buckler: 1, antler_hook: 1, arcane_diadem: 2, arcane_eye: 1,
+        arcane_nexus: 2, arcane_tonic: 4, archer_brace: 2, archer_gloves: 4, archer_scroll: 3,
+        arctic_touch_scroll: 1, argent_draught: 4, arming_sword: 1, ash_charm: 5, ash_elixir: 5,
+        ash_mallet: 3, ash_shield: 5, ashround_buckler: 5, augur_band: 2, aura_of_protection_scroll: 2,
+        aurora_bow: 5, bark_idol: 4, barkskin_scroll: 3, battered_falx: 5, battle_axe: 5,
+        beast_friend_scroll: 4, berry_blue: 5, berry_red: 3, berry_wild: 4, birch_shield: 3,
+        blackened_band: 3, blacksteel_shield: 5, blacksteel_tongs: 3, blade_braid: 5, blessing_scroll: 3,
+        blizzard_field_scroll: 5, blizzard_scroll: 3, blue_sip: 3, blueprint_alchemy: 4, blueprint_carving: 1,
+        blueprint_enchant: 3, blueprint_forge: 3, blueprint_runecraft: 1, boar_shield: 1, boar_tusk_earring: 4,
+        bone_band: 3, bone_charm: 3, bone_fetish: 3, bone_graver: 2, bone_greaves: 4,
+        bone_grips: 4, bone_pendant: 2, bone_ring: 4, bone_sandals: 3, brass_buckler: 2,
+        brass_signet: 4, brass_tongs: 2, bread: 2, bronze_alembic: 3, bronze_bellows: 2,
+        bronze_loop: 5, bulwark_shield: 5, bulwark_ward_scroll: 4, burning_cage_scroll: 2, burning_ground_scroll: 4,
+        caldera_core: 4, chainmail: 4, chief_signet: 1, chill_scroll: 3, cinder_charm: 1,
+        cinder_eye: 2, cinder_scroll: 1, circle_of_light_scroll: 4, clay_anvil: 5, clay_buckler: 2,
+        clay_dangle: 4, clay_funnel: 3, clay_lens: 4, clay_pendant: 3, clay_ring: 3,
+        clay_warden: 5, cloth_band: 5, cloth_cuff: 2, cloth_gloves: 1, cloth_loincloth: 1,
+        cloth_sandals: 1, cloth_shield: 2, cloth_sutan: 4, cloth_tunic: 1, coarse_trousers: 2,
+        copper_band: 5, copper_beads: 3, copper_boots: 1, copper_brace: 3, copper_chain: 1,
+        copper_dangle: 1, copper_gauntlets: 5, copper_greaves: 4, copper_hoop: 5, copper_maul: 4,
+        copper_ore: 5, copper_pendant: 2, copper_ring: 2, copper_short_sword: 1, copper_tongs: 5,
+        corrode_scroll: 2, cross_file: 3, crown_flame: 4, crown_of_ages: 1, crown_shield: 4,
+        damascus_blade: 1, damascus_hammer: 2, dark_ensnare_scroll: 5, dark_nova_scroll: 5, dawn_pendant: 4,
+        dawn_tonic: 5, dawnedge_blade: 4, dawnwall_shield: 1, decadance_scroll: 4, deep_balm: 1,
+        deep_breath_robe: 2, deep_freeze_scroll: 3, despair_scroll: 3, dew_fetish: 3, dew_measure: 2,
+        diamond: 2, diamond_draught: 2, divine_favor_scroll: 1, divine_protection_scroll: 5, doom_mark_scroll: 3,
         dragonplate_shield: 2, dread_seal: 4, drill_sword: 3, driver_mitts: 3, dusk_brew: 5,
         dusk_greaves: 5, eclipse_band: 5, eclipse_draught: 5, ember_bead: 3, ember_focus: 4,
         ember_pants: 1, ember_robe: 2, ember_scroll: 2, ember_staff: 3, ember_tonic: 4,
         embroidered_kaftan: 3, emerald: 5, emerald_amulet: 4, emerald_boots: 3, emerald_greaves: 2,
         emerald_helm: 1, emerald_signet: 4, emerald_stud: 5, emerald_tonic: 3, entangle_scroll: 1,
         etched_seal: 3, faith_amulet: 5, faith_necklace: 3, faith_shield_scroll: 1, faith_stud: 2,
-        fang_lanyard: 3, fate_cleaver: 4, fear_scroll: 4, felt_boots: 3, felt_coif: 4, felt_hat: 4,
-        felt_shield: 4, felt_trousers: 3, field_tonic: 1, fine_gloves: 4, fire_aura_scroll: 2,
-        fire_nova_scroll: 1, fire_spellbook: 5, firelight_scroll: 3, flame_burst_scroll: 3,
-        flame_imp_scroll: 2, flame_sigil: 5, flame_staff: 1, flame_step_scroll: 3,
-        flame_strike_scroll: 4, flanged_mace: 2, flint_burner: 2, flint_idol: 4, flint_ring: 5,
-        fluorite_seal: 5, forest_balm: 1, forest_beast_scroll: 4, forewarning: 2, forge_bellows: 5,
-        forge_hardy: 3, forge_stake: 5, forge_tonic: 2, forge_washer: 2, fortitude_scroll: 3,
-        freeze_scroll: 5, frontier_shield: 5, frost_aura_scroll: 1, frost_bead: 2, frost_core: 4,
-        frost_draught: 5, frost_orb: 4, frost_ring: 3, frost_squall: 4, frost_walk_scroll: 3,
-        frost_wisp_scroll: 5, frostbite_blessing_scroll: 4, frostbite_scroll: 2, frostgrip_gauntlets: 4,
-        frozen_stillness_scroll: 3, fruit_apple: 1, fruit_plum: 4, fruit_quince: 2, fuller: 5,
-        fur_hat: 4, gale_tonic: 5, garnet_band: 1, garrison_buckler: 5, garrison_shield: 2,
-        gate_hammer: 4, gate_scroll: 2, genesis_staff: 4, ghost_cuff: 4, gilded_vambraces: 2,
-        gilt_war_hammer: 4, glacier_grasp_scroll: 5, glacier_ring: 4, glass_athanor: 5, glass_band: 2,
-        glass_eye: 1, glass_measure: 4, glass_retort: 4, glass_tonic: 1, goatskin_shield: 1,
-        gold_brace: 5, gold_chain: 1, gold_dangle: 4, gold_gloves: 5, gold_helm: 4, gold_leggings: 2,
-        gold_ore: 3, gold_ring: 4, gold_sandals: 5, gold_signet: 3, golden_athanor: 4,
-        goldstring_bow: 5, golem_gauntlets: 3, great_bellows: 4, guard_amulet: 4,
-        guardian_blessing_scroll: 2, guardian_oath_scroll: 4, hail_scroll: 1, harvest_scyte: 5,
-        haste_wraps: 3, hawk_eye: 1, hawk_eye_ring: 4, healing_potion: 1, heart_of_elements: 5,
-        heart_of_forest_scroll: 4, heat_shield_scroll: 3, heavy_tome: 1, hellfire_scroll: 5,
-        hemp_bracer: 1, hemp_breeches: 4, hemp_robe: 4, herb_bitter: 3, herb_healing: 2, herb_mana: 4,
-        herb_sun: 5, herb_wind: 3, hide: 2, hide_boots: 4, hide_bracers: 1, hide_cuff: 3,
-        hide_tassel: 5, hide_wrap: 5, hidefaced_shield: 3, hoarfrost_staff: 5, holy_bind_scroll: 3,
-        holy_ground_scroll: 4, holy_guardian_scroll: 2, holy_mending_scroll: 5, honey_brew: 3,
-        honey_cake: 5, hood_common: 2, hunting_bow: 3, hurricane_scroll: 3, ice_armor_scroll: 2,
-        ice_field_scroll: 2, ice_lance_scroll: 1, ice_spellbook: 2, ice_staff: 1, icewalker: 2,
-        ignite_scroll: 1, indigo_brew: 1, ink_signet: 5, invisibility_scroll: 4, iron_boss_shield: 4,
-        iron_drill: 4, iron_elbow: 1, iron_hammer: 5, iron_hide_tome: 4, iron_pitchfork: 4,
-        iron_punch: 2, iron_ring: 3, iron_round: 5, iron_scyte: 4, iron_sentinel_scroll: 4,
-        iron_sword: 1, iron_wraps: 4, ironbark_shield: 1, ironbulwark_shield: 1, jade_signet: 5,
-        jet_bead: 2, knight_plate: 3, kopis_curved: 3, lamellar_shield: 4, lastwall_shield: 4,
-        leather_armor: 4, leather_boots: 4, leather_cap: 4, leather_cuff: 4, leather_garter: 1,
-        leather_gloves: 3, leather_gown: 3, leather_kaftan: 3, leather_loop: 3, leather_pants: 1,
-        leather_ring: 4, leather_sandals: 2, leather_shield: 2, legion_gladius: 4, legion_sword: 4,
-        life_bloom_scroll: 5, life_force_scroll: 4, light_heal_scroll: 2, light_sprite_scroll: 2,
-        linen_cloth: 5, linen_filter: 3, linen_gown: 4, linen_shirt: 2, linen_tunic: 4, linen_wraps: 2,
-        lion_shield: 2, long_warbow: 1, lostroad_boots: 5, lumber_axe: 4, lumber_machete: 3,
-        magic_shield_scroll: 4, magical_barrier_scroll: 3, magma_hammer: 2, mana_elixir: 1,
-        mana_potion: 2, marsh_balm: 5, mass_heal_scroll: 5, meat: 5, meditating_robe: 4,
-        meditation_scroll: 5, merchant_sword: 1, meteor_hammer: 5, meteor_scroll: 1, mind_lattice: 4,
-        mind_pendant: 5, minor_healing: 2, mint_draught: 3, mirror_buckler: 2, mithril_boots: 2,
-        mithril_choker: 2, mithril_greaves: 1, mithril_hammer: 4, mithril_helm: 2, mithril_hoop: 5,
-        mithril_ore: 5, monk_sutan: 3, moon_crown: 2, moon_setting: 3, moonstone: 3, moonstone_chain: 4,
-        moonstone_dangle: 2, moonstone_stud: 4, moss_eye: 5, mushroom_glow: 2, mushroom_grey: 3,
-        mushroom_ink: 5, mystic_breeches: 4, mystic_cloth: 3, mystic_earring: 3, mystic_sandals: 5,
-        mystic_sutan: 5, mystic_wraps: 4, nailed_boots: 2, nature_haste_scroll: 5, nature_scroll: 5,
-        nature_wrath_scroll: 2, night_blade_scroll: 4, night_brew: 5, night_gloves: 3,
-        nightmare_scroll: 2, oak_shield: 5, oak_tonic: 2, obsidian_balm: 4, obsidian_cloth: 5,
-        obsidian_pendant: 1, obsidian_ring: 5, obsidian_sandals: 3, obsidian_stud: 2, oil_lamp: 2,
-        palm_shield: 4, paralyzing_spore_scroll: 5, patched_helm: 1, path_of_vines_scroll: 2,
+        fang_lanyard: 3, fate_cleaver: 4, fear_scroll: 4, felt_boots: 3, felt_coif: 4,
+        felt_hat: 4, felt_shield: 4, felt_trousers: 3, field_tonic: 1, fine_gloves: 4,
+        fire_aura_scroll: 2, fire_nova_scroll: 1, fire_spellbook: 5, firelight_scroll: 3, flame_burst_scroll: 3,
+        flame_imp_scroll: 2, flame_sigil: 5, flame_staff: 1, flame_step_scroll: 3, flame_strike_scroll: 4,
+        flanged_mace: 2, flint_burner: 2, flint_idol: 4, flint_ring: 5, fluorite_seal: 5,
+        forest_balm: 1, forest_beast_scroll: 4, forewarning: 2, forge_bellows: 5, forge_hardy: 3,
+        forge_stake: 5, forge_tonic: 2, forge_washer: 2, fortitude_scroll: 3, freeze_scroll: 5,
+        frontier_shield: 5, frost_aura_scroll: 1, frost_bead: 2, frost_core: 4, frost_draught: 5,
+        frost_orb: 4, frost_ring: 3, frost_squall: 4, frost_walk_scroll: 3, frost_wisp_scroll: 5,
+        frostbite_blessing_scroll: 4, frostbite_scroll: 2, frostgrip_gauntlets: 4, frozen_stillness_scroll: 3, fruit_apple: 1,
+        fruit_plum: 4, fruit_quince: 2, fuller: 5, fur_hat: 4, gale_tonic: 5,
+        garnet_band: 1, garrison_buckler: 5, garrison_shield: 2, gate_hammer: 4, gate_scroll: 2,
+        genesis_staff: 4, ghost_cuff: 4, gilded_vambraces: 2, gilt_war_hammer: 4, glacier_grasp_scroll: 5,
+        glacier_ring: 4, glass_athanor: 5, glass_band: 2, glass_eye: 1, glass_measure: 4,
+        glass_retort: 4, glass_tonic: 1, goatskin_shield: 1, gold_brace: 5, gold_chain: 1,
+        gold_dangle: 4, gold_gloves: 5, gold_helm: 4, gold_leggings: 2, gold_ore: 3,
+        gold_ring: 4, gold_sandals: 5, gold_signet: 3, golden_athanor: 4, goldstring_bow: 5,
+        golem_gauntlets: 3, great_bellows: 4, guard_amulet: 4, guardian_blessing_scroll: 2, guardian_oath_scroll: 4,
+        hail_scroll: 1, harvest_scyte: 5, haste_wraps: 3, hawk_eye: 1, hawk_eye_ring: 4,
+        healing_potion: 1, heart_of_elements: 5, heart_of_forest_scroll: 4, heat_shield_scroll: 3, heavy_tome: 1,
+        hellfire_scroll: 5, hemp_bracer: 1, hemp_breeches: 4, hemp_robe: 4, herb_bitter: 3,
+        herb_healing: 2, herb_mana: 4, herb_sun: 5, herb_wind: 3, hide: 2,
+        hide_boots: 4, hide_bracers: 1, hide_cuff: 3, hide_tassel: 5, hide_wrap: 5,
+        hidefaced_shield: 3, hoarfrost_staff: 5, holy_bind_scroll: 3, holy_ground_scroll: 4, holy_guardian_scroll: 2,
+        holy_mending_scroll: 5, honey_brew: 3, honey_cake: 5, hood_common: 2, hunting_bow: 3,
+        hurricane_scroll: 3, ice_armor_scroll: 2, ice_field_scroll: 2, ice_lance_scroll: 1, ice_spellbook: 2,
+        ice_staff: 1, icewalker: 2, ignite_scroll: 1, indigo_brew: 1, ink_signet: 5,
+        invisibility_scroll: 4, iron_boss_shield: 4, iron_drill: 4, iron_elbow: 1, iron_hammer: 5,
+        iron_hide_tome: 4, iron_pitchfork: 4, iron_punch: 2, iron_ring: 3, iron_round: 5,
+        iron_scyte: 4, iron_sentinel_scroll: 4, iron_sword: 1, iron_wraps: 4, ironbark_shield: 1,
+        ironbulwark_shield: 1, jade_signet: 5, jet_bead: 2, knight_plate: 3, kopis_curved: 3,
+        lamellar_shield: 4, lastwall_shield: 4, leather_armor: 4, leather_boots: 4, leather_cap: 4,
+        leather_cuff: 4, leather_garter: 1, leather_gloves: 3, leather_gown: 3, leather_kaftan: 3,
+        leather_loop: 3, leather_pants: 1, leather_ring: 4, leather_sandals: 2, leather_shield: 2,
+        legion_gladius: 4, legion_sword: 4, life_bloom_scroll: 5, life_force_scroll: 4, light_heal_scroll: 2,
+        light_sprite_scroll: 2, linen_cloth: 5, linen_filter: 3, linen_gown: 4, linen_shirt: 2,
+        linen_tunic: 4, linen_wraps: 2, lion_shield: 2, long_warbow: 1, lostroad_boots: 5,
+        lumber_axe: 4, lumber_machete: 3, magic_shield_scroll: 4, magical_barrier_scroll: 3, magma_hammer: 2,
+        mana_elixir: 1, mana_potion: 2, marsh_balm: 5, mass_heal_scroll: 5, meat: 5,
+        meditating_robe: 4, meditation_scroll: 5, merchant_sword: 1, meteor_hammer: 5, meteor_scroll: 1,
+        mind_lattice: 4, mind_pendant: 5, minor_healing: 2, mint_draught: 3, mirror_buckler: 2,
+        mithril_boots: 2, mithril_choker: 2, mithril_greaves: 1, mithril_hammer: 4, mithril_helm: 2,
+        mithril_hoop: 5, mithril_ore: 5, monk_sutan: 3, moon_crown: 2, moon_setting: 3,
+        moonstone: 3, moonstone_chain: 4, moonstone_dangle: 2, moonstone_stud: 4, moss_eye: 5,
+        mushroom_glow: 2, mushroom_grey: 3, mushroom_ink: 5, mystic_breeches: 4, mystic_cloth: 3,
+        mystic_earring: 3, mystic_sandals: 5, mystic_sutan: 5, mystic_wraps: 4, nailed_boots: 2,
+        nature_haste_scroll: 5, nature_scroll: 5, nature_wrath_scroll: 2, night_blade_scroll: 4, night_brew: 5,
+        night_gloves: 3, nightmare_scroll: 2, oak_shield: 5, oak_tonic: 2, obsidian_balm: 4,
+        obsidian_cloth: 5, obsidian_pendant: 1, obsidian_ring: 5, obsidian_sandals: 3, obsidian_stud: 2,
+        oil_lamp: 2, palm_shield: 4, paralyzing_spore_scroll: 5, patched_helm: 1, path_of_vines_scroll: 2,
         patrol_bow: 4, pearl_draught: 3, pebble_charm: 1, pebble_ring: 4, permafrost_scroll: 2,
-        phantom_gloves: 5, philosopher_staff: 4, phlogiston_blast_scroll: 5, phoenix_feather: 5,
-        phoenix_ring: 2, phoenix_scroll: 4, phoenix_tonic: 3, phosphor_brew: 2, phosphorite: 1,
-        pilgrim_sutan: 1, pine_shield: 4, poison_cloud_scroll: 5, poison_scroll: 2,
-        poison_spore_scroll: 5, prayer_scroll: 1, prima_vessel: 3, prism_focus: 3, pumice_ring: 5,
-        purify_scroll: 2, quartz: 3, quartz_amulet: 1, quartz_bead: 2, quartz_cloth: 2,
-        quartz_muller: 2, quartz_ring: 1, quartz_tonic: 1, quenched_shield: 4, quiver_gloves: 2,
-        rain_draught: 2, rattan_buckler: 3, rawhide_mallet: 1, rebel_brand: 4, recall_scroll: 1,
-        reed_buckler: 5, reed_charm: 4, reed_sieve: 5, regeneration_scroll: 3, resilience_scroll: 1,
-        resin_bead: 4, resin_brew: 4, resin_ring: 3, resin_shield: 5, resurrect_scroll: 3,
-        rime_bolt_scroll: 4, rime_charm: 5, rime_staff: 1, rimmed_shield: 5, riveted_helm: 3,
-        riveted_shield: 5, root_ember: 5, root_grasp_scroll: 3, root_moon: 1, rot_scroll: 3,
-        rough_bracer: 5, rough_chaps: 1, rough_gauntlets: 4, rough_kaftan: 1, royal_elixir: 2, ruby: 5,
-        ruby_bell: 3, ruby_draught: 5, ruby_pendant: 3, rune_boots: 4, rune_bracers: 1, rune_charm: 3,
+        phantom_gloves: 5, philosopher_staff: 4, phlogiston_blast_scroll: 5, phoenix_feather: 5, phoenix_ring: 2,
+        phoenix_scroll: 4, phoenix_tonic: 3, phosphor_brew: 2, phosphorite: 1, pilgrim_sutan: 1,
+        pine_shield: 4, poison_cloud_scroll: 5, poison_scroll: 2, poison_spore_scroll: 5, prayer_scroll: 1,
+        prima_vessel: 3, prism_focus: 3, pumice_ring: 5, purify_scroll: 2, quartz: 3,
+        quartz_amulet: 1, quartz_bead: 2, quartz_cloth: 2, quartz_muller: 2, quartz_ring: 1,
+        quartz_tonic: 1, quenched_shield: 4, quiver_gloves: 2, rain_draught: 2, rattan_buckler: 3,
+        rawhide_mallet: 1, rebel_brand: 4, recall_scroll: 1, reed_buckler: 5, reed_charm: 4,
+        reed_sieve: 5, regeneration_scroll: 3, resilience_scroll: 1, resin_bead: 4, resin_brew: 4,
+        resin_ring: 3, resin_shield: 5, resurrect_scroll: 3, rime_bolt_scroll: 4, rime_charm: 5,
+        rime_staff: 1, rimmed_shield: 5, riveted_helm: 3, riveted_shield: 5, root_ember: 5,
+        root_grasp_scroll: 3, root_moon: 1, rot_scroll: 3, rough_bracer: 5, rough_chaps: 1,
+        rough_gauntlets: 4, rough_kaftan: 1, royal_elixir: 2, ruby: 5, ruby_bell: 3,
+        ruby_draught: 5, ruby_pendant: 3, rune_boots: 4, rune_bracers: 1, rune_charm: 3,
         rune_chisel: 5, rune_circlet: 1, rune_gauntlets: 1, rune_greaves: 5, rune_hoop: 2,
-        rune_necklace: 2, rune_ring: 2, rune_sphere: 3, rune_staff: 4, rune_stone: 4, rune_stylus: 3,
-        rune_tablet: 1, runeglass: 2, runic_cuff: 5, rushtwine_buckler: 3, sage_staff: 4, salt_eye: 4,
-        salt_scales: 4, sapling_bow: 4, sapphire: 4, sapphire_balm: 3, sapphire_helm: 3,
-        sapphire_hoop: 1, sapphire_pendant: 5, sapphire_ring: 3, scale_hose: 1, scalefront_shield: 2,
-        scholar_lens: 1, scholar_pendant: 3, scholar_ring: 3, scout_bow: 5, seer_monocle: 2,
-        seer_stone: 1, sentinel_shield: 3, shadow_bind_scroll: 2, shadow_curse_scroll: 4,
-        shadow_pool_scroll: 5, shadow_robe: 2, shadow_step_scroll: 3, shadow_tonic: 5,
+        rune_necklace: 2, rune_ring: 2, rune_sphere: 3, rune_staff: 4, rune_stone: 4,
+        rune_stylus: 3, rune_tablet: 1, runeglass: 2, runic_cuff: 5, rushtwine_buckler: 3,
+        sage_staff: 4, salt_eye: 4, salt_scales: 4, sapling_bow: 4, sapphire: 4,
+        sapphire_balm: 3, sapphire_helm: 3, sapphire_hoop: 1, sapphire_pendant: 5, sapphire_ring: 3,
+        scale_hose: 1, scalefront_shield: 2, scholar_lens: 1, scholar_pendant: 3, scholar_ring: 3,
+        scout_bow: 5, seer_monocle: 2, seer_stone: 1, sentinel_shield: 3, shadow_bind_scroll: 2,
+        shadow_curse_scroll: 4, shadow_pool_scroll: 5, shadow_robe: 2, shadow_step_scroll: 3, shadow_tonic: 5,
         shadow_wraith_scroll: 1, shadow_wrap: 2, shatter_scroll: 1, shell_charm: 2, shell_hoop: 4,
-        shell_spoon: 4, shield_wall_scroll: 5, shingle_shield: 1, short_bow: 1,
-        shroud_of_night_scroll: 2, shroud_scroll: 2, siege_axe: 1, sigil_greaves: 4, silver_alembic: 5,
-        silver_band: 1, silver_boots: 1, silver_bound_staff: 5, silver_chaps: 2, silver_cuff: 2,
-        silver_drop_earring: 5, silver_frost: 1, silver_gauntlets: 1, silver_helm: 2, silver_hoop: 2,
-        silver_inlaid_bow: 3, silver_ore: 4, silver_pendant_chain: 4, silver_retort: 1,
-        silver_signet: 5, silver_spatula: 4, silver_stud: 1, silver_tonic: 3, silvered_sword: 2,
-        sinew_knot: 1, slag_rake: 2, slow_scroll: 4, smite_scroll: 4, snow_focus: 1, soul_bell: 4,
-        spark_totem: 3, spiked_buckler: 1, spiral_earring: 3, spirit_healer_scroll: 5, splint_shield: 1,
-        stalwart_scroll: 4, star_armguard: 4, star_earring: 1, star_gloves: 5, star_hoop: 3,
-        star_pendant: 2, star_signet: 1, star_tonic: 5, starvault_staff: 1, steel_bracers: 1,
-        steel_buckler: 5, steel_chisel: 1, steel_gauntlets: 5, steel_shishak: 4, steel_sword: 2,
-        steel_targe: 4, stitched_shield: 5, stone_anchor_scroll: 1, stone_bead: 5, stone_beads: 5,
-        stone_brew: 1, stone_chisel: 2, stone_fist_grimoire: 2, stone_golem_scroll: 1,
-        stone_grasp_scroll: 1, stone_greaves: 4, stone_mace: 2, stone_mortar: 5, stone_ring: 2,
-        stone_robe: 5, stone_wall_scroll: 5, stony_hide_scroll: 3, storm_leggings: 5, storm_maul: 5,
-        storm_sandals: 2, straw_hat: 2, straw_idol: 4, straw_sandals: 5, straw_shield: 1,
-        studded_bracer: 5, studded_gloves: 3, studded_mitts: 2, stun_of_light_scroll: 5, sun_potion: 2,
-        sun_reliquary: 4, sunfire_scroll: 2, swage_block: 4, swift_boots: 2, swift_brace: 2,
-        swift_prayer_scroll: 3, sword_treatise: 1, tar_boots: 3, tarred_shield: 1, tempest_staff: 5,
-        thorn_band: 1, thorn_boots: 4, thorn_bracers: 2, thorn_field_scroll: 5, thorn_shield: 5,
-        thorn_storm_scroll: 2, thorn_whip_scroll: 2, thorns_scroll: 4, thread_ring: 5, thunder_maul: 4,
-        tide_draught: 4, tide_knot: 2, tidebreath: 2, time_slow_scroll: 2, tin_band: 1, tin_charm: 3,
-        tin_morion: 1, tin_solder: 3, tower_shield: 1, trade_bow: 3, travel_cloth: 2, traveler_boots: 4,
-        traveler_bracer: 3, traveler_breeches: 4, traveler_cloak: 5, treant_scroll: 3,
-        twilight_necklace: 4, twine_hoop: 3, twine_wraps: 5, umbra_bolt_scroll: 2, umbral_band: 2,
-        undying_bough: 5, vial_charm: 1, vigil_greaves: 2, vigil_helm: 5, vigil_plate: 4,
-        vigil_vambrace: 3, vine_lash_scroll: 2, vine_scroll: 3, vine_staff: 3, violet_brew: 1,
-        vitality_scroll: 1, void_arrow_scroll: 4, void_gauntlet: 5, void_horror_scroll: 5, void_ring: 5,
-        void_robe: 5, void_tonic: 2, wall_of_fire_scroll: 4, wall_of_ice_scroll: 2,
-        wall_of_thorns_scroll: 2, wanderer_cap: 3, war_hammer: 2, ward_crystal: 4, ward_prism: 1,
-        ward_stone: 1, warden_quarterstaff: 4, warder_cuirass: 2, warder_pendant: 4,
-        warding_circle_scroll: 5, watch_stone: 5, wax_jar: 2, way_up_scroll: 4, weak_healing: 3,
-        whetstone_ring: 2, whisper_hoop: 5, wicker_buckler: 2, wicker_targe: 5, wild_growth_scroll: 1,
-        wind_gloves: 5, windfletch_bow: 1, windwalker_ring: 1, winter_elemental_scroll: 2,
-        winter_haste_scroll: 3, wire_ring: 3, wood_bead: 4, wood_guards: 3, wood_lens: 3, wood_log: 3,
-        wood_pendant: 1, wood_pitchfork: 1, wood_ring: 3, wood_scyte: 1, wood_sword: 5,
-        wooden_buckler: 1, wooden_sandals: 5, wool_boots: 3, wool_bracers: 1, wool_gown: 4,
-        wool_kaftan: 5, wool_shirt: 5, wool_sutan: 4, wool_trousers: 1, worldforge_hammer: 3,
-        woven_sandals: 4, yew_longbow: 2,
+        shell_spoon: 4, shield_wall_scroll: 5, shingle_shield: 1, short_bow: 1, shroud_of_night_scroll: 2,
+        shroud_scroll: 2, siege_axe: 1, sigil_greaves: 4, silver_alembic: 5, silver_band: 1,
+        silver_boots: 1, silver_bound_staff: 5, silver_chaps: 2, silver_cuff: 2, silver_drop_earring: 5,
+        silver_frost: 1, silver_gauntlets: 1, silver_helm: 2, silver_hoop: 2, silver_inlaid_bow: 3,
+        silver_ore: 4, silver_pendant_chain: 4, silver_retort: 1, silver_signet: 5, silver_spatula: 4,
+        silver_stud: 1, silver_tonic: 3, silvered_sword: 2, sinew_knot: 1, slag_rake: 2,
+        slow_scroll: 4, smite_scroll: 4, snow_focus: 1, soul_bell: 4, spark_totem: 3,
+        spiked_buckler: 1, spiral_earring: 3, spirit_healer_scroll: 5, splint_shield: 1, stalwart_scroll: 4,
+        star_armguard: 4, star_earring: 1, star_gloves: 5, star_hoop: 3, star_pendant: 2,
+        star_signet: 1, star_tonic: 5, starvault_staff: 1, steel_bracers: 1, steel_buckler: 5,
+        steel_chisel: 1, steel_gauntlets: 5, steel_shishak: 4, steel_sword: 2, steel_targe: 4,
+        stitched_shield: 5, stone_anchor_scroll: 1, stone_bead: 5, stone_beads: 5, stone_brew: 1,
+        stone_chisel: 2, stone_fist_grimoire: 2, stone_golem_scroll: 1, stone_grasp_scroll: 1, stone_greaves: 4,
+        stone_mace: 2, stone_mortar: 5, stone_ring: 2, stone_robe: 5, stone_wall_scroll: 5,
+        stony_hide_scroll: 3, storm_leggings: 5, storm_maul: 5, storm_sandals: 2, straw_hat: 2,
+        straw_idol: 4, straw_sandals: 5, straw_shield: 1, studded_bracer: 5, studded_gloves: 3,
+        studded_mitts: 2, stun_of_light_scroll: 5, sun_potion: 2, sun_reliquary: 4, sunfire_scroll: 2,
+        swage_block: 4, swift_boots: 2, swift_brace: 2, swift_prayer_scroll: 3, sword_treatise: 1,
+        tar_boots: 3, tarred_shield: 1, tempest_staff: 5, thorn_band: 1, thorn_boots: 4,
+        thorn_bracers: 2, thorn_field_scroll: 5, thorn_shield: 5, thorn_storm_scroll: 2, thorn_whip_scroll: 2,
+        thorns_scroll: 4, thread_ring: 5, thunder_maul: 4, tide_draught: 4, tide_knot: 2,
+        tidebreath: 2, time_slow_scroll: 2, tin_band: 1, tin_charm: 3, tin_morion: 1,
+        tin_solder: 3, tower_shield: 1, trade_bow: 3, travel_cloth: 2, traveler_boots: 4,
+        traveler_bracer: 3, traveler_breeches: 4, traveler_cloak: 5, treant_scroll: 3, twilight_necklace: 4,
+        twine_hoop: 3, twine_wraps: 5, umbra_bolt_scroll: 2, umbral_band: 2, undying_bough: 5,
+        vial_charm: 1, vigil_greaves: 2, vigil_helm: 5, vigil_plate: 4, vigil_vambrace: 3,
+        vine_lash_scroll: 2, vine_scroll: 3, vine_staff: 3, violet_brew: 1, vitality_scroll: 1,
+        void_arrow_scroll: 4, void_gauntlet: 5, void_horror_scroll: 5, void_ring: 5, void_robe: 5,
+        void_tonic: 2, wall_of_fire_scroll: 4, wall_of_ice_scroll: 2, wall_of_thorns_scroll: 2, wanderer_cap: 3,
+        war_hammer: 2, ward_crystal: 4, ward_prism: 1, ward_stone: 1, warden_quarterstaff: 4,
+        warder_cuirass: 2, warder_pendant: 4, warding_circle_scroll: 5, watch_stone: 5, wax_jar: 2,
+        way_up_scroll: 4, weak_healing: 3, whetstone_ring: 2, whisper_hoop: 5, wicker_buckler: 2,
+        wicker_targe: 5, wild_growth_scroll: 1, wind_gloves: 5, windfletch_bow: 1, windwalker_ring: 1,
+        winter_elemental_scroll: 2, winter_haste_scroll: 3, wire_ring: 3, wood_bead: 4, wood_guards: 3,
+        wood_lens: 3, wood_log: 3, wood_pendant: 1, wood_pitchfork: 1, wood_ring: 3,
+        wood_scyte: 1, wood_sword: 5, wooden_buckler: 1, wooden_sandals: 5, wool_boots: 3,
+        wool_bracers: 1, wool_gown: 4, wool_kaftan: 5, wool_shirt: 5, wool_sutan: 4,
+        wool_trousers: 1, worldforge_hammer: 3, woven_sandals: 4, yew_longbow: 2, yushka_rybnaya: 2,
+        yuzhny_mors: 1, zakuska_cabbage: 4, zakuska_egg: 4, zakuska_fish: 1, zakuska_garlic: 1,
+        zakuska_mushroom: 3, zakvaska_hleb: 1, zapechennaya_kuritsa: 2, zapechenny_gus: 5, zapekanka_kartofelnaya: 3,
+        zapekanka_tvorozhnaya: 4, zapekanka_yablochnaya: 5, zasol_ogurcov: 5, zatirka_lapshovaya: 3, zavarka_medovaya: 2,
+        zaychatina_tushonaya: 3, zefir_shokoladny: 5, zefir_trekhsvetny: 4, zefir_vanilny: 2, zefir_yagodny: 2,
+        zeleny_sup: 1, zeppole_medovye: 2, zernistaya_kasha: 3, zernisty_hleb: 3, zharkoe_kartofelnoe: 2,
+        zharkoe_lesnoe: 3, zharkoe_myasnoe: 1, zharovnya_kuritsa: 2, zhulien_gribnoy: 2, zhulien_syrny: 5,
+        zhyto_kasha: 1, ziti_cheese: 1, ziti_tomato: 1, zolotoe_zharkoe: 1, zubrovka_med: 2,
+        zucchini_boat: 5, zucchini_patty: 2, zucchini_soup: 2, zvany_obed: 3, zveroboy_chay: 2,
       } },
   ];
   for (const g of GOLDEN) {
@@ -1239,64 +1265,77 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 33;
     // не выпали: weak_healing/herb_draught/field_tonic/honey_brew/oak_tonic/deep_balm/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/azure_tonic/dusk_brew/quartz_tonic/ash_elixir — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 (барахолка) → += 44 (не выпали: zakuska_garlic/zakvaska_hleb/zhyto_kasha/zatirka_lapshovaya/zhulien_gribnoy/zhulien_syrny);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         alpine_brew: 3, amethyst_choker: 3, amethyst_collar: 2, amethyst_dangle: 4, amethyst_draught: 2,
         amethyst_pants: 3, antler_hook: 4, arcane_tonic: 4, archer_gloves: 1, argent_draught: 3,
-        arming_sword: 4, aurora_bow: 2, azure_tonic: 4, battered_falx: 3, battle_axe: 4, blue_sip: 3,
-        boar_tusk_earring: 1, bone_band: 2, bone_beads: 3, bone_greaves: 4, bone_grips: 1,
-        bone_pendant: 2, bone_stud: 4, bread: 2, campaign_maul: 2, chainmail: 1, clay_dangle: 2,
-        clay_pendant: 4, cloth_cuff: 2, cloth_gloves: 2, cloth_loincloth: 4, cloth_sandals: 4,
-        cloth_sutan: 4, cloth_tunic: 2, cloth_wrap: 2, coarse_trousers: 3, copper_band: 2,
-        copper_beads: 1, copper_boots: 4, copper_chain: 2, copper_dangle: 2, copper_greaves: 1,
-        copper_hoop: 3, copper_maul: 4, copper_pendant: 3, copper_scyte: 4, crimson_sip: 3,
-        crown_flame: 1, damascus_blade: 2, dawn_ear_cuff: 3, dawn_pendant: 4, dawn_tonic: 4,
-        deep_balm: 1, drill_sword: 1, driver_mitts: 4, dusk_brew: 2, ember_pants: 1, ember_robe: 3,
-        ember_staff: 4, ember_tonic: 3, emerald_amulet: 3, emerald_boots: 1, emerald_greaves: 1,
-        emerald_helm: 1, emerald_stud: 3, emerald_tonic: 2, engraved_bracers: 2, faith_necklace: 3,
-        faith_stud: 4, fang_lanyard: 1, felt_boots: 4, felt_coif: 1, field_tonic: 1, fine_gloves: 1,
-        fine_kaftan: 1, flanged_mace: 1, forge_tonic: 3, frost_draught: 1, frostgrip_gauntlets: 2,
-        fur_hat: 1, gale_tonic: 3, gate_hammer: 1, ghost_cuff: 4, gilded_broadsword: 1,
-        gilded_vambraces: 2, gilt_war_hammer: 1, glacier_draught: 4, glass_tonic: 4, gold_brace: 3,
-        gold_chain: 1, gold_dangle: 2, gold_gloves: 4, gold_helm: 4, gold_leggings: 2, gold_sandals: 2,
+        arming_sword: 4, aurora_bow: 2, azure_tonic: 4, battered_falx: 3, battle_axe: 4,
+        blue_sip: 3, boar_tusk_earring: 1, bone_band: 2, bone_beads: 3, bone_greaves: 4,
+        bone_grips: 1, bone_pendant: 2, bone_stud: 4, bread: 2, campaign_maul: 2,
+        chainmail: 1, clay_dangle: 2, clay_pendant: 4, cloth_cuff: 2, cloth_gloves: 2,
+        cloth_loincloth: 4, cloth_sandals: 4, cloth_sutan: 4, cloth_tunic: 2, cloth_wrap: 2,
+        coarse_trousers: 3, copper_band: 2, copper_beads: 1, copper_boots: 4, copper_chain: 2,
+        copper_dangle: 2, copper_greaves: 1, copper_hoop: 3, copper_maul: 4, copper_pendant: 3,
+        copper_scyte: 4, crimson_sip: 3, crown_flame: 1, damascus_blade: 2, dawn_ear_cuff: 3,
+        dawn_pendant: 4, dawn_tonic: 4, deep_balm: 1, drill_sword: 1, driver_mitts: 4,
+        dusk_brew: 2, ember_pants: 1, ember_robe: 3, ember_staff: 4, ember_tonic: 3,
+        emerald_amulet: 3, emerald_boots: 1, emerald_greaves: 1, emerald_helm: 1, emerald_stud: 3,
+        emerald_tonic: 2, engraved_bracers: 2, faith_necklace: 3, faith_stud: 4, fang_lanyard: 1,
+        felt_boots: 4, felt_coif: 1, field_tonic: 1, fine_gloves: 1, fine_kaftan: 1,
+        flanged_mace: 1, forge_tonic: 3, frost_draught: 1, frostgrip_gauntlets: 2, fur_hat: 1,
+        gale_tonic: 3, gate_hammer: 1, ghost_cuff: 4, gilded_broadsword: 1, gilded_vambraces: 2,
+        gilt_war_hammer: 1, glacier_draught: 4, glass_tonic: 4, gold_brace: 3, gold_chain: 1,
+        gold_dangle: 2, gold_gloves: 4, gold_helm: 4, gold_leggings: 2, gold_sandals: 2,
         goldstring_bow: 2, golem_gauntlets: 3, greater_healing: 3, grip_gloves: 3, healing_potion: 3,
-        hemp_bracer: 3, hemp_breeches: 1, hemp_sandals: 4, hide_boots: 1, hide_bracers: 1, hide_cuff: 3,
-        hide_gloves: 4, hide_hose: 4, hide_wrap: 1, honey_cake: 2, hood_common: 4, hunting_bow: 4,
-        ice_staff: 3, indigo_brew: 2, iron_cuff: 1, iron_elbow: 3, iron_gauntlets: 1, iron_pitchfork: 4,
-        iron_scyte: 2, iron_sword: 1, iron_wraps: 2, knight_plate: 1, kopis_curved: 3, leather_armor: 3,
-        leather_choker: 2, leather_cuff: 2, leather_garter: 3, leather_gloves: 3, leather_gown: 4,
-        leather_loop: 1, leather_pants: 2, leather_sandals: 4, legion_gladius: 4, legion_sword: 3,
-        linen_cloth: 4, linen_gown: 1, linen_shirt: 4, linen_trousers: 3, linen_tunic: 3,
-        linen_wraps: 1, lostroad_boots: 2, lumber_axe: 4, lumber_machete: 4, mana_elixir: 3,
-        mana_potion: 2, meat: 3, meditating_robe: 2, merchant_sword: 2, miner_pickaxe: 2,
-        minor_healing: 2, mithril_boots: 1, mithril_choker: 4, mithril_greaves: 4, mithril_hoop: 4,
-        moonstone_chain: 4, moonstone_dangle: 3, mystic_breeches: 1, mystic_cloth: 3, mystic_earring: 1,
-        mystic_sandals: 2, mystic_sutan: 2, mystic_wraps: 3, nailed_boots: 3, night_brew: 1,
-        night_gloves: 1, obsidian_balm: 3, obsidian_pendant: 1, obsidian_sandals: 4, patched_helm: 1,
-        patrol_sword: 3, pearl_draught: 1, phantom_gloves: 4, philosopher_staff: 2, phoenix_tonic: 2,
-        phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 3, quartz_amulet: 2, quartz_bead: 4,
-        quartz_cloth: 3, quartz_tonic: 4, quilted_jack: 3, quiver_gloves: 1, rebel_brand: 4,
-        resin_brew: 1, rime_staff: 4, riveted_helm: 2, rough_bracer: 4, rough_chaps: 4,
-        rough_gauntlets: 3, rough_kaftan: 2, royal_elixir: 4, ruby_bell: 1, ruby_draught: 2,
-        rune_boots: 2, rune_gauntlets: 3, rune_hoop: 2, rune_necklace: 1, rune_staff: 2, sage_staff: 4,
+        hemp_bracer: 3, hemp_breeches: 1, hemp_sandals: 4, hide_boots: 1, hide_bracers: 1,
+        hide_cuff: 3, hide_gloves: 4, hide_hose: 4, hide_wrap: 1, honey_cake: 2,
+        hood_common: 4, hunting_bow: 4, ice_staff: 3, indigo_brew: 2, iron_cuff: 1,
+        iron_elbow: 3, iron_gauntlets: 1, iron_pitchfork: 4, iron_scyte: 2, iron_sword: 1,
+        iron_wraps: 2, knight_plate: 1, kopis_curved: 3, leather_armor: 3, leather_choker: 2,
+        leather_cuff: 2, leather_garter: 3, leather_gloves: 3, leather_gown: 4, leather_loop: 1,
+        leather_pants: 2, leather_sandals: 4, legion_gladius: 4, legion_sword: 3, linen_cloth: 4,
+        linen_gown: 1, linen_shirt: 4, linen_trousers: 3, linen_tunic: 3, linen_wraps: 1,
+        lostroad_boots: 2, lumber_axe: 4, lumber_machete: 4, mana_elixir: 3, mana_potion: 2,
+        meat: 3, meditating_robe: 2, merchant_sword: 2, miner_pickaxe: 2, minor_healing: 2,
+        mithril_boots: 1, mithril_choker: 4, mithril_greaves: 4, mithril_hoop: 4, moonstone_chain: 4,
+        moonstone_dangle: 3, mystic_breeches: 1, mystic_cloth: 3, mystic_earring: 1, mystic_sandals: 2,
+        mystic_sutan: 2, mystic_wraps: 3, nailed_boots: 3, night_brew: 1, night_gloves: 1,
+        obsidian_balm: 3, obsidian_pendant: 1, obsidian_sandals: 4, patched_helm: 1, patrol_sword: 3,
+        pearl_draught: 1, phantom_gloves: 4, philosopher_staff: 2, phoenix_tonic: 2, phosphor_brew: 3,
+        pilgrim_sutan: 1, poacher_bow: 3, quartz_amulet: 2, quartz_bead: 4, quartz_cloth: 3,
+        quartz_tonic: 4, quilted_jack: 3, quiver_gloves: 1, rebel_brand: 4, resin_brew: 1,
+        rime_staff: 4, riveted_helm: 2, rough_bracer: 4, rough_chaps: 4, rough_gauntlets: 3,
+        rough_kaftan: 2, royal_elixir: 4, ruby_bell: 1, ruby_draught: 2, rune_boots: 2,
+        rune_gauntlets: 3, rune_hoop: 2, rune_necklace: 1, rune_staff: 2, sage_staff: 4,
         sapling_bow: 4, sapphire_boots: 3, sapphire_bracer: 3, sapphire_hoop: 2, sapphire_leggings: 3,
         sapphire_pendant: 4, scout_bow: 3, shadow_robe: 2, shadow_wrap: 4, shell_beads: 2,
         shell_wire_earring: 2, short_bow: 3, siege_axe: 1, sigil_greaves: 2, silver_boots: 3,
-        silver_bound_staff: 4, silver_chain: 1, silver_chaps: 3, silver_drop_earring: 1,
-        silver_gauntlets: 4, silver_helm: 1, silver_hoop: 2, silver_inlaid_bow: 2,
-        silver_pendant_chain: 3, silver_tonic: 1, soul_bell: 4, spiral_earring: 2, star_armguard: 2,
-        star_earring: 3, star_gloves: 2, star_hoop: 1, star_pendant: 1, star_tonic: 2,
-        starvault_staff: 4, steel_gauntlets: 4, steel_pitchfork: 3, steel_scyte: 1, steel_shishak: 2,
-        steel_sword: 4, stone_bead: 2, stone_brew: 4, stone_greaves: 3, stone_mace: 4, stone_robe: 4,
-        stone_sandals: 3, storm_leggings: 1, straw_hat: 2, straw_sandals: 2, studded_gloves: 4,
-        studded_mitts: 3, swift_boots: 1, swift_brace: 4, tar_boots: 4, tempest_staff: 4,
-        thorn_bracers: 2, thunder_maul: 3, tide_draught: 2, tin_morion: 1, titan_brace: 1,
-        titan_greaves: 3, travel_cloth: 2, traveler_boots: 1, traveler_cloak: 1, twine_amulet: 1,
-        twine_hoop: 4, twine_wraps: 3, vial_charm: 4, vigil_helm: 3, vigil_plate: 4, vigil_vambrace: 1,
-        vine_staff: 2, violet_brew: 3, void_gauntlet: 3, void_robe: 3, void_tonic: 2, wanderer_cap: 4,
-        war_hammer: 1, warden_quarterstaff: 2, warder_cuirass: 1, warder_sword: 1, wind_gloves: 4,
-        windfletch_bow: 2, wood_guards: 4, wood_scyte: 4, wooden_sandals: 2, wool_bracers: 2,
-        wool_cap: 4, wool_gown: 3, wool_kaftan: 3, wool_shirt: 1, wool_sutan: 2, wool_trousers: 3,
-        woven_sandals: 2,
+        silver_bound_staff: 4, silver_chain: 1, silver_chaps: 3, silver_drop_earring: 1, silver_gauntlets: 4,
+        silver_helm: 1, silver_hoop: 2, silver_inlaid_bow: 2, silver_pendant_chain: 3, silver_tonic: 1,
+        soul_bell: 4, spiral_earring: 2, star_armguard: 2, star_earring: 3, star_gloves: 2,
+        star_hoop: 1, star_pendant: 1, star_tonic: 2, starvault_staff: 4, steel_gauntlets: 4,
+        steel_pitchfork: 3, steel_scyte: 1, steel_shishak: 2, steel_sword: 4, stone_bead: 2,
+        stone_brew: 4, stone_greaves: 3, stone_mace: 4, stone_robe: 4, stone_sandals: 3,
+        storm_leggings: 1, straw_hat: 2, straw_sandals: 2, studded_gloves: 4, studded_mitts: 3,
+        swift_boots: 1, swift_brace: 4, tar_boots: 4, tempest_staff: 4, thorn_bracers: 2,
+        thunder_maul: 3, tide_draught: 2, tin_morion: 1, titan_brace: 1, titan_greaves: 3,
+        travel_cloth: 2, traveler_boots: 1, traveler_cloak: 1, twine_amulet: 1, twine_hoop: 4,
+        twine_wraps: 3, vial_charm: 4, vigil_helm: 3, vigil_plate: 4, vigil_vambrace: 1,
+        vine_staff: 2, violet_brew: 3, void_gauntlet: 3, void_robe: 3, void_tonic: 2,
+        wanderer_cap: 4, war_hammer: 1, warden_quarterstaff: 2, warder_cuirass: 1, warder_sword: 1,
+        wind_gloves: 4, windfletch_bow: 2, wood_guards: 4, wood_scyte: 4, wooden_sandals: 2,
+        wool_bracers: 2, wool_cap: 4, wool_gown: 3, wool_kaftan: 3, wool_shirt: 1,
+        wool_sutan: 2, wool_trousers: 3, woven_sandals: 2, yogurt_domashniy: 1, yushka_rybnaya: 2,
+        yuzhny_mors: 2, zakuska_beet: 3, zakuska_cabbage: 3, zakuska_egg: 1, zakuska_fish: 4,
+        zakuska_mushroom: 2, zapechennaya_kuritsa: 3, zapechenny_gus: 4, zapechennye_yabloki: 4, zapekanka_kartofelnaya: 2,
+        zapekanka_tvorozhnaya: 1, zapekanka_yablochnaya: 1, zasol_ogurcov: 2, zavarka_medovaya: 2, zaychatina_tushonaya: 1,
+        zefir_shokoladny: 2, zefir_trekhsvetny: 2, zefir_vanilny: 3, zefir_yagodny: 4, zeleny_sup: 2,
+        zeppole_medovye: 3, zernistaya_kasha: 3, zernisty_hleb: 1, zharkoe_kartofelnoe: 2, zharkoe_lesnoe: 2,
+        zharkoe_myasnoe: 2, zharovnya_kuritsa: 4, zhele_limonnoe: 3, zhele_yagodnoe: 3, zhur_lesnoy: 3,
+        zimniy_kompot: 2, ziti_cheese: 3, ziti_tomato: 4, ziti_zapechennye: 4, zolotoe_zharkoe: 4,
+        zubrovka_med: 4, zucchini_boat: 1, zucchini_patty: 2, zucchini_salad: 2, zucchini_soup: 1,
+        zvany_obed: 4, zveroboy_chay: 3,
       } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 17 torso (не выпали: wool_shirt/cloth_tunic/hemp_robe/embroidered_kaftan/cloth_robe/fine_kaftan/ember_robe/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
@@ -1335,62 +1374,72 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 39;
     // не выпали: weak_healing/sun_potion/marsh_balm/stone_brew/silver_tonic/amethyst_draught/mint_draught/night_brew/glass_tonic/dusk_brew/argent_draught — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 (барахолка) → += 34 (не выпали: zveroboy_chay/zavarka_medovaya/yogurt_domashniy/yuzhny_mors/zakuska_beet/zakuska_egg/zakvaska_hleb/zhyto_kasha/zucchini_salad/zhele_limonnoe/ziti_tomato/zeppole_medovye/yushka_rybnaya/zubrovka_med/zefir_trekhsvetny/zvany_obed);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         aegis_mantle: 1, amber_elixir: 1, amethyst_band: 2, amethyst_choker: 1, amethyst_collar: 3,
         amethyst_dangle: 1, amethyst_draught: 1, antler_hook: 3, arcane_tonic: 4, archer_brace: 2,
         archer_gloves: 1, archivist_staff: 3, argent_draught: 3, battered_falx: 4, blue_sip: 3,
-        bone_band: 4, bone_beads: 4, bone_bracer: 3, bone_greaves: 2, bone_grips: 3, bone_sandals: 2,
-        bone_stud: 3, bread: 4, clay_pendant: 2, cloth_cuff: 1, cloth_gloves: 4, cloth_robe: 3,
-        cloth_sutan: 3, cloth_tunic: 2, cloth_wrap: 3, coarse_trousers: 1, copper_beads: 3,
-        copper_boots: 1, copper_brace: 4, copper_dangle: 2, copper_gauntlets: 2, copper_hoop: 1,
-        copper_scyte: 3, copper_short_sword: 3, crimson_sip: 2, crown_flame: 4, dawn_ear_cuff: 2,
-        dawn_tonic: 3, dawnedge_blade: 4, deep_breath_robe: 2, diamond_draught: 3, drill_sword: 1,
-        dusk_brew: 4, eclipse_draught: 3, ember_robe: 3, ember_tonic: 2, embroidered_kaftan: 1,
-        emerald_amulet: 1, emerald_boots: 1, emerald_gauntlets: 3, emerald_greaves: 3, emerald_helm: 4,
-        emerald_stud: 1, emerald_tonic: 1, engraved_bracers: 3, faith_necklace: 1, faith_stud: 1,
-        fang_lanyard: 3, fate_cleaver: 2, felt_boots: 2, felt_trousers: 2, fine_gloves: 2,
-        fine_kaftan: 4, flame_staff: 3, flanged_mace: 1, forest_balm: 2, forge_tonic: 4,
-        frost_draught: 4, fur_hat: 2, gale_tonic: 2, ghost_cuff: 4, gilded_broadsword: 4,
-        gilded_vambraces: 3, gilt_war_hammer: 1, glacier_draught: 3, gold_brace: 4, gold_chain: 4,
-        gold_leggings: 2, gold_sandals: 4, golem_gauntlets: 2, greater_healing: 1, grip_gloves: 4,
-        harvest_scyte: 1, haste_wraps: 3, healing_potion: 1, hemp_bracer: 4, hemp_robe: 4,
-        herb_draught: 4, hide_boots: 2, hide_gloves: 3, hide_hose: 4, hide_wrap: 3, honey_cake: 2,
-        hood_common: 2, hunting_bow: 4, ice_staff: 2, indigo_brew: 3, iron_cuff: 4, iron_scyte: 3,
-        iron_sword: 2, iron_wraps: 4, kopis_curved: 3, leather_cap: 3, leather_choker: 2,
-        leather_cuff: 1, leather_garter: 1, leather_loop: 2, leather_pants: 3, leather_sandals: 2,
-        legion_gladius: 1, legion_sword: 3, linen_cloth: 1, linen_gown: 1, linen_shirt: 3,
-        linen_tunic: 2, linen_wraps: 3, long_warbow: 3, lostroad_boots: 2, lumber_machete: 2,
-        mana_elixir: 4, mana_potion: 2, marsh_balm: 1, meat: 1, miner_pickaxe: 1, minor_healing: 1,
+        bone_band: 4, bone_beads: 4, bone_bracer: 3, bone_greaves: 2, bone_grips: 3,
+        bone_sandals: 2, bone_stud: 3, bread: 4, clay_pendant: 2, cloth_cuff: 1,
+        cloth_gloves: 4, cloth_robe: 3, cloth_sutan: 3, cloth_tunic: 2, cloth_wrap: 3,
+        coarse_trousers: 1, copper_beads: 3, copper_boots: 1, copper_brace: 4, copper_dangle: 2,
+        copper_gauntlets: 2, copper_hoop: 1, copper_scyte: 3, copper_short_sword: 3, crimson_sip: 2,
+        crown_flame: 4, dawn_ear_cuff: 2, dawn_tonic: 3, dawnedge_blade: 4, deep_breath_robe: 2,
+        diamond_draught: 3, drill_sword: 1, dusk_brew: 4, eclipse_draught: 3, ember_robe: 3,
+        ember_tonic: 2, embroidered_kaftan: 1, emerald_amulet: 1, emerald_boots: 1, emerald_gauntlets: 3,
+        emerald_greaves: 3, emerald_helm: 4, emerald_stud: 1, emerald_tonic: 1, engraved_bracers: 3,
+        faith_necklace: 1, faith_stud: 1, fang_lanyard: 3, fate_cleaver: 2, felt_boots: 2,
+        felt_trousers: 2, fine_gloves: 2, fine_kaftan: 4, flame_staff: 3, flanged_mace: 1,
+        forest_balm: 2, forge_tonic: 4, frost_draught: 4, fur_hat: 2, gale_tonic: 2,
+        ghost_cuff: 4, gilded_broadsword: 4, gilded_vambraces: 3, gilt_war_hammer: 1, glacier_draught: 3,
+        gold_brace: 4, gold_chain: 4, gold_leggings: 2, gold_sandals: 4, golem_gauntlets: 2,
+        greater_healing: 1, grip_gloves: 4, harvest_scyte: 1, haste_wraps: 3, healing_potion: 1,
+        hemp_bracer: 4, hemp_robe: 4, herb_draught: 4, hide_boots: 2, hide_gloves: 3,
+        hide_hose: 4, hide_wrap: 3, honey_cake: 2, hood_common: 2, hunting_bow: 4,
+        ice_staff: 2, indigo_brew: 3, iron_cuff: 4, iron_scyte: 3, iron_sword: 2,
+        iron_wraps: 4, kopis_curved: 3, leather_cap: 3, leather_choker: 2, leather_cuff: 1,
+        leather_garter: 1, leather_loop: 2, leather_pants: 3, leather_sandals: 2, legion_gladius: 1,
+        legion_sword: 3, linen_cloth: 1, linen_gown: 1, linen_shirt: 3, linen_tunic: 2,
+        linen_wraps: 3, long_warbow: 3, lostroad_boots: 2, lumber_machete: 2, mana_elixir: 4,
+        mana_potion: 2, marsh_balm: 1, meat: 1, miner_pickaxe: 1, minor_healing: 1,
         mithril_boots: 2, mithril_choker: 3, mithril_greaves: 3, mithril_helm: 2, monk_sutan: 2,
-        moonlight_draught: 4, moonstone_chain: 1, moonstone_dangle: 2, mystic_breeches: 1,
-        mystic_cloth: 2, mystic_sandals: 2, night_brew: 3, oak_tonic: 1, obsidian_cloth: 1,
-        obsidian_pendant: 4, obsidian_sandals: 4, obsidian_stud: 3, patched_helm: 1, patrol_sword: 4,
-        pearl_draught: 3, philosopher_staff: 3, phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 2,
-        poacher_dirk: 3, pyre_staff: 2, quartz_amulet: 4, quartz_bead: 1, quartz_cloth: 3,
-        quartz_tonic: 4, rain_draught: 3, rebel_brand: 1, rime_staff: 1, riveted_helm: 3,
-        rough_bracer: 1, rough_chaps: 2, rough_gauntlets: 2, rough_kaftan: 4, ruby_draught: 3,
-        rune_boots: 4, rune_bracers: 2, rune_circlet: 1, rune_gauntlets: 1, rune_greaves: 2,
-        rune_necklace: 4, rune_staff: 3, runic_cuff: 3, sapling_bow: 1, sapphire_balm: 4,
-        sapphire_boots: 3, sapphire_bracer: 2, sapphire_helm: 3, sapphire_hoop: 4, sapphire_leggings: 2,
-        sapphire_pendant: 1, scale_hose: 4, scout_bow: 4, shadow_robe: 2, shadow_tonic: 1,
-        shadow_wrap: 1, shell_beads: 2, shell_hoop: 4, shell_wire_earring: 3, siege_axe: 3,
-        silver_band: 4, silver_boots: 1, silver_bound_staff: 3, silver_bracers: 1,
-        silver_drop_earring: 3, silver_gauntlets: 4, silver_helm: 3, silver_hoop: 2,
-        silver_inlaid_bow: 1, silver_stud: 2, silver_tonic: 4, silvered_mace: 3, silvered_sword: 2,
-        soul_bell: 4, star_armguard: 2, star_gloves: 1, star_pendant: 3, star_tonic: 3,
-        steel_bracers: 1, steel_gauntlets: 1, steel_pitchfork: 3, steel_scyte: 3, stone_bead: 3,
-        stone_beads: 4, stone_brew: 1, stone_greaves: 2, stone_mace: 3, stone_robe: 3,
-        storm_leggings: 2, storm_maul: 3, storm_sandals: 1, straw_hat: 3, straw_sandals: 4,
-        studded_bracer: 4, studded_gloves: 4, studded_mitts: 2, sun_potion: 1, swift_boots: 3,
-        tar_boots: 4, tempest_staff: 4, thorn_boots: 2, thorn_bracers: 4, tide_draught: 4,
-        tin_morion: 4, titan_brace: 4, titan_greaves: 4, travel_boots: 1, travel_cloth: 4,
-        traveler_boots: 2, traveler_bracer: 3, traveler_breeches: 3, traveler_cloak: 4,
-        twilight_necklace: 3, twine_amulet: 1, twine_wraps: 1, vial_charm: 1, vigil_greaves: 4,
-        vigil_helm: 3, vigil_plate: 2, violet_brew: 2, void_gauntlet: 2, void_tonic: 1, wanderer_cap: 4,
-        war_hammer: 4, warder_cuirass: 4, warder_pendant: 1, warder_sword: 1, weak_healing: 3,
-        wind_gloves: 3, wood_bead: 1, wood_guards: 3, wood_pendant: 2, wood_pitchfork: 4, wood_scyte: 2,
-        wood_sword: 4, wooden_sandals: 2, wool_bracers: 1, wool_breeches: 2, wool_cap: 3, wool_gown: 2,
-        wool_shirt: 2, wool_sutan: 4, wool_trousers: 2, woven_sandals: 2, yew_longbow: 4,
+        moonlight_draught: 4, moonstone_chain: 1, moonstone_dangle: 2, mystic_breeches: 1, mystic_cloth: 2,
+        mystic_sandals: 2, night_brew: 3, oak_tonic: 1, obsidian_cloth: 1, obsidian_pendant: 4,
+        obsidian_sandals: 4, obsidian_stud: 3, patched_helm: 1, patrol_sword: 4, pearl_draught: 3,
+        philosopher_staff: 3, phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 2, poacher_dirk: 3,
+        pyre_staff: 2, quartz_amulet: 4, quartz_bead: 1, quartz_cloth: 3, quartz_tonic: 4,
+        rain_draught: 3, rebel_brand: 1, rime_staff: 1, riveted_helm: 3, rough_bracer: 1,
+        rough_chaps: 2, rough_gauntlets: 2, rough_kaftan: 4, ruby_draught: 3, rune_boots: 4,
+        rune_bracers: 2, rune_circlet: 1, rune_gauntlets: 1, rune_greaves: 2, rune_necklace: 4,
+        rune_staff: 3, runic_cuff: 3, sapling_bow: 1, sapphire_balm: 4, sapphire_boots: 3,
+        sapphire_bracer: 2, sapphire_helm: 3, sapphire_hoop: 4, sapphire_leggings: 2, sapphire_pendant: 1,
+        scale_hose: 4, scout_bow: 4, shadow_robe: 2, shadow_tonic: 1, shadow_wrap: 1,
+        shell_beads: 2, shell_hoop: 4, shell_wire_earring: 3, siege_axe: 3, silver_band: 4,
+        silver_boots: 1, silver_bound_staff: 3, silver_bracers: 1, silver_drop_earring: 3, silver_gauntlets: 4,
+        silver_helm: 3, silver_hoop: 2, silver_inlaid_bow: 1, silver_stud: 2, silver_tonic: 4,
+        silvered_mace: 3, silvered_sword: 2, soul_bell: 4, star_armguard: 2, star_gloves: 1,
+        star_pendant: 3, star_tonic: 3, steel_bracers: 1, steel_gauntlets: 1, steel_pitchfork: 3,
+        steel_scyte: 3, stone_bead: 3, stone_beads: 4, stone_brew: 1, stone_greaves: 2,
+        stone_mace: 3, stone_robe: 3, storm_leggings: 2, storm_maul: 3, storm_sandals: 1,
+        straw_hat: 3, straw_sandals: 4, studded_bracer: 4, studded_gloves: 4, studded_mitts: 2,
+        sun_potion: 1, swift_boots: 3, tar_boots: 4, tempest_staff: 4, thorn_boots: 2,
+        thorn_bracers: 4, tide_draught: 4, tin_morion: 4, titan_brace: 4, titan_greaves: 4,
+        travel_boots: 1, travel_cloth: 4, traveler_boots: 2, traveler_bracer: 3, traveler_breeches: 3,
+        traveler_cloak: 4, twilight_necklace: 3, twine_amulet: 1, twine_wraps: 1, vial_charm: 1,
+        vigil_greaves: 4, vigil_helm: 3, vigil_plate: 2, violet_brew: 2, void_gauntlet: 2,
+        void_tonic: 1, wanderer_cap: 4, war_hammer: 4, warder_cuirass: 4, warder_pendant: 1,
+        warder_sword: 1, weak_healing: 3, wind_gloves: 3, wood_bead: 1, wood_guards: 3,
+        wood_pendant: 2, wood_pitchfork: 4, wood_scyte: 2, wood_sword: 4, wooden_sandals: 2,
+        wool_bracers: 1, wool_breeches: 2, wool_cap: 3, wool_gown: 2, wool_shirt: 2,
+        wool_sutan: 4, wool_trousers: 2, woven_sandals: 2, yew_longbow: 4, zakuska_cabbage: 3,
+        zakuska_fish: 1, zakuska_garlic: 4, zakuska_mushroom: 4, zapechennaya_kuritsa: 1, zapechenny_gus: 1,
+        zapechennye_yabloki: 1, zapekanka_kartofelnaya: 3, zapekanka_tvorozhnaya: 1, zapekanka_yablochnaya: 3, zasol_ogurcov: 2,
+        zatirka_lapshovaya: 1, zaychatina_tushonaya: 4, zefir_shokoladny: 2, zefir_vanilny: 3, zefir_yagodny: 4,
+        zeleny_sup: 1, zernistaya_kasha: 3, zernisty_hleb: 1, zharkoe_kartofelnoe: 2, zharkoe_lesnoe: 3,
+        zharkoe_myasnoe: 1, zharovnya_kuritsa: 3, zhele_yagodnoe: 1, zhulien_gribnoy: 3, zhulien_syrny: 2,
+        zhur_lesnoy: 1, zimniy_kompot: 4, ziti_cheese: 2, ziti_zapechennye: 3, zolotoe_zharkoe: 3,
+        zucchini_boat: 2, zucchini_patty: 2, zucchini_soup: 2,
       } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 15 torso (не выпали: wool_shirt/cloth_tunic/rough_kaftan/linen_tunic/leather_kaftan/monk_sutan/fine_kaftan/ember_robe/pilgrim_sutan/void_robe), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
@@ -1429,47 +1478,55 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 27;
     // не выпали: herb_draught/forest_balm/field_tonic/honey_brew/dawn_tonic/forge_tonic/ember_tonic/stone_brew/gale_tonic/silver_tonic/amethyst_draught/moonlight_draught/diamond_draught/mint_draught/frost_draught/glass_tonic/star_tonic/rain_draught/indigo_brew/quartz_tonic/shadow_tonic/argent_draught/eclipse_draught — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 (барахолка) → += 27 (не выпали: zveroboy_chay/zavarka_medovaya/zakuska_egg/zasol_ogurcov/zakuska_fish/zeleny_sup/zimniy_kompot/zernisty_hleb/zakvaska_hleb/zefir_vanilny/zucchini_patty/zucchini_boat/ziti_cheese/ziti_zapechennye/yushka_rybnaya/zharkoe_kartofelnoe/zhulien_gribnoy/zhulien_syrny/zaychatina_tushonaya/zharovnya_kuritsa/zapechenny_gus/zolotoe_zharkoe/zvany_obed);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         amethyst_collar: 2, amethyst_dangle: 1, amethyst_draught: 2, antler_hook: 1, archer_brace: 2,
-        archer_gloves: 2, arming_sword: 2, aurora_bow: 1, battle_axe: 1, bone_grips: 2, bone_pendant: 1,
-        bone_sandals: 1, chainmail: 2, clay_dangle: 1, clay_pendant: 1, cloth_loincloth: 1,
-        cloth_robe: 1, cloth_sandals: 1, cloth_sutan: 1, cloth_tunic: 2, copper_band: 1,
-        copper_beads: 1, copper_chain: 2, copper_dangle: 2, copper_gauntlets: 1, copper_greaves: 1,
-        copper_pendant: 1, copper_scyte: 1, copper_short_sword: 2, damascus_blade: 1, dawn_ear_cuff: 2,
-        dawn_pendant: 1, dawn_tonic: 2, dawnedge_blade: 2, deep_balm: 2, deep_breath_robe: 2,
-        drill_sword: 2, driver_mitts: 1, dusk_brew: 1, dusk_greaves: 2, eclipse_draught: 2,
-        ember_pants: 2, ember_staff: 1, emerald_amulet: 1, emerald_helm: 2, emerald_tonic: 1,
-        faith_necklace: 2, faith_stud: 2, fate_cleaver: 2, felt_boots: 1, felt_trousers: 1,
-        field_tonic: 2, fine_kaftan: 1, flame_staff: 1, forest_balm: 2, forge_tonic: 2,
-        frost_sandals: 2, frostgrip_gauntlets: 2, fur_hat: 1, ghost_cuff: 1, gilded_broadsword: 1,
-        gilded_vambraces: 2, gilt_war_hammer: 1, gold_brace: 1, gold_chain: 2, gold_gloves: 1,
-        gold_helm: 2, gold_leggings: 1, gold_sandals: 2, goldstring_bow: 2, golem_gauntlets: 1,
-        grip_gloves: 2, harvest_scyte: 1, hemp_breeches: 2, hemp_robe: 1, hemp_sandals: 1,
-        herb_draught: 2, hide_cuff: 1, hide_hose: 1, hide_wrap: 2, honey_brew: 2, honey_cake: 2,
-        ice_staff: 2, indigo_brew: 2, iron_cuff: 1, iron_gauntlets: 2, iron_scyte: 1, iron_sword: 1,
-        iron_wraps: 2, knight_plate: 2, leather_boots: 1, leather_garter: 1, leather_gown: 2,
-        leather_pants: 1, leather_sandals: 1, linen_cloth: 1, linen_tunic: 2, linen_wraps: 2,
-        long_warbow: 1, lostroad_boots: 1, lumber_axe: 1, marsh_balm: 1, meat: 1, meditating_robe: 2,
-        mithril_greaves: 2, mithril_helm: 1, moonstone_dangle: 2, mystic_breeches: 1, mystic_cloth: 2,
-        mystic_earring: 2, mystic_wraps: 1, night_brew: 1, obsidian_balm: 2, obsidian_cloth: 2,
-        obsidian_greaves: 1, obsidian_sandals: 2, obsidian_stud: 1, patched_helm: 1,
-        pathfinder_boots: 1, patrol_bow: 1, phantom_gloves: 2, poacher_bow: 2, quartz_cloth: 2,
-        quilted_jack: 1, rebel_brand: 1, resin_brew: 1, rime_staff: 1, riveted_helm: 2, rough_bracer: 2,
-        rough_gauntlets: 2, rough_kaftan: 2, royal_elixir: 2, ruby_pendant: 1, rune_boots: 2,
-        rune_gauntlets: 2, rune_hoop: 2, rune_necklace: 1, rune_staff: 2, runic_cuff: 1, sapling_bow: 2,
+        archer_gloves: 2, arming_sword: 2, aurora_bow: 1, battle_axe: 1, bone_grips: 2,
+        bone_pendant: 1, bone_sandals: 1, chainmail: 2, clay_dangle: 1, clay_pendant: 1,
+        cloth_loincloth: 1, cloth_robe: 1, cloth_sandals: 1, cloth_sutan: 1, cloth_tunic: 2,
+        copper_band: 1, copper_beads: 1, copper_chain: 2, copper_dangle: 2, copper_gauntlets: 1,
+        copper_greaves: 1, copper_pendant: 1, copper_scyte: 1, copper_short_sword: 2, damascus_blade: 1,
+        dawn_ear_cuff: 2, dawn_pendant: 1, dawn_tonic: 2, dawnedge_blade: 2, deep_balm: 2,
+        deep_breath_robe: 2, drill_sword: 2, driver_mitts: 1, dusk_brew: 1, dusk_greaves: 2,
+        eclipse_draught: 2, ember_pants: 2, ember_staff: 1, emerald_amulet: 1, emerald_helm: 2,
+        emerald_tonic: 1, faith_necklace: 2, faith_stud: 2, fate_cleaver: 2, felt_boots: 1,
+        felt_trousers: 1, field_tonic: 2, fine_kaftan: 1, flame_staff: 1, forest_balm: 2,
+        forge_tonic: 2, frost_sandals: 2, frostgrip_gauntlets: 2, fur_hat: 1, ghost_cuff: 1,
+        gilded_broadsword: 1, gilded_vambraces: 2, gilt_war_hammer: 1, gold_brace: 1, gold_chain: 2,
+        gold_gloves: 1, gold_helm: 2, gold_leggings: 1, gold_sandals: 2, goldstring_bow: 2,
+        golem_gauntlets: 1, grip_gloves: 2, harvest_scyte: 1, hemp_breeches: 2, hemp_robe: 1,
+        hemp_sandals: 1, herb_draught: 2, hide_cuff: 1, hide_hose: 1, hide_wrap: 2,
+        honey_brew: 2, honey_cake: 2, ice_staff: 2, indigo_brew: 2, iron_cuff: 1,
+        iron_gauntlets: 2, iron_scyte: 1, iron_sword: 1, iron_wraps: 2, knight_plate: 2,
+        leather_boots: 1, leather_garter: 1, leather_gown: 2, leather_pants: 1, leather_sandals: 1,
+        linen_cloth: 1, linen_tunic: 2, linen_wraps: 2, long_warbow: 1, lostroad_boots: 1,
+        lumber_axe: 1, marsh_balm: 1, meat: 1, meditating_robe: 2, mithril_greaves: 2,
+        mithril_helm: 1, moonstone_dangle: 2, mystic_breeches: 1, mystic_cloth: 2, mystic_earring: 2,
+        mystic_wraps: 1, night_brew: 1, obsidian_balm: 2, obsidian_cloth: 2, obsidian_greaves: 1,
+        obsidian_sandals: 2, obsidian_stud: 1, patched_helm: 1, pathfinder_boots: 1, patrol_bow: 1,
+        phantom_gloves: 2, poacher_bow: 2, quartz_cloth: 2, quilted_jack: 1, rebel_brand: 1,
+        resin_brew: 1, rime_staff: 1, riveted_helm: 2, rough_bracer: 2, rough_gauntlets: 2,
+        rough_kaftan: 2, royal_elixir: 2, ruby_pendant: 1, rune_boots: 2, rune_gauntlets: 2,
+        rune_hoop: 2, rune_necklace: 1, rune_staff: 2, runic_cuff: 1, sapling_bow: 2,
         sapphire_bracer: 2, sapphire_pendant: 1, shadow_tonic: 1, shell_hoop: 1, shell_wire_earring: 2,
         short_bow: 2, siege_axe: 1, silver_bound_staff: 1, silver_chain: 2, silver_chaps: 2,
-        silver_drop_earring: 2, silver_hoop: 1, silver_inlaid_bow: 2, silver_pendant_chain: 1,
-        silvered_mace: 2, soul_bell: 1, star_armguard: 1, star_earring: 2, steel_bracers: 2,
-        steel_gauntlets: 2, steel_scyte: 1, steel_shishak: 2, stone_brew: 2, stone_greaves: 1,
-        stone_robe: 2, stone_sandals: 1, storm_maul: 1, straw_hat: 1, straw_sandals: 1,
-        studded_bracer: 2, tar_boots: 1, thunder_maul: 1, tide_draught: 2, titan_brace: 1,
-        titan_greaves: 1, trade_bow: 1, traveler_boots: 1, traveler_cloak: 2, twilight_necklace: 1,
-        twine_hoop: 1, vial_charm: 1, vigil_greaves: 1, vigil_helm: 1, vigil_vambrace: 1,
-        void_gauntlet: 2, void_tonic: 1, wanderer_cap: 1, war_hammer: 1, warder_cuirass: 1,
-        warder_sword: 2, wind_gloves: 2, windfletch_bow: 2, wood_guards: 1, wood_sword: 1,
-        wooden_sandals: 2, wool_boots: 2, wool_bracers: 2, wool_cap: 1, wool_shirt: 2, wool_sutan: 2,
-        woven_sandals: 1, yew_longbow: 2,
+        silver_drop_earring: 2, silver_hoop: 1, silver_inlaid_bow: 2, silver_pendant_chain: 1, silvered_mace: 2,
+        soul_bell: 1, star_armguard: 1, star_earring: 2, steel_bracers: 2, steel_gauntlets: 2,
+        steel_scyte: 1, steel_shishak: 2, stone_brew: 2, stone_greaves: 1, stone_robe: 2,
+        stone_sandals: 1, storm_maul: 1, straw_hat: 1, straw_sandals: 1, studded_bracer: 2,
+        tar_boots: 1, thunder_maul: 1, tide_draught: 2, titan_brace: 1, titan_greaves: 1,
+        trade_bow: 1, traveler_boots: 1, traveler_cloak: 2, twilight_necklace: 1, twine_hoop: 1,
+        vial_charm: 1, vigil_greaves: 1, vigil_helm: 1, vigil_vambrace: 1, void_gauntlet: 2,
+        void_tonic: 1, wanderer_cap: 1, war_hammer: 1, warder_cuirass: 1, warder_sword: 2,
+        wind_gloves: 2, windfletch_bow: 2, wood_guards: 1, wood_sword: 1, wooden_sandals: 2,
+        wool_boots: 2, wool_bracers: 2, wool_cap: 1, wool_shirt: 2, wool_sutan: 2,
+        woven_sandals: 1, yew_longbow: 2, yogurt_domashniy: 1, yuzhny_mors: 2, zakuska_beet: 1,
+        zakuska_cabbage: 2, zakuska_garlic: 2, zakuska_mushroom: 2, zapechennaya_kuritsa: 1, zapechennye_yabloki: 1,
+        zapekanka_kartofelnaya: 2, zapekanka_tvorozhnaya: 2, zapekanka_yablochnaya: 2, zatirka_lapshovaya: 2, zefir_shokoladny: 1,
+        zefir_trekhsvetny: 1, zefir_yagodny: 2, zeppole_medovye: 2, zernistaya_kasha: 1, zharkoe_lesnoe: 1,
+        zharkoe_myasnoe: 1, zhele_limonnoe: 2, zhele_yagodnoe: 1, zhur_lesnoy: 2, zhyto_kasha: 1,
+        ziti_tomato: 2, zubrovka_med: 2, zucchini_salad: 2, zucchini_soup: 1,
       } },    // Ре-пин 000230.10: torso (000208-000232, kind armor) — КОНЕЦ
     // пула барахолки, rng-хвост → += 21 torso (не выпали: cloth_tunic/hemp_robe/cloth_sutan/embroidered_kaftan), остальные
     // ключи стока не сдвигаются (node-симуляция: seed/старые стоки
@@ -1503,71 +1560,83 @@ test('makeCampShop: golden (x, y, day, wealth) — формула контрак
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 → += 44;
     // не выпали: forest_balm/alpine_brew/ruby_draught/sapphire_balm/diamond_draught/star_tonic — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+        // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост конца пула видов 000047 (барахолка) → += 44 (не выпали: zavarka_medovaya/zefir_shokoladny/ziti_tomato/ziti_cheese/zhulien_gribnoy/zvany_obed);
+        // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
         alpine_brew: 4, amethyst_boots: 2, amethyst_choker: 2, amethyst_collar: 2, amethyst_dangle: 4,
         amethyst_draught: 2, amethyst_pants: 2, antler_hook: 3, archer_gloves: 1, argent_draught: 3,
-        arming_sword: 5, aurora_bow: 3, azure_tonic: 5, battered_falx: 3, battle_axe: 5, blue_sip: 4,
-        boar_tusk_earring: 1, bone_band: 3, bone_beads: 4, bone_greaves: 4, bone_grips: 1,
-        bone_pendant: 2, bone_sandals: 4, bread: 2, campaign_maul: 3, chainmail: 2, clay_dangle: 2,
-        clay_pendant: 5, cloth_cuff: 2, cloth_gloves: 2, cloth_loincloth: 4, cloth_sandals: 5,
-        cloth_sutan: 5, cloth_tunic: 2, cloth_wrap: 2, coarse_trousers: 4, copper_band: 3,
-        copper_beads: 1, copper_boots: 5, copper_brace: 4, copper_chain: 1, copper_dangle: 5,
-        copper_gauntlets: 2, copper_greaves: 3, copper_hoop: 4, copper_maul: 4, copper_pendant: 5,
-        copper_scyte: 3, copper_short_sword: 3, crimson_sip: 2, crown_flame: 3, damascus_blade: 2,
-        dawn_ear_cuff: 2, dawn_tonic: 2, dawnedge_blade: 5, deep_balm: 2, deep_breath_robe: 3,
-        diamond_draught: 4, drill_sword: 4, dusk_brew: 1, dusk_greaves: 3, eclipse_draught: 5,
-        ember_pants: 3, ember_robe: 1, ember_staff: 2, ember_tonic: 4, embroidered_kaftan: 1,
-        emerald_amulet: 1, emerald_boots: 3, emerald_gauntlets: 2, emerald_greaves: 3, emerald_stud: 4,
-        emerald_tonic: 5, engraved_bracers: 1, faith_amulet: 1, faith_stud: 2, fang_lanyard: 4,
-        fate_cleaver: 1, felt_boots: 1, felt_coif: 1, felt_trousers: 1, fine_gloves: 3, fine_kaftan: 1,
-        flanged_mace: 2, forest_balm: 2, forge_tonic: 3, frost_draught: 1, frostgrip_gauntlets: 4,
-        fur_hat: 2, gale_tonic: 2, gate_hammer: 2, genesis_staff: 4, ghost_cuff: 5,
-        gilded_broadsword: 3, gilded_vambraces: 2, gilt_war_hammer: 2, glacier_draught: 5,
-        glass_tonic: 5, gold_brace: 2, gold_chain: 3, gold_dangle: 3, gold_gloves: 3, gold_helm: 4,
-        gold_leggings: 4, gold_sandals: 5, goldstring_bow: 3, golem_gauntlets: 3, greater_healing: 1,
-        harvest_scyte: 4, healing_potion: 1, hemp_bracer: 2, hemp_breeches: 4, hemp_robe: 5,
-        hemp_sandals: 5, herb_draught: 1, hide_bracers: 4, hide_cuff: 1, hide_hose: 5, hide_wrap: 4,
-        hoarfrost_staff: 2, honey_brew: 1, honey_cake: 4, hood_common: 1, hunting_bow: 4, ice_staff: 3,
+        arming_sword: 5, aurora_bow: 3, azure_tonic: 5, battered_falx: 3, battle_axe: 5,
+        blue_sip: 4, boar_tusk_earring: 1, bone_band: 3, bone_beads: 4, bone_greaves: 4,
+        bone_grips: 1, bone_pendant: 2, bone_sandals: 4, bread: 2, campaign_maul: 3,
+        chainmail: 2, clay_dangle: 2, clay_pendant: 5, cloth_cuff: 2, cloth_gloves: 2,
+        cloth_loincloth: 4, cloth_sandals: 5, cloth_sutan: 5, cloth_tunic: 2, cloth_wrap: 2,
+        coarse_trousers: 4, copper_band: 3, copper_beads: 1, copper_boots: 5, copper_brace: 4,
+        copper_chain: 1, copper_dangle: 5, copper_gauntlets: 2, copper_greaves: 3, copper_hoop: 4,
+        copper_maul: 4, copper_pendant: 5, copper_scyte: 3, copper_short_sword: 3, crimson_sip: 2,
+        crown_flame: 3, damascus_blade: 2, dawn_ear_cuff: 2, dawn_tonic: 2, dawnedge_blade: 5,
+        deep_balm: 2, deep_breath_robe: 3, diamond_draught: 4, drill_sword: 4, dusk_brew: 1,
+        dusk_greaves: 3, eclipse_draught: 5, ember_pants: 3, ember_robe: 1, ember_staff: 2,
+        ember_tonic: 4, embroidered_kaftan: 1, emerald_amulet: 1, emerald_boots: 3, emerald_gauntlets: 2,
+        emerald_greaves: 3, emerald_stud: 4, emerald_tonic: 5, engraved_bracers: 1, faith_amulet: 1,
+        faith_stud: 2, fang_lanyard: 4, fate_cleaver: 1, felt_boots: 1, felt_coif: 1,
+        felt_trousers: 1, fine_gloves: 3, fine_kaftan: 1, flanged_mace: 2, forest_balm: 2,
+        forge_tonic: 3, frost_draught: 1, frostgrip_gauntlets: 4, fur_hat: 2, gale_tonic: 2,
+        gate_hammer: 2, genesis_staff: 4, ghost_cuff: 5, gilded_broadsword: 3, gilded_vambraces: 2,
+        gilt_war_hammer: 2, glacier_draught: 5, glass_tonic: 5, gold_brace: 2, gold_chain: 3,
+        gold_dangle: 3, gold_gloves: 3, gold_helm: 4, gold_leggings: 4, gold_sandals: 5,
+        goldstring_bow: 3, golem_gauntlets: 3, greater_healing: 1, harvest_scyte: 4, healing_potion: 1,
+        hemp_bracer: 2, hemp_breeches: 4, hemp_robe: 5, hemp_sandals: 5, herb_draught: 1,
+        hide_bracers: 4, hide_cuff: 1, hide_hose: 5, hide_wrap: 4, hoarfrost_staff: 2,
+        honey_brew: 1, honey_cake: 4, hood_common: 1, hunting_bow: 4, ice_staff: 3,
         indigo_brew: 1, iron_cuff: 2, iron_elbow: 1, iron_gauntlets: 3, iron_pitchfork: 3,
         iron_sword: 1, iron_wraps: 3, knight_plate: 2, kopis_curved: 3, leather_armor: 4,
         leather_cap: 4, leather_choker: 4, leather_cuff: 1, leather_gloves: 5, leather_gown: 3,
         leather_kaftan: 5, leather_loop: 1, leather_pants: 4, leather_sandals: 4, legion_gladius: 3,
         legion_sword: 2, linen_gown: 2, linen_shirt: 5, linen_trousers: 5, linen_tunic: 4,
         linen_wraps: 3, lostroad_boots: 4, lumber_axe: 2, lumber_machete: 3, mana_elixir: 2,
-        mana_potion: 2, marsh_balm: 4, meat: 4, meditating_robe: 4, miner_pickaxe: 3, minor_healing: 5,
-        mithril_boots: 5, mithril_choker: 4, mithril_helm: 1, mithril_hoop: 4, monk_sutan: 2,
-        moonlight_draught: 2, moonstone_chain: 2, moonstone_dangle: 3, moonstone_stud: 3,
+        mana_potion: 2, marsh_balm: 4, meat: 4, meditating_robe: 4, miner_pickaxe: 3,
+        minor_healing: 5, mithril_boots: 5, mithril_choker: 4, mithril_helm: 1, mithril_hoop: 4,
+        monk_sutan: 2, moonlight_draught: 2, moonstone_chain: 2, moonstone_dangle: 3, moonstone_stud: 3,
         mystic_breeches: 1, mystic_cloth: 2, mystic_earring: 2, mystic_sandals: 4, mystic_wraps: 1,
         nailed_boots: 5, night_gloves: 1, obsidian_cloth: 3, obsidian_greaves: 2, obsidian_pendant: 4,
         obsidian_sandals: 2, obsidian_stud: 2, patched_helm: 3, pathfinder_boots: 1, patrol_bow: 3,
         patrol_sword: 5, pearl_draught: 3, phantom_gloves: 5, philosopher_staff: 3, phoenix_tonic: 5,
         phosphor_brew: 3, pilgrim_sutan: 1, poacher_bow: 2, pyre_staff: 1, quartz_amulet: 5,
         quartz_bead: 2, quartz_cloth: 5, quartz_tonic: 4, quilted_jack: 4, quiver_gloves: 2,
-        rain_draught: 5, rebel_brand: 1, resin_brew: 2, rime_staff: 3, riveted_helm: 5, rough_chaps: 4,
-        rough_kaftan: 2, royal_elixir: 1, ruby_bell: 2, ruby_draught: 4, ruby_pendant: 4,
-        rune_circlet: 4, rune_gauntlets: 3, rune_greaves: 2, rune_hoop: 1, rune_necklace: 4,
-        runic_cuff: 2, sage_staff: 3, sapling_bow: 5, sapphire_balm: 5, sapphire_boots: 2,
-        sapphire_helm: 3, sapphire_hoop: 3, sapphire_leggings: 1, sapphire_pendant: 2, scout_bow: 3,
-        shadow_robe: 4, shadow_wrap: 1, shell_beads: 3, shell_wire_earring: 2, short_bow: 4,
-        siege_axe: 1, sigil_greaves: 2, silver_band: 2, silver_boots: 3, silver_bracers: 1,
-        silver_cuff: 5, silver_drop_earring: 2, silver_gauntlets: 3, silver_helm: 4, silver_hoop: 2,
-        silver_inlaid_bow: 1, silver_pendant_chain: 1, silver_stud: 2, silver_tonic: 5,
+        rain_draught: 5, rebel_brand: 1, resin_brew: 2, rime_staff: 3, riveted_helm: 5,
+        rough_chaps: 4, rough_kaftan: 2, royal_elixir: 1, ruby_bell: 2, ruby_draught: 4,
+        ruby_pendant: 4, rune_circlet: 4, rune_gauntlets: 3, rune_greaves: 2, rune_hoop: 1,
+        rune_necklace: 4, runic_cuff: 2, sage_staff: 3, sapling_bow: 5, sapphire_balm: 5,
+        sapphire_boots: 2, sapphire_helm: 3, sapphire_hoop: 3, sapphire_leggings: 1, sapphire_pendant: 2,
+        scout_bow: 3, shadow_robe: 4, shadow_wrap: 1, shell_beads: 3, shell_wire_earring: 2,
+        short_bow: 4, siege_axe: 1, sigil_greaves: 2, silver_band: 2, silver_boots: 3,
+        silver_bracers: 1, silver_cuff: 5, silver_drop_earring: 2, silver_gauntlets: 3, silver_helm: 4,
+        silver_hoop: 2, silver_inlaid_bow: 1, silver_pendant_chain: 1, silver_stud: 2, silver_tonic: 5,
         silvered_mace: 2, soul_bell: 3, spiral_earring: 1, star_armguard: 3, star_earring: 4,
         star_gloves: 2, star_hoop: 1, star_pendant: 4, star_tonic: 1, starvault_staff: 2,
         steel_gauntlets: 3, steel_pitchfork: 1, steel_sword: 2, stone_bead: 2, stone_brew: 5,
         stone_greaves: 4, stone_mace: 2, stone_robe: 4, stone_sandals: 2, storm_leggings: 3,
         straw_hat: 2, straw_sandals: 4, studded_bracer: 3, studded_gloves: 1, studded_mitts: 1,
-        sun_potion: 3, swift_boots: 5, swift_brace: 2, tar_boots: 2, thorn_bracers: 1, thunder_maul: 1,
-        tide_draught: 1, tin_morion: 1, titan_brace: 3, trade_bow: 1, travel_boots: 4,
-        traveler_boots: 1, traveler_bracer: 2, traveler_breeches: 3, traveler_cloak: 4,
+        sun_potion: 3, swift_boots: 5, swift_brace: 2, tar_boots: 2, thorn_bracers: 1,
+        thunder_maul: 1, tide_draught: 1, tin_morion: 1, titan_brace: 3, trade_bow: 1,
+        travel_boots: 4, traveler_boots: 1, traveler_bracer: 2, traveler_breeches: 3, traveler_cloak: 4,
         twilight_necklace: 4, twine_amulet: 3, twine_hoop: 5, twine_wraps: 1, vial_charm: 2,
         vigil_greaves: 1, vigil_plate: 1, vigil_vambrace: 5, vine_staff: 5, violet_brew: 2,
         void_gauntlet: 5, void_robe: 5, war_hammer: 4, warden_quarterstaff: 4, warder_cuirass: 4,
         warder_pendant: 2, warder_sword: 4, whisper_hoop: 3, wind_gloves: 4, windfletch_bow: 1,
-        wood_bead: 3, wood_brace: 3, wood_guards: 2, wood_pitchfork: 1, wood_scyte: 2, wood_sword: 3,
-        wooden_sandals: 3, wool_boots: 3, wool_bracers: 1, wool_breeches: 5, wool_cap: 1, wool_gown: 5,
-        wool_kaftan: 4, wool_shirt: 5, wool_sutan: 4, wool_trousers: 2, woven_sandals: 1,
-        yew_longbow: 2,
+        wood_bead: 3, wood_brace: 3, wood_guards: 2, wood_pitchfork: 1, wood_scyte: 2,
+        wood_sword: 3, wooden_sandals: 3, wool_boots: 3, wool_bracers: 1, wool_breeches: 5,
+        wool_cap: 1, wool_gown: 5, wool_kaftan: 4, wool_shirt: 5, wool_sutan: 4,
+        wool_trousers: 2, woven_sandals: 1, yew_longbow: 2, yogurt_domashniy: 2, yushka_rybnaya: 1,
+        yuzhny_mors: 1, zakuska_beet: 2, zakuska_cabbage: 4, zakuska_egg: 4, zakuska_fish: 4,
+        zakuska_garlic: 3, zakuska_mushroom: 1, zakvaska_hleb: 3, zapechennaya_kuritsa: 2, zapechenny_gus: 3,
+        zapechennye_yabloki: 2, zapekanka_kartofelnaya: 3, zapekanka_tvorozhnaya: 1, zapekanka_yablochnaya: 3, zasol_ogurcov: 4,
+        zatirka_lapshovaya: 5, zaychatina_tushonaya: 4, zefir_trekhsvetny: 3, zefir_vanilny: 4, zefir_yagodny: 5,
+        zeleny_sup: 5, zeppole_medovye: 5, zernistaya_kasha: 5, zernisty_hleb: 1, zharkoe_kartofelnoe: 3,
+        zharkoe_lesnoe: 2, zharkoe_myasnoe: 1, zharovnya_kuritsa: 5, zhele_limonnoe: 4, zhele_yagodnoe: 5,
+        zhulien_syrny: 1, zhur_lesnoy: 2, zhyto_kasha: 1, zimniy_kompot: 2, ziti_zapechennye: 3,
+        zolotoe_zharkoe: 1, zubrovka_med: 2, zucchini_boat: 5, zucchini_patty: 4, zucchini_salad: 4,
+        zucchini_soup: 5, zveroboy_chay: 1,
       }
       },
   ];
@@ -1771,6 +1840,8 @@ test('vm-песочница: items.js без каталога — фолбэк-�
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула таверны [food, potion] → += 30;
     // не выпали: weak_healing/crimson_sip/field_tonic/honey_brew/sun_potion/alpine_brew/stone_brew/silver_tonic/sapphire_balm/moonlight_draught/night_brew/glass_tonic/rain_draught/azure_tonic/dusk_brew/tide_draught/phosphor_brew/shadow_tonic/argent_draught/ash_elixir — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+      // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула таверны [food, potion] (vm) → += 33 (не выпали: zavarka_medovaya/zakvaska_hleb/zhyto_kasha/zefir_vanilny/zefir_yagodny/zucchini_patty/zhele_limonnoe/zucchini_boat/zucchini_soup/ziti_zapechennye/zeppole_medovye/zapekanka_tvorozhnaya/zapekanka_yablochnaya/zubrovka_med/zharkoe_kartofelnoe/zharkoe_lesnoe/zolotoe_zharkoe);
+      // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
       amber_elixir: 2, amethyst_draught: 2, arcane_tonic: 2, argent_draught: 1, ash_elixir: 1,
       azure_tonic: 2, crimson_sip: 1, dawn_tonic: 1, eclipse_draught: 1, ember_tonic: 2,
@@ -1778,7 +1849,14 @@ test('vm-песочница: items.js без каталога — фолбэк-�
       glass_tonic: 2, healing_potion: 1, herb_draught: 2, honey_cake: 1, mana_elixir: 1,
       mana_potion: 2, marsh_balm: 2, minor_healing: 1, mint_draught: 1, moonlight_draught: 1,
       night_brew: 2, obsidian_balm: 1, phoenix_tonic: 1, phosphor_brew: 2, rain_draught: 2,
-      royal_elixir: 2, shadow_tonic: 1, sun_potion: 1, tide_draught: 2, violet_brew: 2, void_tonic: 1,
+      royal_elixir: 2, shadow_tonic: 1, sun_potion: 1, tide_draught: 2, violet_brew: 2,
+      void_tonic: 1, yogurt_domashniy: 1, yushka_rybnaya: 1, yuzhny_mors: 2, zakuska_beet: 1,
+      zakuska_cabbage: 2, zakuska_egg: 1, zakuska_fish: 2, zakuska_garlic: 2, zakuska_mushroom: 1,
+      zapechennaya_kuritsa: 1, zapechenny_gus: 1, zapechennye_yabloki: 2, zapekanka_kartofelnaya: 1, zasol_ogurcov: 1,
+      zatirka_lapshovaya: 2, zaychatina_tushonaya: 1, zefir_shokoladny: 2, zefir_trekhsvetny: 2, zeleny_sup: 2,
+      zernistaya_kasha: 2, zernisty_hleb: 1, zharkoe_myasnoe: 1, zharovnya_kuritsa: 2, zhele_yagodnoe: 2,
+      zhulien_gribnoy: 1, zhulien_syrny: 2, zhur_lesnoy: 1, zimniy_kompot: 2, ziti_cheese: 2,
+      ziti_tomato: 2, zucchini_salad: 2, zvany_obed: 2, zveroboy_chay: 2,
     });
 });
 
@@ -2096,13 +2174,13 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // 000487-000511 — 25 свитков волны Природа); слоты не сдвигаются.
   // Ре-пин 000333: каталог растёт 511 → 513 (добавляются
   // 000512-000513 — 2 свитка навигации); слоты не сдвигаются.
-  assert.equal(files.length, 864,
-    'каталог — 864 файла (краснота: ' + files.length
+  assert.equal(files.length, 914,
+    'каталог — 914 файла (краснота: ' + files.length
     + ' — каталог ещё не расширен, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
     + '000230.13/000230.14/000230.15/000230.19/000235.11/000277/'
     + '000235.12/000333/000321.01/000321.02/000321.03/000321.04/'
-    + '000321.05/000348/000321.06)');
+    + '000321.05/000348/000321.06/000321.07/000321.08)');
   assert.equal(files[50], '000051.json',
     '000051.json — 51-й файл (краснота: файла нет)');
   const j = JSON.parse(
@@ -2170,13 +2248,14 @@ test('000165 I1: каталог 000051.json — 51-й файл, поля по Т
   // Ре-пин 000333: 511 → 513 (000512-000513 — 2 свитка навигации).
   // Ре-пин 000321.06: 764 → 814 (000765-000814 — 50 колец); ре-пин 000321.07:
   // 814 → 864 (000815-000864 — 50 зелий).
-  assert.equal(I.allItems().length, 864,
-    'allItems — 864 предмета (краснота: ' + I.allItems().length
+  // Ре-пин 000321.08: 864 → 914 (000865-000914 — 50 еды).
+  assert.equal(I.allItems().length, 914,
+    'allItems — 914 предмета (краснота: ' + I.allItems().length
     + ' — зеркало не регенерировано, 000230.08/000235.07/000235.08/'
     + '000230.09/000230.10/000235.09/000235.10/000230.11/000230.12/'
     + '000230.13/000230.14/000230.15/000230.19/000235.11/000277/'
     + '000235.12/000333/000321.01/000321.02/000321.03/000321.04'
-    + '/000321.05/000348/000321.06)');
+    + '/000321.05/000348/000321.06/000321.07/000321.08)');
   // (e) Нестаккуемый (ВНЕ STACKABLE, паттерн spell_scroll 000133):
   //     addItem ×2 → 2 слота qty 1 (не стопка).
   const c = createCharacter();
@@ -2312,15 +2391,15 @@ test('000157.01 R1: каталог — 11 reagent 000052-000062 (id/kind/weight/
   // 25 свитков волны Природа); слоты не сдвигаются.
   // Ре-пин 000333: каталог растёт 511 → 513 (000512-000513 —
   // 2 свитка навигации); слоты не сдвигаются.
-  assert.equal(files.length, 864,
-    'каталог — 864 файла (краснота: ' + files.length + ')');
+  assert.equal(files.length, 914,
+    'каталог — 914 файла (краснота: ' + files.length + ')');
   assert.equal(files[61], '000062.json',
     '000062.json — 62-й файл (краснота: файла нет)');
-  assert.equal(I.allItems().length, 864,
-    'allItems — 864 предмета (краснота: ' + I.allItems().length
+  assert.equal(I.allItems().length, 914,
+    'allItems — 914 предмета (краснота: ' + I.allItems().length
     + '; ре-пин 000333: +2 свитка навигации; ре-пин 000321.04: +50 артефактов; '
     + 'ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец; '
-    + 'ре-пин 000321.07: +50 зелий)');
+    + 'ре-пин 000321.07: +50 зелий; ре-пин 000321.08: +50 еды 000865–000914)');
 });
 
 // R3: магазины авто-подхватывают новые reagent — ноль правок src/items.js.
@@ -2562,7 +2641,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 831, 'прочих предметов — ровно 831 (каталог 864 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set; 000235.12: +25 свитков волны Природа; 000333: +2 свитка навигации — все без loot; 000321.01: +50 оружия — все без loot; 000321.02: +50 брони — все без loot; 000321.03: +50 щитов — все без loot; 000321.04: +50 артефактов — все без loot; 000321.05: +50 инструментов — все без loot; 000348: +1 свиток Декаданс — без loot; 000321.06: +50 колец — все без loot; 000321.07: +50 зелий — все без loot)');
+  assert.equal(others, 881, 'прочих предметов — ровно 881 (каталог 914 − 14 самородков − 14 новых − 5 исключений 000220; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set; 000235.12: +25 свитков волны Природа; 000333: +2 свитка навигации — все без loot; 000321.01: +50 оружия — все без loot; 000321.02: +50 брони — все без loot; 000321.03: +50 щитов — все без loot; 000321.04: +50 артефактов — все без loot; 000321.05: +50 инструментов — все без loot; 000348: +1 свиток Декаданс — без loot; 000321.06: +50 колец — все без loot; 000321.07: +50 зелий — все без loot; 000321.08: +50 еды — все без loot)');
 });
 
 test('000158.02 L4 (ГАРД): нет id с префиксом nugget_* + форма loot у ВСЕХ предметов с полем (kind reagent, terrains ⊆ 8 имён, minItems 1, frequency number [0,1]/отс., near_mountains bool/отс.)', () => {
@@ -2813,7 +2892,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 //     terrains + строковый id — тот же строгий фильтр, что map.js
 //     lootCandidates / LOOT_ITEM_IDS tests/sprites.test.js; 000220:
 //     +5 строительных reagent) — icon = конвенции, 33/33 svg существует;
-//   * прочие 0 предметов — icon НЕ задан / 864 с icon (финал
+//   * прочие 0 предметов — icon НЕ задан / 914 с icon (финал
 //     000302.08: каталог 511 = 511 + 0; ре-пин 000333: каталог
 //     513 = 513 + 0; пин «не тронуто», L3-форма;
 //     5 reagent'ов 000220 — с loot+icon);
@@ -2828,7 +2907,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / 864 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; ре-пин 000321.07: +50 зелий с icon в items/ — в исключении, каталог 864; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
+test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / 914 с icon (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; ре-пин 000321.07: +50 зелий с icon в items/ — в исключении, каталог 864; ре-пин 000321.08: +50 еды с icon в items/ — в исключении, каталог 914; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon)", () => {
   const files = ITEMSFILES_I08();
   const byId = new Map();
   for (const f of files) {
@@ -3145,6 +3224,20 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     'shadow_tonic', 'argent_draught', 'royal_elixir', 'arcane_tonic', 'eclipse_draught',
     'void_tonic', 'ash_elixir'
   ]);
+  // Ре-пин 000321.08: 50 предметов еды (000865-000914) — icon в
+  // assets/sprites/items/ (паттерн POTIONS_00032107) — исключение из
+  // пина «icon НЕ задан».
+  const FOOD_00032108 = new Set([
+    'zveroboy_chay', 'zavarka_medovaya', 'zhur_lesnoy', 'yogurt_domashniy', 'yuzhny_mors', 'zakuska_garlic',
+    'zakuska_beet', 'zakuska_cabbage', 'zakuska_egg', 'zasol_ogurcov', 'zakuska_mushroom', 'zakuska_fish',
+    'zeleny_sup', 'zimniy_kompot', 'zernistaya_kasha', 'zernisty_hleb', 'zakvaska_hleb', 'zhyto_kasha',
+    'zefir_vanilny', 'zefir_yagodny', 'zucchini_patty', 'zucchini_salad', 'zhele_yagodnoe', 'zhele_limonnoe',
+    'zefir_shokoladny', 'zucchini_boat', 'zucchini_soup', 'ziti_tomato', 'ziti_cheese', 'zatirka_lapshovaya',
+    'ziti_zapechennye', 'zeppole_medovye', 'yushka_rybnaya', 'zapekanka_kartofelnaya', 'zapekanka_tvorozhnaya', 'zapekanka_yablochnaya',
+    'zubrovka_med', 'zapechennye_yabloki', 'zharkoe_kartofelnoe', 'zhulien_gribnoy', 'zhulien_syrny', 'zharkoe_myasnoe',
+    'zaychatina_tushonaya', 'zharovnya_kuritsa', 'zharkoe_lesnoe', 'zapechennaya_kuritsa', 'zefir_trekhsvetny', 'zapechenny_gus',
+    'zolotoe_zharkoe', 'zvany_obed'
+  ]);
   const WEAPONS_00032101 = new Set(['copper_short_sword', 'drill_sword', 'poacher_dirk', 'kopis_curved', 'legion_sword', 'battered_falx', 'merchant_sword', 'patrol_sword', 'lumber_machete', 'sapling_bow', 'trade_bow', 'patrol_bow', 'poacher_bow', 'yew_longbow', 'copper_maul', 'stone_mace', 'flanged_mace', 'lumber_axe', 'miner_pickaxe', 'campaign_maul', 'silvered_sword', 'legion_gladius', 'arming_sword', 'rebel_brand', 'warder_sword', 'silver_inlaid_bow', 'long_warbow', 'scout_bow', 'silvered_mace', 'storm_maul', 'siege_axe', 'silver_bound_staff', 'warden_quarterstaff', 'vine_staff', 'gilded_broadsword', 'damascus_blade', 'gilt_war_hammer', 'thunder_maul', 'goldstring_bow', 'windfletch_bow', 'tempest_staff', 'pyre_staff', 'hoarfrost_staff', 'archivist_staff', 'dawnedge_blade', 'gate_hammer', 'aurora_bow', 'starvault_staff', 'fate_cleaver', 'genesis_staff']);
   let others = 0;
   for (const it of byId.values()) {
@@ -3175,7 +3268,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
         || TOOLS_00032105.has(it.id)
         || DECADANCE_000348.has(it.id)
         || RINGS_00032106.has(it.id)
-        || POTIONS_00032107.has(it.id)) continue;
+        || POTIONS_00032107.has(it.id)
+        || FOOD_00032108.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -3217,10 +3311,11 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + 'исключении; ре-пин 000348: +1 свиток Декаданс с icon — в '
     + 'исключении; ре-пин 000321.06: +50 колец с icon — в '
     + 'исключении; ре-пин 000321.07: +50 зелий с icon — в '
-    + 'исключении; 864 − 864 = 0)');
+    + 'исключении; ре-пин 000321.08: +50 еды с icon — в исключении; '
+    + '914 − 914 = 0)');
   assert.equal(
-    [...byId.values()].filter((it) => 'icon' in it).length, 864,
-    'icon — ровно у 864 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
+    [...byId.values()].filter((it) => 'icon' in it).length, 914,
+    'icon — ровно у 914 предмета (ре-пин 000230.08: 33 лут + 6 чертежей '
     + '+ 25 head; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: '
     + '+25 torso; ре-пин 000230.11: +50 рук; ре-пин 000230.12: '
     + '+25 «правая рука»; ре-пин 000230.13: +25 left_hand; '
@@ -3240,7 +3335,8 @@ test("000211.06 I1: 33 лут-предмета — icon = assets/sprites/loot/<i
     + 'ре-пин 000321.04: +50 артефактов с icon; '
     + 'ре-пин 000321.05: +50 инструментов с icon; '
     + 'ре-пин 000348: +1 свиток Декаданс с icon; '
-    + 'ре-пин 000321.06: +50 колец с icon)');
+    + 'ре-пин 000321.06: +50 колец с icon; ре-пин 000321.07: +50 '
+    + 'зелий с icon; ре-пин 000321.08: +50 еды с icon)');
 });
 
 test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойство {type: string, pattern: ^assets/sprites/(loot|items)/[\\w_]+\\.svg$} (дословно ТЗ), «icon» НЕ в required, additionalProperties верхнего уровня false', () => {
@@ -3256,10 +3352,10 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
     + JSON.stringify(s.properties.icon));
   assert.ok(!s.required.includes('icon'),
     'icon НЕ в required (без icon — 0 предметов; финал 000302.08: '
-    + 'каталог 864 = 864 с icon; финал 000243.01: 318 с icon + '
+    + 'каталог 914 = 914 с icon; финал 000243.01: 318 с icon + '
     + '193 без; ре-пин 000333: +2 свитка навигации с icon; '
     + 'ре-пин 000321.06: +50 колец с icon; '
-    + 'ре-пин 000321.07: +50 зелий с icon); '
+    + 'ре-пин 000321.07: +50 зелий с icon; ре-пин 000321.08: +50 еды с icon); '
     + 'факт: ' + JSON.stringify(s.required));
   assert.equal(s.additionalProperties, false,
     'верхний additionalProperties остаётся false (000141)');
@@ -3285,7 +3381,7 @@ test('000211.06 I2: schema.json — icon ОПЦИОНАЛЬНОЕ свойств
 //     slot/rarity/set/affixes/«kind требует slot» в validateItem нет;
 //   E20 — sync-items-data.js: KEYS без 4 новых ключей → tmp-репо:
 //     «ключи вне схемы» → exit 1.
-// Гарды (зелёные с первого запуска): E9 (каталог — 864 предметов без
+// Гарды (зелёные с первого запуска): E9 (каталог — 914 предметов без
 // ре-пин 000333: +2 свитка навигации без equip-полей — в гарде
 // новых полей; ре-пин 000321.01: +50 оружия 000514–000563; ре-пин 000321.02: +50 брони 000564–000613; ре-пин 000321.03: +50 щитов 000614–000663; ре-пин 000321.05: +50 инструментов 000714–000763), E19 (armor со ВСЕМИ валидными новыми полями — без
 // броска, без console.error, поля сохранены), E22 (D4-каталожность —
@@ -3655,7 +3751,7 @@ test('000230.01 E8: src/items.js — ITEM_KINDS += SHIELD/ARTIFACT/TOOL/RING, WE
     'EQUIP_KINDS — ровно 6 экипируемых kind (краснота: константы нет)');
 });
 
-test('000230.01 E9 (ГАРД): каталог — ровно 864 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.01: +50 оружия; ре-пин 000321.02: +50 брони 000564–000613; ре-пин 000321.03: +50 щитов 000614–000663; ре-пин 000321.04: +50 артефактов 000664–000713; ре-пин 000321.05: +50 инструментов 000714–000763; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.06: +50 колец 000765–000814; ре-пин 000321.07: +50 зелий 000815–000864), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
+test('000230.01 E9 (ГАРД): каталог — ровно 914 предмета (ре-пин 000230.08: +25 head; ре-пин 000232: +6 чертежей; ре-пин 000235.07: +25 свитков волны Огонь; ре-пин 000235.08: +25 свитков волны Лёд; ре-пин 000230.09: +50 уши/шея; ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: +25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны Исцеление; ре-пин 000230.11: +50 рук; ре-пин 000230.12: +25 «правая рука» + 7 legacy-оружий remap; ре-пин 000230.13: +25 left_hand; ре-пин 000230.14: +25 колец; ре-пин 000230.15: +50 ноги/ступни; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.01: +50 оружия; ре-пин 000321.02: +50 брони 000564–000613; ре-пин 000321.03: +50 щитов 000614–000663; ре-пин 000321.04: +50 артефактов 000664–000713; ре-пин 000321.05: +50 инструментов 000714–000763; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.06: +50 колец 000765–000814; ре-пин 000321.07: +50 зелий 000815–000864; ре-пин 000321.08: +50 еды 000865–000914), у НОЛЬ предметов есть ЛЮБОЕ из slot/rarity/set/affixes (пин «существующие предметы не меняются», ТЗ «Что сделать» 4)', () => {
   const items = I.allItems();
   // Ре-пин 000235.10: каталог 257 → 282 (+25 свитков волны Исцеление).
   // Ре-пин 000230.11: каталог 282 → 332 (+50 рук).
@@ -3672,7 +3768,9 @@ test('000230.01 E9 (ГАРД): каталог — ровно 864 предмет�
   // Ре-пин 000321.06: каталог 764 → 814 (+50 колец с equip-полями —
   // все в EQUIP_FIELDS_00023001); ре-пин 000321.07: каталог 814 → 864
   // (+50 зелий без equip-полей — в прочие).
-  assert.equal(items.length, 864, 'каталог — ровно 864 предмета');
+  // Ре-пин 000321.08: каталог 864 → 914 (+50 еды без equip-полей —
+  // в прочие; без slot/rarity).
+  assert.equal(items.length, 914, 'каталог — ровно 914 предмета');
   let others = 0;
   for (const it of items) {
     if (EQUIP_FIELDS_00023001.has(it.id)) continue;
@@ -3686,7 +3784,7 @@ test('000230.01 E9 (ГАРД): каталог — ровно 864 предмет�
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 275, 'прочих предметов — ровно 275 (ре-пин 000230.09: '
+  assert.equal(others, 325, 'прочих предметов — ровно 325 (ре-пин 000230.09: '
     + '182 − 75 equip-исключений = 107 (25 head + 50 уши/шея); '
     + 'ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: '
     + '+25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны '
@@ -3723,7 +3821,8 @@ test('000230.01 E9 (ГАРД): каталог — ровно 864 предмет�
     + 'ре-пин 000321.06: +50 колец с equip-полями → '
     + '814 − 589 equip-исключений = 225 (все 50 колец в '
     + 'исключениях); ре-пин 000321.07: +50 зелий без slot → '
-    + '864 − 589 equip-исключений = 275);');
+    + '864 − 589 equip-исключений = 275; ре-пин 000321.08: +50 еды без '
+    + 'slot → 914 − 589 equip-исключений = 325);');
 });
 
 test('000230.01 E10 (vm): НОВЫЕ kind shield/artifact/tool/ring — валидные фикстуры (id/name/kind/slot/weight/value/desc) грузятся БЕЗ броска, без console.error, поля сохранены', () => {
@@ -8035,12 +8134,12 @@ const RIGHT_HAND_ROSTER_00023012 = [
 const RIGHT_HAND_IDS_00023012 = RIGHT_HAND_ROSTER_00023012.map((r) => r[0]);
 const RIGHT_HAND_ID_SET_00023012 = new Set(RIGHT_HAND_IDS_00023012);
 
-test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; ре-пин 000230.19: каталог 459 (000458–000459 — set-предмета, после блока ноги/ступни); ре-пин 000277: каталог 486 (000485–000486 — set-предмета, после блока set); ре-пин 000235.12: каталог 511 (000487–000511 — свитки волны Природа, после set-блока); ре-пин 000333: каталог 513 (000512–000513 — свитки навигации, конец каталога); ре-пин 000321.01: каталог 563 (000514–000563 — оружие, новый конец каталога); ре-пин 000321.02: каталог 613 (000564–000613 — броня); ре-пин 000321.03: каталог 663 (000614–000663 — щиты); ре-пин 000321.04: каталог 713 (000664–000713 — артефакты); ре-пин 000321.05: каталог 763 (000714–000763 — инструменты, новый конец каталога); ре-пин 000348: каталог 764 (000764 — свиток Декаданс, новый конец каталога); ре-пин 000321.06: каталог 814 (000765–000814 — кольца, новый конец каталога); ре-пин 000321.07: каталог 864 (000815–000864 — зелья, новый конец каталога); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни, затем 000458–000486 set, затем 000487–000511 свитки Природа); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
+test('000230.12 R1: каталог 307 → 332; ре-пин post-merge (.13/.14): каталог 382; ре-пин 000235.10 post-merge: каталог 407 (000258–000282 — свитки волны Исцеление, блок 000333–000357 не сдвинулся); ре-пин 000230.15: каталог 457; ре-пин 000230.19: каталог 459 (000458–000459 — set-предмета, после блока ноги/ступни); ре-пин 000277: каталог 486 (000485–000486 — set-предмета, после блока set); ре-пин 000235.12: каталог 511 (000487–000511 — свитки волны Природа, после set-блока); ре-пин 000333: каталог 513 (000512–000513 — свитки навигации, конец каталога); ре-пин 000321.01: каталог 563 (000514–000563 — оружие, новый конец каталога); ре-пин 000321.02: каталог 613 (000564–000613 — броня); ре-пин 000321.03: каталог 663 (000614–000663 — щиты); ре-пин 000321.04: каталог 713 (000664–000713 — артефакты); ре-пин 000321.05: каталог 763 (000714–000763 — инструменты, новый конец каталога); ре-пин 000348: каталог 764 (000764 — свиток Декаданс, новый конец каталога); ре-пин 000321.06: каталог 814 (000765–000814 — кольца, новый конец каталога); ре-пин 000321.07: каталог 864 (000815–000864 — зелья, новый конец каталога); ре-пин 000321.08: каталог 914 (000865–000914 — еда, новый конец каталога); блок 000333–000357 — СРЕДИ каталога (после него 000358–000382 left_hand, затем 000383–000407 кольца, затем 000408–000457 ноги/ступни, затем 000458–000486 set, затем 000487–000511 свитки Природа); каталожный порядок: блок = 25 файлов ПОСЛЕ ВСЕХ файлов с номером < 333 (rebase-робастный якорь, паттерн .11 T1) = 000333–000357 подряд, все slot "right_hand", редкости по позициям ровно 10 common / 7 rare / 5 epic / 2 legendary / 1 impossible; id волны не пересекаются с остальным каталогом (краснота: волна не добавлена)', () => {
   const { files, byFile } = catalogScan00023008();
-  assert.equal(files.length, 864,
-    'каталог — 864 файла (332 + 25 .13 + 25 .14 + 25 свитков '
+  assert.equal(files.length, 914,
+    'каталог — 914 файла (332 + 25 .13 + 25 .14 + 25 свитков '
     + '000235.10 + 50 .15 + 2 .19 set + 25 свитков 000235.11 '
-    + '+ 2 000277 set + 25 свитков 000235.12 + 2 свитка 000333 + 50 оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 + 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07); '
+    + '+ 2 000277 set + 25 свитков 000235.12 + 2 свитка 000333 + 50 оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 + 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08); '
     + 'факт: ' + files.length);
   const p0 = files.filter((f) =>
     Number(f.slice(0, 6)) < 333).length;
@@ -9577,7 +9676,7 @@ const FEET_IDS_00023015 = LEGSFEET_ROSTER_00023015
 // Ре-пин 000321.02: +7 legs (000600–000606) и +7 feet (000607–000613)
 const LEGS_ADD_00032102 = ['coarse_trousers', 'hide_hose', 'wool_breeches', 'vigil_greaves', 'scale_hose', 'sigil_greaves', 'dusk_greaves'];
 const FEET_ADD_00032102 = ['woven_sandals', 'tar_boots', 'traveler_boots', 'nailed_boots', 'thorn_boots', 'pathfinder_boots', 'lostroad_boots'];
-test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони 000321.02) И set(ids slot feet) = 32 id (§2.1 25 + 7 брони 000321.02); allItems() = 864 (486+25 свитков 000235.12+2 свитка 000333+50 оружия 000321.01+50 брони 000321.02+50 щитов 000321.03+50 артефактов 000321.04+50 инструментов 000321.05+1 свиток Декаданс 000348+50 колец 000321.06+50 зелий 000321.07, 50 id в items-data.js; ре-пин merge .10–.14; ре-пин 000230.19: +2 set — id-множества legs/feet без смены, torso не входит; ре-пин 000277: forearms/palms — id-множества legs/feet без смены; ре-пин 000235.12: +25 свитков волны Природа — id-множества legs/feet без смены; ре-пин 000321.02: +7 legs 000600–000606 + 7 feet 000607–000613 — ПОСЛЕ блока, блок — первые 50); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
+test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони 000321.02) И set(ids slot feet) = 32 id (§2.1 25 + 7 брони 000321.02); allItems() = 914 (486+25 свитков 000235.12+2 свитка 000333+50 оружия 000321.01+50 брони 000321.02+50 щитов 000321.03+50 артефактов 000321.04+50 инструментов 000321.05+1 свиток Декаданс 000348+50 колец 000321.06+50 зелий 000321.07+50 еды 000321.08, 50 id в items-data.js; ре-пин merge .10–.14; ре-пин 000230.19: +2 set — id-множества legs/feet без смены, torso не входит; ре-пин 000277: forearms/palms — id-множества legs/feet без смены; ре-пин 000235.12: +25 свитков волны Природа — id-множества legs/feet без смены; ре-пин 000321.02: +7 legs 000600–000606 + 7 feet 000607–000613 — ПОСЛЕ блока, блок — первые 50); каталожный порядок: весь legs-блок 25 ЦЕЛИКОМ до feet-блока 25; 50 последовательных файлов (base = первый slot-legs, rebase-робастно, EN1-паттерн); редкости КАЖДОГО блока РОВНО 10/7/5/2/1; все kind armor (краснота: slot legs/feet — 0 предметов, зеркало 257)', () => {
   const { files, byFile } = catalogScan00023008();
   const legsItems = [...byFile.values()].filter((it) => it.slot === 'legs');
   const feetItems = [...byFile.values()].filter((it) => it.slot === 'feet');
@@ -9599,10 +9698,10 @@ test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони
     [...FEET_IDS_00023015, ...FEET_ADD_00032102].sort(),
     'set(ids slot feet) = 25 id §2.1 + 7 брони 000321.02 '
     + '(000607–000613)');
-  assert.equal(I.allItems().length, 864,
+  assert.equal(I.allItems().length, 914,
     'allItems() = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 = 864 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 = 914 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '
@@ -10077,12 +10176,12 @@ test('000230.15 LF6: EQUIP_POOLS — lengths 232/161/117/46/23 (ре-пин 0003
     'старый impossible-префикс 4 — бит-в-бит (append-only)');
 });
 
-test('000230.15 LF7: зеркала — items-data 864 (52 id: getItem ≡ JSON + валидны по schema.json; ре-пин 000321.02: +50 брони; ре-пин merge .10–.14; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов; ре-пин 000321.05: +50 инструментов; ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец; ре-пин 000321.07: +50 зелий) и craft-data 693 (393 + 50 рецептов 000321.02 + 50 рецептов 000321.03 + 50 рецептов 000321.04 + 50 рецептов 000321.05 + 50 рецептов 000321.06 + 50 рецептов 000321.07); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
+test('000230.15 LF7: зеркала — items-data 914 (52 id: getItem ≡ JSON + валидны по schema.json; ре-пин 000321.02: +50 брони; ре-пин merge .10–.14; ре-пин 000230.19: +2 set; ре-пин 000235.11: +25 свитков волны Защита; ре-пин 000277: +2 set; ре-пин 000235.12: +25 свитков волны Природа; ре-пин 000333: +2 свитка навигации; ре-пин 000321.03: +50 щитов; ре-пин 000321.04: +50 артефактов; ре-пин 000321.05: +50 инструментов; ре-пин 000348: +1 свиток Декаданс; ре-пин 000321.06: +50 колец; ре-пин 000321.07: +50 зелий; ре-пин 000321.08: +50 еды 000865–000914) и craft-data 693 (393 + 50 рецептов 000321.02 + 50 рецептов 000321.03 + 50 рецептов 000321.04 + 50 рецептов 000321.05 + 50 рецептов 000321.06 + 50 рецептов 000321.07); sync:all повторный запуск byte-identical (весь src/) (краснота: items-data 257 / craft-data 143 — зеркала не регенерированы)', () => {
   const ROOT = path.join(__dirname, '..');
-  assert.equal(I.allItems().length, 864,
+  assert.equal(I.allItems().length, 914,
     'items-data = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 = 864 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 = 914 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '

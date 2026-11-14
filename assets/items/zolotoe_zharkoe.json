@@ -1,0 +1,14 @@
+{
+  "id": "zolotoe_zharkoe",
+  "name": "Золотое жаркое",
+  "kind": "food",
+  "weight": 1,
+  "value": 61,
+  "base_price": 61,
+  "desc": "Золотое жаркое: корочка золотом, начинка сказкой.",
+  "effect": {
+    "kind": "eat",
+    "amount": 98
+  },
+  "icon": "assets/sprites/items/zolotoe_zharkoe.svg"
+}

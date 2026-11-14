@@ -1,0 +1,14 @@
+{
+  "id": "zefir_shokoladny",
+  "name": "Шоколадный зефир",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 27,
+  "base_price": 27,
+  "desc": "Шоколадный зефир: тает в руке — береги рукава.",
+  "effect": {
+    "kind": "eat",
+    "amount": 31
+  },
+  "icon": "assets/sprites/items/zefir_shokoladny.svg"
+}

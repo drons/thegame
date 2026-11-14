@@ -1,0 +1,14 @@
+{
+  "id": "zakuska_cabbage",
+  "name": "Капустная закуска",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 10,
+  "base_price": 11,
+  "desc": "Капустная закуска: хрустит на всю улицу.",
+  "effect": {
+    "kind": "eat",
+    "amount": 14
+  },
+  "icon": "assets/sprites/items/zakuska_cabbage.svg"
+}

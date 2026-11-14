@@ -191,15 +191,24 @@ const GOLDEN_MAKESHOP = {
     // Ре-пин 000321.07: зелья 000815–000864 — КОНЕЦ каталога, rng-хвост пула апотекаря [potion, food] → += 33;
     // не выпали: herb_draught/honey_brew/oak_tonic/dawn_tonic/forge_tonic/gale_tonic/pearl_draught/sapphire_balm/emerald_tonic/moonlight_draught/mint_draught/blue_sip/star_tonic/tide_draught/quartz_tonic/eclipse_draught/void_tonic — ключи стока не сдвинулись
     // (seed byte-identical; переснято ЖИВЫМ кодом).
+      // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула апотекаря [potion, food] (4-арг. регресс) → += 36 (не выпали: zavarka_medovaya/zhur_lesnoy/zakuska_cabbage/zernistaya_kasha/zhyto_kasha/zefir_vanilny/zucchini_salad/ziti_cheese/zatirka_lapshovaya/zapekanka_yablochnaya/zapechennye_yabloki/zharkoe_myasnoe/zefir_trekhsvetny/zolotoe_zharkoe);
+      // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
       amber_elixir: 3, amethyst_draught: 3, arcane_tonic: 2, argent_draught: 3, ash_elixir: 1,
-      azure_tonic: 2, bread: 3, dawn_tonic: 2, deep_balm: 1, diamond_draught: 2, eclipse_draught: 2,
-      field_tonic: 1, forge_tonic: 1, frost_draught: 1, gale_tonic: 2, glacier_draught: 2,
-      glass_tonic: 3, greater_healing: 2, honey_brew: 2, honey_cake: 2, mana_potion: 3, marsh_balm: 1,
-      minor_healing: 2, mint_draught: 1, oak_tonic: 2, obsidian_balm: 3, pearl_draught: 2,
-      phoenix_tonic: 1, quartz_tonic: 2, rain_draught: 2, resin_brew: 3, royal_elixir: 2,
-      ruby_draught: 3, silver_tonic: 3, star_tonic: 2, stone_brew: 2, sun_potion: 1, tide_draught: 3,
-      weak_healing: 2,
+      azure_tonic: 2, bread: 3, dawn_tonic: 2, deep_balm: 1, diamond_draught: 2,
+      eclipse_draught: 2, field_tonic: 1, forge_tonic: 1, frost_draught: 1, gale_tonic: 2,
+      glacier_draught: 2, glass_tonic: 3, greater_healing: 2, honey_brew: 2, honey_cake: 2,
+      mana_potion: 3, marsh_balm: 1, minor_healing: 2, mint_draught: 1, oak_tonic: 2,
+      obsidian_balm: 3, pearl_draught: 2, phoenix_tonic: 1, quartz_tonic: 2, rain_draught: 2,
+      resin_brew: 3, royal_elixir: 2, ruby_draught: 3, silver_tonic: 3, star_tonic: 2,
+      stone_brew: 2, sun_potion: 1, tide_draught: 3, weak_healing: 2, yogurt_domashniy: 1,
+      yushka_rybnaya: 1, yuzhny_mors: 3, zakuska_beet: 1, zakuska_egg: 3, zakuska_fish: 2,
+      zakuska_garlic: 2, zakuska_mushroom: 3, zakvaska_hleb: 1, zapechennaya_kuritsa: 2, zapechenny_gus: 2,
+      zapekanka_kartofelnaya: 2, zapekanka_tvorozhnaya: 2, zasol_ogurcov: 1, zaychatina_tushonaya: 3, zefir_shokoladny: 1,
+      zefir_yagodny: 2, zeleny_sup: 2, zeppole_medovye: 3, zernisty_hleb: 3, zharkoe_kartofelnoe: 1,
+      zharkoe_lesnoe: 1, zharovnya_kuritsa: 3, zhele_limonnoe: 3, zhele_yagodnoe: 2, zhulien_gribnoy: 3,
+      zhulien_syrny: 2, zimniy_kompot: 1, ziti_tomato: 2, ziti_zapechennye: 2, zubrovka_med: 2,
+      zucchini_boat: 2, zucchini_patty: 1, zucchini_soup: 3, zvany_obed: 1, zveroboy_chay: 2,
     },
     seed: baseSeed(10, 20, 2),
   },

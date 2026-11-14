@@ -1,0 +1,14 @@
+{
+  "id": "ziti_tomato",
+  "name": "Зити с томатами",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 30,
+  "base_price": 31,
+  "desc": "Зити с томатами: томаты с грядки, чеснок с печки.",
+  "effect": {
+    "kind": "eat",
+    "amount": 36
+  },
+  "icon": "assets/sprites/items/ziti_tomato.svg"
+}

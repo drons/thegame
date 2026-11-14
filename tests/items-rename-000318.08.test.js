@@ -32,7 +32,7 @@
 // мутационный (M7/M8/M9/M10).
 //
 // Контракты:
-//   * T1 — ростер: шейп items == slug, 864 файла, 0 numeric-имён,
+//   * T1 — ростер: шейп items == slug, 914 файла (ре-пин 000321.08: +50 еды), 0 numeric-имён,
 //     basename == id каждого файла, id уникальны, schema.json ∈ slug-regex
 //     (guard: исключение обязательно), чужих файлов нет.
 //   * T2 — зеркало: ITEMS — строгий lex-порядок по id (≠ прежний
@@ -64,7 +64,7 @@
 //     перестановка СОДЕРЖИМОГО пары файлов — записи всё равно в id-порядке
 //     (компаратор наблюдаем).
 //   * T8 — 0-diff стражи: прочие src/*-data.js ЗЕРКАЛА побайтово прежние
-//     (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + счётчики 864/33/
+//     (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + счётчики 914/33/
 //     232-161-117-46-23 инвариантны.
 //   * T9 — spec/items.md побайтово прежний (канон memory/000230.16
 //     byte-identical — гейт; docs-эррата :324 — долг, не правится) +
@@ -78,7 +78,7 @@
 //   * T11 — замороженный реестр «номер → id»
 //     tests/scripts/items-num2id-000318.08.json (его load'ят переписанные
 //     тесты ради ВИРТУАЛЬНЫХ numeric-имён — позиционные пины рядов):
-//     ключи 000001..000864 подряд, значения уникальны и ≡ множеству id
+//     ключи 000001..000914 подряд (ре-пин 000321.08: +50 еды), значения уникальны и ≡ множеству id
 //     диска (двусторонне), disk-файл <value>.json несёт id == value,
 //     spot-строки. Порча реестра массово красит items-семейку — зуб здесь.
 
@@ -109,10 +109,10 @@ function readItem(f) {
 }
 
 // Ростер: 864 файла на базе 6330d2ec (513 на 000318-split + волны
-// 000321.01–.07). Состав сторожат счётчик + basename==id + уникальность
+// 000321.01–.07 + 50 еды 000321.08 — EXPECTED_COUNT живого каталога/реестра). Состав сторожат счётчик + basename==id + уникальность
 // (сегментные дыры прежней нумерации после rename теряют смысл —
 // прецедент craft .07).
-const EXPECTED_COUNT = 864;
+const EXPECTED_COUNT = 914;
 
 // [прежний номер, id, число numeric-вхождений во ВСЕХ referrer-файлах
 // assets/ на базе 6330d2ec] — снапшот живым свипом ДО rename (3163
@@ -159,7 +159,7 @@ const RARITY_COUNTS = {
   common: 232, rare: 161, epic: 117, legendary: 46, impossible: 23,
 };
 
-test('000318.08 T1: ростер assets/items — шейп slug, 864 файла, 0 numeric-имён, basename == id, id уникальны; schema.json ∈ slug-regex (guard исключения)', () => {
+test('000318.08 T1: ростер assets/items — шейп slug, 914 файла (ре-пин 000321.08: +50 еды), 0 numeric-имён, basename == id, id уникальны; schema.json ∈ slug-regex (guard исключения)', () => {
   assert.equal(JR.ASSET_NAME_SHAPES.items, 'slug',
     'items: шейп в реестре — slug (000318.08); факт: «'
     + JR.ASSET_NAME_SHAPES.items + '»');
@@ -177,8 +177,8 @@ test('000318.08 T1: ростер assets/items — шейп slug, 864 файла,
     'items: чужие файлы вне slug-формы: ' + foreign.join(', '));
   const files = itemFiles();
   assert.equal(files.length, EXPECTED_COUNT,
-    'items: 864 файла (ростер базы 6330d2ec: 513 на split + волны '
-    + '000321.01–.07); факт: ' + files.length
+    'items: 914 файла (ростер базы 6330d2ec: 513 на split + волны '
+    + '000321.01–.07 + 50 еды 000321.08); факт: ' + files.length
     + ' (краснота: rename не выполнен — slug-фильтр даёт 0)');
   const ids = [];
   for (const f of files) {
@@ -192,13 +192,13 @@ test('000318.08 T1: ростер assets/items — шейп slug, 864 файла,
   const dup = ids.filter((v, i) => ids.indexOf(v) !== i);
   assert.deepEqual(dup, [], 'items: дубликаты id после rename');
   assert.equal(new Set(ids).size, EXPECTED_COUNT,
-    'items: 864 уникальных id (состав сторожат счётчик + basename==id)');
+    'items: 914 уникальных id (состав сторожат счётчик + basename==id)');
 });
 
 test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом lex-порядке по id (≠ прежний номерной), записи ≡ каталогу (recipe — id цели), комментарии «// <id>.json», numeric-имён нет, шапка-range из slug, «нумерация файлов» снята', () => {
   const { ITEMS } = require(MIRROR);
   assert.equal(ITEMS.length, EXPECTED_COUNT,
-    'items-data: 864 записи; факт: ' + ITEMS.length);
+    'items-data: 914 записи; факт: ' + ITEMS.length);
   const ids = ITEMS.map((r) => r.id);
   const sorted = [...ids].sort();
   assert.deepEqual(ids, sorted,
@@ -210,9 +210,9 @@ test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом
   assert.equal(ids[0], 'absolute_zero_scroll',
     'items-data: lex-первый предмет — absolute_zero_scroll (бывший 000139); '
     + 'прежний первый — wood_sword (000001) — сдвиг наблюдаем');
-  assert.equal(ids[EXPECTED_COUNT - 1], 'yew_longbow',
-    'items-data: lex-последний предмет — yew_longbow; прежний — ash_elixir '
-    + '(000864)');
+  assert.equal(ids[EXPECTED_COUNT - 1], 'zveroboy_chay',
+    'items-data: lex-последний предмет — zveroboy_chay (еда 000321.08; '
+    + 'до волны — yew_longbow; прежний номерной конец — ash_elixir (000864))');
   assert.notEqual(ids[0], 'wood_sword',
     'items-data: зеркало всё ещё в прежнем номерном порядке (rename не '
     + 'отражён в генерации)');
@@ -220,7 +220,7 @@ test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом
     const d = readItem(f);
     return [d.id, d];
   }));
-  assert.equal(byId.size, EXPECTED_COUNT, 'каталог: 864 записи по id');
+  assert.equal(byId.size, EXPECTED_COUNT, 'каталог: 914 записи по id');
   let recipes = 0;
   for (const r of ITEMS) {
     assert.equal(byId.has(r.id), true, `items-data: id «${r.id}» нет в каталоге`);
@@ -249,7 +249,7 @@ test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом
   assert.ok(!/^\s*\/\/ \d{6}\.json$/m.test(text),
     'в зеркале остались числовые комментарии-файлы «// 000NNN.json»');
   assert.match(text,
-    /\/\/ Предметы \(assets\/items\/absolute_zero_scroll\.json … yew_longbow\.json\);/,
+    /\/\/ Предметы \(assets\/items\/absolute_zero_scroll\.json … zveroboy_chay\.json\);/,
     'шапка-диапазон «// Предметы (assets/items/<первый> … <последний>)» не в '
     + 'slug-форме (факт: '
     + (text.match(/\/\/ Предметы \([^\n]*\);/) || [''])[0] + ')');
@@ -544,7 +544,7 @@ test('000318.08 T7: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зеркала побайтово прежние (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + счётчики 864 / лут 33 / rarity 232-161-117-46-23', () => {
+test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зеркала побайтово прежние (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + счётчики 914 (ре-пин 000321.08: +50 еды) / лут 33 / rarity 232-161-117-46-23', () => {
   for (const mirror of ['craft-data.js', 'dungeons-data.js',
     'loot-equip-data.js', 'mob-groups-data.js', 'npc-data.js',
     'portraits-data.js', 'runes-data.js', 'skills-data.js',
@@ -559,7 +559,7 @@ test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зерк�
       + 'не файловые пути (пути item-ссылок живут ТОЛЬКО в assets)');
   }
   const { ITEMS } = require(MIRROR);
-  assert.equal(ITEMS.length, 864, 'items — 864');
+  assert.equal(ITEMS.length, 914, 'items — 914');
   assert.equal(ITEMS.filter((i) => i.loot).length, 33,
     'лут-кандидатов (поле loot) — 33 (снапшот базы 6330d2ec; состав от '
     + 'rename не зависит — переставляется ПОРЯДОК кандидатов, пины map.js '
@@ -649,7 +649,7 @@ test('000318.08 T10: потребители порядка — EQUIP_POOLS set-�
   }
 });
 
-test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — ключи 000001..000864 подряд, значения уникальны и ≡ множеству id каталога (двусторонне), disk-файл <value>.json несёт id == value, spot-строки', () => {
+test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — ключи 000001..000914 подряд (ре-пин 000321.08: +50 еды), значения уникальны и ≡ множеству id каталога (двусторонне), disk-файл <value>.json несёт id == value, spot-строки', () => {
   const LED = path.join(__dirname, 'scripts',
     'items-num2id-000318.08.json');
   assert.ok(fs.existsSync(LED),
@@ -658,13 +658,13 @@ test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — 
   const led = JSON.parse(fs.readFileSync(LED, 'utf8'));
   const keys = Object.keys(led);
   assert.equal(keys.length, EXPECTED_COUNT,
-    'реестр: 864 записей; факт: ' + keys.length);
+    'реестр: 914 записей; факт: ' + keys.length);
   const want = [];
   for (let i = 1; i <= EXPECTED_COUNT; i++) {
     want.push(String(i).padStart(6, '0'));
   }
   assert.deepEqual([...keys].sort(), want,
-    'реестр: ключи — ровно 000001..000864 подряд (дыр/хвостов нет)');
+    'реестр: ключи — ровно 000001..000914 подряд (дыр/хвостов нет)');
   const SPOTS = [
     ['000001', 'wood_sword'],
     ['000012', 'healing_potion'],
@@ -675,6 +675,7 @@ test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — 
     ['000527', 'yew_longbow'],
     ['000764', 'decadance_scroll'],
     ['000864', 'ash_elixir'],
+    ['000914', 'zvany_obed'],
   ];
   for (const [num, id] of SPOTS) {
     assert.equal(led[num], id,
@@ -699,7 +700,7 @@ test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — 
       `реестр: disk-файл ${f} несёт внутренний id ≠ значению реестра`);
   }
   const diskIds = new Set(itemFiles().map((f) => readItem(f).id));
-  assert.equal(diskIds.size, EXPECTED_COUNT, 'каталог: 864 id на диске');
+  assert.equal(diskIds.size, EXPECTED_COUNT, 'каталог: 914 id на диске');
   for (const id of diskIds) {
     assert.ok(valSet.has(id),
       'каталог: id «' + id + '» отсутствует в реестре (реестр неполон — '

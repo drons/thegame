@@ -1,0 +1,14 @@
+{
+  "id": "zubrovka_med",
+  "name": "Мёд-зубровка",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 39,
+  "base_price": 39,
+  "desc": "Мёд-зубровка: трава в меду, солнце в ложке.",
+  "effect": {
+    "kind": "eat",
+    "amount": 56
+  },
+  "icon": "assets/sprites/items/zubrovka_med.svg"
+}

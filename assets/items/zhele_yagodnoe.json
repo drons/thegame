@@ -1,0 +1,14 @@
+{
+  "id": "zhele_yagodnoe",
+  "name": "Ягодное желе",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 25,
+  "base_price": 25,
+  "desc": "Ягодное желе: дрожит, как струна, и тает на языке.",
+  "effect": {
+    "kind": "eat",
+    "amount": 29
+  },
+  "icon": "assets/sprites/items/zhele_yagodnoe.svg"
+}

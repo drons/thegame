@@ -1,0 +1,14 @@
+{
+  "id": "zaychatina_tushonaya",
+  "name": "Тушёная зайчатина",
+  "kind": "food",
+  "weight": 1,
+  "value": 45,
+  "base_price": 45,
+  "desc": "Тушёная зайчатина: тушилась весь день, съедена за вечер.",
+  "effect": {
+    "kind": "eat",
+    "amount": 75
+  },
+  "icon": "assets/sprites/items/zaychatina_tushonaya.svg"
+}

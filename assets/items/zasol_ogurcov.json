@@ -1,0 +1,14 @@
+{
+  "id": "zasol_ogurcov",
+  "name": "Огурцы засоленные",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 12,
+  "base_price": 13,
+  "desc": "Огурцы засоленные: хруст на два зуба, сок на всю тарелку.",
+  "effect": {
+    "kind": "eat",
+    "amount": 16
+  },
+  "icon": "assets/sprites/items/zasol_ogurcov.svg"
+}

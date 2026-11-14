@@ -1,0 +1,14 @@
+{
+  "id": "zucchini_salad",
+  "name": "Кабачковый салат",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 24,
+  "base_price": 25,
+  "desc": "Кабачковый салат: свежий, с маслом и щепоткой соли.",
+  "effect": {
+    "kind": "eat",
+    "amount": 28
+  },
+  "icon": "assets/sprites/items/zucchini_salad.svg"
+}

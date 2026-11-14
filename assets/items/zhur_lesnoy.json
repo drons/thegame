@@ -1,0 +1,14 @@
+{
+  "id": "zhur_lesnoy",
+  "name": "Лесной жур",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 5,
+  "base_price": 5,
+  "desc": "Лесной жур: жидкий, а силы прибавляет.",
+  "effect": {
+    "kind": "eat",
+    "amount": 9
+  },
+  "icon": "assets/sprites/items/zhur_lesnoy.svg"
+}

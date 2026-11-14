@@ -1,0 +1,14 @@
+{
+  "id": "zakuska_mushroom",
+  "name": "Грибная закуска",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 13,
+  "base_price": 13,
+  "desc": "Грибная закуска: из тех, что растут за околицей.",
+  "effect": {
+    "kind": "eat",
+    "amount": 17
+  },
+  "icon": "assets/sprites/items/zakuska_mushroom.svg"
+}

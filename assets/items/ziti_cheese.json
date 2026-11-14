@@ -1,0 +1,14 @@
+{
+  "id": "ziti_cheese",
+  "name": "Зити сырные",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 31,
+  "base_price": 31,
+  "desc": "Зити сырные: сыр тянется ниткой до самой ложки.",
+  "effect": {
+    "kind": "eat",
+    "amount": 38
+  },
+  "icon": "assets/sprites/items/ziti_cheese.svg"
+}

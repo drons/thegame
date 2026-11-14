@@ -1,0 +1,14 @@
+{
+  "id": "zapekanka_tvorozhnaya",
+  "name": "Творожная запеканка",
+  "kind": "food",
+  "weight": 0.7,
+  "value": 37,
+  "base_price": 37,
+  "desc": "Творожная запеканка: тает во рту, как летнее облако.",
+  "effect": {
+    "kind": "eat",
+    "amount": 50
+  },
+  "icon": "assets/sprites/items/zapekanka_tvorozhnaya.svg"
+}

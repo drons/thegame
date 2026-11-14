@@ -1,0 +1,14 @@
+{
+  "id": "zharovnya_kuritsa",
+  "name": "Жаровня куриная",
+  "kind": "food",
+  "weight": 1.1,
+  "value": 46,
+  "base_price": 47,
+  "desc": "Жаровня куриная: золотая корочка, пар из-под крышки.",
+  "effect": {
+    "kind": "eat",
+    "amount": 79
+  },
+  "icon": "assets/sprites/items/zharovnya_kuritsa.svg"
+}

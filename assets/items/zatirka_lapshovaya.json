@@ -1,0 +1,14 @@
+{
+  "id": "zatirka_lapshovaya",
+  "name": "Затирка лапшовая",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 32,
+  "base_price": 33,
+  "desc": "Затирка лапшовая: лапша ручная, бульон сердечный.",
+  "effect": {
+    "kind": "eat",
+    "amount": 40
+  },
+  "icon": "assets/sprites/items/zatirka_lapshovaya.svg"
+}

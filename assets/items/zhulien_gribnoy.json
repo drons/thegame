@@ -1,0 +1,14 @@
+{
+  "id": "zhulien_gribnoy",
+  "name": "Жюльен грибной",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 42,
+  "base_price": 43,
+  "desc": "Жюльен грибной: сливки, лес, чуть-чуть муската.",
+  "effect": {
+    "kind": "eat",
+    "amount": 65
+  },
+  "icon": "assets/sprites/items/zhulien_gribnoy.svg"
+}

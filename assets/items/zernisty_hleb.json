@@ -1,0 +1,14 @@
+{
+  "id": "zernisty_hleb",
+  "name": "Зернистый хлеб",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 18,
+  "base_price": 19,
+  "desc": "Зернистый хлеб: на зубах хруст, в руках вес.",
+  "effect": {
+    "kind": "eat",
+    "amount": 22
+  },
+  "icon": "assets/sprites/items/zernisty_hleb.svg"
+}

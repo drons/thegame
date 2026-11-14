@@ -1,0 +1,14 @@
+{
+  "id": "zakuska_egg",
+  "name": "Яичная закуска",
+  "kind": "food",
+  "weight": 0.2,
+  "value": 11,
+  "base_price": 11,
+  "desc": "Яичная закуска: всмятку, с солью и зелёным луком.",
+  "effect": {
+    "kind": "eat",
+    "amount": 15
+  },
+  "icon": "assets/sprites/items/zakuska_egg.svg"
+}

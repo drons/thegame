@@ -1,0 +1,14 @@
+{
+  "id": "yushka_rybnaya",
+  "name": "Юшка рыбная",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 35,
+  "base_price": 35,
+  "desc": "Юшка рыбная: навар такой, что ложка стоит.",
+  "effect": {
+    "kind": "eat",
+    "amount": 46
+  },
+  "icon": "assets/sprites/items/yushka_rybnaya.svg"
+}

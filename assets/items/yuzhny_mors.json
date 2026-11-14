@@ -1,0 +1,14 @@
+{
+  "id": "yuzhny_mors",
+  "name": "Южный морс",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 7,
+  "base_price": 7,
+  "desc": "Южный морс: в нём лето, отжатое в стекляшку.",
+  "effect": {
+    "kind": "eat",
+    "amount": 11
+  },
+  "icon": "assets/sprites/items/yuzhny_mors.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zapechennye_yabloki",
+  "name": "Печёные яблоки",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 40,
+  "base_price": 41,
+  "desc": "Печёные яблоки: мёдом мазаны, корицей посыпаны.",
+  "effect": {
+    "kind": "eat",
+    "amount": 59
+  },
+  "icon": "assets/sprites/items/zapechennye_yabloki.svg"
+}

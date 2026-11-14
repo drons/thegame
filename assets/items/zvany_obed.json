@@ -1,0 +1,14 @@
+{
+  "id": "zvany_obed",
+  "name": "Званый обед",
+  "kind": "food",
+  "weight": 1.1,
+  "value": 65,
+  "base_price": 65,
+  "desc": "Званый обед: на двенадцать персон и одного гостя без зова.",
+  "effect": {
+    "kind": "eat",
+    "amount": 100
+  },
+  "icon": "assets/sprites/items/zvany_obed.svg"
+}

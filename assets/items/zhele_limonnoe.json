@@ -1,0 +1,14 @@
+{
+  "id": "zhele_limonnoe",
+  "name": "Лимонное желе",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 26,
+  "base_price": 27,
+  "desc": "Лимонное желе: кисло, зато глаза проясняет.",
+  "effect": {
+    "kind": "eat",
+    "amount": 30
+  },
+  "icon": "assets/sprites/items/zhele_limonnoe.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zeppole_medovye",
+  "name": "Цепполе медовые",
+  "kind": "food",
+  "weight": 0.4,
+  "value": 34,
+  "base_price": 35,
+  "desc": "Цепполе медовые: во фритюре жарены, в меду купаны.",
+  "effect": {
+    "kind": "eat",
+    "amount": 44
+  },
+  "icon": "assets/sprites/items/zeppole_medovye.svg"
+}

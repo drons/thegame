@@ -1,0 +1,14 @@
+{
+  "id": "zefir_yagodny",
+  "name": "Ягодный зефир",
+  "kind": "food",
+  "weight": 0.2,
+  "value": 22,
+  "base_price": 23,
+  "desc": "Ягодный зефир: розовый, с ягодной пылью на зубах.",
+  "effect": {
+    "kind": "eat",
+    "amount": 26
+  },
+  "icon": "assets/sprites/items/zefir_yagodny.svg"
+}

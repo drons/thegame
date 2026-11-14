@@ -1,0 +1,14 @@
+{
+  "id": "zapekanka_kartofelnaya",
+  "name": "Картофельная запеканка",
+  "kind": "food",
+  "weight": 0.8,
+  "value": 36,
+  "base_price": 37,
+  "desc": "Картофельная запеканка: печёная корка, мягкое сердце.",
+  "effect": {
+    "kind": "eat",
+    "amount": 48
+  },
+  "icon": "assets/sprites/items/zapekanka_kartofelnaya.svg"
+}

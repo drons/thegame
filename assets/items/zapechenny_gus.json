@@ -1,0 +1,14 @@
+{
+  "id": "zapechenny_gus",
+  "name": "Запечённый гусь",
+  "kind": "food",
+  "weight": 1.2,
+  "value": 57,
+  "base_price": 57,
+  "desc": "Запечённый гусь: на яблоках печён, на весь пир.",
+  "effect": {
+    "kind": "eat",
+    "amount": 95
+  },
+  "icon": "assets/sprites/items/zapechenny_gus.svg"
+}

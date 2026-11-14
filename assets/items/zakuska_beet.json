@@ -1,0 +1,14 @@
+{
+  "id": "zakuska_beet",
+  "name": "Свёкольная закуска",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 9,
+  "base_price": 9,
+  "desc": "Свёкольная закуска: бордовая, сладкая, крови полезна.",
+  "effect": {
+    "kind": "eat",
+    "amount": 13
+  },
+  "icon": "assets/sprites/items/zakuska_beet.svg"
+}

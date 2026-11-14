@@ -1,0 +1,14 @@
+{
+  "id": "yogurt_domashniy",
+  "name": "Домашний йогурт",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 6,
+  "base_price": 7,
+  "desc": "Домашний йогурт: сквашен с утра, съеден до полудня.",
+  "effect": {
+    "kind": "eat",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/yogurt_domashniy.svg"
+}

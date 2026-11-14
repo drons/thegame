@@ -1,0 +1,14 @@
+{
+  "id": "zapekanka_yablochnaya",
+  "name": "Яблочная запеканка",
+  "kind": "food",
+  "weight": 0.7,
+  "value": 38,
+  "base_price": 39,
+  "desc": "Яблочная запеканка: корица, яблоки, дух на весь дом.",
+  "effect": {
+    "kind": "eat",
+    "amount": 53
+  },
+  "icon": "assets/sprites/items/zapekanka_yablochnaya.svg"
+}

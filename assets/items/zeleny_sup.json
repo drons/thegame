@@ -1,0 +1,14 @@
+{
+  "id": "zeleny_sup",
+  "name": "Зелёный суп",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 15,
+  "base_price": 15,
+  "desc": "Зелёный суп: щавель да яйцо — и весна в тарелке.",
+  "effect": {
+    "kind": "eat",
+    "amount": 19
+  },
+  "icon": "assets/sprites/items/zeleny_sup.svg"
+}

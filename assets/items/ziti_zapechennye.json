@@ -1,0 +1,14 @@
+{
+  "id": "ziti_zapechennye",
+  "name": "Зити запечённые",
+  "kind": "food",
+  "weight": 0.7,
+  "value": 33,
+  "base_price": 33,
+  "desc": "Зити запечённые: корочка сверху, расплав внутри.",
+  "effect": {
+    "kind": "eat",
+    "amount": 42
+  },
+  "icon": "assets/sprites/items/ziti_zapechennye.svg"
+}

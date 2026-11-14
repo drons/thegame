@@ -1,0 +1,14 @@
+{
+  "id": "zefir_trekhsvetny",
+  "name": "Трёхцветный зефир",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 53,
+  "base_price": 53,
+  "desc": "Трёхцветный зефир: три цвета, три вкуса, одна радость.",
+  "effect": {
+    "kind": "eat",
+    "amount": 91
+  },
+  "icon": "assets/sprites/items/zefir_trekhsvetny.svg"
+}

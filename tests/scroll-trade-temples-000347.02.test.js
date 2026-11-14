@@ -352,7 +352,7 @@ test('T3: npcsForBuilding(36/37/38) — жрец в порядке катало�
 
 // --- T4: base_price-инвариант Е1 — 158 вставок, позиция, зеркало -----------
 
-test('T4: base_price — РОВНО у 252 предметов каталога; у 161 свитка base_price === value и ПОСЛЕ value (raw-текст и KEYS); 000043/45/48 не тронуты (60/45/70); 41 не-свитковый торг — без изменений; зеркало items-data несёт base_price в той же позиции', () => {
+test('T4: base_price — РОВНО у 302 предметов каталога (ре-пин 000321.08: +50 еды с base_price=value..value+1); у 161 свитка base_price === value и ПОСЛЕ value (raw-текст и KEYS); 000043/45/48 не тронуты (60/45/70); 41 не-свитковый торг — без изменений; зеркало items-data несёт base_price в той же позиции', () => {
   let withBase = 0;
   const scrolls = diskScrolls();
   for (const f of fs.readdirSync(IDIR)) {
@@ -380,10 +380,10 @@ test('T4: base_price — РОВНО у 252 предметов каталога; 
         + 'факт: base=' + it.base_price + ' value=' + it.value);
     }
   }
-  assert.equal(withBase, 252,
-    'base_price — РОВНО у 252 (41 не-свитковый торг + 161 свиток '
-    + '+ 50 зелий 000321.07; ре-пин 000322 R6: было 44 = 41+3; '
-    + 'ре-пин 000321.07: было 202); факт: ' + withBase);
+  assert.equal(withBase, 302,
+    'base_price — РОВНО у 302 (41 не-свитковый торг + 161 свиток '
+    + '+ 50 зелий 000321.07 + 50 еды 000321.08; ре-пин 000322 R6: было 44 = 41+3; '
+    + 'ре-пин 000321.07: было 202; ре-пин 000321.08: было 252); факт: ' + withBase);
   for (const [f, bp] of [['000043.json', 60], ['000045.json', 45],
     ['000048.json', 70]]) {
     assert.equal(readJson(path.join(IDIR, DISKI08(f))).base_price, bp,
@@ -398,8 +398,8 @@ test('T4: base_price — РОВНО у 252 предметов каталога; 
     assert.equal(keys.indexOf('base_price'), keys.indexOf('value') + 1,
       'зеркало ' + it.id + ': base_price ПОСЛЕ value');
   }
-  assert.equal(mirrorBase, 252,
-    'зеркало items-data — base_price у 252 (sync в том же коммите); '
+  assert.equal(mirrorBase, 302,
+    'зеркало items-data — base_price у 302 (sync в том же коммите); '
     + 'факт: ' + mirrorBase);
 });
 

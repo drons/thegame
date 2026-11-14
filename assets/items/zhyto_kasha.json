@@ -1,0 +1,14 @@
+{
+  "id": "zhyto_kasha",
+  "name": "Житняя каша",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 20,
+  "base_price": 21,
+  "desc": "Житняя каша: варится долго, естся быстро.",
+  "effect": {
+    "kind": "eat",
+    "amount": 24
+  },
+  "icon": "assets/sprites/items/zhyto_kasha.svg"
+}

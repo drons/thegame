@@ -1,0 +1,14 @@
+{
+  "id": "zakuska_garlic",
+  "name": "Чесночная закуска",
+  "kind": "food",
+  "weight": 0.2,
+  "value": 8,
+  "base_price": 9,
+  "desc": "Чесночная закуска: зубок к зубку — и хворь без укуса.",
+  "effect": {
+    "kind": "eat",
+    "amount": 12
+  },
+  "icon": "assets/sprites/items/zakuska_garlic.svg"
+}

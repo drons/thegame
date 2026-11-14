@@ -1,0 +1,14 @@
+{
+  "id": "zucchini_patty",
+  "name": "Кабачковый оладушек",
+  "kind": "food",
+  "weight": 0.3,
+  "value": 23,
+  "base_price": 23,
+  "desc": "Кабачковый оладушек: обжарен на сильном огне, отдан на тихом.",
+  "effect": {
+    "kind": "eat",
+    "amount": 27
+  },
+  "icon": "assets/sprites/items/zucchini_patty.svg"
+}

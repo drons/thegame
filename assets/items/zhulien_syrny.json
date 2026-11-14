@@ -1,0 +1,14 @@
+{
+  "id": "zhulien_syrny",
+  "name": "Жюльен сырный",
+  "kind": "food",
+  "weight": 0.6,
+  "value": 43,
+  "base_price": 43,
+  "desc": "Жюльен сырный: сыр тянется, ложка тонет.",
+  "effect": {
+    "kind": "eat",
+    "amount": 68
+  },
+  "icon": "assets/sprites/items/zhulien_syrny.svg"
+}

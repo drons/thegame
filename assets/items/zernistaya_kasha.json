@@ -1,0 +1,14 @@
+{
+  "id": "zernistaya_kasha",
+  "name": "Зернистая каша",
+  "kind": "food",
+  "weight": 0.5,
+  "value": 17,
+  "base_price": 17,
+  "desc": "Зернистая каша: зерно к зерну — солдату и пахарю.",
+  "effect": {
+    "kind": "eat",
+    "amount": 21
+  },
+  "icon": "assets/sprites/items/zernistaya_kasha.svg"
+}

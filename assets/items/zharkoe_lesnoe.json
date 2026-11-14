@@ -1,0 +1,14 @@
+{
+  "id": "zharkoe_lesnoe",
+  "name": "Жаркое лесное",
+  "kind": "food",
+  "weight": 0.9,
+  "value": 47,
+  "base_price": 47,
+  "desc": "Жаркое лесное: дичь, можжевельник, терпеливый огонь.",
+  "effect": {
+    "kind": "eat",
+    "amount": 83
+  },
+  "icon": "assets/sprites/items/zharkoe_lesnoe.svg"
+}

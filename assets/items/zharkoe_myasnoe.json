@@ -1,0 +1,14 @@
+{
+  "id": "zharkoe_myasnoe",
+  "name": "Мясное жаркое",
+  "kind": "food",
+  "weight": 1,
+  "value": 44,
+  "base_price": 45,
+  "desc": "Мясное жаркое: с пылу, с жару, гостям в радость.",
+  "effect": {
+    "kind": "eat",
+    "amount": 71
+  },
+  "icon": "assets/sprites/items/zharkoe_myasnoe.svg"
+}
