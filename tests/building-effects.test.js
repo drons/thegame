@@ -8225,7 +8225,7 @@ test('B28. сейв campStocks: roundtrip (стойка пережила пер�
     'мусор — {} (fail-open: игра не роняется)');
 });
 
-test('B29. «Диалог» кочевника и «Барахолка» — ДВЕ НЕЗАВИСИМЫЕ системы торговли: npcStocks (ключ точка+npcId, 000319) и campStocks (ключ «x,y») (задача 000095)', async () => {
+test('B29. «Диалог» кочевника и «Барахолка» — ЕДИНЫЙ сток лагерной точки: campStocks (ключ «x,y», 000095); витрина диалога = каталог ∩ полка дня (ре-пин 000383: была «ДВЕ НЕЗАВИСИМЫЕ системы»)', async () => {
   const h = await boot();
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
@@ -8234,8 +8234,8 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
   const npc = campNpc(G);
   const t = campTile();
   const b = campRecord(G);
-  // (1) «Диалог» — fallback роутера (БЕЗ нового кода, 000071):
-  // npcUI (не buildingUI), витрина кочевника.
+  // (1) «Диалог» — fallback роутера (000071): npcUI (не buildingUI),
+  // витрина кочевника — НЕ независимый канал, а полка точки.
   G.buildingActions.onBuildingAction(CAMP_DIALOG, t, b, npc);
   assert.equal(G.npcUI.isActive(), true,
     '«Диалог» открыл NPC-диалог (red: NPC нет → fallback не сработает)');
@@ -8247,61 +8247,63 @@ test('B29. «Диалог» кочевника и «Барахолка» — Д�
     'это оверлей NPC');
   assert.ok(textOf(ov).includes('Кочевник'),
     'оверлей Кочевника: ' + textOf(ov));
-  // (2) Вкладка «торговля» — опция диалога.
+  const shelf = G.makeCampShop(t.x, t.y, 1, t.buildingWealth, b).stock;
+  const inShelf = npc.торговля.предметы
+    .filter((p) => (shelf[p.предмет] || 0) >= 1);
+  // (2) Вкладка «торговля» — строки = каталог ∩ полка дня (чертёж
+  // вне видов лагеря → строки нет; была «витрина — 6 предметов»).
   const optTrade = findAll(ov, 'button[data-npcact="opt"]')
     .find((btn) => btn.dataset.optid === 'trade');
   assert.ok(optTrade, 'опция «trade» в диалоге');
   ov.listeners.click[0]({ target: optTrade });
-  assert.equal(findAll(ov, 'button[data-npcact="buy"]').length, 6,
-    'витрина — 6 предметов (каталог 000018; ре-пин 000232: +blueprint_woodwork)');
-  // Сток NPC создан лениво: ключ = точка+npcId (000319: мирской
-  // тайл — «npcId@W:x,y»; независимость от campStocks прежняя).
+  const buyBtns = findAll(ov, 'button[data-npcact="buy"]');
+  assert.equal(buyBtns.length, inShelf.length,
+    'витрина диалога = каталог ∩ полка дня (' + inShelf.length
+    + '; ре-пин 000383: была статичная «витрина — 6 предметов» каталога)');
+  assert.ok(!buyBtns.some((btn) => btn.dataset.item === 'blueprint_woodwork'),
+    'blueprint_woodwork ∉ виды лагеря — строки «купить» нет');
+  for (const btn of buyBtns) {
+    const mm = /\(ост\. (\d+)\)/.exec(textOf(btn.parent || ov));
+    assert.ok(mm, '«ост.» для «' + btn.dataset.item + '»: '
+      + textOf(btn.parent || ov));
+    assert.equal(Number(mm[1]), shelf[btn.dataset.item],
+      '«ост.» = полка дня campStocks (ре-пин 000383: был каталожный count)');
+  }
+  // (3) Сток создан на ТОЧКЕ (ключ «x,y»), npcStocks-ключ НЕ пишется.
   const NPC_KEY = 'camp_wanderer@W:40,40';
-  const npcStock0 = g.npcStocks[NPC_KEY];
-  assert.ok(npcStock0,
-    'npcStocks: «' + NPC_KEY + '» создан (red: ключа точки нет / '
-    + 'NPC нет в каталоге): ' + Object.keys(g.npcStocks).join(' | '));
-  // (3) Барахолка: стойка тайла (ключ «x,y») — отдельная система.
+  assert.ok(!(NPC_KEY in g.npcStocks),
+    'npcStocks: «' + NPC_KEY + '» НЕ создаётся на лагерном тайле '
+    + '(единый сток точки); ключи: '
+    + Object.keys(g.npcStocks).join(' | '));
+  assert.ok(g.campStocks['40,40'],
+    'campStocks: «40,40» — стойка тайла создана диалогом (red: '
+    + 'диалог писал в npcStocks)');
+  // (4) Покупка у Кочевника — мутирует campStocks (тот же сток,
+  // что [I]); был «npcStocks мутирован / барахолка НЕ изменилась».
+  const buyBtn = buyBtns.find((btn) => shelf[btn.dataset.item] >= 2);
+  assert.ok(buyBtn,
+    'на полке дня есть каталожный товар с qty ≥ 2 (остаток виден [I])');
+  const itemId = buyBtn.dataset.item;
+  const qty0 = g.campStocks['40,40'].stock[itemId];
+  ov.listeners.click[0]({ target: buyBtn });
+  assert.equal(g.campStocks['40,40'].stock[itemId], qty0 - 1,
+    'покупка в диалоге списывает campStocks точки');
+  assert.ok(!(NPC_KEY in g.npcStocks),
+    'после покупки npcStocks-ключ лагерного тайла по-прежнему не создан');
   G.npcUI.close();
-  G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
-  const campBeforeNpcBuy = JSON.parse(
-    JSON.stringify(g.campStocks['40,40'].stock));
-  assert.ok(campBeforeNpcBuy,
-    'campStocks: «40,40» — стойка тайла (red: поведения нет)');
-  // (4) Покупка у Кочевника — мутирует ТОЛЬКО npcStocks.
-  G.buildingActions.onBuildingAction(CAMP_DIALOG, t, b, npc);
-  const ov2 = findNpcOverlay(h);
-  assert.ok(ov2, 'повторный диалог: оверлей NPC снова открыт');
-  const opt2 = findAll(ov2, 'button[data-npcact="opt"]')
-    .find((btn) => btn.dataset.optid === 'trade');
-  ov2.listeners.click[0]({ target: opt2 });
-  const buyBtn = findAll(ov2, 'button[data-npcact="buy"]')[0];
-  const npcItemId = buyBtn.dataset.item;
-  const npcQty0 = g.npcStocks[NPC_KEY][npcItemId];
-  ov2.listeners.click[0]({ target: buyBtn });
-  assert.equal(g.npcStocks[NPC_KEY][npcItemId], npcQty0 - 1,
-    'покупка у Кочевника — npcStocks мутирован');
-  assert.deepEqual(JSON.parse(JSON.stringify(g.campStocks['40,40'].stock)),
-    campBeforeNpcBuy,
-    '…а сток барахолки НЕ изменился (системы независимы)');
-  G.npcUI.close();
-  // (5) Покупка в барахолке — мутирует ТОЛЬКО campStocks.
+  // (5) Барахолка [I] показывает тот же новый остаток.
   G.buildingActions.onBuildingAction(CAMP_MARKET, t, b, npc);
   const panel = findAll(h.body, '.char-panel')[0];
-  // 000318.08: детерминированно доступный предмет (не первый ключ).
-  const campBuyBtn = findAll(panel, '.cp-btn')
-    .find((btn) => btn.dataset.act === 'buy' && btn.dataset.item === 'bread');
-  assert.ok(campBuyBtn, 'кнопка «купить» bread — сток дня 1');
-  const campItemId = campBuyBtn.dataset.item;
-  const campQty0 = g.campStocks['40,40'].stock[campItemId];
-  const npcStockBeforeCampBuy = JSON.parse(
-    JSON.stringify(g.npcStocks[NPC_KEY]));
-  panel.listeners.click[0]({ target: campBuyBtn });
-  assert.equal(g.campStocks['40,40'].stock[campItemId], campQty0 - 1,
-    'покупка в барахолке — campStocks мутирован');
-  assert.deepEqual(JSON.parse(JSON.stringify(g.npcStocks[NPC_KEY])),
-    npcStockBeforeCampBuy,
-    '…а сток Кочевника НЕ изменился (системы независимы)');
+  const scope = panel._shopBody || panel;
+  const ib = findAll(scope, 'button[data-act="buy"]')
+    .find((btn) => btn.dataset.item === itemId);
+  assert.ok(ib, '[I]: «' + itemId + '» после покупки в диалоге есть '
+    + '(или выкуплен)');
+  const mm2 = / ×(\d+)/.exec(textOf(ib.parent || scope));
+  assert.equal(Number(mm2[1]), qty0 - 1,
+    '[I]: «×' + (qty0 - 1) + '» — согласованный остаток (красный '
+    + 'корня: [I] держал прежнюю полку)');
+  G.playerUI.toggle(false);
 });
 
 // --- Задача 000092: фонтан (49) + колодец (45) — wiring E2E (B24+) ---

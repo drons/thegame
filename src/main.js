@@ -3477,6 +3477,11 @@
       const ws = worldShopFor(t.x, t.y, t);
       if (ws) return { npc, stock: ws.stock };
     }
+    if (!ds && t && t.hasBuilding && t.buildingId === CAMP_ID && npc
+        && npc.торговля && Array.isArray(npc.торговля.предметы)) {
+      const cs = campShopFor(t.x, t.y, t);
+      if (cs) return { npc, stock: cs.stock };
+    }
     return npc ? npcShopFor(npc.id, t) : null;
   }
 
