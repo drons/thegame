@@ -281,9 +281,10 @@ test('000318.07 T2: зеркало src/craft-data.js — CRAFT в строгом
 
 test('000318.07 T3: REF_RE — побайтовый пин НОВОГО двухгруппного source с craft в slug-ветке + таблица истинности', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
-    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
-    'REF_RE группами по шейпам: number (skills/npc — items ушёл 000318.08) + '
+    '^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
+    + '|^assets\\/(npc)\\/\\d{6}\\.json$',
+    'REF_RE группами по шейпам: number (npc — items ушёл 000318.08, skills — '
+    + '000318.09) + '
     + 'slug (items|spells|mobs|mob_groups|buildings|craft|dungeons — items '
     + 'встал первым по REF_LINKED_CATALOGS); прежний source (items в '
     + 'number-группе) — «до 000318.08»; рантайм-носитель — pattern в '
@@ -296,7 +297,8 @@ test('000318.07 T3: REF_RE — побайтовый пин НОВОГО двух
     ['assets/craft/' + '000031' + '.json', false],
     ['assets/items/' + '000001' + '.json', false],
     ['assets/items/wood_sword.json', true],
-    ['assets/skills/000001.json', true],
+    ['assets/skills/' + '000001' + '.json', false],
+    ['assets/skills/forge.json', true],
     ['assets/npc/000018.json', true],
     ['assets/buildings/weapons_shop.json', true],
     ['assets/spells/spark.json', true],
@@ -321,8 +323,8 @@ test('000318.07 T4: схемы-носители — skills ×2 ≡ живому 
     'skills/schema.json: secondary.primary ≢ живому REF_RE.source');
   assert.equal(secSkills.properties.requires.properties.skill.pattern, live,
     'skills/schema.json: secondary.requires.skill ≢ живому REF_RE.source');
-  const UNION = '^assets/((skills|npc)/\\d{6}'
-    + '|(items|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
+  const UNION = '^assets/((npc)/\\d{6}'
+    + '|(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
   const dungs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'dungeons', 'schema.json'), 'utf8'));
   for (const where of [['мобы', dungs.properties.мобы.items.pattern],

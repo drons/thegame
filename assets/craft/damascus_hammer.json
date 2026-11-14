@@ -28,8 +28,8 @@
     "assets/buildings/mage_tower.json"
   ],
   "навыки": [
-    "assets/skills/000027.json",
-    "assets/skills/000010.json"
+    "assets/skills/runes.json",
+    "assets/skills/forge.json"
   ],
   "заклинания": [
     "flame_strike"

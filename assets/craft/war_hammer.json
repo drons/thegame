@@ -8,7 +8,7 @@
     { "предмет": "assets/items/battle_axe.json", "количество": 1 },
     { "предмет": "assets/items/sulfur.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000008.json", "assets/skills/000010.json"],
+  "навыки": ["assets/skills/heavy.json", "assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json"],
   "уровень": 6,
   "описание": "Лезвие меча и топора переплавляют в боевую голову молота: тяжёлое оружие для навыка «Тяжёлое оружие»."

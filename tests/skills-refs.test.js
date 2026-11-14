@@ -18,7 +18,10 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
-const { REF_RE, isRef, resolveRef, collectRefs } = require(
+const {
+  REF_RE, isRef, resolveRef, collectRefs,
+  ASSET_NAME_SHAPES, SHAPE_BASENAME_RES,
+} = require(
   path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
 const { SECONDARY_SKILLS } = require(
   path.join(ROOT, 'src', 'skills-data.js'));
@@ -28,7 +31,8 @@ const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 
 function listSkillFiles() {
   return fs.readdirSync(SKILLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.skills].test(f))
     .sort();
 }
 
@@ -64,7 +68,7 @@ test('SR1: secondary: primary — якорная ссылка на файл на
     assert.equal(typeof data.primary, 'string', `${file}: primary — строка`);
     assert.ok(isRef(data.primary),
       `${file}: primary "${data.primary}" — не якорная ссылка ` +
-      '(REF_RE: ссылка на assets/skills/<NNNNNN>.json)');
+      '(REF_RE: ссылка на assets/skills/<id>.json)');
   }
 });
 
@@ -144,18 +148,18 @@ test('SR5: схема — поля-ссылки закреплены REF_RE-па
 });
 
 // SR6: tmp-фикстура — 1 primary + 2 secondary из реального каталога
-// (000001 → 000002 без requires; 000003 с requires.skill на 000002),
-// значения primary/requires.skill (id или ссылка в каталоге)
-// заменены ссылками на файлы фикстуры.
+// (strength → swordsman без requires; heavy с requires.skill на swordsman),
+// значения primary/requires.skill заменены ссылками на файлы фикстуры
+// (имена фикстуры — slug-валидны: фильтр каталога живой реестр, 000318.09).
 function buildFixture(dir) {
-  const src = ['000001.json', '000007.json', '000008.json'];
-  const name = ['000001.json', '000002.json', '000003.json'];
+  const src = ['strength.json', 'swordsman.json', 'heavy.json'];
+  const name = ['fx0.json', 'fx1.json', 'fx2.json'];
   const data = src.map((f) => JSON.parse(
     fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
-  assert.equal(data[0].type, 'primary', 'фикстура: 000001 — primary');
-  assert.equal(data[1].type, 'secondary', 'фикстура: 000002 — secondary');
-  assert.equal(data[2].type, 'secondary', 'фикстура: 000003 — secondary');
-  assert.ok(data[2].requires, 'фикстура: 000003 имеет requires');
+  assert.equal(data[0].type, 'primary', 'фикстура: strength — primary');
+  assert.equal(data[1].type, 'secondary', 'фикстура: swordsman — secondary');
+  assert.equal(data[2].type, 'secondary', 'фикстура: heavy — secondary');
+  assert.ok(data[2].requires, 'фикстура: heavy имеет requires');
   const fileOf = new Map(data.map((d, i) => [d.id, src[i]]));
   const toFixtureRef = (target, where) => {
     const realFile = isRef(target)
@@ -264,9 +268,9 @@ test('SR8: полумигрированный каталог (primary в id-фо
     }
     const fx = buildFixture(dir);
     const semi = JSON.parse(fs.readFileSync(
-      path.join(dir, 'assets', 'skills', '000002.json'), 'utf8'));
+      path.join(dir, 'assets', 'skills', 'fx1.json'), 'utf8'));
     semi.primary = fx.id0;
-    fs.writeFileSync(path.join(dir, 'assets', 'skills', '000002.json'),
+    fs.writeFileSync(path.join(dir, 'assets', 'skills', 'fx1.json'),
       JSON.stringify(semi, null, 2) + '\n', 'utf8');
     const r = spawnSync(process.execPath,
       [path.join(dir, 'scripts', 'sync-skills-data.js')],

@@ -8,7 +8,7 @@
 // (000301): assets/school-icons/<id>.svg (иконки уже на диске).
 //
 // КРАСНЫЕ (9 — осмысленные ERR_ASSERTION, не краши):
-//   A1 — 6 файлов 000038–000043.json отсутствуют (type «school»);
+//   A1 — 6 школьных файлов <id>.json отсутствуют (type «school»);
 //   A2 — id-набор/порядок 000301, icon = assets/school-icons/<id>.svg
 //        на диске, name байт-в-байт — файлы отсутствуют;
 //   A3 — каждое различное «школа» из 169 spells совпадает ровно одной
@@ -48,12 +48,12 @@ const { validateData } = require('./json-schema.js');
 // Контракт 000301 (SCHOOLS src/spellbook-oc.js): порядок файлов =
 // порядок вкладок книги, name — байт-в-байт, icon — assets/school-icons.
 const SCHOOLS_EXPECTED = [
-  ['000038.json', 'protection', 'Защита'],
-  ['000039.json', 'healing', 'Исцеление'],
-  ['000040.json', 'ice', 'Лёд'],
-  ['000041.json', 'fire', 'Огонь'],
-  ['000042.json', 'nature_school', 'Природа'],
-  ['000043.json', 'shadow', 'Тень'],
+  ['protection.json', 'protection', 'Защита'],
+  ['healing.json', 'healing', 'Исцеление'],
+  ['ice.json', 'ice', 'Лёд'],
+  ['fire.json', 'fire', 'Огонь'],
+  ['nature_school.json', 'nature_school', 'Природа'],
+  ['shadow.json', 'shadow', 'Тень'],
 ];
 
 function readSchoolFile(file) {
@@ -67,7 +67,7 @@ function readSchoolFile(file) {
 
 // --- A: каталог assets/skills ---
 
-test('A1: 6 школьных файлов 000038–000043.json в каталоге, type «school»', () => {
+test('A1: 6 школьных файлов <id>.json (000318.09; были 000038–000043) в каталоге, type «school»', () => {
   for (const [file, id] of SCHOOLS_EXPECTED) {
     const p = path.join(SKILLS_DIR, file);
     assert.ok(fs.existsSync(p),
@@ -155,6 +155,11 @@ test('A5: schema.oneOf — 3 ветви; третья: type object, additionalPr
   }
 });
 
+// Порядок зеркала/дерева с 000318.09 — lex по id (был порядок файлов
+// 000038–000043 ≡ порядок 000301 — совпадение школы с той же буквой).
+const SCHOOLS_LEX = [...SCHOOLS_EXPECTED]
+  .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0));
+
 // --- B: зеркало и sync ---
 
 test('B1: зеркало — SCHOOLS: массив 6, deepEqual каталогу в порядке файлов, канон-порядок ключей', () => {
@@ -162,9 +167,9 @@ test('B1: зеркало — SCHOOLS: массив 6, deepEqual каталогу
   assert.ok(Array.isArray(m.SCHOOLS),
     'зеркало: экспорт SCHOOLS (задача 000324)');
   assert.equal(m.SCHOOLS.length, 6, 'SCHOOLS — 6 школ');
-  const cat = SCHOOLS_EXPECTED.map(([file]) => readSchoolFile(file));
+  const cat = SCHOOLS_LEX.map(([file]) => readSchoolFile(file));
   assert.deepEqual(m.SCHOOLS, cat,
-    'SCHOOLS — deepEqual каталогу в порядке файлов');
+    'SCHOOLS — deepEqual каталогу в lex-порядку по id (000318.09)');
   for (const s of m.SCHOOLS) {
     assert.deepEqual(Object.keys(s),
       ['id', 'type', 'name', 'desc', 'icon'], 'канон-порядок ключей');
@@ -226,14 +231,14 @@ test('B3: sync над миникаталогом со школьным файл�
     const read = (f) => JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     const files = {
-      '000001.json': read('000001.json'),
-      '000002.json': read('000007.json'),
-      '000003.json': read('000008.json'),
-      '000038.json': SCHOOL_FIXTURE,
+      'strength.json': read('strength.json'),
+      'swordsman.json': read('swordsman.json'),
+      'heavy.json': read('heavy.json'),
+      'protection.json': SCHOOL_FIXTURE,
     };
-    files['000002.json'].primary = 'assets/skills/000001.json';
-    files['000003.json'].primary = 'assets/skills/000001.json';
-    files['000003.json'].requires.skill = 'assets/skills/000002.json';
+    files['swordsman.json'].primary = 'assets/skills/strength.json';
+    files['heavy.json'].primary = 'assets/skills/strength.json';
+    files['heavy.json'].requires.skill = 'assets/skills/swordsman.json';
     for (const [f, d] of Object.entries(files)) {
       fs.writeFileSync(path.join(dir, 'assets', 'skills', f),
         JSON.stringify(d, null, 2) + '\n', 'utf8');
@@ -410,7 +415,7 @@ test('C1 (ре-пин 000358): [I] — секция «Школы магии» П
   const rows = findAll(sec, 'tr');
   assert.equal(rows.length, 6, '6 строк (по школе)');
   rows.forEach((tr, i) => {
-    const [file, id, name] = SCHOOLS_EXPECTED[i];
+    const [file, id, name] = SCHOOLS_LEX[i];
     const desc = JSON.parse(fs.readFileSync(
       path.join(SKILLS_DIR, file), 'utf8')).desc;
     const nameTd = tr.querySelector('.cp-name');
@@ -478,7 +483,7 @@ test('C3: после setCharacter (новый персонаж) секция «�
   assert.equal(rows.length, 6, 'опять 6 строк');
   rows.forEach((tr, i) => {
     assert.equal(tr.querySelector('.cp-name').textContent,
-      SCHOOLS_EXPECTED[i][2], 'строка ' + i + ': name не задет');
+      SCHOOLS_LEX[i][2], 'строка ' + i + ': name не задет');
   });
   assert.equal(env.errors.length, 0,
     '0 console.error: ' + env.errors.join('; '));

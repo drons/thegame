@@ -43,7 +43,7 @@
     },
     "skills": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^assets/skills/\\d{6}\\.json$" }
+      "items": { "type": "string", "pattern": "^assets/skills/[a-z][a-z0-9_]*\\.json$" }
     },
     "spells": {
       "type": "array",

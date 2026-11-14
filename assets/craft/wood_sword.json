@@ -6,7 +6,7 @@
   "исходники": [
     { "предмет": "assets/items/wood_log.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000002.json"],
+  "навыки": ["assets/skills/dexterity.json"],
   "здания": ["assets/buildings/wanderer_shop.json"],
   "уровень": 1,
   "описание": "Из бревна вытёсывают клинок: первая проба руки, до того как дойдут до железа."

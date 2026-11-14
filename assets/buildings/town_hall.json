@@ -20,8 +20,8 @@
   ],
   "особые_параметры": {
     "тренирует": [
-      "assets/skills/000035.json",
-      "assets/skills/000033.json"
+      "assets/skills/leader.json",
+      "assets/skills/merchant.json"
     ],
     "особенности": "Деловые встречи, гильдейские задания"
   }

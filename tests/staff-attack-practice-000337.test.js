@@ -39,13 +39,15 @@ const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 // тест, разрыв ловит подмножество-проверка).
 const skillIdsFromDisk = () => new Set(
   fs.readdirSync(SKILLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(f)) // 000318.09: skills — slug
     .map((f) => JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
 
 const skillFileById = (id) => {
   for (const f of fs.readdirSync(SKILLS_DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x)).sort()) {
+    .filter((x) => x !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(x)).sort()) {
     const j = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     if (j.id === id) return { file: f, data: j };
   }

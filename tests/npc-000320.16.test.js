@@ -297,7 +297,8 @@ test('T6: блок «обучение» — форма 000005 (ключи нав
     + 'требует); факт: ' + JSON.stringify(train.навыки));
   const skillDir = path.join(ROOT, 'assets', 'skills');
   const skillFiles = fs.readdirSync(skillDir)
-    .filter((f) => /^\d{6}\.json$/.test(f));
+    // 000318.09: skills — slug (имя == id); schema.json — вне каталога.
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f));
   for (const sk of train.навыки) {
     const found = skillFiles
       .filter((f) => readJson(path.join(skillDir, f)).id === sk);

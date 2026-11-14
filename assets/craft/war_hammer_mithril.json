@@ -12,7 +12,7 @@
     { "предмет": "assets/items/coal.json", "количество": 1 },
     { "предмет": "assets/items/mithril_ore.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000008.json", "assets/skills/000010.json"],
+  "навыки": ["assets/skills/heavy.json", "assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json"],
   "уровень": 9,
   "описание": "Улучшенный способ: мифриловая руда — тяжесть без веса: бонус к урону и гарантированный выход."

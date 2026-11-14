@@ -12,8 +12,8 @@
   ],
   "особые_параметры": {
     "тренирует": [
-      "assets/skills/000029.json",
-      "assets/skills/000031.json"
+      "assets/skills/meditation.json",
+      "assets/skills/nature.json"
     ],
     "особенности": "Жрицы-целители, травяные чаи",
     "эффекты": [

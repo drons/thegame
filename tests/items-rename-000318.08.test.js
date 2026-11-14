@@ -260,12 +260,13 @@ test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом
     + '(порядок теперь lex по id)');
 });
 
-test('000318.08 T3: REF_RE — побайтовый пин НОВОГО двухгруппного source (slug-группа ПЕРВОЙ: items встала в начало по REF_LINKED_CATALOGS; number: skills|npc) + таблица истинности', () => {
+test('000318.08 T3: REF_RE — побайтовый пин НОВОГО двухгруппного source (slug-группа ПЕРВОЙ: items встала в начало по REF_LINKED_CATALOGS, skills встал в неё же 000318.09; number: npc) + таблица истинности', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
-    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
+    '^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
+    + '|^assets\\/(npc)\\/\\d{6}\\.json$',
     'REF_RE группами по шейпам: slug (items|mobs|… — items встала ПЕРВОЙ, '
-    + 'она первый в REF_LINKED_CATALOGS) + number (skills|npc — items ушла); '
+    + 'она первый в REF_LINKED_CATALOGS) + number (npc — items ушла 000318.08, '
+    + 'skills ушёл 000318.09); '
     + 'прежний source (number-группа items|skills|npc первой) — «до '
     + '000318.08»; рантайм-носитель — pattern в assets/skills/schema.json '
     + '(SR5/skills.test сверяют живо)');
@@ -275,7 +276,8 @@ test('000318.08 T3: REF_RE — побайтовый пин НОВОГО двух
     ['assets/items/yew_longbow.json', true],
     ['assets/items/' + '000001' + '.json', false],
     ['assets/items/' + '000864' + '.json', false],
-    ['assets/skills/000001.json', true],
+    ['assets/skills/' + '000001' + '.json', false],
+    ['assets/skills/strength.json', true],
     ['assets/npc/000018.json', true],
     ['assets/craft/iron_sword.json', true],
     ['assets/buildings/weapons_shop.json', true],
@@ -301,8 +303,8 @@ test('000318.08 T4: схемы-носители — skills ×2 ≡ живому 
     'skills/schema.json: secondary.primary ≢ живому REF_RE.source');
   assert.equal(secSkills.properties.requires.properties.skill.pattern, live,
     'skills/schema.json: secondary.requires.skill ≢ живому REF_RE.source');
-  const UNION = '^assets/((skills|npc)/\\d{6}'
-    + '|(items|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
+  const UNION = '^assets/((npc)/\\d{6}'
+    + '|(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
   const dungs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'dungeons', 'schema.json'), 'utf8'));
   for (const where of [['мобы', dungs.properties.мобы.items.pattern],

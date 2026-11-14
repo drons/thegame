@@ -378,9 +378,9 @@ test('T6: профиль обучение — блок {навыки ≡ тре�
   const arena = readJson(path.join(ROOT, 'assets', 'buildings',
     'arena.json'));
   const trains = arena.особые_параметры.тренирует;
-  assert.deepEqual(trains, ['assets/skills/000007.json',
-    'assets/skills/000008.json'],
-    'тренирует Арены по диску базы — swordsman (000007) + heavy (000008)');
+  assert.deepEqual(trains, ['assets/skills/swordsman.json',
+    'assets/skills/heavy.json'],
+    'тренирует Арены по диску — swordsman + heavy (000318.09: имя файла == id)');
   const trainIds = trains.map((v) => {
     assert.ok(fs.existsSync(path.join(ROOT, v)),
       'ссылка тренирует «' + v + '» существует');
@@ -390,8 +390,8 @@ test('T6: профиль обучение — блок {навыки ≡ тре�
     'id целей тренирует ≡ навыки обучения (зуб контракта 000211.07)');
   for (const s of data.обучение.навыки) {
     assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'skills',
-      (s === 'swordsman' ? '000007' : '000008') + '.json')),
-      'навык «' + s + '» ∈ assets/skills (навыки — numeric-каталог)');
+      s + '.json')),
+      'навык «' + s + '» ∈ assets/skills (000318.09: имя == id)');
   }
   for (const block of ['торговля', 'квесты', 'найм']) {
     assert.ok(!(block in data),

@@ -7,7 +7,7 @@
     { "предмет": "assets/items/iron_ore.json", "количество": 2 },
     { "предмет": "assets/items/coal.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000010.json"],
+  "навыки": ["assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json", "assets/buildings/npc_house.json"],
   "уровень": 2,
   "описание": "Руду плавят в угольном горне и колют клинок с нуля: долгий путь, но без деревянного задела."

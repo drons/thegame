@@ -10,7 +10,7 @@
     { "предмет": "assets/items/sapphire.json", "количество": 1 },
     { "предмет": "assets/items/gold_ore.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000025.json"],
+  "навыки": ["assets/skills/alchemy.json"],
   "здания": ["assets/buildings/alchemy_lab.json"],
   "уровень": 7,
   "описание": "Улучшенный способ: сапфир и золотая руда сгущают ману — эликсир надёжнее."

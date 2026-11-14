@@ -9,7 +9,7 @@
     { "предмет": "assets/items/silver_ore.json", "количество": 1 },
     { "предмет": "assets/items/coal.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000010.json"],
+  "навыки": ["assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json", "assets/buildings/npc_house.json"],
   "уровень": 6,
   "описание": "Улучшенный способ: серебряная руда в горне даёт клинку бонус к урону и гарантирует качество."

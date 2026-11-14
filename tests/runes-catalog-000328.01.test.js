@@ -147,7 +147,8 @@ function catalog() {
 
 function secondarySkillIds() {
   const ids = new Set();
-  for (const f of fs.readdirSync(SKILLS_DIR).filter((x) => /^\d{6}\.json$/.test(x))) {
+  for (const f of fs.readdirSync(SKILLS_DIR).filter((x) => x !== 'schema.json'
+    && /^[a-z][a-z0-9_]*\.json$/.test(x))) { // 000318.09: skills — slug
     const j = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     if (j.type === 'secondary') ids.add(j.id);
   }

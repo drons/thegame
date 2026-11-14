@@ -7,7 +7,7 @@
     { "предмет": "assets/items/honey_cake.json", "количество": 1 },
     { "предмет": "assets/items/moonstone.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000025.json", "assets/skills/000031.json"],
+  "навыки": ["assets/skills/alchemy.json", "assets/skills/nature.json"],
   "здания": ["assets/buildings/apothecary.json", "assets/buildings/alchemy_lab.json"],
   "уровень": 1,
   "описание": "Медовый торт распускают на сласти, лунный камень даёт светлую ноту: простое лечащее зелье."

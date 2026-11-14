@@ -31,7 +31,7 @@
 //   T4 — GUARD 000336 в tests/efir.test.js перепинен ЧЕСТНО: ноль
 //        коллизий, winner-ассертов по readdir-порядку нет, skip «nature»
 //        снят (grep-пины текста — прецедент wording/grep-пинов);
-//   T5 — ссылки на изменённый id резолвятся: 000042.json проходит
+//   T5 — ссылки на изменённый id резолвятся: nature_school.json проходит
 //        ветвь school схемы, icon = assets/school-icons/<id>.svg на
 //        диске (nature.svg НЕ существует), src/spellbook.js «природа»
 //        → та же иконка, зеркало src/skills-data.js ≡ JSON, вложений
@@ -54,12 +54,13 @@ const { validateData } = require('./json-schema.js');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
 const readJson = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 const skillFiles = () => fs.readdirSync(SKILLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f));
+  // 000318.09: skills — slug (имя == id); schema.json — вне каталога.
+  .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f));
 
 test('000318.11 T1: 0 коллизий id в assets/skills — 44 файла, 44 уникальных id (инвариант basename==id для 000318.09)', () => {
   const files = skillFiles();
   assert.equal(files.length, 44,
-    'assets/skills: 44 файла 0000NN.json (факт: ' + files.length + ')');
+    'assets/skills: 44 файла <id>.json (000318.09; факт: ' + files.length + ')');
   const counts = new Map();
   for (const f of files) {
     const id = readJson(path.join(SKILLS_DIR, f)).id;
@@ -179,22 +180,22 @@ test('000318.11 T4: GUARD 000336 в tests/efir.test.js перепинен чес
 });
 
 test('000318.11 T5: ссылки на изменённый id резолвятся — 000042 проходит ветвь school, иконка nature_school.svg на диске (nature.svg удалён), spellbook/зеркало синхронны, вложений старого пути нет', () => {
-  const schoolPath = path.join(SKILLS_DIR, '000042.json');
+  const schoolPath = path.join(SKILLS_DIR, 'nature_school.json');
   const raw = fs.readFileSync(schoolPath, 'utf8');
   const d = JSON.parse(raw);
   assert.equal(d.id, 'nature_school',
-    '000042.json: id «nature_school» (факт: ' + d.id + ')');
-  assert.equal(d.name, 'Природа', '000042.json: name «Природа» не меняется');
-  assert.equal(d.type, 'school', '000042.json: type «school»');
+    'nature_school.json: id «nature_school» (факт: ' + d.id + ')');
+  assert.equal(d.name, 'Природа', 'nature_school.json: name «Природа» не меняется');
+  assert.equal(d.type, 'school', 'nature_school.json: type «school»');
   assert.deepEqual(Object.keys(d), ['id', 'type', 'name', 'desc', 'icon'],
-    '000042.json: канон-порядок ключей ветви school');
+    'nature_school.json: канон-порядок ключей ветви school');
   assert.equal(raw, JSON.stringify(d, null, 2) + '\n',
-    '000042.json: roundtrip-канон JSON.stringify(obj,null,2)+\\n');
+    'nature_school.json: roundtrip-канон JSON.stringify(obj,null,2)+\\n');
   const schema = readJson(path.join(SKILLS_DIR, 'schema.json'));
-  const errs = validateData(schema, d, '000042.json');
-  assert.deepEqual(errs, [], '000042.json проходит schema.json: ' + errs.join('; '));
+  const errs = validateData(schema, d, 'nature_school.json');
+  assert.deepEqual(errs, [], 'nature_school.json проходит schema.json: ' + errs.join('; '));
   assert.equal(d.icon, 'assets/school-icons/nature_school.svg',
-    '000042.json: icon = assets/school-icons/<id>.svg (контракт '
+    'nature_school.json: icon = assets/school-icons/<id>.svg (контракт '
     + 'spec/skills.md — спека остаётся истинной) (факт: ' + d.icon + ')');
   assert.ok(fs.existsSync(path.join(ROOT, d.icon)),
     'иконка на диске: ' + d.icon);
@@ -207,7 +208,7 @@ test('000318.11 T5: ссылки на изменённый id резолвятс
   const M = require('../src/skills-data.js');
   const mirrored = M.SCHOOLS.find((s) => s.id === 'nature_school');
   assert.deepEqual(mirrored, d,
-    'зеркало src/skills-data.js: SCHOOLS[nature_school] ≡ JSON 000042');
+    'зеркало src/skills-data.js: SCHOOLS[nature_school] ≡ JSON nature_school');
   assert.equal(M.SECONDARY_SKILLS.nature.id, 'nature',
     'зеркало: вторичный SECONDARY_SKILLS.nature цел (ключ не менялся)');
   assert.equal(M.SECONDARY_SKILLS.nature.name, 'Сердце природы',

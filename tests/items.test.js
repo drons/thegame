@@ -10370,7 +10370,7 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
       'уровень': 8,
       'полоса': [1, 10],
       'здания': ['assets/buildings/wanderer_shop.json'],
-      'навыки': ['assets/skills/000002.json'],
+      'навыки': ['assets/skills/dexterity.json'], // 000318.09: slug
       'заклинания': undefined,
       'исходники': ['assets/items/hide.json:2',
         'assets/items/wood_log.json:1'],
@@ -10388,8 +10388,8 @@ test('000230.19 T4 (node, зелёный пин): 2 базовых рецепт�
       'уровень': 45,
       'полоса': [30, 60],
       'здания': ['assets/buildings/mage_tower.json'],
-      'навыки': ['assets/skills/000027.json',
-        'assets/skills/000029.json'],
+      'навыки': ['assets/skills/runes.json',
+        'assets/skills/meditation.json'], // 000318.09: slug
       'заклинания': ['prayer'],
       'исходники': ['assets/items/amethyst.json:1',
         'assets/items/silver_ore.json:1', 'assets/items/coal.json:2'],
@@ -10796,7 +10796,7 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
       'уровень': 8,
       'полоса': [1, 10],
       'здания': ['assets/buildings/wanderer_shop.json'],
-      'навыки': ['assets/skills/000002.json'],
+      'навыки': ['assets/skills/dexterity.json'], // 000318.09: slug
       'заклинания': undefined,
       'исходники': ['assets/items/hide.json:2',
         'assets/items/wood_log.json:1'],
@@ -10814,8 +10814,8 @@ test('000277 T4: 2 базовых рецепта построчно (D-07; impro
       'уровень': 45,
       'полоса': [30, 60],
       'здания': ['assets/buildings/mage_tower.json'],
-      'навыки': ['assets/skills/000027.json',
-        'assets/skills/000029.json'],
+      'навыки': ['assets/skills/runes.json',
+        'assets/skills/meditation.json'], // 000318.09: slug
       'заклинания': ['prayer'],
       'исходники': ['assets/items/amethyst.json:1',
         'assets/items/silver_ore.json:1', 'assets/items/coal.json:2'],

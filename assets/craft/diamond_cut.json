@@ -9,7 +9,7 @@
     { "предмет": "assets/items/amethyst.json", "количество": 1 },
     { "предмет": "assets/items/stone_chisel.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000027.json"],
+  "навыки": ["assets/skills/runes.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],
   "уровень": 8,
   "описание": "Кварц ведёт резец, аметист держит свет: самый твёрдый из камней."

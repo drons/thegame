@@ -1,7 +1,7 @@
 // Каталог навыков (assets/skills) — задача 000012.
 //
 // Проверяем:
-//  * нумерация файлов 000001.json … N подряд, без дубликатов;
+//  * имя файла == id навыка — <id>.json (000318.09), без дубликатов;
 //  * каждый файл — корректный JSON с известным типом и полными полями;
 //  * консистентность: каталог JSON <-> src/skills-data.js (фолбэк file://)
 //    <-> src/player.js (каждый навык присутствует в обоих и наоборот,
@@ -21,8 +21,9 @@ const {
 
 const SKILLS_DIR = path.join(__dirname, '..', 'assets', 'skills');
 const ROOT = path.join(__dirname, '..');
-const { isRef, resolveRef, REF_RE } = require(
-  path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
+const {
+  isRef, resolveRef, REF_RE, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES,
+} = require(path.join(ROOT, 'scripts', 'lib', 'json-ref.js'));
 
 // Допустимые ключи JSON-схем (задача 000015: минимальный валидатор).
 const ALLOWED_SCHEMA_KEYS = new Set([
@@ -41,11 +42,13 @@ const SCHOOL_FIELDS = ['id', 'type', 'name', 'desc', 'icon'];
 
 function listSkillFiles() {
   return fs.readdirSync(SKILLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.skills].test(f))
     .sort();
 }
 
-// Каталог: Map<номер, {file, data}> + список всех файлов каталога.
+// Каталог: Map<id, {file, data}> (имя файла == id, 000318.09).
+// Порядок вставки — lex по файлам == lex по id = порядку зеркала.
 function denorm(file, data) {
   if (isRef(data.primary)) {
     const r = resolveRef(ROOT, data.primary);
@@ -64,38 +67,44 @@ function denorm(file, data) {
 
 function loadCatalog() {
   const all = fs.readdirSync(SKILLS_DIR).sort();
-  const byNumber = new Map();
+  const byId = new Map();
   for (const f of all) {
     if (f === 'schema.json') continue;
-    assert.match(f, /^\d{6}\.json$/, `чужой файл в каталоге навыков: ${f}`);
-    const n = parseInt(f, 10);
-    assert.ok(!byNumber.has(n), `дубликат номера навыка: ${f}`);
+    assert.match(f, SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.skills],
+      `чужой файл в каталоге навыков: ${f}`);
+    const id = f.slice(0, -'.json'.length);
     const data = denorm(f, JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
-    byNumber.set(n, { file: f, data });
+    assert.equal(data.id, id, `${f}: id != basename файла (000318.09)`);
+    assert.ok(!byId.has(id), `дубликат id навыка: ${f}`);
+    byId.set(id, { file: f, data });
   }
-  return { all, byNumber };
+  return { all, byId };
 }
 
 function normRequires(r) {
   return r === undefined || r === null ? null : r;
 }
 
-test('каталог: нумерация файлов подряд с 000001', () => {
+test('каталог: имя файла == id навыка (000318.09; прежняя нумерация подряд снята)', () => {
   const files = listSkillFiles();
   assert.ok(files.length >= 2, 'каталог пустой');
-  files.forEach((f, i) => {
-    assert.equal(f, String(i + 1).padStart(6, '0') + '.json',
-      `пробел в нумерации на позиции ${i + 1}: ${f}`);
+  files.forEach((f) => {
+    assert.match(f, /^[a-z][a-z0-9_]*\.json$/,
+      `имя файла не slug: ${f}`);
+    const data = JSON.parse(
+      fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
+    assert.equal(data.id, f.slice(0, -'.json'.length),
+      `basename != id: ${f}`);
   });
 });
 
 test('каталог: 6 основных, 32 вторичный и 6 школ', () => {
-  const { byNumber } = loadCatalog();
+  const { byId } = loadCatalog();
   let primary = 0;
   let secondary = 0;
   let school = 0;
-  for (const { data } of byNumber.values()) {
+  for (const { data } of byId.values()) {
     if (data.type === 'primary') primary += 1;
     else if (data.type === 'secondary') secondary += 1;
     else if (data.type === 'school') school += 1;
@@ -106,10 +115,10 @@ test('каталог: 6 основных, 32 вторичный и 6 школ', 
 });
 
 test('каждый файл: известные поля, без лишних', () => {
-  const { byNumber } = loadCatalog();
+  const { byId } = loadCatalog();
   const primaryIds = new Set(
-    [...byNumber.values()].filter((x) => x.data.type === 'primary').map((x) => x.data.id));
-  for (const { file, data } of byNumber.values()) {
+    [...byId.values()].filter((x) => x.data.type === 'primary').map((x) => x.data.id));
+  for (const { file, data } of byId.values()) {
     assert.ok(data && typeof data === 'object' && !Array.isArray(data),
       `${file}: не объект`);
     assert.ok(data.type === 'primary' || data.type === 'secondary'
@@ -159,9 +168,9 @@ test('каждый файл: известные поля, без лишних', 
 });
 
 test('консистентность: основные навыки каталог <-> player.js', () => {
-  const { byNumber } = loadCatalog();
+  const { byId } = loadCatalog();
   const catPrimary = new Map();
-  for (const { data } of byNumber.values()) {
+  for (const { data } of byId.values()) {
     if (data.type === 'primary') catPrimary.set(data.id, data);
   }
   for (const p of PRIMARY_SKILLS) {
@@ -175,9 +184,9 @@ test('консистентность: основные навыки катало
 });
 
 test('консистентность: вторичные навыки каталог <-> player.js', () => {
-  const { byNumber } = loadCatalog();
+  const { byId } = loadCatalog();
   const catSecondary = new Map();
-  for (const { data } of byNumber.values()) {
+  for (const { data } of byId.values()) {
     if (data.type === 'secondary') catSecondary.set(data.id, data);
   }
   for (const [id, s] of Object.entries(SECONDARY_SKILLS)) {
@@ -197,16 +206,16 @@ test('консистентность: вторичные навыки катал
 });
 
 test('skills-data.js — точное зеркало каталога JSON (фолбэк file://)', () => {
-  const { byNumber } = loadCatalog();
-  // Основные: порядок в модуле = порядку номеров файлов.
+  const { byId } = loadCatalog();
+  // Основные: порядок в модуле = lex по id (== lex имён файлов, 000318.09).
   const catPrimary = [];
-  for (const { data } of byNumber.values()) {
+  for (const { data } of byId.values()) {
     if (data.type === 'primary') catPrimary.push(data);
   }
   assert.deepEqual(skillsData.PRIMARY_SKILLS, catPrimary,
     'основные навыки: JS-модуль != JSON-каталог');
   // Вторичные: полное совпадение по каждому файлу (requires нормализован в null).
-  for (const { file, data } of byNumber.values()) {
+  for (const { file, data } of byId.values()) {
     if (data.type !== 'secondary') continue;
     const got = skillsData.SECONDARY_SKILLS[data.id];
     assert.ok(got, `skills-data.js: нет навыка "${data.id}" (${file})`);
@@ -217,17 +226,17 @@ test('skills-data.js — точное зеркало каталога JSON (фо
         desc: data.desc, names: data.names }),
       `skills-data.js: данные "${data.id}" (${file}) != JSON`);
   }
-  const catCount = [...byNumber.values()].filter((x) => x.data.type === 'secondary').length;
+  const catCount = [...byId.values()].filter((x) => x.data.type === 'secondary').length;
   assert.equal(Object.keys(skillsData.SECONDARY_SKILLS).length, catCount,
     'skills-data.js: лишний/недостающий вторичный навык');
-  // Школы (000324): порядок в модуле = порядку номеров файлов.
+  // Школы (000324): порядок в модуле = lex по id (000318.09).
   const catSchools = [];
-  for (const { data } of byNumber.values()) {
+  for (const { data } of byId.values()) {
     if (data.type === 'school') catSchools.push(data);
   }
   assert.deepEqual(skillsData.SCHOOLS, catSchools,
     'школы: JS-модуль != JSON-каталог');
-  for (const { file, data } of byNumber.values()) {
+  for (const { file, data } of byId.values()) {
     if (data.type !== 'school') continue;
     assert.deepEqual(Object.keys(
       skillsData.SCHOOLS.find((s) => s.id === data.id)),
@@ -244,10 +253,10 @@ test('player.js читает каталог из skills-data.js', () => {
 });
 
 test('дерево навыков: requires.skill существует в каталоге', () => {
-  const { byNumber } = loadCatalog();
+  const { byId } = loadCatalog();
   const allIds = new Set();
-  for (const { data } of byNumber.values()) allIds.add(data.id);
-  for (const { file, data } of byNumber.values()) {
+  for (const { data } of byId.values()) allIds.add(data.id);
+  for (const { file, data } of byId.values()) {
     if (data.type !== 'secondary') continue;
     assert.ok(allIds.has(data.primary),
       `${file}: primary "${data.primary}" не найден в каталоге`);
@@ -352,7 +361,7 @@ test('ранги: 6 рангов покрывают уровни 1..100 без �
 });
 
 test('000280 V1: forge (000010) — effectType «Карта» + desc «+5% к качеству собственного крафта за уровень»', () => {
-  const d = loadCatalog().byNumber.get(10).data;
+  const d = loadCatalog().byId.get('forge').data;
   assert.equal(d.effectType, 'Карта',
     `forge: effectType ожидало «Карта», факт «${d.effectType}»`);
   assert.equal(d.desc, '+5% к качеству собственного крафта за уровень',
@@ -360,7 +369,7 @@ test('000280 V1: forge (000010) — effectType «Карта» + desc «+5% к к
 });
 
 test('000280 V2: acro (000016) — effectType «ОТСРОЧЕНО» + desc «ОТСРОЧЕНО: потребителей стата в коде нет»', () => {
-  const d = loadCatalog().byNumber.get(16).data;
+  const d = loadCatalog().byId.get('acro').data;
   assert.equal(d.effectType, 'ОТСРОЧЕНО',
     `acro: effectType ожидало «ОТСРОЧЕНО», факт «${d.effectType}»`);
   assert.equal(d.desc, 'ОТСРОЧЕНО: потребителей стата в коде нет',
@@ -368,7 +377,7 @@ test('000280 V2: acro (000016) — effectType «ОТСРОЧЕНО» + desc «О
 });
 
 test('000280 V3: thief (000017) — effectType «Карта» + desc «Колодец: +5% шанс предмета на дне за уровень»', () => {
-  const d = loadCatalog().byNumber.get(17).data;
+  const d = loadCatalog().byId.get('thief').data;
   assert.equal(d.effectType, 'Карта',
     `thief: effectType ожидало «Карта», факт «${d.effectType}»`);
   assert.equal(d.desc, 'Колодец: +5% шанс предмета на дне за уровень',
@@ -376,7 +385,7 @@ test('000280 V3: thief (000017) — effectType «Карта» + desc «Коло�
 });
 
 test('000280 V4: endurance (000019) — effectType «Бой» + desc «+3% к максимальному здоровью за уровень»', () => {
-  const d = loadCatalog().byNumber.get(19).data;
+  const d = loadCatalog().byId.get('endurance').data;
   assert.equal(d.effectType, 'Бой',
     `endurance: effectType ожидало «Бой», факт «${d.effectType}»`);
   assert.equal(d.desc, '+3% к максимальному здоровью за уровень',
@@ -384,7 +393,7 @@ test('000280 V4: endurance (000019) — effectType «Бой» + desc «+3% к м
 });
 
 test('000280 V5: golem (000020) — effectType «Бой» + desc «+2% макс. здоровье и +1 броня за уровень»', () => {
-  const d = loadCatalog().byNumber.get(20).data;
+  const d = loadCatalog().byId.get('golem').data;
   assert.equal(d.effectType, 'Бой',
     `golem: effectType ожидало «Бой», факт «${d.effectType}»`);
   assert.equal(d.desc, '+2% макс. здоровье и +1 броня за уровень',
@@ -392,7 +401,7 @@ test('000280 V5: golem (000020) — effectType «Бой» + desc «+2% макс.
 });
 
 test('000280 V6: leader (000035) — effectType «Бой» + desc «+5% мораль спутников за уровень»', () => {
-  const d = loadCatalog().byNumber.get(35).data;
+  const d = loadCatalog().byId.get('leader').data;
   assert.equal(d.effectType, 'Бой',
     `leader: effectType ожидало «Бой», факт «${d.effectType}»`);
   assert.equal(d.desc, '+5% мораль спутников за уровень',
@@ -400,7 +409,7 @@ test('000280 V6: leader (000035) — effectType «Бой» + desc «+5% мора
 });
 
 test('000280 V7: artist (000036) — effectType «Карта» + desc «+10% заработок на выступлениях за уровень»', () => {
-  const d = loadCatalog().byNumber.get(36).data;
+  const d = loadCatalog().byId.get('artist').data;
   assert.equal(d.effectType, 'Карта',
     `artist: effectType ожидало «Карта», факт «${d.effectType}»`);
   assert.equal(d.desc, '+10% заработок на выступлениях за уровень',
@@ -408,7 +417,7 @@ test('000280 V7: artist (000036) — effectType «Карта» + desc «+10% з�
 });
 
 test('000280 V8: fright (000037) — effectType «Бой» + desc «5% за уровень шанс напугать моба уровнем ниже»', () => {
-  const d = loadCatalog().byNumber.get(37).data;
+  const d = loadCatalog().byId.get('fright').data;
   assert.equal(d.effectType, 'Бой',
     `fright: effectType ожидало «Бой», факт «${d.effectType}»`);
   assert.equal(d.desc, '5% за уровень шанс напугать моба уровнем ниже',
@@ -422,13 +431,13 @@ test('000280 V8: fright (000037) — effectType «Бой» + desc «5% за ур
 // runePowerMult building-effects.js:975 + craft.js:263).
 
 test('000286 A1: alchemy (000025) — effectType «Бой/Карта» (двусторонние, антидрейф)', () => {
-  const d = loadCatalog().byNumber.get(25).data;
+  const d = loadCatalog().byId.get('alchemy').data;
   assert.equal(d.effectType, 'Бой/Карта',
     `alchemy: effectType ожидало «Бой/Карта», факт «${d.effectType}»`);
 });
 
 test('000286 A2: runes (000027) — effectType «Бой/Карта» (двусторонние, антидрейф)', () => {
-  const d = loadCatalog().byNumber.get(27).data;
+  const d = loadCatalog().byId.get('runes').data;
   assert.equal(d.effectType, 'Бой/Карта',
     `runes: effectType ожидало «Бой/Карта», факт «${d.effectType}»`);
 });

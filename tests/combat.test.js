@@ -7899,8 +7899,10 @@ test('mobs schema (000211.03): поля-ссылки закрепили якор
   const schema = JSON.parse(
     fs.readFileSync(path.join(MOBS_DIR, 'schema.json'), 'utf8'));
   const p = schema.properties;
-  assert.equal(p.skills.items.pattern, '^assets/skills/\\d{6}\\.json$',
-    'skills: pattern не закреплён якорный (assets/skills)');
+  // 000318.09: skills — slug-носитель (имя == id).
+  assert.equal(p.skills.items.pattern,
+    '^assets/skills/[a-z][a-z0-9_]*\\.json$',
+    'skills: pattern — slug-носитель (000318.09: assets/skills — имя = id)');
   assert.equal(p.spells.items.pattern,
     '^assets/spells/[a-z][a-z0-9_]*\\.json$',
     'spells: pattern — slug-носитель (000318.05: assets/spells — имя = id)');
@@ -9975,7 +9977,7 @@ test('000230.14 T7: пулы дропа — 25 колец КОНЦОМ тиро�
 // «нет поля slot», бой бит-в-бит), в каталоге 0 предметов
 // subtype 'staff' / kind 'tool' (R10/R11 — «волна не добавлена»).
 // Д-02 (ре-пин 000337): staff → attackSkillId 'staff' — каталожный
-// вторичный навык «Владение посохом» (assets/skills/000044.json),
+// вторичный навык «Владение посохом» (assets/skills/staff.json, 000318.09),
 // practice applied = PRACTICE_XP.hit (XP в копилку skillXp.staff);
 // tool → damage 0 → формула кулаков + skillId 'fists'.
 // =====================================================================

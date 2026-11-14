@@ -163,7 +163,7 @@ test('AR2: isRef — якорный паттерн 9 каталогов (+/−)'
   const mod = loadRef();
   for (const s of [
     'assets/items/wood_sword.json',      // items — slug с 000318.08
-    'assets/skills/000037.json',
+    'assets/skills/fright.json',      // skills — slug с 000318.09
     'assets/dungeons/abyss.json',        // dungeons — slug с 000318.04
     'assets/mobs/abomination.json',      // mobs — slug с 000318.04
     'assets/mob_groups/abyss_spirit.json',  // mob_groups — slug с 000318.04
@@ -180,6 +180,7 @@ test('AR2: isRef — якорный паттерн 9 каталогов (+/−)'
     'assets/buildings/' + '000054' + '.json', // buildings slug с 000318.06: номер — не ref
     'assets/craft/' + '000031' + '.json', // craft slug с 000318.07: номер — не ref
     'assets/items/' + '000001' + '.json', // items slug с 000318.08: номер — не ref
+    'assets/skills/' + '000037' + '.json', // skills slug с 000318.09: номер — не ref
     'assets/mobs/00001.json',      // 5 цифр
     'assets/mobs/0000001.json',    // 7 цифр
     'assets/items/' + '1.json',
@@ -318,10 +319,16 @@ function loadShapes() {
 
 test('AR10: поверхность 000318.01 — реестр шейпов и резолверы формы', () => {
   const mod = loadShapes();
-  for (const cat of ['skills', 'npc']) {
+  for (const cat of ['npc']) {
     assert.equal(mod.ASSET_NAME_SHAPES[cat], 'number',
       cat + ': не переименован дочерними 000318 — шейп number');
   }
+  assert.equal(mod.ASSET_NAME_SHAPES.skills, 'slug',
+    'skills — slug (переименован 000318.09: имя = строковый id)');
+  assert.equal(mod.isRefPath('skills', 'strength.json'), true,
+    'skills (000318.09): slug-имя — ref');
+  assert.equal(mod.isRefPath('skills', '000001.json'), false,
+    'skills (000318.09): прежняя номерная форма — НЕ ref');
   assert.equal(mod.ASSET_NAME_SHAPES.items, 'slug',
     'items — slug (переименован 000318.08: имя = строковый id)');
   assert.equal(mod.isRefPath('items', 'wood_sword.json'), true,
@@ -385,10 +392,10 @@ test('AR10: поверхность 000318.01 — реестр шейпов и р
 test('AR11: REF_RE.source — побайтовый пин обратной совместимости', () => {
   const mod = loadRef();
   assert.equal(mod.REF_RE.source,
-    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
-    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
+    '^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
+    + '|^assets\\/(npc)\\/\\d{6}\\.json$',
     'REF_RE выводится из шейпов группами; с 000318.08 — ДВЕ группы '
-    + '(number: skills/npc; slug: items/spells/mobs/mob_groups/buildings/'
+    + '(number: npc; slug: items/skills/spells/mobs/mob_groups/buildings/'
     + 'craft/dungeons — items перешёл из number-группы по '
     + 'REF_LINKED_CATALOGS). Прежний литерал ДО .08 (items в number-группе); '
     + 'рантайм-носители slug-шейпа items: pattern в каталожных schema.json, '
@@ -409,6 +416,7 @@ test('AR12: isRefPathFull ≡ REF_RE (9 каталогов) — эквивале
   }
   samples.push('assets/visuals/000001.json', 'assets/runes/000001.json',
     'assets/mobs/abomination.json', 'assets/mob_groups/orc_camp.json',
+    'assets/skills/forge.json',
     'assets/dungeons/simple_cave.json',
     'assets/portraits/efir.json', 'fists', 'assets',
     'assets//000001.json', 'assets/items/' + '000001/000002.json');
@@ -426,6 +434,8 @@ test('AR13: slug — только для каталога со slug-шейпом
   assert.equal(mod.isRefPath('items', 'wood_sword.json'), true,
     'slug-шейп (текущий диск): basename со slug — ref');
   assert.equal(mod.isRef('assets/items/wood_sword.json'), true);
+  assert.equal(mod.isRefPath('skills', 'strength.json'), true,
+    'skills — slug на текущем диске (000318.09)');
   assert.equal(mod.isRefPath('items', 'Wood_sword.json'), false,
     'slug — с заглавной НЕ slug');
   assert.equal(mod.isRef('assets/items/' + '0000001.json'), false,
@@ -439,8 +449,9 @@ test('AR13: slug — только для каталога со slug-шейпом
       'number-шейп: голый номер — ref');
     assert.equal(mod.isRefPath('items', '0000001.json'), false,
       'number-шейп: 7 цифр — НЕ ref');
-    assert.equal(mod.isRefPath('skills', '000001.json'), true,
-      'number принимается каталогом number-шейпа (skills — number)');
+    assert.equal(mod.isRefPath('skills', '000001.json'), false,
+      'skills — slug-шейп (000318.09): номер НЕ ref даже при '
+      + 'подменённом number-шейпе items');
     assert.equal(mod.isRef('assets/items/' + '000001' + '.json'), true);
     withTmpRoot([['assets/items/' + '000001' + '.json',
       JSON.stringify({ id: 'wood_sword' })]

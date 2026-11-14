@@ -20,8 +20,8 @@
   ],
   "особые_параметры": {
     "тренирует": [
-      "assets/skills/000029.json",
-      "assets/skills/000028.json"
+      "assets/skills/meditation.json",
+      "assets/skills/perception.json"
     ],
     "особенности": "Утренние сидения, молчание",
     "эффекты": [

@@ -443,9 +443,9 @@ test('T6: профиль квесты (1–2: id/цель/награды вал�
   assert.equal(arena.категория, 'школа_навыков',
     'категория — школа_навыков (контракт «школы» её и свипует)');
   const trains = arena.особые_параметры.тренирует;
-  assert.deepEqual(trains, ['assets/skills/000007.json',
-    'assets/skills/000008.json'],
-    'тренирует Арены по диску базы — swordsman (000007) + heavy (000008)');
+  assert.deepEqual(trains, ['assets/skills/swordsman.json',
+    'assets/skills/heavy.json'],
+    'тренирует Арены по диску — swordsman + heavy (000318.09: имя файла == id)');
   const trainIds = trains.map((v) => {
     assert.ok(fs.existsSync(path.join(ROOT, v)),
       'ссылка тренирует «' + v + '» существует');

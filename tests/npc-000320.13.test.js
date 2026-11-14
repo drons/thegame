@@ -25,7 +25,7 @@
 //     блок «обучение» формата assets/npc/000005.json: {навыки:[alchemy],
 //     цена_за_уровень, цена_переноса_за_уровень} — коридор прецедента
 //     наставника (Карк/Родар/Глыба 25/40); навык alchemy =
-//     assets/skills/000025.json, type «secondary» — свип целостности
+//     assets/skills/alchemy.json (000318.09), type «secondary» — свип
 //     tests/npc-data.test «только вторичные навыки» зелёный;
 //   * ТОРГОВЛЯ ОБЯЗАТЕЛЬНА КОНТРАКТОМ D5/«SRC-1» (задача 000232,
 //     tests/craft-scroll-sources + memory/000232-craft-learned-kinds):
@@ -304,7 +304,8 @@ test('T6: блок «обучение» — форма 000005 (ключи нав
     + JSON.stringify(train.навыки));
   const skillDir = path.join(ROOT, 'assets', 'skills');
   const alchemyFiles = fs.readdirSync(skillDir)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    // 000318.09: skills — slug (имя == id); schema.json — вне каталога.
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
     .filter((f) => readJson(path.join(skillDir, f)).id === 'alchemy');
   assert.equal(alchemyFiles.length, 1,
     'навык alchemy существует в assets/skills ровно одним файлом');

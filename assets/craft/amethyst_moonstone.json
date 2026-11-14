@@ -9,7 +9,7 @@
     { "предмет": "assets/items/stone_chisel.json", "количество": 1 },
     { "предмет": "assets/items/amethyst.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000027.json", "assets/skills/000026.json"],
+  "навыки": ["assets/skills/runes.json", "assets/skills/scholar.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/library.json", "assets/buildings/obelisk.json"],
   "уровень": 5,
   "описание": "Улучшенный способ: аметист хранил память камня — руны ложатся глубже."

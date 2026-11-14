@@ -246,7 +246,8 @@ test('T6: блок «обучение» — форма 000005 (ключи нав
     + JSON.stringify(train.навыки));
   const skillDir = path.join(ROOT, 'assets', 'skills');
   const golemFiles = fs.readdirSync(skillDir)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    // 000318.09: skills — slug (имя == id); schema.json — вне каталога.
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
     .filter((f) => readJson(path.join(skillDir, f)).id === 'golem');
   assert.equal(golemFiles.length, 1,
     'навык golem существует в assets/skills ровно одним файлом');

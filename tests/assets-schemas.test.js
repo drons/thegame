@@ -106,6 +106,7 @@ const SLUG_PINNED_000318 = {
 const SLUG_SWEEP_000318 = {
   craft: { count: 693 },
   items: { count: 864 }, // 000318.08: rename в <id>.json
+  skills: { count: 44 }, // 000318.09: rename в <id>.json
 };
 
 function catalogDir(name) {

@@ -6,7 +6,7 @@
   "исходники": [
     { "предмет": "assets/items/wood_log.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000002.json", "assets/skills/000015.json"],
+  "навыки": ["assets/skills/dexterity.json", "assets/skills/archer.json"],
   "здания": ["assets/buildings/wanderer_shop.json"],
   "уровень": 3,
   "описание": "Два бревна, шнур и терпение: выгнутые дуги дают короткий лук для ближней охоты."

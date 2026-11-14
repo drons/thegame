@@ -232,11 +232,12 @@ test('000318.04 T3: цепочка ссылок — РОВНО 24 mob_groups→m
 
 test('000318.04 T4: REF_RE — побайтовый пин ДВУХгруппного source + таблица истинности формы × каталога', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)'
+    '^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)'
     + '\\/[a-z][a-z0-9_]*\\.json$'
-    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
+    + '|^assets\\/(npc)\\/\\d{6}\\.json$',
     'REF_RE группами по шейпам: slug-группа (items встала ПЕРВОЙ по '
-    + 'REF_LINKED_CATALOGS с 000318.08) + number-группа (skills|npc) — '
+    + 'REF_LINKED_CATALOGS с 000318.08) + number-группа (npc — skills ушёл '
+    + 'в slug 000318.09) — '
     + 'прежний двухгруппный source (items в number) узаконен .04/.05, '
     + 'снят 000318.08; рантайм-носитель pattern — assets/skills/schema.json');
   for (const [p, want] of [

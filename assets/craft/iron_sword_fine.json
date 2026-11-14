@@ -9,7 +9,7 @@
     { "предмет": "assets/items/sulfur.json", "количество": 3 },
     { "предмет": "assets/items/moonstone.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000010.json"],
+  "навыки": ["assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json"],
   "уровень": 5,
   "описание": "Улучшенный способ: лишняя сера и лунный камень дают бонус к урону меча и гарантируют качество."

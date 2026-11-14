@@ -7,7 +7,7 @@
     { "предмет": "assets/items/short_bow.json", "количество": 1 },
     { "предмет": "assets/items/phoenix_feather.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000015.json", "assets/skills/000027.json"],
+  "навыки": ["assets/skills/archer.json", "assets/skills/runes.json"],
   "здания": ["assets/buildings/mage_tower.json", "assets/buildings/hunting_estate.json"],
   "заклинания": ["frost_bolt"],
   "уровень": 5,

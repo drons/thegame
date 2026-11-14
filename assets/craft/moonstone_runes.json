@@ -7,7 +7,7 @@
     { "предмет": "assets/items/stone_chunk.json", "количество": 2 },
     { "предмет": "assets/items/stone_chisel.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000027.json", "assets/skills/000026.json"],
+  "навыки": ["assets/skills/runes.json", "assets/skills/scholar.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/library.json", "assets/buildings/obelisk.json"],
   "уровень": 2,
   "описание": "На огранённый камень вводят руны: записи библиотеки и свет обелиска учат камень помнить."

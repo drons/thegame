@@ -51,7 +51,10 @@ function readJson(dir, f) {
 }
 
 function skillFilesOf(dir) {
-  return jsonFiles(dir).filter((f) => /^\d{6}\.json$/.test(f));
+  // 000318.09: skills — slug из живого реестра; schema.json — исключение.
+  const JR = require('../scripts/lib/json-ref.js');
+  return jsonFiles(dir).filter((f) => f !== 'schema.json'
+    && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.skills].test(f));
 }
 
 function spellFilesOf(dir) {
@@ -348,12 +351,12 @@ test('000325 T5: self-check чекеров — чистые фикстуры os.
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-tree-audit-000325-'));
   try {
     const goodSkills = {
-      '000001.json': { id: 'strength', type: 'primary', name: 'Сила' },
-      '000002.json': { id: 'intelligence', type: 'primary', name: 'Интеллект' },
-      '000003.json': { id: 'meditation', type: 'secondary', name: 'Медитация' },
-      '000004.json': { id: 'alchemy', type: 'secondary', name: 'Алхимик' },
-      '000005.json': { id: 'runes', type: 'secondary', name: 'Рунопись' },
-      '000006.json': { id: 'fire', type: 'school', name: 'Огонь' },
+      'strength.json': { id: 'strength', type: 'primary', name: 'Сила' },
+      'intelligence.json': { id: 'intelligence', type: 'primary', name: 'Интеллект' },
+      'meditation.json': { id: 'meditation', type: 'secondary', name: 'Медитация' },
+      'alchemy.json': { id: 'alchemy', type: 'secondary', name: 'Алхимик' },
+      'runes.json': { id: 'runes', type: 'secondary', name: 'Рунопись' },
+      'fire.json': { id: 'fire', type: 'school', name: 'Огонь' },
     };
     const mkSkills = (name, entries) => {
       const d = path.join(tmp, name);
@@ -415,7 +418,7 @@ test('000325 T5: self-check чекеров — чистые фикстуры os.
     assert.ok(badSchool.some((s) => s.includes('взрыв')),
       'школа «взрыв»: ' + JSON.stringify(badSchool));
     const dupSchoolDir = mkSkills('dup-school', Object.assign({}, goodSkills, {
-      '000007.json': { id: 'fire2', type: 'school', name: 'Огонь' },
+      'fire2.json': { id: 'fire2', type: 'school', name: 'Огонь' },
     }));
     const dupSchool = checkSkillRefs(cleanTables, dupSchoolDir);
     assert.ok(dupSchool.some((s) => s.includes('огонь') && s.includes('резолвится')),
@@ -442,13 +445,13 @@ test('000325 T5: self-check чекеров — чистые фикстуры os.
     assert.ok(missing.some((s) => s.includes('intelligence')),
       'запись зеркала отсутствует: ' + JSON.stringify(missing));
     const extraDir = mkSkills('extra', Object.assign({}, goodSkills, {
-      '000008.json': { id: 'thief', type: 'secondary', name: 'Тать' },
+      'thief.json': { id: 'thief', type: 'secondary', name: 'Тать' },
     }));
     const extra = checkMirrorConsistency(goodMirror, extraDir);
     assert.ok(extra.some((s) => s.includes('thief')),
       'файл каталога не в зеркале: ' + JSON.stringify(extra));
     const weirdDir = mkSkills('weird-type', Object.assign({}, goodSkills, {
-      '000009.json': { id: 'weird', type: 'ultimate', name: 'Странность' },
+      'weird.json': { id: 'weird', type: 'ultimate', name: 'Странность' },
     }));
     const weird = checkMirrorConsistency(goodMirror, weirdDir);
     assert.ok(weird.some((s) => s.includes('ultimate')),

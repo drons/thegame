@@ -130,7 +130,6 @@ const SLOTS = ['head', 'ears', 'neck', 'torso', 'forearms', 'palms',
                'right_hand', 'left_hand', 'ring', 'legs', 'feet'];
 const BASE_SKILLS = ['strength', 'dexterity', 'constitution',
                      'intelligence', 'wisdom', 'charisma'];
-const NUM6 = /^\d{6}\.json$/;
 
 // Один проход: каталог items (JSON + schema + counts + vectors +
 // legacy + right/left_hand + ring + sets + affixes + иконки),
@@ -272,8 +271,10 @@ function loadCatalog(ROOT) {
   for (const k in byItem) hist[byItem[k]] = (hist[byItem[k]] || 0) + 1;
   const craft = { count: crafts.length, rarityCovered: Object.keys(byItem).length, hist, rarityEquip, types };
 
+  // 000318.09: skills — slug из живого реестра; schema.json — исключение.
+  // (id == basename ⇒ множество имён и сортировка ≡ прежнему канону.)
   const skillNames = fs.readdirSync(path.join(ROOT, 'assets', 'skills'))
-    .filter((f) => NUM6.test(f))
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'assets', 'skills', f), 'utf8')).id)
     .sort();
   const skills = { count: skillNames.length, names: skillNames };

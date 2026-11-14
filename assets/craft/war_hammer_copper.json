@@ -11,7 +11,7 @@
     { "предмет": "assets/items/copper_ore.json", "количество": 2 },
     { "предмет": "assets/items/coal.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000008.json", "assets/skills/000010.json"],
+  "навыки": ["assets/skills/heavy.json", "assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json"],
   "уровень": 7,
   "описание": "Улучшенный способ: медная руда в балане утяжеляет молот: бонус к урону и гарантированный выход."

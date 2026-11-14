@@ -487,7 +487,8 @@ test('000321.06 T5: матрица волны — Σ 50 skill-записей (Р
   const oldWaveSpells = new Set(['ice_armor', 'magic_shield']);
   const skillFiles = new Map();
   for (const f of fs.readdirSync(SKILLS_DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x))) {
+    .filter((x) => x !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(x))) {
     const j = JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     skillFiles.set(j.id, j);
@@ -652,7 +653,8 @@ test('000321.06 T8: 50 рецептов — файлы по id (прежние �
   const spells = spellIds();
   const skillFileById = new Map();
   for (const f of fs.readdirSync(SKILLS_DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x))) {
+    .filter((x) => x !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(x))) {
     const j = JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     skillFileById.set(j.id, f);
@@ -693,13 +695,15 @@ test('000321.06 T8: 50 рецептов — файлы по id (прежние �
     assert.equal(j['база'], undefined, f + ': «база» отсутствует');
     assert.equal(j['название'], recName, f + ': название == ростер');
     assert.equal(j['описание'], recDesc, f + ': описание == ростер');
+    // 000318.09: skills — slug (имя == id) — refNum отдаёт id как есть.
     const expectedSk = recType === 'r'
-      ? ['000027']
-      : ['000027', skillFileById.get(skill).slice(0, 6)];
-    assert.deepEqual(j['навыки'].map(refNum).sort(),
+      ? ['runes']
+      : ['runes',
+        skillFileById.get(skill).replace(/\.json$/, '')];
+    assert.deepEqual(j['навыки'].map((s) => path.basename(s, '.json')).sort(),
       [...expectedSk].sort(),
       f + ': навыки ' + expectedSk.join(',') + '; факт: '
-      + j['навыки'].map(refNum).join(','));
+      + j['навыки'].map((s) => path.basename(s, '.json')).join(','));
     const expectedBld = recType === 'r'
       ? ['assets/buildings/rune_stone.json',
         'assets/buildings/ruins.json']
@@ -784,7 +788,7 @@ test('000321.06 T9: зеркала — src/items-data.js содержит 50 н�
     })), f + ': зеркало — исходники резолвлены в id');
     assert.deepEqual(m['навыки'], j['навыки'].map(
       (s) => JSON.parse(fs.readFileSync(
-        path.join(SKILLS_DIR, refNum(s) + '.json'), 'utf8')).id),
+        path.join(SKILLS_DIR, path.basename(s)), 'utf8')).id),
       f + ': зеркало — навыки резолвлены в id');
     assert.deepEqual(m['здания'], j['здания'].map(
       (b) => JSON.parse(fs.readFileSync(

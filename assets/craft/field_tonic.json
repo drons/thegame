@@ -21,8 +21,8 @@
     }
   ],
   "навыки": [
-    "assets/skills/000025.json",
-    "assets/skills/000031.json"
+    "assets/skills/alchemy.json",
+    "assets/skills/nature.json"
   ],
   "здания": [
     "assets/buildings/alchemy_lab.json"

@@ -21,8 +21,8 @@
     }
   ],
   "навыки": [
-    "assets/skills/000027.json",
-    "assets/skills/000031.json"
+    "assets/skills/runes.json",
+    "assets/skills/nature.json"
   ],
   "здания": [
     "assets/buildings/mage_tower.json"

@@ -101,8 +101,10 @@ const gameWithXp = () => ({ xpForNext: P.xpForNext, Sheet });
 // Каталоги — полные зеркала assets (id-валидация serde, 000115):
 // skills — 44 записи (6 primary + 32 secondary + 6 school, ре-пин 000324: 37→43; ре-пин 000337: 43→44, +1 secondary «staff»), spells — 167 (ре-пин 000235.12: 142→167).
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
+// 000318.09: skills — slug (имя == id); schema.json — исключение.
 const SKILL_FILES = () => fs.readdirSync(SKILLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f));
+  .filter((f) => f !== 'schema.json'
+    && /^[a-z][a-z0-9_]*\.json$/.test(f));
 const SKILL_CATALOG = SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')));
 // Форма имени spells — из живого реестра (000318.05: spells — slug).

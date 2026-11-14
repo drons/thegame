@@ -7,7 +7,7 @@
     { "предмет": "assets/items/stone_chunk.json", "количество": 3 },
     { "предмет": "assets/items/stone_chisel.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000027.json"],
+  "навыки": ["assets/skills/runes.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],
   "уровень": 3,
   "описание": "Три обломка и резец: выводят из камня то, что светится, как лунная вода."

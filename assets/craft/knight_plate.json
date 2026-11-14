@@ -7,7 +7,7 @@
     { "предмет": "assets/items/chainmail.json", "количество": 1 },
     { "предмет": "assets/items/moonstone.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000027.json", "assets/skills/000020.json"],
+  "навыки": ["assets/skills/runes.json", "assets/skills/golem.json"],
   "здания": ["assets/buildings/mage_tower.json", "assets/buildings/npc_house.json"],
   "заклинания": ["stone_skin"],
   "уровень": 8,

@@ -15,7 +15,9 @@
 const fs = require('fs');
 const path = require('path');
 const { writeFileAtomic } = require('./lib/write-atomic.js');
-const { isRef, resolveRef } = require('./lib/json-ref.js');
+const {
+  isRef, resolveRef, ASSET_NAME_SHAPES, SHAPE_BASENAME_RES,
+} = require('./lib/json-ref.js');
 
 const ROOT = path.join(__dirname, '..');
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
@@ -23,10 +25,12 @@ const OUT_FILE = path.join(ROOT, 'src', 'skills-data.js');
 
 // --- Чтение каталога ---
 const files = fs.readdirSync(SKILLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f))
+  .filter((f) => f !== 'schema.json'
+    && SHAPE_BASENAME_RES[ASSET_NAME_SHAPES.skills].test(f))
   .sort();
 if (files.length === 0) {
-  console.error('assets/skills: не найдено ни одного файла 0000NN.json');
+  console.error('assets/skills: не найдено ни одного файла каталога '
+    + '(шейп имени — живой реестр ASSET_NAME_SHAPES.skills)');
   process.exit(1);
 }
 
@@ -60,6 +64,11 @@ for (const f of files) {
   }
   skills.push({ file: f, data });
 }
+
+// Порядок записей зеркала — lex по data.id (НЕ по имени файла: «урок .07»
+// — компаратор обязан наблюдать порядок на рассогласованных именах).
+skills.sort((a, b) => (a.data.id < b.data.id ? -1
+  : a.data.id > b.data.id ? 1 : 0));
 
 const primary = skills.filter((s) => s.data.type === 'primary');
 const secondary = skills.filter((s) => s.data.type === 'secondary');

@@ -246,10 +246,11 @@ test('000318.05 T3: ссылки — РОВНО 34 self-«база» в slug-ф�
 
 test('000318.05 T4: REF_RE — побайтовый пин ДВУХгруппного source с spells в slug-ветке + таблица истинности', () => {
   assert.equal(JR.REF_RE.source,
-    '^assets\\/(items|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
-    + '|^assets\\/(skills|npc)\\/\\d{6}\\.json$',
-    'REF_RE группами по шейпам: number-группа (skills/npc — items ушёл '
-    + 'в slug 000318.08) + slug-группа (items первым в REF_LINKED_CATALOGS); '
+    '^assets\\/(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)\\/[a-z][a-z0-9_]*\\.json$'
+    + '|^assets\\/(npc)\\/\\d{6}\\.json$',
+    'REF_RE группами по шейпам: number-группа (npc — items ушёл в slug '
+    + '000318.08, skills — в slug 000318.09) + slug-группа (items первым в '
+    + 'REF_LINKED_CATALOGS); '
     + 'прежний source (spells ∈ number-группы) — «до 000318.05», память '
     + 'memory/000211.01-json-ref-format.md (ADDENDUM); рантайм-носитель — '
     + 'pattern в assets/skills/schema.json (SR5/skills.test сверяют живо)');
@@ -296,8 +297,8 @@ test('000318.05 T5: sync + схемы-носители — фильтр чере
     'skills/schema.json: secondary.requires.skill ≢ живому REF_RE.source');
   const dungs = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'assets', 'dungeons', 'schema.json'), 'utf8'));
-  const UNION = '^assets/((skills|npc)/\\d{6}'
-    + '|(items|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
+  const UNION = '^assets/((npc)/\\d{6}'
+    + '|(items|skills|spells|mobs|mob_groups|buildings|craft|dungeons)/[a-z][a-z0-9_]*)\\.json$';
   assert.equal(dungs.properties.мобы.items.pattern, UNION,
     'dungeons/schema.json: «мобы» — spells не в slug-ветке');
   assert.equal(dungs.properties.предметы.items.pattern, UNION,

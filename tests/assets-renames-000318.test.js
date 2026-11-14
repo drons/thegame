@@ -169,7 +169,7 @@ function renameViolations(mod, dir, cat) {
 const SHAPES_EXPECTED_000318 = { runes: 'slug', visuals: 'slug',
   mobs: 'slug', mob_groups: 'slug', dungeons: 'slug',
   spells: 'slug', buildings: 'slug', craft: 'slug',
-  items: 'slug' }; // .02, .03, .04, .05, .06, .07, .08
+  items: 'slug', skills: 'slug' }; // .02, .03, .04, .05, .06, .07, .08, .09
 
 test('RN1: реестр шейпов — переименованные каталоги по таблице, прочие number, portraits named, 9 мишеней', () => {
   const mod = loadShapes();
@@ -179,7 +179,7 @@ test('RN1: реестр шейпов — переименованные ката
       cat + ': шейп по таблице переименований 000318 (.01 — все number; '
       + '.02 переименовал runes в slug; .03 — visuals; .04 — '
       + 'mobs/mob_groups/dungeons; .05 — spells; .06 — buildings; '
-      + '.07 — craft; .08 — items)');
+      + '.07 — craft; .08 — items; .09 — skills)');
   }
   assert.equal(mod.ASSET_NAME_SHAPES.portraits, 'named',
     'portraits — named (только PORTRAITS_RE, вне SHAPE_BASENAME_RES)');

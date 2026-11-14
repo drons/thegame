@@ -8,7 +8,7 @@
     { "предмет": "assets/items/moonstone.json", "количество": 2 },
     { "предмет": "assets/items/phoenix_feather.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000025.json"],
+  "навыки": ["assets/skills/alchemy.json"],
   "здания": ["assets/buildings/alchemy_lab.json", "assets/buildings/mage_tower.json"],
   "уровень": 6,
   "описание": "Зелье лечения «доваривают» с двойным лунным камнем и пером феникса: сильное исцеление."

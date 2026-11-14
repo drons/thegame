@@ -8,7 +8,7 @@
     { "предмет": "assets/items/honey_cake.json", "количество": 2 },
     { "предмет": "assets/items/moonstone.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000025.json", "assets/skills/000031.json"],
+  "навыки": ["assets/skills/alchemy.json", "assets/skills/nature.json"],
   "здания": ["assets/buildings/alchemy_lab.json"],
   "уровень": 4,
   "описание": "Улучшенный способ: двойная порция даёт два зелья за одну варку и шанс бонуса к силе."

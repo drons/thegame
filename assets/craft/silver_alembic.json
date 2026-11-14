@@ -24,8 +24,8 @@
     "assets/buildings/mage_tower.json"
   ],
   "навыки": [
-    "assets/skills/000027.json",
-    "assets/skills/000025.json"
+    "assets/skills/runes.json",
+    "assets/skills/alchemy.json"
   ],
   "заклинания": [
     "frost_aura"

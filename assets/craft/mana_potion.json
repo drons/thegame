@@ -7,7 +7,7 @@
     { "предмет": "assets/items/herb_mana.json", "количество": 1 },
     { "предмет": "assets/items/herb_bitter.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000025.json"],
+  "навыки": ["assets/skills/alchemy.json"],
   "здания": ["assets/buildings/apothecary.json", "assets/buildings/alchemy_lab.json"],
   "уровень": 2,
   "описание": "Манную траву держат на холоде, горечавка закрепляет: зелье возвращает силы заклинателю."

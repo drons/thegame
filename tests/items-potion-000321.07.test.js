@@ -367,7 +367,7 @@ test('000321.07 T5: иконки — у 50 новых поле icon ↔ файл
 
 // --- T6: рецепты ----------------------------------------------------------
 
-test('000321.07 T6: 50 рецептов — файлы <id>.json (000318.07: basename === id, slug сразу); каталог 693 (643 + 50); результат покрывает НОВЫЕ зелья 1:1 тем же порядком; id рецепта = id предмета (D-01); тип «алхимия»; «база» отсутствует (все 50 базовые — relation 1:1, решение в памяти); «заклинаний» нет; навыки [алхимия 000025] (+природа 000031 у 3 ростера); здания по факту диска: 14 [alchemy_lab] / 23 [apothecary, alchemy_lab] / 13 [alchemy_lab, mage_tower]; исходники — только СТАРЫЕ реагенты (existsSync, номер < 000815); «название»/«описание» уникальны по 693; roundtrip-канон; валидны по assets/craft/schema.json (краснота: craft 643 — рецептов нет)', () => {
+test('000321.07 T6: 50 рецептов — файлы <id>.json (000318.07: basename === id, slug сразу); каталог 693 (643 + 50); результат покрывает НОВЫЕ зелья 1:1 тем же порядком; id рецепта = id предмета (D-01); тип «алхимия»; «база» отсутствует (все 50 базовые — relation 1:1, решение в памяти); «заклинаний» нет; навыки [алхимия alchemy] (+природа nature у 3 ростера; 000318.09: skills — имя == id); здания по факту диска: 14 [alchemy_lab] / 23 [apothecary, alchemy_lab] / 13 [alchemy_lab, mage_tower]; исходники — только СТАРЫЕ реагенты (existsSync, номер < 000815); «название»/«описание» уникальны по 693; roundtrip-канон; валидны по assets/craft/schema.json (краснота: craft 643 — рецептов нет)', () => {
   const files = recFiles();
   assert.equal(files.length, 693,
     'craft — 693 файла (643 + 50); факт: ' + files.length
@@ -405,12 +405,13 @@ test('000321.07 T6: 50 рецептов — файлы <id>.json (000318.07: bas
     assert.equal(j['заклинания'], undefined, f + ': «заклинаний» нет');
     assert.equal(j['название'], recName, f + ': название == ростер');
     assert.equal(j['описание'], recDesc, f + ': описание == ростер');
+    // 000318.09: skills — slug (имя == id) — refNum отдаёт id как есть.
     const expectedSk = nature
-      ? ['000025', '000031']
-      : ['000025'];
-    assert.deepEqual(j['навыки'].map(refNum), expectedSk,
+      ? ['alchemy', 'nature']
+      : ['alchemy'];
+    assert.deepEqual(j['навыки'].map((s) => path.basename(s, '.json')), expectedSk,
       f + ': навыки ' + expectedSk.join(',') + '; факт: '
-      + j['навыки'].map(refNum).join(','));
+      + j['навыки'].map((s) => path.basename(s, '.json')).join(','));
     assert.deepEqual(j['здания'], BUILDINGS_BY_TIER[bld],
       f + ': здания по тир-карте ростера');
     assert.equal(j['уровень'], level, f + ': уровень == ростер');
@@ -489,7 +490,7 @@ test('000321.07 T7: зеркала — src/items-data.js 864 записей, н�
     })), f + ': зеркало — исходники резолвлены в id');
     assert.deepEqual(m['навыки'], j['навыки'].map(
       (s) => JSON.parse(fs.readFileSync(
-        path.join(SKILLS_DIR, refNum(s) + '.json'), 'utf8')).id),
+        path.join(SKILLS_DIR, path.basename(s)), 'utf8')).id),
       f + ': зеркало — навыки резолвлены в id');
     assert.deepEqual(m['здания'], j['здания'].map(
       (b) => JSON.parse(fs.readFileSync(

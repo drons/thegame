@@ -60,7 +60,8 @@ function readJson(file) {
 function listSkillIds() {
   const ids = new Set();
   for (const f of fs.readdirSync(path.join(ROOT, 'assets', 'skills'))) {
-    if (!/^\d{6}\.json$/.test(f)) continue;
+    // 000318.09: skills — slug (имя == id); schema.json — вне каталога.
+    if (f === 'schema.json' || !/^[a-z][a-z0-9_]*\.json$/.test(f)) continue;
     ids.add(readJson(path.join(ROOT, 'assets', 'skills', f)).id);
   }
   return ids;

@@ -88,7 +88,8 @@ function loadSpellIds() {
 // (решение 000208, memory/000208-craft-refs.md §6.9).
 
 const REF_ITEMS = /^assets\/items\/[a-z][a-z0-9_]*\.json$/;
-const REF_SKILLS = /^assets\/skills\/\d{6}\.json$/;
+// 000318.09: skills — slug (имя == id).
+const REF_SKILLS = /^assets\/skills\/[a-z][a-z0-9_]*\.json$/;
 const REF_BUILDINGS = /^assets\/buildings\/[a-z][a-z0-9_]*\.json$/;
 const REF_CRAFT = /^assets\/craft\/[a-z][a-z0-9_]*\.json$/;
 const REF_CACHE = new Map(); // ссылка → id цели (файл читается 1 раз)
@@ -774,7 +775,7 @@ const FIXTURE_TARGETS = {
     'wood_sword.json': '{"id": "wood_sword"}\n',
     'wood_log.json': '{"id": "wood_log"}\n',
   },
-  skills: { '000001.json': '{"id": "forge"}\n' },
+  skills: { 'forge.json': '{"id": "forge"}\n' }, // 000318.09: slug
   buildings: { 'apothecary.json': '{"id": 3}\n' },
 };
 
@@ -784,7 +785,7 @@ const FIXTURE_RECIPE = {
   'тип': 'столярное_дело',
   'результат': { 'предмет': 'assets/items/wood_sword.json', 'количество': 1 },
   'исходники': [{ 'предмет': 'assets/items/wood_log.json', 'количество': 3 }],
-  'навыки': ['assets/skills/000001.json'],
+  'навыки': ['assets/skills/forge.json'],
   'здания': ['assets/buildings/apothecary.json'],
   'уровень': 1,
   'описание': 'Фикстура 000208: ссылки на файлы каталогов',
@@ -799,7 +800,7 @@ const FIXTURE_BASE_RECIPE = {
   'тип': 'столярное_дело',
   'результат': { 'предмет': 'assets/items/wood_sword.json', 'количество': 1 },
   'исходники': [{ 'предмет': 'assets/items/wood_log.json', 'количество': 2 }],
-  'навыки': ['assets/skills/000001.json'],
+  'навыки': ['assets/skills/forge.json'],
   'здания': ['assets/buildings/apothecary.json'],
   'уровень': 1,
   'описание': 'Фикстура 000211.09: цель self-ссылки «база»',
@@ -846,8 +847,8 @@ test('000208 R1: schema.json — поля-ссылки зафиксирован�
     { type: 'string', pattern: '^assets/items/[a-z][a-z0-9_]*\\.json$' },
     'исходники[].предмет — ссылка на файл assets/items');
   assert.deepEqual(schema.properties.навыки.items,
-    { type: 'string', pattern: '^assets/skills/\\d{6}\\.json$' },
-    'навыки[] — ссылка на файл assets/skills');
+    { type: 'string', pattern: '^assets/skills/[a-z][a-z0-9_]*\\.json$' },
+    'навыки[] — ссылка на файл assets/skills (000318.09: slug)');
   assert.deepEqual(schema.properties.здания.items,
     { type: 'string', pattern: '^assets/buildings/[a-z][a-z0-9_]*\\.json$' },
     'здания[] — ссылка на файл assets/buildings (000318.06: slug)');
@@ -948,7 +949,7 @@ test('000208 R4: sync-craft-data.js — битая ссылка → exit 1 + и�
         'wood_sword.json': '{"name": "без id"}\n',
         'wood_log.json': '{"id": "wood_log"}\n',
       },
-      skills: { '000001.json': '{"id": "forge"}\n' },
+      skills: { 'forge.json': '{"id": "forge"}\n' }, // 000318.09: slug
       buildings: { 'apothecary.json': '{"id": 3}\n' },
     };
     const dir = makeTmpCraftRepo(

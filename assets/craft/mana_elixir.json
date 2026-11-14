@@ -7,7 +7,7 @@
     { "предмет": "assets/items/mana_potion.json", "количество": 1 },
     { "предмет": "assets/items/moonstone.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000025.json"],
+  "навыки": ["assets/skills/alchemy.json"],
   "здания": ["assets/buildings/alchemy_lab.json"],
   "уровень": 5,
   "описание": "Зелье маны перегоняют, кристаллизуя лунным камнем: концентрированный эликсир."

@@ -105,14 +105,14 @@ const page = () => fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 // .стройка.исходники[].предмет «assets/items/NNNNNN.json», зеркало
 // src/buildings.js — в id-форме (sync резолвит ссылки в id).
 // Задача 000211.07: «особые_параметры.тренирует» — ссылки
-// «assets/skills/NNNNNN.json» (зеркало — тоже id-форма).
+// «assets/skills/<id>.json» (000318.09; зеркало — тоже id-форма).
 // Mirror-тесты whole-record: резолв ссылок в id ПЕРЕД deepEqual
 // (контракт memory/000207-buildings-refs-items.md, D7;
 // memory/000211.07-buildings-sprites-trains-refs.md §4.2 T2).
 // НЕ-ссылка (имя — данные не миграированы) — throw: краснота
 // осмысленная, терпимый no-op отклонён (серийный паттерн 000211.08).
 const ITEM_REF_RE = /^assets\/items\/[a-z][a-z0-9_]*\.json$/; // 000318.08 slug
-const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
+const SKILL_REF_RE = /^assets\/skills\/[a-z][a-z0-9_]*\.json$/;
 function resolveItemRefs(record) {
   const out = JSON.parse(JSON.stringify(record));
   const op = out.особые_параметры;
@@ -135,7 +135,7 @@ function resolveItemRefs(record) {
       const v = tr[i];
       if (typeof v !== 'string' || !SKILL_REF_RE.test(v)) {
         throw new Error('resolveItemRefs: «тренирует» — «' + v +
-          '» не ссылка (формат "assets/skills/NNNNNN.json")');
+          '» не ссылка (формат "assets/skills/<id>.json", 000318.09)');
       }
       const t = JSON.parse(fs.readFileSync(
         path.join(ROOT, v), 'utf8'));

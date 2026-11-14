@@ -10,7 +10,7 @@ tasks/result/000318-split-20261108.md (дочерние 000318.01–.11).
 | каталог | шейп | файлов | мишень ссылок |
 |---|---|---|---|
 | items | slug (000318.08; было number) | 864 — <id>.json (id строка === basename; 513 на момент .01; счёт 864 — актуально с 74f4ab53, slug-шейп с 9a08623a — эррата 000373 Р.2) | да |
-| skills | number | 44 | да |
+| skills | slug (000318.09; было number) | 44 — <id>.json (id строка === basename; школа «Природа» — nature_school после 000318.11) | да |
 | spells | slug (000318.05; было number) | 172 — <id>.json (id строка === basename; 169 на момент .05, цепочка +1 74766f68 → +1 79ae2641 → +1 98eec709 — актуально с 98eec709, эррата 000373 Р.2) | да |
 | mobs | slug (000318.04; было number) | 36 — <id>.json (id строка === basename) | да |
 | mob_groups | slug (000318.04; было number) | 7 — рукописный slug (id 1..7 числовой в JSON — НЕ basename) | да |
@@ -84,6 +84,15 @@ name-shape ('number'/'slug') ≠ 'named' (portraits). Переименовани
   «`assets/items/` + цифра» по всем дерева = 0 (конкат-форма и
   bare-ординалы гейт-легальны). Детали, реестр и матрица —
   memory/000318.08-items-slug-rename.md.
+  ПОСЛЕ 000318.09 к slug-группе добавился skills (ШЕСТАЯ флипающаяся
+  МИШЕНЬ): живой source — полная строка в «1. Механизм»
+  memory/000318.09-skills-slug-rename.md — в number-ветке ОСТАЛСЯ ОДИН
+  каталог (npc); носители pattern ≡ живому REF_RE — skills schema ×2 +
+  dungeons UNION ×4 + mobs:46 + craft:81 + buildings:108 — ре-пин в том
+  же коммите; приёмочный гейт «`assets/skills/` + цифра» = 0
+  (конкат-форма негативов легальна). Механизм, грабли (коллизия refNum/
+  «hide», дисциплина комментариев), карта ре-пинов —
+  memory/000318.09-skills-slug-rename.md.
 * Lib обязан остаться ОДНИМ файлом без внутренних require-соседей:
   tests/items.test.js копирует в tmp ровно файл json-ref.js.
 * Производительность: ни одного new RegExp на вызов (isRef гоняется по
@@ -241,6 +250,16 @@ slug-форма + исключение `schema.json`, порядок — по `d
   реестр «номер→id» tests/scripts/items-num2id-000318.08.json + хелперы
   FILES_I08/DISKF_I08. Механизм, ловушки, матрица, долги (lootSprite
   index-формула SP-LOOT-3, makeShop top-N) — memory/000318.08-items-slug-rename.md.
+* skills → slug (000318.09, 44 файла <id>.json, контент файлов 0-diff —
+  ШЕСТАЯ флипающаяся МИШЕНЬ; зависимость 000318.11 «nature_school»
+  удовлетворена): referrers по ФАКТУ ДИСКА — craft 693/954, mobs 27/27,
+  buildings 18/34; зеркало перегенерировано в том же коммите (лекс по id);
+  golden НЕ переснимались — skills-порядки НЕ входят в rng (принципиальное
+  отличие от .08); реестр номер→id tests/scripts/skills-num2id-000318.09.json
+  (44 пары, НЕ расширять); грабли: items-refNum() переконвертирует
+  skills-слоги-коллизии («hide»→000037) — на skills-местах path.basename;
+  assets-schemas переведён в SLUG_SWEEP (44). Механизм, карта ре-пинов,
+  негативы-concat — memory/000318.09-skills-slug-rename.md.
 
 ## 5. Памятка оркестратору волн
 
@@ -267,6 +286,13 @@ tests/scripts/items-num2id-000318.08.json (НЕ расширять при рос
 каталога — новый ростер даёт свой реестр/свои позиционные пины);
 любые golden, где участвуют allItems-порядки (магазины/лут/кэмпы), —
 переснимать ЖИВЫМ кодом с гейтом «сид не дрейфует».
+С 000318.09 в волнах: навыки — `assets/skills/<id>.json`; numeric-путь
+`assets/skills/000NNN.json` — НЕ ref (REF_RE/схема/sync-резолвция не
+принимают); замороженный реестр «номер→id» —
+tests/scripts/skills-num2id-000318.09.json (НЕ расширять); ПОСЛЕДНИЙ
+number-каталог — npc (`assets/npc/000NNN.json` живёт numeric-ветвью REF_RE
+до своей задачи цепочки 000318); skills-порядки в rng НЕ входят — golden
+на skills-волнах не переснимать.
 
 spec/runes.md:47 оставался устаревшим (числовой naming руны) — 0-diff по
 решению 000318.02, не «чинить» попутно. ИСПРАВЛЕНО 000360 (errata): путь →

@@ -9,7 +9,7 @@
     { "предмет": "assets/items/phosphorite.json", "количество": 2 },
     { "предмет": "assets/items/stone_chisel.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000027.json"],
+  "навыки": ["assets/skills/runes.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],
   "уровень": 6,
   "описание": "Обсидиан точит грани, фосфорит подсвечивает жилу: изумруд из грубой руды."

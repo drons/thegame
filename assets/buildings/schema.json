@@ -105,7 +105,7 @@
           "minItems": 1,
           "items": {
             "type": "string",
-            "pattern": "^assets/skills/\\d{6}\\.json$"
+            "pattern": "^assets/skills/[a-z][a-z0-9_]*\\.json$"
           }
         },
         "хранилище": {

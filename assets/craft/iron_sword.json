@@ -7,7 +7,7 @@
     { "предмет": "assets/items/wood_sword.json", "количество": 1 },
     { "предмет": "assets/items/sulfur.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000010.json"],
+  "навыки": ["assets/skills/forge.json"],
   "здания": ["assets/buildings/blacksmith.json"],
   "уровень": 2,
   "описание": "Деревянное древко выбрасывают, железо закаляют в серном пламени: деревянный меч становится железным."

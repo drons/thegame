@@ -36,7 +36,8 @@ const ITEM_REF_RE = /^assets\/items\/[a-z][a-z0-9_]*\.json$/;
 const NUM2ID_I08 = require(path.join(__dirname, 'scripts',
   'items-num2id-000318.08.json'));
 const SLUG_I08 = (n) => NUM2ID_I08[n];
-const SKILL_REF_RE = /^assets\/skills\/\d{6}\.json$/;
+// 000318.09: skills — slug (имя == id).
+const SKILL_REF_RE = /^assets\/skills\/[a-z][a-z0-9_]*\.json$/;
 // 000318.06: assets/buildings — slug-имена (номер файла больше не id);
 // обход каталога по id — через эти хелперы.
 const SLUG_FILE_RE_00031806 = /^[a-z][a-z0-9_]*\.json$/;
@@ -83,7 +84,7 @@ function resolveRefs(record) {
       const v = tr[i];
       if (typeof v !== 'string' || !SKILL_REF_RE.test(v)) {
         throw new Error('resolveRefs: «тренирует» — «' + v +
-          '» не ссылка (формат "assets/skills/NNNNNN.json")');
+          '» не ссылка (формат "assets/skills/<id>.json", 000318.09)');
       }
       const r = resolveRef(path.join(__dirname, '..'), v);
       if (!r.ok) {
@@ -1400,7 +1401,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
     const p7 = path.join(tmp, 'assets', 'buildings',
       buildingFileById_00031806(7));
     const j7 = JSON.parse(fs.readFileSync(p7, 'utf8'));
-    j7.особые_параметры.тренирует[0] = 'assets/skills/999999.json';
+    j7.особые_параметры.тренирует[0] = 'assets/skills/no_such_skill_000318.json';
     fs.writeFileSync(p7, JSON.stringify(j7, null, 2));
     const res3 = spawnSync(process.execPath, [script],
       { cwd: tmp, encoding: 'utf8' });
@@ -1485,7 +1486,8 @@ test('000207 R5: schema.json закрепляет ссылочный конту�
 // свойства схемы отсутствуют, sync не резолвит skills и не
 // fail-closed по ним (печатает ссылки как есть).
 
-const SKILL_REF_RE_000211_07 = /^assets\/skills\/\d{6}\.json$/;
+// 000318.09: skills — slug (имя == id); имя константы — историческое.
+const SKILL_REF_RE_000211_07 = /^assets\/skills\/[a-z][a-z0-9_]*\.json$/;
 
 // Пин «спрайт» (29 = 18 + 11 подтипов 000265): id каталожной
 // записи → ЗАКРЫТОМУ пину (memory §2.1.1 — ЗАКРЫТАЯ таблица в
@@ -1586,8 +1588,10 @@ function convertTrainsRefs_000211_07(record) {
     }
     let ref = null;
     for (const n of Object.keys(TRAINS_PIN_000211_07)) {
-      for (const [nm, , file] of TRAINS_PIN_000211_07[n]) {
-        if (nm === tr[i]) ref = 'assets/skills/' + file + '.json';
+      // 000318.09: имя файла == id — ссылка собирается из id (колонка 3
+      // пина — прежний numeric-файл, остаётся исторической).
+      for (const [nm, id] of TRAINS_PIN_000211_07[n]) {
+        if (nm === tr[i]) ref = 'assets/skills/' + id + '.json';
       }
     }
     if (ref === null) {
@@ -1654,7 +1658,7 @@ test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строги�
       `${n} ${j.название}: «тренирует» — массив из ${rows.length} `
       + `(получено ${Array.isArray(tr) ? tr.length : 'НЕТ'})`);
     for (let i = 0; i < rows.length; i++) {
-      const [name, id, file] = rows[i];
+      const [name, id] = rows[i]; // file (numeric-быт) не нужен: 000318.09 file==id
       const v = tr[i];
       pos += 1;
       assert.equal(typeof v, 'string',
@@ -1662,11 +1666,12 @@ test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строги�
         + `(получено ${JSON.stringify(v)})`);
       assert.ok(SKILL_REF_RE_000211_07.test(v),
         `${n} ${j.название}: позиция ${i} «${v}» — ссылка на файл `
-        + 'skills (формат "assets/skills/NNNNNN.json"); получено имя '
+        + 'skills (формат "assets/skills/<id>.json", 000318.09); '
         + '— данные не миграированы');
-      assert.equal(v, 'assets/skills/' + file + '.json',
+      assert.equal(v, 'assets/skills/' + id + '.json',
         `${n} ${j.название}: позиция ${i} — ссылка `
-        + `«assets/skills/${file}.json» (позиционный пин; получено «${v}»)`);
+        + `«assets/skills/${id}.json» (позиционный пин 000318.09: `
+        + `file==id; получено «${v}»)`);
       const r = resolveRef(path.join(__dirname, '..'), v);
       assert.ok(r.ok,
         `${n}: ссылка «${v}» не резолвится (reason: ${r.reason})`);
@@ -1707,7 +1712,7 @@ test('000211.07 R3: schema.json — форма новых свойств: топ
   assert.deepEqual(op.properties['тренирует'], {
     type: 'array',
     minItems: 1,
-    items: { type: 'string', pattern: '^assets/skills/\\d{6}\\.json$' },
+    items: { type: 'string', pattern: '^assets/skills/[a-z][a-z0-9_]*\\.json$' },
   }, 'schema.json: «особые_параметры.properties.тренирует» — точная '
     + 'форма (ссылочный паттерн, memory §2.2.2)');
   assert.equal(schema.required[0], 'id',
@@ -1732,7 +1737,7 @@ test('000211.07 R3: schema.json — форма новых свойств: топ
     'ошибка — на ссылочном паттерне «тренирует» (получено: '
     + errBad.join(' | ') + ')');
   const good = JSON.parse(JSON.stringify(rec));
-  good.особые_параметры.тренирует = ['assets/skills/000035.json'];
+  good.особые_параметры.тренирует = ['assets/skills/leader.json'];
   assert.deepEqual(validateData(schema, good, buildingFileById_00031806(24)), [],
     'запись со ссылкой на файл skills — валидна');
   for (const f of buildingsFiles_00031806()) {
@@ -1814,7 +1819,7 @@ test('000211.07 R4: sync-buildings-data.js — "тренирует"-ссылки
     const p7 = path.join(tmp, 'assets', 'buildings',
       buildingFileById_00031806(7));
     const j7 = JSON.parse(fs.readFileSync(p7, 'utf8'));
-    j7.особые_параметры.тренирует[0] = 'assets/skills/999999.json';
+    j7.особые_параметры.тренирует[0] = 'assets/skills/no_such_skill_000318.json';
     fs.writeFileSync(p7, JSON.stringify(j7, null, 2));
     const res2 = spawnSync(process.execPath, [script],
       { cwd: tmp, encoding: 'utf8' });

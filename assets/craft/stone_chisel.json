@@ -6,7 +6,7 @@
   "исходники": [
     { "предмет": "assets/items/stone_chunk.json", "количество": 2 }
   ],
-  "навыки": ["assets/skills/000027.json"],
+  "навыки": ["assets/skills/runes.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],
   "уровень": 1,
   "описание": "Один обломок точит о второй, пока в руках не останется резец: грубый, но свой."

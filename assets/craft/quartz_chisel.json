@@ -8,7 +8,7 @@
     { "предмет": "assets/items/stone_chunk.json", "количество": 2 },
     { "предмет": "assets/items/quartz.json", "количество": 1 }
   ],
-  "навыки": ["assets/skills/000027.json"],
+  "навыки": ["assets/skills/runes.json"],
   "здания": ["assets/buildings/rune_stone.json", "assets/buildings/ruins.json"],
   "уровень": 4,
   "описание": "Резец, отточенный на кварце: твёрже и острее каменного."

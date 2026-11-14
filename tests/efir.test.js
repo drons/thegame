@@ -141,8 +141,10 @@ const SPELL_IDS = (() => {
 // tests/combat.test.js:251): id + мета (primary/requires) для
 // сверки зеркала данных модуля с каталогом (T4).
 const SKILLS_DIR = path.join(ROOT, 'assets', 'skills');
+// 000318.09: skills — slug (имя == id); schema.json — исключение.
 const SKILL_FILES = () => fs.readdirSync(SKILLS_DIR)
-  .filter((f) => /^\d{6}\.json$/.test(f));
+  .filter((f) => f !== 'schema.json'
+    && /^[a-z][a-z0-9_]*\.json$/.test(f));
 const SKILL_IDS = new Set(SKILL_FILES()
   .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
 const SKILL_META = (() => {

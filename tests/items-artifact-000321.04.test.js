@@ -256,7 +256,8 @@ function loadItemFile(num) {
 }
 function skillIds() {
   return new Set(fs.readdirSync(SKILLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f))
+    .filter((f) => f !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(f))
     .map((f) => JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
 }
 function spellIds() {
@@ -637,13 +638,15 @@ test('000321.04 T8: 50 рецептов — файлы по id (прежние �
     fs.readFileSync(path.join(CRAFT_DIR, 'schema.json'), 'utf8'));
   const itemFiles = new Set(FILES_I08());
   const skills = new Set(fs.readdirSync(SKILLS_DIR)
-    .filter((f) => /^\d{6}\.json$/.test(f)));
+    .filter((f) => f !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(f)));
   const buildings = new Set(fs.readdirSync(BUILDINGS_DIR)
     .filter((f) => f !== 'schema.json'
       && /^[a-z][a-z0-9_]*\.json$/.test(f)));
   const skillById = new Map();
   for (const f of fs.readdirSync(SKILLS_DIR)
-    .filter((x) => /^\d{6}\.json$/.test(x))) {
+    .filter((x) => x !== 'schema.json'
+      && /^[a-z][a-z0-9_]*\.json$/.test(x))) {
     const j = JSON.parse(
       fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     skillById.set(f, j.id);
@@ -697,9 +700,9 @@ test('000321.04 T8: 50 рецептов — файлы по id (прежние �
     }
     const second = skill === 'runes' ? 'scholar' : skill;
     const skillNames = j['навыки'].map(
-      (s) => skillById.get(refNum(s) + '.json'));
+      (s) => skillById.get(path.basename(s)));
     for (const s of j['навыки']) {
-      assert.ok(skills.has(refNum(s) + '.json'), f + ': навык ' + s);
+      assert.ok(skills.has(path.basename(s)), f + ': навык ' + s);
     }
     assert.deepEqual(skillNames, ['runes', second],
       f + ': навыки = [runes, ' + second + ']'
@@ -767,7 +770,7 @@ test('000321.04 T9: зеркала — src/items-data.js содержит 50 н�
     })), f + ': зеркало — исходники резолвлены в id');
     assert.deepEqual(m['навыки'], j['навыки'].map(
       (s) => JSON.parse(fs.readFileSync(
-        path.join(SKILLS_DIR, refNum(s) + '.json'), 'utf8')).id),
+        path.join(SKILLS_DIR, path.basename(s)), 'utf8')).id),
       f + ': зеркало — навыки резолвлены в id');
     assert.deepEqual(m['здания'], j['здания'].map(
       (b) => buildingTargetId(b)),

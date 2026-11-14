@@ -21,8 +21,8 @@
     }
   ],
   "навыки": [
-    "assets/skills/000010.json",
-    "assets/skills/000008.json"
+    "assets/skills/forge.json",
+    "assets/skills/heavy.json"
   ],
   "здания": [
     "assets/buildings/blacksmith.json",
