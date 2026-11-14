@@ -1009,12 +1009,13 @@
   }
 
   const PANEL_OPEN_TOKEN = 'char-panel-open';
-  function markPanelOpen(on) {
+  const SQUAD_PANEL_OPEN_TOKEN = 'squad-panel-open';
+  function markPanelOpen(on, token = PANEL_OPEN_TOKEN) {
     const b = document.body;
     if (!b) return;
     const parts = String(b.className || '').split(/\s+/).filter(Boolean);
-    const i = parts.indexOf(PANEL_OPEN_TOKEN);
-    if (on && i < 0) parts.push(PANEL_OPEN_TOKEN);
+    const i = parts.indexOf(token);
+    if (on && i < 0) parts.push(token);
     if (!on && i >= 0) parts.splice(i, 1);
     b.className = parts.join(' ');
   }
@@ -2200,6 +2201,7 @@
       // flex-direction:column } обязан действовать (прецедент
       // 000096: инлайн-блок ломал бы .squad-body flex:1/min-height:0).
       panel.style.display = show ? 'flex' : 'none';
+      markPanelOpen(show, SQUAD_PANEL_OPEN_TOKEN);
       if (show) {
         render();
         attachEsc();

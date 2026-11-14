@@ -23,8 +23,9 @@
 // Три слоя (конвенция ui-тестов):
 //   A — статика index.html + src/ui.js (P1–P5):
 //     P1 геометрия .char-panel = 0 по всем четырём лондхендам (RED);
-//     P2 .squad-panel (панель [K]) — вне скоупа, bottom 56px инвариантен
-//        (guard-пин, зелёный и до, и после);
+//     P2 .squad-panel (панель [C]) — geometry-пин: зелёный guard-пин
+//        bottom 56px ПЕРЕПИНЕН задачей 000382 (симметризация [C] —
+//        top/left/right/bottom = 0);
 //     P3 база .fs-btn цела + новое правило сокрытия ПОСЛЕ базы + кросс-
 //        контракт токена: селектор CSS и литерал в src/ui.js — один и тот
 //        же (RED);
@@ -44,11 +45,16 @@
 //
 // КРАСНЫЕ до реализации: P1, P3, P4, P6, P7, P8, P9 (осмысленные
 // ERR_ASSERTION — значения/правила/токены ещё не существуют, загрузка
-// цепи не падает). ЗЕЛЁНЫЕ guard-пины: P2, P5 (обязаны остаться).
+// цепи не падает). ЗЕЛЁНЫЕ guard-пины: P5 (обязан остаться).
 //
 // Ре-пин задачи: tests/ui-panel.test.js «CSS: .char-panel — … bottom ≥ 56px»
 // переписан на новый контракт (единственный сломанный поведением тест —
 // свип 000377).
+//
+// Ре-пин 000382: P2 (прежний guard-пин «.squad-panel bottom 56px
+// инвариантен») переписан на новую геометрию [C] 0/0/0/0 — задача 000382
+// симметризовала панель «Отряд» с [I]; имя P2 сохраняет префикс
+// «000377-P2» (TAP-маркер «000377-P»).
 
 'use strict';
 
@@ -134,14 +140,16 @@ test('000377-P1 (RED): CSS .char-panel — весь экран: top/left/right/b
   assert.equal(p.width, undefined, 'фиксированного width НЕТ');
 });
 
-test('000377-P2 (guard-пин): .squad-panel (панель [K]) — вне скоупа: геометрия bottom 56px байт-инвариантна', () => {
+test('000377-P2 (ре-пин 000382): .squad-panel (панель [C]) — прежний guard-пин bottom 56px заменён: задача 000382 привела [C] к той же геометрии, что [I]', () => {
   const s = cssRuleSel('.squad-panel');
-  assert.equal(s.top, '12px', '.squad-panel top 12px (не трогали)');
-  assert.equal(s.left, '12px', '.squad-panel left 12px');
-  assert.equal(s.right, '12px', '.squad-panel right 12px');
-  assert.equal(s.bottom, '56px',
-    '.squad-panel bottom 56px — полоса под .fs-btn СОХРАНЕНА (задача '
-    + 'только про [I]; для [K] кнопка не скрывается)');
+  assert.equal(s.top, '0',
+    '.squad-panel top 0 (было 12px — ре-пин 000382, симметрия 000377)');
+  assert.equal(s.left, '0', '.squad-panel left 0 (ре-пин 000382)');
+  assert.equal(s.right, '0', '.squad-panel right 0 (ре-пин 000382)');
+  assert.equal(s.bottom, '0',
+    '.squad-panel bottom 0 — полоса под .fs-btn ОТМЕНЕНА 000382 '
+    + '(при открытой панели кнопка скрыта правилом body.squad-panel-open '
+    + '.fs-btn — пин tests/ui-squad-fullscreen-000382.test.js S2)');
   assert.equal(s['z-index'], '10', '.squad-panel z-index 10');
 });
 
