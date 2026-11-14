@@ -374,22 +374,29 @@ test('панель: неудачный клик — reason 1.5 с, потом п
 // Регрессия мержа 000318.09: зеркало стало алфавитным, ui-tab-skills.js
 // итерирует его без sort — порядок строк виден игроку. Канон порядка —
 // порядок ключей замороженного реестра tests/scripts/skills-num2id-000318.09.json
-// (пин по id, НЕ по переводу имён).
+// (пин по id, НЕ по переводу имён); с 000387 вне-реестровые id легальны и
+// идут в хвост своей группы по lex (компаратор 000384) — ожидаемые списки
+// строятся тем же канон-предикатом, чтобы рост каталога не красил панель.
 
-test('000384: панель [I] — DOM-порядок = дизайн-порядок реестра (основные strength→charisma, группы вторичных по основным, школы protection→shadow)', () => {
+test('000384: панель [I] — DOM-порядок = канон порядка (ключи замороженного реестра, вне-реестровые — хвост по lex; основные strength→charisma, группы вторичных по основным, школы protection→shadow) (ре-пин 000387: extras — хвост)', () => {
   const M = require('../src/skills-data.js');
   const DESIGN = Object.values(
     require('../tests/scripts/skills-num2id-000318.09.json'));
-  const wantPrimary = DESIGN.filter(
-    (id) => M.PRIMARY_SKILLS.some((p) => p.id === id));
+  const POS_UI = new Map(DESIGN.map((id, i) => [id, i]));
+  const byCanonUI = (ids) => [...ids].sort((a, b) => {
+    const pa = POS_UI.has(a) ? POS_UI.get(a) : Infinity;
+    const pb = POS_UI.has(b) ? POS_UI.get(b) : Infinity;
+    if (pa !== pb) return pa < pb ? -1 : 1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+  const wantPrimary = byCanonUI(M.PRIMARY_SKILLS.map((s) => s.id));
   const wantGroups = new Map();
-  for (const id of DESIGN.filter((id2) => M.SECONDARY_SKILLS[id2])) {
+  for (const id of byCanonUI(Object.keys(M.SECONDARY_SKILLS))) {
     const owner = M.SECONDARY_SKILLS[id].primary;
     if (!wantGroups.has(owner)) wantGroups.set(owner, []);
     wantGroups.get(owner).push(id);
   }
-  const wantSchools = DESIGN.filter(
-    (id) => M.SCHOOLS.some((s) => s.id === id));
+  const wantSchools = byCanonUI(M.SCHOOLS.map((s) => s.id));
 
   const env = loadPlayerUi();
   const c = env.G.createCharacter();

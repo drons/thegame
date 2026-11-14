@@ -3,11 +3,15 @@
 // buildings .06 / craft .07 / items .08; предусловие — 000318.11,
 // инвариант basename == id цел с её коммита).
 //
-// ФАКТ ДИСКА базы (переснят на диске, НЕ по ТЗ): 44 файла; внутренние
-// ссылки 32 primary + 14 requires.skill = 46; referrer'ы: craft 693 файла
-// / 954 вхождения, mobs 27/27, buildings 18/34; spells/npc/dungeons/items/
-// mob_groups — НОЛЬ skills-путей. Реестр «номер→id» заморожен в
-// tests/scripts/skills-num2id-000318.09.json.
+// ФАКТ ДИСКА базы rename (переснят на диске, НЕ по ТЗ): 44 файла (= длина
+// замороженного префикса реестра, нижняя граница зубов 000387, НЕ литерал);
+// внутренние ссылки 32 primary + 14 requires.skill = 46; referrer'ы: craft
+// 693 файла / 954 вхождения, mobs 27/27, buildings 18/34; spells/npc/
+// dungeons/items/mob_groups — НОЛЬ skills-путей. Реестр «номер→id» —
+// замороженный префикс в tests/scripts/skills-num2id-000318.09.json:
+// строки append-only против HEAD, длина живая; рост каталога без строки
+// реестра легален фолбэком компаратора «в хвост по lex» (000384/000387,
+// контракт — memory/000387-frozen-prefix-contract.md).
 //
 // После флипа ASSET_NAME_SHAPES.skills='slug' (npc — последняя number-
 // ветка): REF_RE = slug-группа (items|skills|spells|mobs|mob_groups|
@@ -16,22 +20,26 @@
 // замороженного реестра (дизайн-порядок numeric-эпохи), а не lex по id —
 // lex из .09 пересортировал панель [I] и байты сейва (ретро-b23 П1).
 //
-// T1  — ростер: 44 slug-файла, basename == id, numeric-имён нет, ≡ реестру.
-// T2  — зеркало: PRIMARY/SCHOOLS/ключи SECONDARY в дизайн-порядке (= ключи
-//       реестра, 000384), комментарии «// <id>.json», numeric-имён и
-//       «нумерации» нет, шапка-ranges в slug-форме.
+// T1  — ростер: slug-файлов ≥ границы rename (реестр ⊆ каталога, число не
+//       пинуется — 000387), basename == id, numeric-имён нет.
+// T2  — зеркало: PRIMARY/SCHOOLS/ключи SECONDARY в каноне порядка (= ключи
+//       реестра, затем вне-реестровые по lex — 000384/000387), комментарии
+//       «// <id>.json», numeric-имён и «нумерации» нет, шапка-ranges в
+//       slug-форме.
 // T3  — REF_RE побайтово ≡ новому двухгруппному source (skills в slug-
 //       группе по REF_LINKED_CATALOGS, number-ветка — ОДНА npc) + таблица
 //       истинности + реестр шейпов (skills/npc, порядок 9 мишеней).
 // T4  — схемы-носители ≡ живому REF_RE в том же коммите: skills/schema ×2,
 //       dungeons/schema UNION ×4, одиночные паттерны mobs/craft/buildings
 //       — slug-форма skills.
-// T5  — referrer-свип: numeric-путей skills РОВНО 0; позитивно: 954/27/34
-//       slug-путей в 693/27/18 файлах craft/mobs/buildings, счётчики ≡
-//       снапшоту по номерам; spells/npc/dungeons/items/mob_groups — 0
-//       skills-путей любого вида; внутренние 46 ссылок живы (32+14) и
-//       резолвятся; probes — мультимножества basenames ≡ реестру (в т.ч.
-//       «hide» — коллизия id навыка 000018 и предмета 000037).
+// T5  — referrer-свип: numeric-путей skills РОВНО 0; позитивно: slug-пути
+//       в craft/mobs/buildings — монотонные НИЖНИЕ поля MIN_* (факт базы
+//       rename 693/954, 27/27, 18/34 — история; точные снапшоты сняты
+//       000387, легитимный рост не красит); spells/npc/dungeons/items/
+//       mob_groups — 0 skills-путей любого вида; внутренние ссылки ≥32
+//       primary + ≥14 requires.skill резолвятся; probes — мультимножества
+//       basenames ≡ реестру (в т.ч. «hide» — коллизия id навыка 000018 и
+//       предмета 000037).
 // T6  — sync-skills-data.js: фильтр через живой реестр + schema.json
 //       исключён, компаратор по позиции data.id в замороженном реестре
 //       (ре-пин 000384), guard пустого каталога exit 1, numeric-фильтра/
@@ -50,9 +58,15 @@
 //       дизайн-порядок реестра; потребители порядка — дерево [I]/ключи
 //       reprocessSkillXp, RNG-каналов skills-порядок не питает —
 //       tests/spells.test.js сидам порядок skills не нужен).
-// T11 — реестр tests/scripts/skills-num2id-000318.09.json: ключи подряд
-//       000001..000044, значения уникальны ≡ множеству id (двусторонне),
-//       disk-файл <value>.json несёт id == value, spot-строки.
+// T11 — реестр tests/scripts/skills-num2id-000318.09.json: APPEND-ONLY
+//       против HEAD (000387: заморожены СТРОКИ, а не длина), ключи —
+//       префикс 000001..N (N живой, ≥ границы rename), значения уникальны,
+//       реестр ⊆ множеству id каталога (двусторонняя bijection снята
+//       000387), disk-файл <value>.json несёт id == value, spot-строки.
+// T12 — SELF-GATE (000387, формат 000375/000379): в исходнике этого файла
+//       нет замороженного живого счётчика каталога — ни имени-константы,
+//       ни assert.equal(<…length|size>, <литерал>) (кроме line-пинов
+//       документов через split()); positive-маркеры живой механики на месте.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -70,7 +84,38 @@ const REGISTRY = path.join(ROOT, 'tests', 'scripts',
 const JR = require('../scripts/lib/json-ref.js');
 
 const NUM_RE = /^\d{6}\.json$/;
-const EXPECTED_COUNT = 44;
+
+// Ростер: ЖИВОЙ счётчик (задача 000387 — тройка «замороженный реестр ≡
+// живые зубы ≡ рост каталога» развязана в пользу роста; перенос 000379).
+// Литерала, равного живому числу каталога, в этом файле БОЛЬШЕ НЕТ (self-gate
+// T12 не даст его вернуть): состав сверяется МЕЖДУ дисковыми источниками
+// (реестр ⊆ каталог, basename == id, уникальность id), а вниз ограничен
+// монотонной границей FROZEN_PREFIX_END_I09 — 44 пары реестра на базе
+// rename 0c17f66b (дальше каталог может только расти; вне-реестровые id —
+// законный хвост по lex, механизм 000384).
+const FROZEN_PREFIX_END_I09 = 44;
+const REGISTRY_REL_I09 = 'tests/scripts/skills-num2id-000318.09.json';
+
+// Реестр APPEND-ONLY относительно HEAD — выполнимая форма «замороженности»
+// (000387, port LEDGER_APPEND_ONLY_I08 из 000379): заморожены СТРОКИ
+// (запрет пере-нумерации и удаления), длина ЖИВАЯ. Возвращает список
+// нарушений (пустой список = контракт выполнен).
+function LEDGER_APPEND_ONLY_I09() {
+  const before = JSON.parse(execFileSync('git',
+    ['-C', ROOT, 'show', 'HEAD:' + REGISTRY_REL_I09],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+  const now = registry;
+  const bad = [];
+  for (const num of Object.keys(before)) {
+    if (now[num] === undefined) {
+      bad.push(num + ' → «' + before[num] + '» — СТРОКА УДАЛЕНА');
+    } else if (now[num] !== before[num]) {
+      bad.push(num + ': HEAD «' + before[num] + '» → диск «' + now[num]
+        + '» — строка ПЕРЕПИСАНА');
+    }
+  }
+  return bad;
+}
 
 const registry = (() => {
   assert.ok(fs.existsSync(REGISTRY),
@@ -80,12 +125,16 @@ const registry = (() => {
 })();
 const REG_VALUES = Object.values(registry);
 
-// Снапшот referrer'ов по ФАКТУ ДИСКА базы 0c17f66b (ТЗ 344/28/19 — устарели;
-// пересчёт: craft 693/954, mobs 27/27, buildings 18/34).
-const REFCOUNT_00031809 = [
-  ['craft', 693, 954],
-  ['mobs', 27, 27],
-  ['buildings', 18, 34],
+// Монотонные НИЖНИЕ границы referrer-свипа вместо точных снапшотов
+// (000387, прецедент .379 T5). ФАКТ ДИСКА базы rename 0c17f66b (ТЗ
+// 344/28/19 — устарели; пересчёт: craft 693/954, mobs 27/27, buildings
+// 18/34) остаётся здесь историей: каждая skills/loot-волна легитимно
+// добавляет ссылки, точный снапшот красил бы skills-rename по корректной
+// причине. Запас ниже факта: массовую ПОТЕРЮ ссылок ловим, рост — нет.
+const MIN_REFCOUNT_00031809 = [
+  ['craft', 660, 900],
+  ['mobs', 25, 25],
+  ['buildings', 17, 33],
 ];
 const NO_SKILLS_PATHS_00031809 = ['spells', 'npc', 'dungeons', 'items',
   'mob_groups'];
@@ -145,10 +194,13 @@ function refsIn(text) {
   return text.match(/assets\/skills\/[a-z0-9_]+\.json/g) || [];
 }
 
-test('000318.09 T1: ростер assets/skills — шейп slug, 44 файла, 0 numeric-имён, basename == id, id уникальны; ≡ реестру; schema.json ∈ slug-regex (guard исключения)', () => {
+test('000318.09 T1 (ре-пин 000387): ростер assets/skills — шейп slug, живой рост (каталог ⊇ замороженного префикса реестра, число не пинуется), 0 numeric-имён, basename == id, id уникальны; реестр ⊆ каталога; schema.json ∈ slug-regex (guard исключения)', () => {
   const files = skillFilesAll();
-  assert.equal(files.length, EXPECTED_COUNT,
-    '44 файла каталога (факт: ' + files.length + ')');
+  assert.ok(files.length >= FROZEN_PREFIX_END_I09,
+    'файлов каталога не меньше границы rename (' + FROZEN_PREFIX_END_I09
+    + '); факт: ' + files.length + ' — монотонный ПОЛ, не литерал: рост'
+    + ' каталога волнами легален без строки реестра (фолбэк «в хвост по'
+    + ' lex», 000384); рецепт — memory/000387-frozen-prefix-contract.md');
   const numeric = files.filter((f) => NUM_RE.test(f));
   assert.deepEqual(numeric, [],
     'numeric-имён после rename остаться 0: ' + numeric.join(', '));
@@ -162,7 +214,9 @@ test('000318.09 T1: ростер assets/skills — шейп slug, 44 файла,
   const dup = files.filter((f, i) => files.indexOf(f) !== i);
   assert.deepEqual(dup, [], 'дублей имён нет');
   const ids = new Set(REG_VALUES);
-  assert.equal(ids.size, EXPECTED_COUNT, 'реестр: 44 уникальных id');
+  assert.equal(ids.size, REG_VALUES.length,
+    'реестр: значения уникальны (живая сверка множества с длиной, не'
+    + ' литерал; длина реестра — живой счётчик, строки append-only — T11)');
   for (const num of Object.keys(registry)) {
     const id = registry[num];
     const p = path.join(SKILLS_DIR, id + '.json');
@@ -176,7 +230,21 @@ test('000318.09 T1: ростер assets/skills — шейп slug, 44 файла,
     'schema.json совпадает с slug-regex (почему нужно явное исключение)');
 });
 
-test('000318.09 T2 (ре-пин 000384): зеркало src/skills-data.js — PRIMARY/SECONDARY-ключи/SCHOOLS в дизайн-порядке (= порядок ключей замороженного реестра), комментарии «// <id>.json», numeric-имён и «нумерации» нет, шапка-ranges в slug-форме', () => {
+const POS_I09 = new Map(REG_VALUES.map((id, i) => [id, i]));
+
+// Та же семантика, что у компаратора scripts/sync-skills-data.js (000384):
+// позиция в замороженном реестре, вне реестра — хвост по lex (механизм
+// роста 000387). Строится ПОЛНЫМ каталогом: extras получают тип из файла.
+function byCanonI09(ids) {
+  return [...ids].sort((a, b) => {
+    const pa = POS_I09.has(a) ? POS_I09.get(a) : Infinity;
+    const pb = POS_I09.has(b) ? POS_I09.get(b) : Infinity;
+    if (pa !== pb) return pa < pb ? -1 : 1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
+}
+
+test('000318.09 T2 (ре-пин 000384/000387): зеркало src/skills-data.js — PRIMARY/SECONDARY-ключи/SCHOOLS в каноне порядка (= порядок ключей замороженного реестра, затем вне-реестровые по lex), комментарии «// <id>.json», numeric-имён и «нумерации» нет, шапка-ranges в slug-форме', () => {
   const text = fs.readFileSync(MIRROR, 'utf8');
   assert.doesNotMatch(text, /\b\d{6}\.json\b/,
     'numeric-имён файлов в зеркале остаться 0');
@@ -186,30 +254,39 @@ test('000318.09 T2 (ре-пин 000384): зеркало src/skills-data.js — P
     const d = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
     return [d.id, d.type];
   }));
-  const design = (type) => REG_VALUES.filter((id) => typeById.get(id) === type);
+  const design = (type) => byCanonI09([...typeById.keys()]
+    .filter((id) => typeById.get(id) === type));
   const pIds = design('primary');
   assert.deepEqual(M.PRIMARY_SKILLS.map((s) => s.id), pIds,
-    'PRIMARY_SKILLS — дизайн-порядок (ключи реестра 000001..000006: '
-    + 'сила→харизма), не алфавит (регрессия .09 снята 000384)');
+    'PRIMARY_SKILLS — канон порядка (ключи реестра 000001..000006: '
+    + 'сила→харизма; вне-реестровые — хвост по lex), не алфавит '
+    + '(регрессия .09 снята 000384; рост легален с 000387)');
   const sIds = design('secondary');
   assert.deepEqual(Object.keys(M.SECONDARY_SKILLS), sIds,
-    'SECONDARY_SKILLS — ключи в дизайн-порядке реестра (staff — хвост)');
+    'SECONDARY_SKILLS — ключи в каноне порядка реестра (staff — хвост '
+    + 'реестровой части; вне-реестровые — после неё по lex)');
   const schIds = design('school');
   assert.deepEqual(M.SCHOOLS.map((s) => s.id), schIds,
-    'SCHOOLS — дизайн-порядок реестра (protection…shadow ≡ порядок 000301)');
+    'SCHOOLS — канон порядка реестра (protection…shadow ≡ порядок 000301)');
   for (const id of [...pIds, ...sIds, ...schIds]) {
     assert.ok(text.includes('// ' + id + '.json'),
       'комментарий-носитель «// ' + id + '.json» в зеркале');
   }
   const pin = (ids) => 'assets/skills/' + ids[0] + '.json … '
     + ids[ids.length - 1] + '.json';
+  const capOf = (re) => {
+    const m = text.match(re);
+    return m ? m[0] : 'ШАПКА НЕ НАЙДЕНА';
+  };
   assert.ok(text.includes('Основные навыки (' + pin(pIds) + ')'),
-    'шапка primary-ranges — slug endpoints дизайн-порядка (факт: '
-    + text.match(/Основные навыки \([^)]*\)/)[0] + ')');
+    'шапка primary-ranges — slug endpoints канона порядка (факт: '
+    + capOf(/Основные навыки \([^)]*\)/) + ')');
   assert.ok(text.includes('Вторичные навыки (' + pin(sIds) + ')'),
-    'шапка secondary-ranges — slug endpoints дизайн-порядка');
+    'шапка secondary-ranges — slug endpoints канона порядка (факт: '
+    + capOf(/Вторичные навыки \([^)]*\)/) + ')');
   assert.ok(text.includes('Школы магии (' + pin(schIds) + ')'),
-    'шапка schools-ranges — slug endpoints дизайн-порядка');
+    'шапка schools-ranges — slug endpoints канона порядка (факт: '
+    + capOf(/Школы магии \([^)]*\)/) + ')');
 });
 
 test('000318.09 T3: REF_RE — побайтовый пин НОВОГО source (skills в slug-группе по REF_LINKED_CATALOGS; number-ветка — ОДНА npc) + таблица истинности + реестр шейпов', () => {
@@ -298,7 +375,7 @@ function findTrainPattern(node) {
   return null;
 }
 
-test('000318.09 T5: referrer-свип — numeric-путей skills РОВНО 0; 954/27/34 slug-путей в 693/27/18 файлах craft/mobs/buildings ≡ снапшоту; spells/npc/dungeons/items/mob_groups — 0 skills-путей; probes ≡ реестру (включая «hide»-колизию); внутренние 46 ссылок живы', () => {
+test('000318.09 T5 (ре-пин 000387): referrer-свип — numeric-путей skills РОВНО 0; slug-пути craft/mobs/buildings — монотонные поля MIN_* (факт rename 693/954, 27/27, 18/34 — история); spells/npc/dungeons/items/mob_groups — 0 skills-путей; probes ≡ реестру (включая «hide»-колизию); внутренние ≥32 primary + ≥14 requires.skill живы', () => {
   let numTotal = 0;
   for (const dirName of ['assets', 'src', 'scripts', 'spec', 'tests']) {
     const walk = (d) => {
@@ -317,7 +394,7 @@ test('000318.09 T5: referrer-свип — numeric-путей skills РОВНО 0
   assert.equal(numTotal, 0,
     'гейт «assets/skills/ + цифра» = 0 по всему дереву (факт: '
     + numTotal + ')');
-  for (const [cat, filesW, occW] of REFCOUNT_00031809) {
+  for (const [cat, minFiles, minOcc] of MIN_REFCOUNT_00031809) {
     const dir = path.join(ROOT, 'assets', cat);
     let occ = 0; let cf = 0;
     for (const f of fs.readdirSync(dir)) {
@@ -327,9 +404,11 @@ test('000318.09 T5: referrer-свип — numeric-путей skills РОВНО 0
       if (m.length) cf += 1;
       occ += m.length;
     }
-    assert.deepEqual([cf, occ], [filesW, occW],
-      'referrer ' + cat + ': файлы/вхождения ≡ снапшоту (факт ' + cf
-      + '/' + occ + ', ждём ' + filesW + '/' + occW + ')');
+    assert.ok(cf >= minFiles && occ >= minOcc,
+      'referrer ' + cat + ': файлы/вхождения ниже поля MIN_* (факт ' + cf
+      + '/' + occ + ', пол ' + minFiles + '/' + minOcc + ') — массовая'
+      + ' потеря skills-ссылок (000387: точные снапшоты сняты, легитимный'
+      + ' рост волн не красит, потеря — красит)');
   }
   for (const cat of NO_SKILLS_PATHS_00031809) {
     const dir = path.join(ROOT, 'assets', cat);
@@ -344,6 +423,9 @@ test('000318.09 T5: referrer-свип — numeric-путей skills РОВНО 0
     const text = fs.readFileSync(path.join(ROOT, 'assets', rel), 'utf8');
     const got = refsIn(text)
       .map((r) => path.basename(r, '.json')).sort();
+    assert.ok(nums.length > 0 && got.length > 0,
+      rel + ': анти-вакуум probe — ни ссылок, ни ожидания пусты быть не'
+      + ' может (иначе deepEqual ниже — фиктивная проверка)');
     assert.deepEqual(got, nums.map((n) => registry[n]).sort(),
       rel + ': мультимножество skills-ссылок ≡ HEAD-номерам через реестр');
     for (const r of refsIn(text)) {
@@ -361,8 +443,11 @@ test('000318.09 T5: referrer-свип — numeric-путей skills РОВНО 0
         f + ': ' + where + ' «' + ref + '» не резолвится');
     }
   }
-  assert.equal(prim, 32, 'primary-ссылок 32 (000337: +1 staff)');
-  assert.equal(req, 14, 'requires.skill-ссылок 14');
+  assert.ok(prim >= 32,
+    'primary-ссылок не меньше 32 (факт rename: 32, из них +1 staff от 000337;'
+    + ' 000387: рост легален, потеря — красная)');
+  assert.ok(req >= 14,
+    'requires.skill-ссылок не меньше 14 (факт rename; пол, не литерал)');
 });
 
 test('000318.09 T6 (ре-пин 000384): sync-skills-data.js — живой реестр в фильтре, schema.json исключён, компаратор по позиции data.id в замороженном реестре, guard пустого каталога; numeric-фильтра, «0000NN» и сортировки по имени файла нет', () => {
@@ -477,10 +562,13 @@ test('000318.09 T8: стражи 0-diff — чужие зеркала и CHANGEL
 
 test('000318.09 T9: spec/skills-storage.md — 38 строк (line-neutral, пин spec-split цел), numeric-путей и «нумерации» нет, формулировка «<id>.json»', () => {
   const p = path.join(ROOT, 'spec', 'skills-storage.md');
-  const lines = fs.readFileSync(p, 'utf8').split('\n');
+  const specText = fs.readFileSync(p, 'utf8');
+  const lines = specText.split('\n');
   if (lines[lines.length - 1] === '') lines.pop();
-  assert.equal(lines.length, 38,
-    'spec/skills-storage.md остаётся 38 строк (SPEC_FILE_LINES пин)');
+  assert.equal(String(lines.join('\n')).split('\n').length, 38,
+    'spec/skills-storage.md остаётся 38 строк (SPEC_FILE_LINES пин;'
+    + ' line-neutral, пин spec-split цел — док-пин, не счётчик каталога,'
+    + ' форма со split( легализована фильтром self-gate T12)');
   const specSplit = fs.readFileSync(
     path.join(ROOT, 'tests', 'spec-split.test.js'), 'utf8');
   assert.ok(specSplit.includes('"skills-storage.md": 38'),
@@ -519,21 +607,95 @@ test('000318.09 T10 (ре-пин 000384): данные зеркала ≡ HEAD-�
   }
 });
 
-test('000318.09 T11: реестр tests/scripts/skills-num2id-000318.09.json — ключи подряд 000001..000044, значения уникальны и ≡ множеству id каталога (двусторонне), spot-строки', () => {
-  const keys = Object.keys(registry).sort();
-  assert.equal(keys.length, EXPECTED_COUNT, '44 пары');
-  assert.deepEqual(keys,
-    Array.from({ length: EXPECTED_COUNT },
-      (_, i) => String(i + 1).padStart(6, '0')),
-    'ключи подряд 000001..000044 без дыр и дублей');
-  assert.equal(new Set(REG_VALUES).size, EXPECTED_COUNT,
-    'значения уникальны');
-  const diskIds = skillFilesAll().map((f) => JSON.parse(
-    fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id).sort();
-  assert.deepEqual([...REG_VALUES].sort(), diskIds,
-    'множество id реестра ≡ множеству id каталога (двусторонне)');
+test('000318.09 T11 (ре-пин 000387): реестр tests/scripts/skills-num2id-000318.09.json — APPEND-ONLY против HEAD (заморожены СТРОКИ, а не длина), ключи — префикс 000001..N (N живой, ≥ границы rename), значения уникальны, реестр ⊆ множеству id каталога (двусторонняя bijection снята 000387), spot-строки', () => {
+  const keys = Object.keys(registry);
+  const N = keys.length;
+  assert.ok(N >= FROZEN_PREFIX_END_I09,
+    'реестр: ' + N + ' строк — меньше границы rename ('
+    + FROZEN_PREFIX_END_I09 + '): существующие строки удалять нельзя'
+    + ' (append-only), а порядок ключей — канон зеркала и байтов сейва'
+    + ' (000384); РЕЦЕПТ роста: каталог без правки реестра (фолбэк хвоста'
+    + ' по lex) либо append pad(' + String(N + 1).padStart(6, '0')
+    + ')… — memory/000387-frozen-prefix-contract.md');
+  const want = [];
+  for (let i = 1; i <= N; i++) {
+    want.push(String(i).padStart(6, '0'));
+  }
+  assert.deepEqual([...keys].sort(), want,
+    'реестр: ключи — префикс 000001..' + want[N - 1] + ' подряд, без дыр'
+    + ' и дублей (N = ' + N + ' — ЖИВОЙ счётчик, не литерал)');
+  assert.equal(new Set(REG_VALUES).size, REG_VALUES.length,
+    'значения уникальны (живая сверка); дубли ломают канон порядка');
+  const diskIds = new Set(skillFilesAll().map((f) => JSON.parse(
+    fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id));
+  for (const id of REG_VALUES) {
+    assert.ok(diskIds.has(id),
+      'реестр: id «' + id + '» вне каталога — реестр ⊆ каталога (удаление'
+      + ' файла навыка из-под замороженного префикса недопустимо);'
+      + ' ОБРАТНОЕ НЕЛЬЗЯ требовать: каталог вправе расти вне реестра'
+      + ' (фолбэк хвоста, 000387)');
+  }
   assert.equal(registry['000001'], 'strength', 'spot 000001');
   assert.equal(registry['000018'], 'hide', 'spot 000018 (коллизия id с предметом hide)');
   assert.equal(registry['000042'], 'nature_school', 'spot 000042 (000318.11)');
   assert.equal(registry['000044'], 'staff', 'spot 000044 (000337)');
+  const rewritten = LEDGER_APPEND_ONLY_I09();
+  assert.deepEqual(rewritten, [],
+    'реестр ' + REGISTRY_REL_I09 + ' изменён относительно HEAD НЕ-append'
+    + ' правкой (' + rewritten.length + '): ' + rewritten.slice(0, 6)
+    .join('; ') + (rewritten.length > 6 ? ' …' : '')
+    + ' — существующие «номер → id» заморожены НАВСЕГДА (порядок-канон'
+    + ' зеркала и байтов сейва 000384, позиционные пины); дописывать'
+    + ' pad(N+1)… в конец — единственная легальная правка реестра, а чаще'
+    + ' реестр править НЕ нужно вовсе (рост каталога — фолбэк хвоста по'
+    + ' lex), memory/000387-frozen-prefix-contract.md');
+});
+
+// SELF-GATE (задача 000387) — по образцу 000375/000379: имя замороженного
+// счётчика и форма ассертов собираются concat-ом сегментов, поэтому
+// собственный текст зуба им не совпадает (иначе T12 был бы вечно красным).
+// Ограничение (осознанное, как у .379): ассерт-форма ловится в пределах
+// ОДНОЙ физической строки — перенос аргумента на новую строку от зуба
+// не спрячешь, но и не оправдан (style соседних файлов).
+const FROZEN_IDENT_RE_I09 = () => new RegExp('EXPECTED_' + 'COUNT\\b', 'g');
+const FROZEN_ASSERT_RE_I09 = () => new RegExp('assert' + '\\.equal\\([^\\n]*?'
+  + '\\.(?:length|size)\\s*,\\s*\\d+', 'g');
+
+test('000318.09 T12: self-gate — в исходнике этого файла нет замороженного живого счётчика каталога (ни имени-константы, ни assert.equal(<…length|size>, <литерал>)); positive-маркеры живой механики на месте', () => {
+  const src = fs.readFileSync(__filename, 'utf8');
+  const identHits = src.match(FROZEN_IDENT_RE_I09()) || [];
+  assert.ok(identHits.length === 0,
+    'в исходник skills-rename вернулся замороженный счётчик каталога ('
+    + identHits.length + ' вхождений имени): рост assets/skills волнами '
+    + 'легален БЕЗ строки реестра (фолбэк компаратора «в хвост по lex» '
+    + 'shipped в 000384), поэтому живое число здесь пинить нельзя. '
+    + 'РЕЦЕПТ вместо литерала: каталог ⊇ замороженного префикса реестра'
+    + ' (T1, пол FROZEN_' + 'PREFIX_END_I09), зеркало ≡ канону порядка'
+    + ' (T2/SO6), ключи реестра — префикс 000001..N с APPEND-ONLY по HEAD'
+    + ' (T11), агрегаты referrer-ов — монотонные поля MIN_* (T5);'
+    + ' границы и рецепт — memory/000387-frozen-prefix-contract.md');
+  // Исключение (осознанное): line-пины документов вида
+  // `String(x).split('\n').length === <число>` — это НЕ счётчик каталога,
+  // а контракт line-neutral (SPEC_FILE_LINES / spec-split), он живёт по
+  // своим правилам и меняется только вместе с документом.
+  const frozenAsserts = [...src.matchAll(FROZEN_ASSERT_RE_I09())]
+    .filter((m) => !m[0].includes('split('))
+    .map((m) => src.slice(0, m.index).split('\n').length);
+  assert.ok(frozenAsserts.length === 0,
+    'в исходнике ' + frozenAsserts.length + ' ассерт-ов вида'
+    + ' assert.equal(<выражение .length|.size>, <литерал>) на строках '
+    + frozenAsserts.join(', ') + ' — это замороженный живой счётчик'
+    + ' (мощность каталога/реестра/зеркала). РЕЦЕПТ: сравнивать с живой'
+    + ' величиной с диска, либо с монотонным полом'
+    + ' (FROZEN_' + 'PREFIX_END_I09 / MIN_*), либо выводить из данных.'
+    + ' Мутационный класс зуба — см. tasks/result/000387.md');
+  assert.ok(src.includes('FROZEN_' + 'PREFIX_END_I09'),
+    'пропал positive-маркер FROZEN_' + 'PREFIX_END_I09 — монотонная граница'
+    + ' замороженного префикса (44 пары реестра на момент rename),'
+    + ' ниже которой каталог/реестр упасть не могут');
+  assert.ok(src.includes('LEDGER_' + 'APPEND_ONLY_I09'),
+    'пропал positive-маркер LEDGER_' + 'APPEND_ONLY_I09 — зуб «реестр'
+    + ' append-only относительно HEAD» (заморожены СТРОКИ, а не длина);'
+    + ' без него волна, дописавшая реестр, остаётся без стража'
+    + ' пере-нумерации');
 });

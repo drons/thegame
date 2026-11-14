@@ -11,7 +11,8 @@
 // tests/scripts/skills-num2id-000318.09.json — ключи 000001..000044 идут
 // ровно в дизайн-порядке numeric-эпохи (основные Сила→Харизма; вторичные
 // боевые→…→посох; школы protection, healing, ice, fire, nature_school,
-// shadow). Реестр только читается (заморожен; механизм роста — 000387).
+// shadow). Реестр только читается (строки заморожены append-only; рост
+// каталога вне реестра легален фолбэком «в конец по lex» — 000387).
 //
 // SO1 — экспорт PRIMARY_KEYS из sheet.js и его порядок;
 // SO2 — байтовый round-trip primary сейва create→serialize→sanitize;
@@ -19,8 +20,9 @@
 //       (после починки зеркала поведенчески неотличим — ловит только этот зуб);
 // SO4 — структурный: sync-skills-data.js читает канон из реестра;
 // SO5 — sync без реестра → exit 1 (страж канона), с реестром → exit 0;
-// SO6 — порядок записей зеркала ≡ значениям реестра + свип покрытия
-//       каталога реестром (фолбэк «в конец по lex» недостижим до 000387).
+// SO6 — порядок записей зеркала ≡ канону (значения реестра, затем
+//       вне-реестровые — хвост своей группы по lex; с 000387 вне-реестровые
+//       id ЛЕГАЛЬНЫ и зуб ждёт их именно в хвосте, а не запрещает их).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -45,7 +47,18 @@ const typeById = new Map(
       const d = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8'));
       return [d.id, d.type];
     }));
-const designOf = (type) => DESIGN.filter((id) => typeById.get(id) === type);
+// Канон порядка = компаратор sync-skills-data.js (000384): позиция в
+// реестре, вне реестра — хвост по lex (механизм роста каталога, 000387).
+// На базе, где реестр ≡ каталогу, совпадает с прежним DESIGN-фильтром.
+const POS_SO = new Map(DESIGN.map((id, i) => [id, i]));
+const designOf = (type) => [...typeById.keys()]
+  .filter((id) => typeById.get(id) === type)
+  .sort((a, b) => {
+    const pa = POS_SO.has(a) ? POS_SO.get(a) : Infinity;
+    const pb = POS_SO.has(b) ? POS_SO.get(b) : Infinity;
+    if (pa !== pb) return pa < pb ? -1 : 1;
+    return a < b ? -1 : a > b ? 1 : 0;
+  });
 
 test('000384 SO1: sheet.js экспортирует PRIMARY_KEYS в дизайн-порядке (единый источник байтов сейва)', () => {
   const Sheet = require('../src/sheet.js');
@@ -152,18 +165,30 @@ test('000384 SO5: sync без замороженного реестра — hard
   }
 });
 
-test('000384 SO6: зеркало — PRIMARY/ключи SECONDARY/SCHOOLS в дизайн-порядке реестра; реестр покрывает каталог', () => {
+test('000384 SO6 (ре-пин 000387): зеркало — PRIMARY/ключи SECONDARY/SCHOOLS в каноне порядка (реестр + lex-хвост вне-реестровых); вне-реестровые id легальны и стоят в хвосте своей группы', () => {
   assert.deepEqual(MIRROR.PRIMARY_SKILLS.map((s) => s.id), designOf('primary'),
-    'PRIMARY_SKILLS — порядок ключей замороженного реестра '
-    + '(сила, ловкость, телосложение, интеллект, мудрость, харизма)');
+    'PRIMARY_SKILLS — канон порядка (сила, ловкость, телосложение, '
+    + 'интеллект, мудрость, харизма; вне-реестровые — хвост по lex)');
   assert.deepEqual(Object.keys(MIRROR.SECONDARY_SKILLS), designOf('secondary'),
-    'SECONDARY_SKILLS — ключи в порядке реестра (боевые вперёд, '
-    + 'staff — последний, 000044)');
+    'SECONDARY_SKILLS — ключи в каноне реестра (боевые вперёд, '
+    + 'staff — последний реестровый, 000044; extras — после него по lex)');
   assert.deepEqual(MIRROR.SCHOOLS.map((s) => s.id), designOf('school'),
     'SCHOOLS — protection, healing, ice, fire, nature_school, shadow '
     + '(порядок 000301)');
-  const unregistered = [...typeById.keys()].filter((id) => !DESIGN.includes(id));
-  assert.deepEqual(unregistered, [],
-    'свип покрытия: реестр ≡ каталогу, фолбэк «в конец по lex» недостижим '
-    + 'до механизма роста 000387: ' + unregistered.join(', '));
+  // 000387: свип инвертирован — «реестр ≡ каталогу» больше НЕ требование;
+  // вне-реестровые id ЛЕГАЛЬНЫ (механизм роста) и обязаны стоять в ХВОСТЕ
+  // своей группы по lex — ровно как их ставит компаратор (000384).
+  const unregistered = [...typeById.keys()]
+    .filter((id) => !POS_SO.has(id));
+  for (const type of ['primary', 'secondary', 'school']) {
+    const tail = unregistered.filter((id) => typeById.get(id) === type).sort();
+    const group = designOf(type);
+    assert.ok(group.length >= tail.length,
+      'группа «' + type + '» короче своего lex-хвоста — внутренних '
+      + 'непротиворечивых данных нет');
+    assert.deepEqual(group.slice(group.length - tail.length), tail,
+      'вне-реестровые id группы «' + type + '» обязаны идти ПОСЛЕДНИМИ'
+      + ' по lex (фолбэк компаратора, механизм роста 000387); хвост:'
+      + ' ' + tail.join(', ') + ', факт: ' + group.join(', '));
+  }
 });
