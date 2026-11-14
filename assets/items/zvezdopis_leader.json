@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_leader",
+  "name": "Звездопись предводителя",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись предводителя: знаменосца сверяют по звёздам, а не по крику.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "leader",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_leader.svg"
+}

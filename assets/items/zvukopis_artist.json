@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_artist",
+  "name": "Звукопись артиста",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 60,
+  "desc": "Звукопись артиста: сцена хранит эхо лучше, чем зритель.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "artist",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_artist.svg"
+}

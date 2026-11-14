@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_alchemy",
+  "name": "Звездопись алхимика",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 45,
+  "desc": "Звездопись алхимика: ретику не интересны твои догадки о пропорциях.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "alchemy",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_alchemy.svg"
+}

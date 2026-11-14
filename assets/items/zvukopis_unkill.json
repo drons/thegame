@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_unkill",
+  "name": "Звукопись несокрушимости",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Звукопись несокрушимости: седьмой удар всегда легче первого.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "unkill",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_unkill.svg"
+}

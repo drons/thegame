@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_orator",
+  "name": "Звездопись оратора",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись оратора: красноречие сверяют по паузам, а не по словам.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "orator",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_orator.svg"
+}

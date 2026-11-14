@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_endurance",
+  "name": "Звездопись выносливости",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись выносливости: терпение измеряют не верстами, а шагом.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "endurance",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_endurance.svg"
+}

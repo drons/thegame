@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_endurance",
+  "name": "Звукопись выносливости",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 65,
+  "desc": "Звукопись выносливости: второе дыхание приходит, когда первое уже прошло.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "endurance",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_endurance.svg"
+}

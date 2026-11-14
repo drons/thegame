@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_elder",
+  "name": "Звездопись старейшины",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 45,
+  "desc": "Звездопись старейшины: летопись старейшин пишется медленно и начисто.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "elder",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_elder.svg"
+}

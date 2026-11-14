@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_thief",
+  "name": "Звукопись тати",
+  "kind": "skill_book",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Звукопись тати: замок отвечает на звук, а не на силу.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "thief",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_thief.svg"
+}

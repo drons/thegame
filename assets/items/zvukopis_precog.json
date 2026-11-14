@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_precog",
+  "name": "Звукопись ясновидения",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 65,
+  "desc": "Звукопись ясновидения: вещий сон всегда приходит на полуноте.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "precog",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_precog.svg"
+}

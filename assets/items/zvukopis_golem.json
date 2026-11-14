@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_golem",
+  "name": "Звукопись голема",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 60,
+  "desc": "Звукопись голема: камень оживает на тот же ритм, что и засыпает.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "golem",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_golem.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_archer",
+  "name": "Звездопись стрелка",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись стрелка: ветер читают по оперению, а не по ветвям.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "archer",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_archer.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_breath",
+  "name": "Звукопись глубокого вдоха",
+  "kind": "skill_book",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Звукопись глубокого вдоха: выдох считает удары вслух.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "breath",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_breath.svg"
+}

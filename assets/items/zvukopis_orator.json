@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_orator",
+  "name": "Звукопись оратора",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Звукопись оратора: толпа внимательна к звуку, а не к смыслу.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "orator",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_orator.svg"
+}

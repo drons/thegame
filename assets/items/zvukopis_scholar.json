@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_scholar",
+  "name": "Звукопись учёного",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Звукопись учёного: сноска важнее цитаты, если сноска верна.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "scholar",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_scholar.svg"
+}

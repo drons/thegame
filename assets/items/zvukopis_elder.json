@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_elder",
+  "name": "Звукопись старейшины",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 60,
+  "desc": "Звукопись старейшины: голос старейшины узнают по тишине после.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "elder",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_elder.svg"
+}

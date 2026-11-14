@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_fright",
+  "name": "Звездопись застращивания",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись застращивания: страх тоже светило, только тёмное.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "fright",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_fright.svg"
+}

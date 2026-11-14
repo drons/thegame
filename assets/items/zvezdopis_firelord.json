@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_firelord",
+  "name": "Звездопись повелителя огня",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 55,
+  "desc": "Звездопись повелителя огня: пламя благодарно ровно до той секунды, пока его считают.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "firelord",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_firelord.svg"
+}

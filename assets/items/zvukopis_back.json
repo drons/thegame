@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_back",
+  "name": "Звукопись крепкой спины",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 65,
+  "desc": "Звукопись крепкой спины: хруст в пояснице — дурной предвестник.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "back",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_back.svg"
+}

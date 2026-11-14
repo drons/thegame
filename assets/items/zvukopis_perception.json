@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_perception",
+  "name": "Звукопись зоркости",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 60,
+  "desc": "Звукопись зоркости: тишина сообщает больше, чем шум рынка.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "perception",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_perception.svg"
+}

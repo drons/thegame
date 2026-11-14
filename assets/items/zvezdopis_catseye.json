@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_catseye",
+  "name": "Звездопись кошачьего глаза",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись кошачьего глаза: звёзды видят лучше прищуренным глазом.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "catseye",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_catseye.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_leader",
+  "name": "Звукопись предводителя",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 65,
+  "desc": "Звукопись предводителя: строй слышит голос, а не обещания.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "leader",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_leader.svg"
+}

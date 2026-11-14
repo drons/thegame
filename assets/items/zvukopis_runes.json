@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_runes",
+  "name": "Звукопись рунописи",
+  "kind": "skill_book",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Звукопись рунописи: начертание диктуют не рукой, а дыханием.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "runes",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_runes.svg"
+}

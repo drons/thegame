@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_fists",
+  "name": "Звездопись каменных кулаков",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись каменных кулаков: кулак — короткий разговор, зато без переводчика.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "fists",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_fists.svg"
+}

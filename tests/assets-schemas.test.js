@@ -105,7 +105,7 @@ const SLUG_PINNED_000318 = {
 // Числовые «сегменты с резервами-дырами» после rename бессмысленны.
 const SLUG_SWEEP_000318 = {
   craft: { count: 693 },
-  items: { count: 914 }, // 000318.08: rename в <id>.json; ре-пин 000321.08: +50 еды
+  items: { count: 964 }, // 000318.08: rename в <id>.json; ре-пин 000321.08: +50 еды
   skills: { count: 44 }, // 000318.09: rename в <id>.json
 };
 

@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_scholar",
+  "name": "Звездопись учёного",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись учёного: книг больше, чем прочитанных ночей.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "scholar",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_scholar.svg"
+}

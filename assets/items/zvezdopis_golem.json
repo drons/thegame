@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_golem",
+  "name": "Звездопись голема",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 45,
+  "desc": "Звездопись голема: глина помнит каждое прикосновение к ней.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "golem",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_golem.svg"
+}

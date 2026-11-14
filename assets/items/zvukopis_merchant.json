@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_merchant",
+  "name": "Звукопись торговца",
+  "kind": "skill_book",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Звукопись торговца: торг идёт на том же слухе, что и молчание.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "merchant",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_merchant.svg"
+}

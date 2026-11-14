@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_precog",
+  "name": "Звездопись ясновидения",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись ясновидения: будущее видно боковым зрением созвездий.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "precog",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_precog.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_forge",
+  "name": "Звукопись кузнечной руки",
+  "kind": "skill_book",
+  "weight": 0.6,
+  "value": 70,
+  "desc": "Звукопись кузнечной руки: молот задаёт темп, наковальня его помнит.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "forge",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_forge.svg"
+}

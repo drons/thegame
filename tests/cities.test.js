@@ -1824,6 +1824,18 @@ const SHOP_GOLDEN = {
     zhele_limonnoe: 4, zhele_yagodnoe: 3, zhur_lesnoy: 1, zhyto_kasha: 5, zimniy_kompot: 5,
     ziti_cheese: 1, ziti_tomato: 1, ziti_zapechennye: 1, zucchini_boat: 5, zucchini_patty: 3,
     zucchini_salad: 1, zucchini_soup: 3, zvany_obed: 5,
+    // Ре-пин 000321.09: книги навыков 000915–000964 — lex-хвост каталога, rng-хвост пула allItems (вид 44, w3) → += 45 книг (не выпали 5); остальные 768 ключей стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
+    zvezdopis_accuracy: 1, zvezdopis_acro: 1, zvezdopis_alchemy: 4, zvezdopis_archer: 3,
+    zvezdopis_back: 3, zvezdopis_breath: 4, zvezdopis_catseye: 3, zvezdopis_endurance: 2,
+    zvezdopis_firelord: 4, zvezdopis_fists: 5, zvezdopis_forge: 3, zvezdopis_fright: 2,
+    zvezdopis_heavy: 1, zvezdopis_leader: 1, zvezdopis_meditation: 5, zvezdopis_merchant: 2,
+    zvezdopis_perception: 5, zvezdopis_precog: 3, zvezdopis_runes: 3, zvezdopis_scholar: 2,
+    zvezdopis_staff: 2, zvezdopis_step: 4, zvezdopis_swordsman: 3, zvezdopis_thief: 2,
+    zvezdopis_unkill: 1, zvukopis_acro: 5, zvukopis_artist: 5, zvukopis_back: 4, zvukopis_breath: 1,
+    zvukopis_catseye: 4, zvukopis_elder: 4, zvukopis_endurance: 3, zvukopis_forge: 4,
+    zvukopis_fright: 5, zvukopis_golem: 5, zvukopis_leader: 3, zvukopis_merchant: 5,
+    zvukopis_orator: 1, zvukopis_perception: 2, zvukopis_precog: 2, zvukopis_scholar: 2,
+    zvukopis_staff: 1, zvukopis_step: 3, zvukopis_thief: 2, zvukopis_unkill: 2,
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).

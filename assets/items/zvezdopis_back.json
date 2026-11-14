@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_back",
+  "name": "Звездопись крепкой спины",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись крепкой спины: ноша — тоже договор со спиной.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "back",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_back.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_acro",
+  "name": "Звездопись акробатики",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись акробатики: созвездия учат приземляться мягче, чем пол.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "acro",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_acro.svg"
+}

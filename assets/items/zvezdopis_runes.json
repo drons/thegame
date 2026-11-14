@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_runes",
+  "name": "Звездопись рунописи",
+  "kind": "skill_book",
+  "weight": 0.5,
+  "value": 55,
+  "desc": "Звездопись рунописи: руна светится только тому, кто её чертил.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "runes",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_runes.svg"
+}

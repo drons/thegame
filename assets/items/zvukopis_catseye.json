@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_catseye",
+  "name": "Звукопись кошачьего глаза",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Звукопись кошачьего глаза: блик в темноте выдаёт и дверь, и засов.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "catseye",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_catseye.svg"
+}

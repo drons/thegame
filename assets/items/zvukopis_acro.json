@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_acro",
+  "name": "Звукопись акробатики",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Звукопись акробатики: ритм прыжка слышен раньше, чем сам прыжок.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "acro",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_acro.svg"
+}

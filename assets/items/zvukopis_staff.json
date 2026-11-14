@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_staff",
+  "name": "Звукопись владения посохом",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 60,
+  "desc": "Звукопись владения посохом: удар посохом звучит ниже, чем обещание.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "staff",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_staff.svg"
+}

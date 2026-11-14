@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_unkill",
+  "name": "Звездопись несокрушимости",
+  "kind": "skill_book",
+  "weight": 0.2,
+  "value": 40,
+  "desc": "Звездопись несокрушимости: несокрушимость — это терпение с крепкой челюстью.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "unkill",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_unkill.svg"
+}

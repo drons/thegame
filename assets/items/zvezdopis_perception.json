@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_perception",
+  "name": "Звездопись зоркости",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 45,
+  "desc": "Звездопись зоркости: зоркость начинается там, где кончается ожидание.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "perception",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_perception.svg"
+}

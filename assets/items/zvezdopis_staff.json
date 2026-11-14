@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_staff",
+  "name": "Звездопись владения посохом",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 45,
+  "desc": "Звездопись владения посохом: посох знает длину пути раньше хозяина.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "staff",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_staff.svg"
+}

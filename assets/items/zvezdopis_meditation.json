@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_meditation",
+  "name": "Звездопись медитации",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись медитации: ману слышно там, где умолкают мысли.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "meditation",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_meditation.svg"
+}

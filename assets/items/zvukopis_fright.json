@@ -1,0 +1,14 @@
+{
+  "id": "zvukopis_fright",
+  "name": "Звукопись застращивания",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 55,
+  "desc": "Звукопись застращивания: вой в темноте пугает и самого воющего.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "fright",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvukopis_fright.svg"
+}

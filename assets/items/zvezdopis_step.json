@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_step",
+  "name": "Звездопись ловкого шага",
+  "kind": "skill_book",
+  "weight": 0.4,
+  "value": 50,
+  "desc": "Звездопись ловкого шага: тропа складывается из шагов, а не из намерений.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "step",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_step.svg"
+}

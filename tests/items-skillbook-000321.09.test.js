@@ -1,0 +1,528 @@
+// Задача 000321.09 (9-я волна батча 000321): +50 книг навыков kind=skill_book,
+// виртуальные позиции 000915–000964. kind=node; require — свои модули, чужие
+// тесты не требуются. Контракт — memory/000321-skillbook-items.md.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const { createHash } = require('node:crypto');
+const I = require('../src/items.js');
+const ITD = require('../src/items-data.js');
+const L = require('../src/loot-equip-data.js');
+const SKD = require('../src/skills-data.js');
+const { validateData } = require('./json-schema.js');
+
+const ROOT = path.join(__dirname, '..');
+const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
+const SPR_DIR = path.join(ROOT, 'assets', 'sprites', 'items');
+const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
+
+const NUM2ID = require(path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json'));
+const ID2NUM = {};
+for (const n of Object.keys(NUM2ID)) ID2NUM[NUM2ID[n]] = n;
+function SLUG(f) {
+  return f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f);
+}
+function VIRTNUM(f) {
+  const b = f.replace(/\.json$/, '');
+  return ID2NUM[b] !== undefined ? ID2NUM[b] + '.json' : f;
+}
+function DISKF(x) {
+  const b = String(x).replace(/\.json$/, '');
+  return (NUM2ID[b] !== undefined ? NUM2ID[b] : b) + '.json';
+}
+function FILES() {
+  return fs.readdirSync(ITEMS_DIR).filter(SLUG).map(VIRTNUM).sort();
+}
+const JRC = require('../scripts/lib/json-ref.js');
+const CRAFT_FILE_RE = JRC.SHAPE_BASENAME_RES[JRC.ASSET_NAME_SHAPES.craft];
+function recFiles() {
+  return fs.readdirSync(CRAFT_DIR)
+    .filter((f) => f !== 'schema.json' && CRAFT_FILE_RE.test(f)).sort();
+}
+function loadItemFile(num) {
+  const f = String(num).padStart(6, '0') + '.json';
+  const p = path.join(ITEMS_DIR, DISKF(f));
+  assert.ok(fs.existsSync(p),
+    'assets/items/' + f + ' существует (краснота: каталог 914 — '
+    + 'книги волны не созданы)');
+  return fs.readFileSync(p, 'utf8');
+}
+function diskObj(id) {
+  const p = path.join(ITEMS_DIR, id + '.json');
+  assert.ok(fs.existsSync(p), 'assets/items/' + id + '.json существует');
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+const CANON_ORDER = ['id', 'name', 'kind', 'subtype', 'weight', 'value',
+  'base_price', 'tier', 'desc', 'stats', 'effect', 'loot', 'icon',
+  'slot', 'rarity', 'set', 'affixes', 'set_bonus'];
+const FORBIDDEN_KEYS = ['rarity', 'slot', 'set', 'subtype', 'tier', 'loot',
+  'affixes', 'set_bonus', 'stats', 'base_price'];
+const LEX_PREDECESSOR = 'zveroboy_chay'; // lex-хвост каталога ДО волны 000321.09
+const SECONDARY = Object.keys(SKD.SECONDARY_SKILLS);
+const OLD_BOOKS = {
+  archer_scroll: ['archer', 15, 0.2, 45],
+  alchemy_manual: ['alchemy', 10, 0.5, 50],
+  fire_spellbook: ['firelord', 25, 0.5, 60],
+  heavy_tome: ['heavy', 30, 0.6, 70],
+  meditation_scroll: ['meditation', 15, 0.2, 40],
+  nature_scroll: ['nature', 15, 0.2, 40],
+  ice_spellbook: ['icelord', 25, 0.5, 60],
+  stone_fist_grimoire: ['fists', 25, 0.4, 55],
+  archery_manual: ['accuracy', 10, 0.5, 60],
+  iron_hide_tome: ['hide', 25, 0.4, 55],
+  sword_treatise: ['swordsman', 10, 0.5, 60],
+};
+
+// Ростер волны: [номер, id, имя, навык, weight, value, «хвост» desc].
+// desc каноничен: «<Имя>: <хвост>» (паттерн 000321.07/.08).
+// РАСПРЕДЕЛЕНИЕ (решение станции, memory/000321-skillbook-items.md): 21
+// непокрытый навык × 2 тома (A «Звездопись» + B «Звукопись») + 8 покрытых ×
+// 1 том A = 50; покрытие — все 32 вторичных навыка ≥ 1 книги.
+const ROSTER_00032109 = [
+  [915,"zvezdopis_accuracy","Звездопись меткости","accuracy",0.2,40,"глаз привыкает к ветру раньше, чем рука к тетиве."],
+  [916,"zvezdopis_acro","Звездопись акробатики","acro",0.2,40,"созвездия учат приземляться мягче, чем пол."],
+  [917,"zvezdopis_alchemy","Звездопись алхимика","alchemy",0.3,45,"ретику не интересны твои догадки о пропорциях."],
+  [918,"zvezdopis_archer","Звездопись стрелка","archer",0.4,50,"ветер читают по оперению, а не по ветвям."],
+  [919,"zvezdopis_artist","Звездопись артиста","artist",0.3,45,"звёзды не спрашивают, для кого ты поёшь."],
+  [920,"zvezdopis_back","Звездопись крепкой спины","back",0.4,50,"ноша — тоже договор со спиной."],
+  [921,"zvezdopis_breath","Звездопись глубокого вдоха","breath",0.5,55,"воздух на вдохе тяжелее, чем кажется."],
+  [922,"zvezdopis_catseye","Звездопись кошачьего глаза","catseye",0.2,40,"звёзды видят лучше прищуренным глазом."],
+  [923,"zvezdopis_elder","Звездопись старейшины","elder",0.3,45,"летопись старейшин пишется медленно и начисто."],
+  [924,"zvezdopis_endurance","Звездопись выносливости","endurance",0.4,50,"терпение измеряют не верстами, а шагом."],
+  [925,"zvezdopis_firelord","Звездопись повелителя огня","firelord",0.5,55,"пламя благодарно ровно до той секунды, пока его считают."],
+  [926,"zvezdopis_fists","Звездопись каменных кулаков","fists",0.2,40,"кулак — короткий разговор, зато без переводчика."],
+  [927,"zvezdopis_forge","Звездопись кузнечной руки","forge",0.5,55,"искры читают кузнеца лучше ученика."],
+  [928,"zvezdopis_fright","Звездопись застращивания","fright",0.2,40,"страх тоже светило, только тёмное."],
+  [929,"zvezdopis_golem","Звездопись голема","golem",0.3,45,"глина помнит каждое прикосновение к ней."],
+  [930,"zvezdopis_heavy","Звездопись тяжёлого оружия","heavy",0.3,45,"инерцию не обманешь красивой позой."],
+  [931,"zvezdopis_leader","Звездопись предводителя","leader",0.4,50,"знаменосца сверяют по звёздам, а не по крику."],
+  [932,"zvezdopis_meditation","Звездопись медитации","meditation",0.4,50,"ману слышно там, где умолкают мысли."],
+  [933,"zvezdopis_merchant","Звездопись торговца","merchant",0.5,55,"прибыль любит твёрдую цену, как глина обжиг."],
+  [934,"zvezdopis_orator","Звездопись оратора","orator",0.2,40,"красноречие сверяют по паузам, а не по словам."],
+  [935,"zvezdopis_perception","Звездопись зоркости","perception",0.3,45,"зоркость начинается там, где кончается ожидание."],
+  [936,"zvezdopis_precog","Звездопись ясновидения","precog",0.4,50,"будущее видно боковым зрением созвездий."],
+  [937,"zvezdopis_runes","Звездопись рунописи","runes",0.5,55,"руна светится только тому, кто её чертил."],
+  [938,"zvezdopis_scholar","Звездопись учёного","scholar",0.2,40,"книг больше, чем прочитанных ночей."],
+  [939,"zvezdopis_staff","Звездопись владения посохом","staff",0.3,45,"посох знает длину пути раньше хозяина."],
+  [940,"zvezdopis_step","Звездопись ловкого шага","step",0.4,50,"тропа складывается из шагов, а не из намерений."],
+  [941,"zvezdopis_swordsman","Звездопись мечника","swordsman",0.5,55,"клинок помнит все твои оправдания."],
+  [942,"zvezdopis_thief","Звездопись тати","thief",0.5,55,"вор сверяется с тенью, а не с часами."],
+  [943,"zvezdopis_unkill","Звездопись несокрушимости","unkill",0.2,40,"несокрушимость — это терпение с крепкой челюстью."],
+  [944,"zvukopis_acro","Звукопись акробатики","acro",0.3,55,"ритм прыжка слышен раньше, чем сам прыжок."],
+  [945,"zvukopis_artist","Звукопись артиста","artist",0.4,60,"сцена хранит эхо лучше, чем зритель."],
+  [946,"zvukopis_back","Звукопись крепкой спины","back",0.5,65,"хруст в пояснице — дурной предвестник."],
+  [947,"zvukopis_breath","Звукопись глубокого вдоха","breath",0.6,70,"выдох считает удары вслух."],
+  [948,"zvukopis_catseye","Звукопись кошачьего глаза","catseye",0.3,55,"блик в темноте выдаёт и дверь, и засов."],
+  [949,"zvukopis_elder","Звукопись старейшины","elder",0.4,60,"голос старейшины узнают по тишине после."],
+  [950,"zvukopis_endurance","Звукопись выносливости","endurance",0.5,65,"второе дыхание приходит, когда первое уже прошло."],
+  [951,"zvukopis_forge","Звукопись кузнечной руки","forge",0.6,70,"молот задаёт темп, наковальня его помнит."],
+  [952,"zvukopis_fright","Звукопись застращивания","fright",0.3,55,"вой в темноте пугает и самого воющего."],
+  [953,"zvukopis_golem","Звукопись голема","golem",0.4,60,"камень оживает на тот же ритм, что и засыпает."],
+  [954,"zvukopis_leader","Звукопись предводителя","leader",0.5,65,"строй слышит голос, а не обещания."],
+  [955,"zvukopis_merchant","Звукопись торговца","merchant",0.6,70,"торг идёт на том же слухе, что и молчание."],
+  [956,"zvukopis_orator","Звукопись оратора","orator",0.3,55,"толпа внимательна к звуку, а не к смыслу."],
+  [957,"zvukopis_perception","Звукопись зоркости","perception",0.4,60,"тишина сообщает больше, чем шум рынка."],
+  [958,"zvukopis_precog","Звукопись ясновидения","precog",0.5,65,"вещий сон всегда приходит на полуноте."],
+  [959,"zvukopis_runes","Звукопись рунописи","runes",0.6,70,"начертание диктуют не рукой, а дыханием."],
+  [960,"zvukopis_scholar","Звукопись учёного","scholar",0.3,55,"сноска важнее цитаты, если сноска верна."],
+  [961,"zvukopis_staff","Звукопись владения посохом","staff",0.4,60,"удар посохом звучит ниже, чем обещание."],
+  [962,"zvukopis_step","Звукопись ловкого шага","step",0.5,65,"тихий шаг — тоже музыка, только для своих."],
+  [963,"zvukopis_thief","Звукопись тати","thief",0.6,70,"замок отвечает на звук, а не на силу."],
+  [964,"zvukopis_unkill","Звукопись несокрушимости","unkill",0.3,55,"седьмой удар всегда легче первого."]
+];
+const ROSTER_IDS = ROSTER_00032109.map((r) => r[1]);
+const ROSTER_SET = new Set(ROSTER_IDS);
+const ROSTER_SKILLS = new Set(ROSTER_00032109.map((r) => r[3]));
+
+function allDiskObjects() {
+  const out = [];
+  for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUG)) {
+    out.push(JSON.parse(fs.readFileSync(path.join(ITEMS_DIR, f), 'utf8')));
+  }
+  return out;
+}
+function svgFiles() {
+  return fs.readdirSync(SPR_DIR).filter((f) => f.endsWith('.svg'));
+}
+const NEEDLE_A = 'base_price';
+
+// --- T1: форма 50 предметов --------------------------------------------------
+
+test('000321.09 T1: каталог — ровно 964 файла <id>.json (позиции 000915–000964 по реестру 000318.08); новые 50 — kind skill_book, БЕЗ rarity/slot/set/subtype/tier/stats/loot/affixes/set_bonus и БЕЗ base_price (решение станции: цена продажи через SELL_BASE_VALUE.skill_book), порядок ключей = канон sync-items-data.js (icon ПОСЛЕДНИМ), roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 914 — волна не добавлена)', () => {
+  const files = FILES();
+  assert.equal(files.length, 964,
+    'каталог — 964 файла (914 + 50 книг 000321.09); факт: ' + files.length
+    + ' (краснота: волна не добавлена)');
+  const schema = JSON.parse(
+    fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
+  for (const [num, id] of ROSTER_00032109) {
+    const f = String(num).padStart(6, '0') + '.json';
+    assert.equal(files[num - 1], f,
+      'реестровый порядок: позиция ' + num + ' — ' + f + ' (факт: '
+      + files[num - 1] + ')');
+    const raw = loadItemFile(num);
+    const j = JSON.parse(raw);
+    assert.deepEqual(validateData(schema, j, f), [], f + ': схема');
+    assert.equal(j.kind, 'skill_book', f + ': kind skill_book');
+    for (const absent of FORBIDDEN_KEYS) {
+      assert.equal(j[absent], undefined, f + ': ' + absent + ' нет');
+    }
+    assert.equal(j.icon, 'assets/sprites/items/' + id + '.svg',
+      f + ': icon = assets/sprites/items/<id>.svg');
+    const keys = Object.keys(j);
+    assert.equal(keys[keys.length - 1], 'icon',
+      f + ': icon — ПОСЛЕДНИЙ ключ; факт: ' + keys.join(','));
+    const idx = keys.filter((k) => k !== 'id')
+      .map((k) => CANON_ORDER.indexOf(k));
+    assert.deepEqual(idx, [...idx].sort((a, b) => a - b),
+      f + ': порядок ключей — канон KEYS sync-items-data.js; факт: '
+      + keys.join(','));
+    assert.equal(JSON.stringify(j, null, 2) + '\n', raw,
+      f + ': roundtrip-канон');
+  }
+});
+
+// --- T2: ростер + глобальная уникальность + additions-only ------------------
+
+test('000321.09 T2: ростер 50 строк ≡ JSON (id/имя/skill/weight/value/desc «<Имя>: …»); sweep по 964: id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zveroboy_chay» (additions-only: хвост зеркального lex-порядка ⇒ rng-потоки существующих стоков не сдвигаются) (краснота: каталог 914)', () => {
+  const files = FILES();
+  assert.equal(files.length, 964, 'каталог — 964; факт: ' + files.length);
+  const ids = new Map();
+  const names = new Map();
+  const descs = new Map();
+  for (const f of files) {
+    const j = JSON.parse(fs.readFileSync(
+      path.join(ITEMS_DIR, DISKF(f)), 'utf8'));
+    assert.ok(!ids.has(j.id), 'дубликат id: ' + j.id + ' (' + f + ')');
+    ids.set(j.id, f);
+    assert.ok(!names.has(j.name),
+      'дубликат имени: ' + j.name + ' (' + f + ')');
+    names.set(j.name, f);
+    assert.ok(!descs.has(j.desc),
+      'дубликат desc: ' + j.desc + ' (' + f + ')');
+    descs.set(j.desc, f);
+  }
+  assert.equal(ids.size, 964);
+  for (const [num, id, name, skill, weight, value, tail] of ROSTER_00032109) {
+    const j = JSON.parse(loadItemFile(num));
+    assert.equal(j.id, id, num + ': id == ростер');
+    assert.equal(j.name, name, id + ': имя == ростер');
+    assert.equal(j.effect.skill, skill, id + ': effect.skill == ростер');
+    assert.equal(j.weight, weight, id + ': weight == ростер');
+    assert.equal(j.value, value, id + ': value == ростер');
+    assert.equal(j.desc, name + ': ' + tail, id + ': desc = «<Имя>: …»');
+    assert.ok(id > LEX_PREDECESSOR,
+      id + ': lex-позиция после хвоста каталога ДО волны ('
+      + LEX_PREDECESSOR + ')');
+  }
+});
+
+// --- T3: effect-контракт и покрытие вторичных навыков ----------------------
+
+test('000321.09 T3: effect ≡ {kind: skill_xp, skill, amount} (ключи в этом порядке), amount ≡ 10 у всех 50 (факт ТЗ), skill ∈ SECONDARY_SKILLS (32 — src/skills-data.js; валидатор src/items.js требует P.SECONDARY_SKILLS[e.skill] — книга на ПЕРВИЧНЫЙ навык физически невозможна); инвариант покрытия: у КАЖДОГО из 32 вторичных навыков ≥ 1 книги навыков в каталоге (живой свип) (краснота: книг нет)', () => {
+  for (const [num, id, , skill] of ROSTER_00032109) {
+    const j = JSON.parse(loadItemFile(num));
+    assert.deepEqual(Object.keys(j.effect), ['kind', 'skill', 'amount'],
+      id + ': ключи effect — kind, skill, amount');
+    assert.equal(j.effect.kind, 'skill_xp', id + ': effect.kind skill_xp');
+    assert.equal(j.effect.amount, 10, id + ': amount == 10');
+    assert.equal(j.effect.skill, skill, id + ': skill == ростер');
+    assert.ok(SKD.SECONDARY_SKILLS[skill],
+      id + ': skill ∈ SECONDARY_SKILLS (' + skill + ')');
+  }
+  assert.equal(SECONDARY.length, 32,
+    'вторичных навыков на диске — 32 (факт базы; ТЗ «31» устарело); факт: '
+    + SECONDARY.length);
+  const covered = new Set();
+  for (const it of allDiskObjects()) {
+    if (it.kind === 'skill_book') covered.add(it.effect.skill);
+  }
+  for (const s of SECONDARY) {
+    assert.ok(covered.has(s),
+      'у вторичного навыка «' + s + '» нет ни одной книги навыков; '
+      + 'покрытие: ' + covered.size + '/32 (краснота: волна не добавлена)');
+  }
+  assert.ok(ROSTER_SKILLS.size >= 21,
+    'волна закрыла ≥ 21 непокрытого ранее навыка; факт: '
+    + ROSTER_SKILLS.size);
+});
+
+// --- T4: вид skill_book — 61, старые 11 verbatim, коридоры ------------------
+
+test('000321.09 T4: вид skill_book — РОВНО 61 (11 старых + 50 новых); У ВСЕХ 61 нет rarity и нет slot (sweep); старые 11 вербатим с ДИСКА (навык/amount/weight/value — урок .08-M12: не через зеркало); новые — weight ∈ [0.2,0.6], value ∈ [40,70] (лестница существующих книг), effect.amount = 10 у всех новых (краснота: skill_book 11)', () => {
+  const books = allDiskObjects().filter((it) => it.kind === 'skill_book');
+  assert.equal(books.length, 61,
+    'skill_book — 61 (11 + 50 волны); факт: ' + books.length);
+  for (const b of books) {
+    assert.equal(b.rarity, undefined, b.id + ': rarity нет');
+    assert.equal(b.slot, undefined, b.id + ': slot нет');
+  }
+  for (const [id, [skill, amount, weight, value]] of Object.entries(OLD_BOOKS)) {
+    const j = diskObj(id);
+    assert.equal(j.kind, 'skill_book', id + ': старый — книга');
+    assert.equal(j.effect.skill, skill, id + ': навык старого не двигался');
+    assert.equal(j.effect.amount, amount, id + ': amount старого не двигался');
+    assert.equal(j.weight, weight, id + ': weight старого не двигался');
+    assert.equal(j.value, value, id + ': value старого не двигался');
+  }
+  for (const [, id] of ROSTER_00032109) {
+    const j = diskObj(id);
+    assert.ok(j.weight >= 0.2 && j.weight <= 0.6,
+      id + ': weight ∈ [0.2,0.6]; факт: ' + j.weight);
+    assert.ok(j.value >= 40 && j.value <= 70,
+      id + ': value ∈ [40,70]; факт: ' + j.value);
+    assert.equal(j.effect.amount, 10, id + ': amount новых == 10');
+  }
+});
+
+// --- T5: иконки -------------------------------------------------------------
+
+test('000321.09 T5: иконки — у 50 новых поле icon ↔ файл существует; биекция json↔svg по basename; flat-SVG 64×64: viewBox ровно «0 0 64 64», ПЕРВЫЙ элемент — тень-эллипс rgba(0,0,0,0.22), без linearGradient/radialGradient/<text/<path/<use/stroke= (паттерн 000302/000335); sha256-уникальность против всех 931 иконок (краснота: файлы не созданы)', () => {
+  const hash = (p) => createHash('sha256')
+    .update(fs.readFileSync(p)).digest('hex');
+  const hashes = new Map();
+  for (const f of svgFiles()) {
+    const h = hash(path.join(SPR_DIR, f));
+    assert.ok(!hashes.has(h), 'дубликат байт иконки: ' + f + ' ≡ '
+      + hashes.get(h));
+    hashes.set(h, f);
+  }
+  assert.equal(hashes.size, 931,
+    'иконок sprites/items — 931 (881 + 50 книг); факт: ' + hashes.size
+    + ' (краснота: иконок нет)');
+  for (const [, id] of ROSTER_00032109) {
+    const f = id + '.svg';
+    const p = path.join(SPR_DIR, f);
+    assert.ok(fs.existsSync(p), f + ': файл иконки');
+    const text = fs.readFileSync(p, 'utf8');
+    assert.ok(!/linearGradient|radialGradient/.test(text),
+      f + ': градиенты запрещены');
+    for (const bad of ['<text', '<path', '<use']) {
+      assert.ok(!text.includes(bad), f + ': «' + bad + '» запрещён');
+    }
+    assert.ok(!/stroke=/.test(text), f + ': stroke= запрещён');
+    assert.ok(!/NaN|Infinity|undefined/.test(text),
+      f + ': битое число в байтах иконки (генератор выдал NaN/Infinity)');
+    for (const m of text.matchAll(/points="([^"]+)"/g)) {
+      for (const tok of m[1].trim().split(/\s+/)) {
+        const [px, py] = tok.split(',').map(Number);
+        assert.ok(Number.isFinite(px) && Number.isFinite(py)
+          && px >= 0 && px <= 64 && py >= 0 && py <= 64,
+          f + ': вершина «' + tok + '» вне холста 0..64');
+      }
+    }
+    for (const m of text.matchAll(/(?:cx|cy|rx|ry|r)="([^"]+)"/g)) {
+      const v = Number(m[1]);
+      assert.ok(Number.isFinite(v) && v >= 0 && v <= 64,
+        f + ': размер «' + m[1] + '» вне холста 0..64');
+    }
+    const vb = text.match(/viewBox="([^"]*)"/g) || [];
+    assert.equal(vb.length, 1, f + ': viewBox ровно 1');
+    assert.ok(text.includes('viewBox="0 0 64 64"'),
+      f + ': flat 64×64; факт: ' + vb.join(';'));
+    const lines = text.split('\n').filter((l) => l.trim().startsWith('<')
+      && !l.trim().startsWith('<svg') && !l.trim().startsWith('</'));
+    const firstShape = (lines[0] || '').trim();
+    assert.ok(/^<ellipse[^>]*fill="rgba\(0,0,0,0\.22\)"/.test(firstShape),
+      f + ': ПЕРВЫЙ элемент — тень-эллипс rgba(0,0,0,0.22); факт: '
+      + firstShape.slice(0, 40));
+    const j = diskObj(id);
+    assert.equal(j.icon, 'assets/sprites/items/' + f,
+      f + ': биекция icon ↔ файл');
+  }
+});
+
+// --- T6: страж «рецептов с результатом skill_book нет» (зелёный и до волны) -
+
+test('000321.09 T6: страж факта диска — каталог craft РОВНО 693; НИ У ОДНОГО рецепта результат не kind skill_book (sweep по 693); ни один id волны не является результатом рецепта (книги — лут/торговля, ТЗ-п.2)', () => {
+  const files = recFiles();
+  assert.equal(files.length, 693,
+    'craft — 693 файла (не вырос: рецептов книг нет); факт: ' + files.length);
+  for (const f of files) {
+    const j = JSON.parse(
+      fs.readFileSync(path.join(CRAFT_DIR, f), 'utf8'));
+    const ref = j['результат']['предмет'];
+    const m = /([a-z0-9_]+)\.json$/.exec(ref);
+    assert.ok(m, f + ': ссылка результата — <id>.json');
+    const it = I.getItem(m[1]);
+    assert.ok(it, f + ': результат ∈ каталог');
+    assert.notEqual(it.kind, 'skill_book',
+      f + ': результат — НЕ книга навыков (факт диска)');
+    assert.ok(!ROSTER_SET.has(it.id),
+      f + ': результат — НЕ предмет волны 000321.09');
+  }
+});
+
+// --- T7: зеркало + реестр + additions-only в зеркале ------------------------
+
+test('000321.09 T7: зеркало src/items-data.js — 964 записи, новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — его ХВОСТ (additions-only); реестр tests/scripts/items-num2id-000318.08.json — ключи «000001»…«000964» подряд, биекция с диском, 000915…000964 ≡ ростер (append-only: прежние 914 строк не тронуты) (краснота: зеркало 914 / реестр 914)', () => {
+  const diskCount = fs.readdirSync(ITEMS_DIR).filter(SLUG).length;
+  assert.equal(ITD.ITEMS.length, diskCount,
+    'зеркало ≡ диск по числу записей; факт: зеркало ' + ITD.ITEMS.length
+    + ', диск ' + diskCount);
+  const ids = ITD.ITEMS.map((it) => it.id);
+  assert.ok(ids.every((v, i) => i === 0 || ids[i - 1] < v),
+    'зеркало lex-упорядочено по id');
+  for (const [, id] of ROSTER_00032109) {
+    const mirror = I.getItem(id);
+    assert.ok(mirror, id + ': getItem резолвится');
+    assert.deepEqual(mirror, diskObj(id), id + ': зеркало ≡ JSON');
+  }
+  const ours = ids.filter((v) => ROSTER_SET.has(v));
+  assert.equal(ours.length, 50, 'в зеркале — все 50 книг волны');
+  assert.deepEqual(ours, ids.slice(-50),
+    'наши 50 — ХВОСТ зеркального lex-порядка (additions-only)');
+  const nums = Object.keys(NUM2ID);
+  assert.equal(nums.length, 964,
+    'реестр — 964 строк; факт: ' + nums.length);
+  assert.deepEqual(nums, nums.map((_, i) => String(i + 1).padStart(6, '0')),
+    'реестр — «000001»…«000964» подряд, без дыр');
+  const byId = new Set(Object.values(NUM2ID));
+  assert.equal(byId.size, 964, 'реестр — биекция с диском');
+  for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUG)) {
+    assert.ok(byId.has(f.replace(/\.json$/, '')),
+      f + ': позиция в реестре есть');
+  }
+  ROSTER_00032109.forEach(([num, id], i) => {
+    const key = String(915 + i).padStart(6, '0');
+    assert.equal(NUM2ID[key], id,
+      key + ': реестр ≡ ростер (факт: ' + NUM2ID[key] + ')');
+  });
+});
+
+// --- T8: живые канарейки счётчиков (дельты OUR-волны) -----------------------
+
+test('000321.09 T8: регресс-канарейки ЖИВЫМИ выражениями — диск ≡ зеркало ≡ реестр; дельты счётчиков относительно каталога БЕЗ наших 50: каталог +50, «прочих» без slot +50, без base_price +50 (решение станции — base_price НЕ заводим), rarity +0 (книги вне rarity-суммы 579), иконок +50; base_price-игла манифеста 000375 в этом файле self-match = 0 (мы не десятый держатель) (краснота: дельты нулевые — волна не добавлена)', () => {
+  const all = allDiskObjects();
+  const rest = all.filter((it) => !ROSTER_SET.has(it.id));
+  const svg = svgFiles();
+  const svgRest = svg.filter((f) => !ROSTER_SET.has(f.replace(/\.svg$/, '')));
+  const nums = Object.keys(NUM2ID);
+  assert.equal(all.length, ITD.ITEMS.length, 'диск ≡ зеркало');
+  assert.equal(nums.length, all.length, 'диск ≡ реестр');
+  const deltas = {
+    'каталог (914 → 964)': all.length - rest.length,
+    'без slot (325 → 375)':
+      all.filter((it) => !('slot' in it)).length
+      - rest.filter((it) => !('slot' in it)).length,
+    'без base_price (612 → 662)':
+      all.filter((it) => !('base_price' in it)).length
+      - rest.filter((it) => !('base_price' in it)).length,
+    'иконок (881 → 931)': svg.length - svgRest.length,
+  };
+  for (const [what, d] of Object.entries(deltas)) {
+    assert.equal(d, 50, 'дельта «' + what + '» == +50; факт: +' + d);
+  }
+  assert.equal(
+    all.filter((it) => 'rarity' in it).length
+    - rest.filter((it) => 'rarity' in it).length, 0,
+    'rarity — НЕ вырос (книги без rarity); сумма базы — 579');
+  const selfText = fs.readFileSync(path.join(__dirname,
+    'items-skillbook-000321.09.test.js'), 'utf8');
+  const selfNeedle = new RegExp(NEEDLE_A
+    + '\\s*\\u2014?\\s*' + 'ровно' + '\\s+у\\s+(\\d+)', 'gi');
+  assert.equal((selfText.match(selfNeedle) || []).length, 0,
+    'форма иглы base_price-манифеста 000375 зарезервирована — self-match');
+});
+
+// --- T9: spec/items.md + канон памяти ---------------------------------------
+
+test('000321.09 T9: spec/items.md — «Каталог пополнен 50 книгами навыков 000321.09» и счётчик «964 файлов (на момент 000321.09)» (единственный number-факт, паттерн 000312); правки line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2 (SPEC_FILE_LINES["items.md"] не двигается); канон memory/000230.16 — c1 «Каталог assets/items — 964 файлов (000001–000964;», c2 «skill_book 61» и E-блок ≡ H2 spec нормализованно (краснота: «на момент 000321.08»)', () => {
+  const spec = fs.readFileSync(path.join(ROOT, 'spec', 'items.md'), 'utf8');
+  assert.ok(spec.includes(
+    'Каталог пополнен 50 книгами навыков 000321.09'),
+    'spec/items.md: предложения о волне 000321.09 нет');
+  assert.ok(spec.includes('964 файлов (на момент 000321.09)'),
+    'spec/items.md: счётчика «964 файлов (на момент 000321.09)» нет');
+  assert.ok(!spec.includes('914 файлов'),
+    'spec/items.md: старое число 914 не осталось');
+  const lines = spec.split('\n');
+  assert.ok(!spec.endsWith('\n'),
+    'spec/items.md — без trailing-\\n (line-neutral правки)');
+  assert.equal(lines.length, 477,
+    'spec/items.md — 477 строк (line-neutral); факт: ' + lines.length);
+  assert.equal(lines.filter((l) => l.startsWith('## ')).length, 13,
+    'spec/items.md — 13 H2 (новых H2 не заводили)');
+  const canon = fs.readFileSync(
+    path.join(ROOT, 'memory', '000230.16-spec-equipment-doc.md'), 'utf8');
+  assert.ok(canon.includes(
+    'Каталог assets/items — 964 файлов (000001–000964;'),
+    'канон c1: счётчика 964/000964 нет');
+  assert.ok(/skill_book 61[,\s]/.test(canon),
+    'канон c2: «skill_book 61» нет');
+  const norm = (s) => s.replace(/\s+/g, ' ').trim();
+  const h2 = (title) => {
+    const i = lines.findIndex((l) => l.trim() === '## ' + title);
+    assert.ok(i >= 0, 'spec/items.md: H2 «' + title + '» не найден');
+    const out = [];
+    for (let k = i + 1; k < lines.length && !lines[k].startsWith('## '); k++) {
+      out.push(lines[k]);
+    }
+    return norm(out.join('\n'));
+  };
+  const specE = h2('Каталог новых предметов экипировки');
+  assert.ok(specE.includes(norm('Каталог пополнен 50 книгами навыков '
+    + '000321.09')), 'E-блок spec: предложения волны нет (норм.)');
+  assert.ok(norm(canon).includes('Каталог пополнен 50 книгами навыков '
+    + '000321.09'), 'канон (E-блок/§4.2): предложения волны нет');
+  assert.ok(specE.includes('964 файлов (на момент 000321.09)'),
+    'E-блок spec: счётчика 964 нет');
+});
+
+// --- T10: торговля автоматикой, лут-стражи, additions-only гейт -------------
+
+test('000321.09 T10: 0-diff стражи и магазинная автоматика (src/ НЕ трогали): shopKindsFor(магазин магии) содержит «skill_book» ⇒ наши книги входят в магические лавки АВТОМАТИЧЕСКИ (сток (30,40,type 3,w 0) содержит ≥ 20 книг ростера); makeCampShop (пул food/potion/weapon/armor) НЕ содержит ни одной книги; LOOT_RARE_POOL combat.js — ни одного id волны; src/loot-equip-data.js побайтово прежний, EQUIP_POOLS 232/161/117/46/23, DISASSEMBLY_BY_ITEM 648 и ни одного id волны; у всех 50 новых НЕТ поля loot (краснота: книг нет в стоках)', () => {
+  const M = require('../src/map.js');
+  const B = M.BUILDING_TYPES;
+  const kinds = I.shopKindsFor(B.MAGIC_SHOP);
+  assert.ok(Array.isArray(kinds) && kinds.includes('skill_book'),
+    'shopKindsFor(магазин магии) содержит skill_book; факт: '
+    + JSON.stringify(kinds));
+  const s1 = I.makeShop(30, 40, B.MAGIC_SHOP, 0);
+  const s2 = I.makeShop(30, 40, B.MAGIC_SHOP, 0);
+  assert.deepEqual(s1, s2, 'makeShop — детерминизм');
+  const fresh = Object.keys(s1.stock).filter((k) => ROSTER_SET.has(k));
+  assert.ok(fresh.length >= 20,
+    'магическая лавка содержит ≥ 20 книг ростера; факт: ' + fresh.length
+    + ' (краснота: книг нет)');
+  for (const k of fresh) assert.equal(I.getItem(k).kind, 'skill_book',
+    k + ': в стоке — книга ростера');
+  const C = require(path.join(ROOT, 'src', 'craft.js'));
+  const campPool = ITD.ITEMS.filter((it) => ['food', 'potion', 'weapon',
+    'armor'].includes(it.kind)).map((it) => it.id);
+  for (const id of ROSTER_IDS) {
+    assert.ok(!campPool.includes(id),
+      id + ': книги нет в пуле барахолки (виды 000047)');
+    assert.ok(!(id in C.DISASSEMBLY_BY_ITEM),
+      id + ': книги нет в DISASSEMBLY_BY_ITEM');
+    assert.equal(I.getItem(id).loot, undefined, id + ': loot нет');
+  }
+  const combatText = fs.readFileSync(path.join(ROOT, 'src', 'combat.js'),
+    'utf8');
+  for (const id of ROSTER_IDS) {
+    assert.ok(!combatText.includes("'" + id + "'"),
+      id + ': книги нет в литералах combat.js (LOOT_RARE_POOL заморожен)');
+  }
+  const before = execFileSync('git',
+    ['-C', ROOT, 'show', 'HEAD:src/loot-equip-data.js'],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const after = fs.readFileSync(path.join(ROOT, 'src',
+    'loot-equip-data.js'), 'utf8');
+  assert.equal(after, before,
+    'src/loot-equip-data.js ИЗМЕНЁН — книги не должны влиять на equip-пулы '
+    + 'и DROP-контракт 000230');
+  const P = L.EQUIP_POOLS;
+  assert.deepEqual(L.RARITY.map((t) => P[t.id].length), [232, 161, 117,
+    46, 23], 'EQUIP_POOLS — 232/161/117/46/23 (не выросли); факт: '
+    + L.RARITY.map((t) => P[t.id].length).join('/'));
+  assert.equal(L.RARITY.reduce((s, t) => s + t.chance, 0), 1,
+    'DROP-таблица — Σ 1 (НЕ тронута)');
+  assert.equal(Object.keys(C.DISASSEMBLY_BY_ITEM).length, 648,
+    'DISASSEMBLY_BY_ITEM — 648 (книги рецептов не добавили); факт: '
+    + Object.keys(C.DISASSEMBLY_BY_ITEM).length);
+});

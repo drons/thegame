@@ -1,0 +1,14 @@
+{
+  "id": "zvezdopis_heavy",
+  "name": "Звездопись тяжёлого оружия",
+  "kind": "skill_book",
+  "weight": 0.3,
+  "value": 45,
+  "desc": "Звездопись тяжёлого оружия: инерцию не обманешь красивой позой.",
+  "effect": {
+    "kind": "skill_xp",
+    "skill": "heavy",
+    "amount": 10
+  },
+  "icon": "assets/sprites/items/zvezdopis_heavy.svg"
+}
