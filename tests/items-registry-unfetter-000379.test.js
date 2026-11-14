@@ -22,6 +22,22 @@
 // §5 всё ещё велит «НЕ расширять») и у Т2 (контракт вне-реестровых id в
 // памяти не описан), Т3 зелёный и на базе; загрузка сьюта не падает.
 //
+// Задача 000388 (ретро-b24 F2/К2 + кросс X-3; time-critical — влиться ДО или
+// синхронно с 000387): Т1 усилен — запрет лжи сделан КЛАСС-предикатом
+// findLies (любая форма «не расширять» в обоих регистрах, «заморож*», прямые
+// отрицания роста) с ЦИТАТНОЙ ГРАНИЦЕЙ по образцу предиката «метка в той же
+// строке» из memory/000385-b23-memory-errata.md и truth-table 000378: ложная
+// форма легальна как цитата, если в строке есть маркер «эррата / была ложна /
+// прежняя директива», либо форма стоит внутри «ёлочек» и в строке есть
+// ссылка на задачу (или в блоке есть маркер эрраты). Эндпоинт items-блока —
+// ЛЮБОЙ следующий заголовок «С 000…» (или пустая строка перед новым блоком
+// «- »/«* », или заголовок раздела), а не точный матч «С 000NN.NN в
+// волнах:» — перефраз соседнего skills-clause («С 000318.09 (навыки)…»)
+// больше не втягивает чужой текст в items-блок. Страж чужого скоупа идёт ДО
+// скана лжи и именует блок-виновник, а не приписывает items. НОВЫЙ Т4 —
+// self-check предикатов на синтетике (бессрочная регрессия мутационной
+// матрицы tasks/result/000388.md). Тестов в файле: 3 → 4.
+//
 // Вне SCOPE: tests/skills-rename-000318.09.test.js и tests/npc-* — 0-diff
 // (параллельные волны 000384/000320.28); перенос паттерна на skills/npc —
 // задача 000387. CHANGELOG 0-diff (tests/memory-only, прецеденты
@@ -63,35 +79,143 @@ function catalogIds() {
 // «С 000318.07 …», «С 000318.08 …», «С 000318.09 …». Граница clause-ов —
 // сам маркер, поэтому items-плечо проверяется НЕ глядя на skills/npc
 // (их тексты — скоуп 000387, и «НЕ расширять» для них остаётся в силе).
-function clauseAfter(text, startRe, endRe) {
+//
+// Эндпоинт (000388, F2(в)/X-3): не точный матч следующего «С 000NN.NN в
+// волнах:», а РАННИЙ из стоп-маркеров: любой заголовок строки «С 000…»,
+// пустая строка перед новым блоком «- »/«* », заголовок раздела «## ».
+// Стартовый якорь остаётся точным — потеря своего заголовка обязана красить
+// с сообщением «перенести якорь осознанно».
+function blockAfter(text, startRe, stopRes) {
   const m = startRe.exec(text);
   assert.ok(m, 'в памяти не найден блок по якорю ' + startRe
     + ' — блок переименован: перенести якорь осознанно');
   const rest = text.slice(m.index);
-  const end = endRe ? rest.slice(1).search(endRe) : -1;
+  let end = -1;
+  for (const stopRe of stopRes) {
+    const s = rest.slice(1).search(stopRe);
+    if (s >= 0 && (end < 0 || s < end)) end = s;
+  }
   return end < 0 ? rest : rest.slice(0, end + 1);
 }
 
-test('000379 T1: память правдива для items — ни один блок memory/000318-asset-rename.md про items-реестр не велит «НЕ расширять» и не называет его замороженным; §5 содержит append-only-рецепт', () => {
+const ITEMS_STOPS = [
+  /^С 000/m,
+  /\n[ \t]*\n(?=[ \t]*[-*] )/,
+  /^##\s/m,
+];
+
+const BULLET_STOPS = [
+  /^\* [a-z]/m,
+  /^С 000/m,
+  /\n[ \t]*\n/,
+  /^##\s/m,
+];
+
+// Класс лжи (000388, F2(а)): словоформы «НЕ расширять»/«замороженн*» не
+// покрывали ни строчную директиву, ни «заморожен ЦЕЛИКОМ и не растёт
+// вовсе». Список форм — класс-предикат: любое живое (не цитатное) вхождение
+// ложной директивы красит зуб.
+const LIE_FORMS = [
+  { re: /не\s+расширять/i, why: 'директива не расширять реестр' },
+  { re: /заморож\w*/i, why: 'называющий реестр замороженным' },
+  { re: /не\s+раст[её]т/i, why: 'прямое отрицание роста' },
+  { re: /раст[её]?т?\s+не\s+будет/i, why: 'прямое отрицание роста' },
+  { re: /не\s+расширяется/i, why: 'прямое отрицание роста' },
+];
+
+// ЦИТАТНАЯ ГРАНИЦА (000388; образец — предикат «метка в той же строке» из
+// memory/000385-b23-memory-errata.md и truth-table 000378): ложная форма
+// легальна, если строка сама объявляет её цитатой (эррата / была ложна /
+// прежняя директива), либо форма стоит внутри «ёлочек» и рядом ссылка на
+// задачу-носитель эрраты, а маркер эрраты живёт где-то в блоке. Кавычки
+// без маркеров лжу НЕ легализуют (защита от отмывания директивы кавычками).
+const LIE_QUOTE_LINE_RE = /эррата|была ложна|прежняя директива/i;
+const LIE_QUOTE_BLOCK_RE = /эррата|была ложна/i;
+const LIE_TASK_REF_RE = /0003\d\d(\.\d+)?/;
+const GUILLEMET_SPAN_RE = /«[^»«]*»/g;
+
+function isCitedLie(line, block, at) {
+  if (LIE_QUOTE_LINE_RE.test(line)) return true;
+  const quoted = [...line.matchAll(GUILLEMET_SPAN_RE)]
+    .some((m) => at >= m.index && at < m.index + m[0].length);
+  if (!quoted) return false;
+  return LIE_TASK_REF_RE.test(line) || LIE_QUOTE_BLOCK_RE.test(block);
+}
+
+function findLies(block, blockName) {
+  const hits = [];
+  for (const rawLine of block.split('\n')) {
+    const line = rawLine.trim();
+    for (const form of LIE_FORMS) {
+      const re = new RegExp(form.re.source, 'gi');
+      let m;
+      while ((m = re.exec(line)) !== null) {
+        if (!isCitedLie(line, block, m.index)) {
+          hits.push({ block: blockName, why: form.why, found: m[0],
+            line: line.slice(0, 160) });
+        }
+        if (m.index === re.lastIndex) re.lastIndex++;
+      }
+    }
+  }
+  return hits;
+}
+
+function describeLies(hits) {
+  return hits.map((h) => ' — [' + h.block + '] форма «' + h.found + '» ('
+    + h.why + ') в строке: «' + h.line + '»').join(';');
+}
+
+// Страж границы (000388, X-3): если эндпоинт всё-таки проглотил соседний
+// блок (чужой заголовок снят целиком, реформат §5), зуб обязан покрасить
+// СООБЩЕНИЕМ ПРО ВИНОВНИКА — имя чужого блока и найденный текст, — а не
+// ложноатрибутированной директивой на items. Проверка идёт ДО скана лжи.
+const FOREIGN_BLOCK_SIGNATURES = [
+  { re: /skills-num2id-000318\.09/,
+    who: 'skills-блок (реестр skills-num2id-000318.09.json, §5/§4.1'
+      + ' «навыки») — чужой скоуп 000387' },
+  { re: /^С 000318\.09[^\n]*/m,
+    who: 'skills-clause «С 000318.09…» — чужой скоуп 000387' },
+];
+
+function foreignScopeHit(block) {
+  for (const sig of FOREIGN_BLOCK_SIGNATURES) {
+    const m = sig.re.exec(block);
+    if (m) return { who: sig.who, found: m[0].slice(0, 80) };
+  }
+  return null;
+}
+
+function assertNoForeignScope(block, blockName) {
+  const intruder = foreignScopeHit(block);
+  if (intruder) {
+    assert.fail('страж границы зуба: в ' + blockName + ' врезан ' + intruder.who
+      + ' — найдено: «' + intruder.found + '». Обвиняется НЕ items-реестр:'
+      + ' почините эндпоинт блока в этом зубе (стоп по заголовку «С 000…»/'
+      + ' пустой строке/разделу) или верните соседнему блоку его заголовок;'
+      + ' чужой текст — скоуп 000387');
+  }
+}
+
+test('000379 T1: память правдива для items — ни один блок memory/000318-asset-rename.md про items-реестр не велит «НЕ расширять» и не называет его замороженным (класс-предикат лжи с цитатной границей, 000388); §5 содержит append-only-рецепт', () => {
   assert.ok(fs.existsSync(MEMORY_RENAME),
     'RED: memory/000318-asset-rename.md отсутствует — зубу не на что ссылаться');
   const text = fs.readFileSync(MEMORY_RENAME, 'utf8');
-  const itemsClause = clauseAfter(text, /С 000318\.08 в волнах:/,
-    /С 0003\d\d\.\d\d в волнах:/);
+  const itemsClause = blockAfter(text, /С 000318\.08 в волнах:/, ITEMS_STOPS);
   assert.ok(itemsClause.includes(LEDGER_PATH),
     'clause «С 000318.08 в волнах» не упоминает ' + LEDGER_PATH
     + ' — якорь зуба (путь реестра) потерялся из §5');
-  assert.doesNotMatch(itemsClause, /НЕ\s+расширять/,
-    'память §5 (items-clause) по-прежнему велит «НЕ расширять» ' + LEDGER_PATH
-    + ' — ложная директива: волна 000321.08 уже расширила реестр 864→914, а'
-    + ' canon-items-sync (c1: nums ≡ {1..N}) физически не переживает предмет'
-    + ' без строки реестра. Рецепт: реестр растёт ВМЕСТЕ с каталогом'
-    + ' append-only (строки заморожены, длина — нет),'
-    + ' см. memory/000379-items-registry-unfetter.md');
-  assert.doesNotMatch(itemsClause, /замороженн/i,
-    'память §5 (items-clause) называет items-реестр замороженным — ложь'
-    + ' диском: длина растёт; заморожены только существующие СТРОКИ'
-    + ' (зуб append-only в items-rename T11)');
+
+  assertNoForeignScope(itemsClause, 'items-блок «С 000318.08 в волнах» (§5)');
+
+  const itemsLies = findLies(itemsClause, '§5 «С 000318.08 в волнах»');
+  assert.equal(itemsLies.length, 0,
+    'память §5 (items-clause ' + LEDGER_PATH + ') содержит живые ложные'
+    + ' директивы (цитаты с маркером эрраты легальны):' + describeLies(itemsLies)
+    + ' — волна 000321.08 уже расширила реестр, а canon-items-sync (c1:'
+    + ' nums ≡ {1..N}) физически не переживает предмет без строки реестра.'
+    + ' Рецепт: реестр растёт ВМЕСТЕ с каталогом append-only (строки'
+    + ' заморожены, длина — нет), см. memory/000379-items-registry-unfetter.md');
   assert.match(itemsClause, /append[- ]only/,
     'память §5 (items-clause) не описывает append-only-режим роста реестра —'
     + ' волна без рецепта снова придёт править чужой items-rename');
@@ -99,21 +223,19 @@ test('000379 T1: память правдива для items — ни один б
     'память §5 (items-clause) не содержит формулировки «растёт вместе с'
     + ' каталогом» — тот же рецепт, словами, которые ищут волны');
 
-  const bullet = clauseAfter(text, /^\* items → slug/m, /^\* [a-z]/m);
+  const bullet = blockAfter(text, /^\* items → slug/m, BULLET_STOPS);
   assert.ok(bullet.includes(LEDGER_PATH),
     'блок §4.1 «items → slug» не упоминает ' + LEDGER_PATH
     + ' — якорь зуба потерялся');
-  assert.doesNotMatch(bullet, /НЕ\s+расширять/,
-    'память §4.1 (items-блок) велит «НЕ расширять» items-реестр — та же'
-    + ' ложная директива, что и в §5 (см. 000379 T1 выше)');
-  assert.doesNotMatch(bullet, /замороженн/i,
-    'память §4.1 (items-блок) называет items-реестр замороженным — реестр'
-    + ' append-only: длина живая, строки неизменные');
 
-  const skillsClause = clauseAfter(text, /С 000318\.09 в волнах:/, null);
-  assert.ok(skillsClause.length > 0 && !itemsClause.includes(skillsClause),
-    'страж границы: items-clause обязан быть ОТДЕЛЬНЫМ блоком от skills-clause'
-    + ' (иначе проверка «НЕ расширять» для items ловит чужой скоуп 000387)');
+  assertNoForeignScope(bullet, 'блок §4.1 «items → slug»');
+
+  const bulletLies = findLies(bullet, '§4.1 «items → slug»');
+  assert.equal(bulletLies.length, 0,
+    'память §4.1 (items-блок) содержит живые ложные директивы (цитаты с'
+    + ' маркером эрраты легальны):' + describeLies(bulletLies)
+    + ' — реестр append-only: длина живая, строки неизменные'
+    + ' (см. 000379 T1 выше)');
 });
 
 test('000379 T2: контракт волновых хелперов на вне-реестровые id описан в памяти и выполняется диском — виртуальные номера покрывают каталог, ключи реестра = префикс 000001..N', () => {
@@ -127,7 +249,7 @@ test('000379 T2: контракт волновых хелперов на вне-
     + ' всё ещё обещает «не дописывать») — контракт для волны, добавляющей'
     + ' предметы, описан в memory/000379-items-registry-unfetter.md');
   assert.doesNotMatch(sections[0], /не дописывать/i,
-    'раздел «хелперы волн» по-прежнему велит новые строки реестра «не'
+    'раздел «хелперов волн» по-прежнему велит новые строки реестра «не'
     + ' дописывать» — ложь диском (000321.08 дописала 000865–000914) и'
     + ' ловушка для 000321.09/.10');
   assert.match(sections[0], /КОНЕЦ/,
@@ -184,4 +306,82 @@ test('000379 T3: наши файлы не стали держателями гл
   assert.ok(GUARDED_FILES.length >= 2,
     'страж обязан покрывать ОБА файла задачи (миграция items-rename + новый'
     + ' мета-файл); факт: ' + GUARDED_FILES.length);
+});
+
+test('000388 T4: self-check зуба правдивости — класс-предикат ловит ложь без цитаты (включая строчную директиву и отрицания роста), ЦИТАТНАЯ ГРАНИЦА легализует эррата-цитаты, ослабленный эндпоинт не боится перефразованного заголовка, а страж границы именует skills-блок-виновник', () => {
+  const anchor = LEDGER_PATH;
+  const head = 'С 000318.08 в волнах: предметы — реестр ' + anchor
+    + ' растёт вместе с каталогом append-only';
+  const skillsHeader = 'С 000318.09 в волнах: навыки\n';
+  const synth = (body, tail) => head + '\n' + body
+    + (tail === undefined ? skillsHeader : tail);
+
+  const blockA = blockAfter(synth('Реестр заморожен ЦЕЛИКОМ и не растёт вовсе\n'
+    + 'Реестр не расширять; он растёт не будет и не расширяется\n'),
+  /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  const hitsA = findLies(blockA, 'синт (а)');
+  assert.equal(hitsA.length, 5,
+    'ложь без цитаты обязана ловиться всеми формами класса (заморож* / не'
+    + ' растёт / не расширять строчную / растёт не будет / не расширяется);'
+    + ' найдено ' + hitsA.length + ':' + describeLies(hitsA));
+  assert.ok(hitsA.every((h) => h.block === 'синт (а)' && h.line.length > 0),
+    'каждый hit обязан именовать блок и строку-виновника (F2(в): сообщение не'
+    + ' должно приписывать items чужой текст)');
+
+  const blockB = blockAfter(synth('эррата 000379: прежняя директива'
+    + ' «НЕ расширять» была ложна\n'
+    + 'директива «НЕ расширять» мертва (000379)\n'
+    + 'реестр неприкосновенен лишь строками, длина живая\n'),
+  /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  assert.equal(findLies(blockB, 'синт (б)').length, 0,
+    'честные цитаты (маркер в строке; «ёлочки» + ссылка на задачу;'
+    + ' «неприкосновенен» вообще не форма класса) обязаны быть зелёными'
+    + ':' + describeLies(findLies(blockB, 'синт (б)')));
+
+  const blockB2 = blockAfter(synth('эррата 000379:\n'
+    + 'директива «НЕ расширять» мертва\n'),
+  /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  assert.equal(findLies(blockB2, 'синт (б2)').length, 0,
+    'uppercase-цитата в «ёлочках» легальна и при маркере эрраты НЕ в строке,'
+    + ' а в блоке (требование (2) 000388):'
+    + describeLies(findLies(blockB2, 'синт (б2)')));
+
+  const paraSynth = synth('правильный рост — дописывать строки\n',
+    'С 000318.09 (навыки) в волнах: навыки — реестр '
+    + 'tests/scripts/skills-num2id-000318.09.json замороженный,'
+    + ' (НЕ расширять)\n');
+  const blockC = blockAfter(paraSynth, /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  assert.ok(blockC.includes(anchor) && !blockC.includes('skills-num2id'),
+    'перефраз заголовка skills-clause не должен втягивать skills-текст в'
+    + ' items-блок (F2(в)/X-3)');
+  assert.equal(findLies(blockC, 'синт (в)').length, 0,
+    'items-блок на перефразированном соседе обязан быть зелёным:'
+    + describeLies(findLies(blockC, 'синт (в)')));
+
+  const blockD = blockAfter(synth('правильный рост — дописывать строки\n',
+    'реестр навыков tests/scripts/skills-num2id-000318.09.json (НЕ расширять),'
+    + ' замороженный\n'),
+  /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  const intruderD = foreignScopeHit(blockD);
+  assert.ok(intruderD,
+    'при снятом заголовке skills-блока страж границы обязан сработать'
+    + ' РАНЬШЕ скана лжи (в T1 он стоит до findLies) и назвать виновника');
+  assert.match(intruderD.who, /skills|навыки/,
+    'страж обязан именовать skills-блок, а не items; факт: ' + intruderD.who);
+  assert.ok(intruderD.found.length > 0,
+    'сообщение стража обязано приводить найденный текст-виновника');
+
+  const blockE = blockAfter(synth('реестр работает в режиме «НЕ расширять»\n'),
+  /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  assert.equal(findLies(blockE, 'синт (д)').length, 1,
+    '«ёлочки» без маркеров эрраты и без ссылки на задачу НЕ легализуют'
+    + ' ложь (защита от отмывания директивы кавычками); факт:'
+    + describeLies(findLies(blockE, 'синт (д)')));
+
+  const blockF = blockAfter(head + '\nправильный рост — дописывать\n\n'
+    + '- следующий блок: замороженный реестр (НЕ расширять)\n',
+  /С 000318\.08 в волнах:/, ITEMS_STOPS);
+  assert.ok(!blockF.includes('заморож') && !blockF.includes('расширять'),
+    'пустая строка перед новым блоком «- » обязана быть эндпоинтом'
+    + ' items-блока (требование (3) 000388)');
 });
