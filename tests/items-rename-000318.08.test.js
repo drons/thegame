@@ -50,7 +50,8 @@
 //     собственных item-путей НЕ содержит (0-diff guard).
 //   * T5 — referrer-свип: numeric-путей «assets/items/\d{6}\.json» в
 //     данных/рантайме РОВНО 0 (после флипа numeric — НЕ ref, AR8 их не
-//     видит — единственный страж); позитивно: 3163 slug-пути в 942 файлах,
+//     видит — единственный страж); позитивно: 3166 slug-пути в 943 файлах
+//     (ре-пин 000320.27: +Кремень),
 //     счётчики по id ≡ снапшоту по номерам базы, выборки из 6 каталогов
 //     резолвятся ok, id цели == прежнему номеру файла.
 //   * T6 — grep-пины scripts/sync-items-data.js: фильтр ЧЕРЕЗ живой реестр
@@ -121,7 +122,7 @@ const EXPECTED_COUNT = 864;
 const REFCOUNT_00031808 = [
   ['000001', 'wood_sword', 6],
   ['000002', 'iron_sword', 13],
-  ['000012', 'healing_potion', 10],
+  ['000012', 'healing_potion', 11], // 10+1 ре-пин 000320.27 (Кремень)
   ['000035', 'wood_log', 165],
   ['000036', 'stone_chunk', 101],
   ['000043', 'fireball_scroll', 2],
@@ -136,8 +137,10 @@ const UNREFERENCED_00031808 = [
   '000028/ice_spellbook', '000030/archer_scroll',
   '000071/fruit_apple', '000072/fruit_plum',
 ];
-const TOTAL_OCCURRENCES = 3163;
-const TOTAL_REF_FILES = 942;
+// Ре-пин 000320.27: +Кремень assets/npc/000048.json — 3 slug-пути
+// (hide/healing_potion/mana_elixir), 943-й файл-реферер.
+const TOTAL_OCCURRENCES = 3166;
+const TOTAL_REF_FILES = 943;
 
 // Выборки из 6 каталогов-рефереров [файл (slug-имя на базе), ожидаемый
 // slug-путь на предмет, id цели] — позитив T5: путь переписан, резолв ok.
@@ -366,7 +369,7 @@ test('000318.08 T4: схемы-носители — skills ×2 ≡ живому 
     + 'собственный basename схемой не пинуется, 000318.08 её не трогает)');
 });
 
-test('000318.08 T5: referrer-свип — numeric-путей items в данных/рантайме РОВНО 0; позитивно: 3163 slug-пути в 942 файлах, счётчики по id ≡ снапшоту по номерам, 4 предмета без рефереров, выборки из 6 каталогов резолвятся в прежние id', () => {
+test('000318.08 T5: referrer-свип — numeric-путей items в данных/рантайме РОВНО 0; позитивно: 3166 slug-пути в 943 файлах (ре-пин 000320.27), счётчики по id ≡ снапшоту по номерам, 4 предмета без рефереров, выборки из 6 каталогов резолвятся в прежние id', () => {
   const NUM_REF = /assets\/items\/\d{6}\.json/;
   const hits = [];
   const walk = (dir, pred) => {
@@ -387,7 +390,7 @@ test('000318.08 T5: referrer-свип — numeric-путей items в данны
     'остались numeric-пути items (после флипа реестра они НЕ ref — AR8 их '
     + 'не заметит, это единственный страж): ' + hits.slice(0, 10).join(', ')
     + (hits.length > 10 ? ' … (' + hits.length + ' файлов)' : ''));
-  // Позитив: slug-пути — те же 3163 вхождений в тех же 942 файлах.
+  // Позитив: slug-пути — 3166 вхождений в 943 файлах (ре-пин 000320.27).
   const SLUG_REF = /assets\/items\/[a-z][a-z0-9_]*\.json/g;
   let occurrences = 0;
   const refFiles = [];
@@ -409,10 +412,11 @@ test('000318.08 T5: referrer-свип — numeric-путей items в данны
   };
   walk2(path.join(ROOT, 'assets'));
   assert.equal(occurrences, TOTAL_OCCURRENCES,
-    'items: суммарное число item-путей во всех referrer-файлах — 3163 '
-    + '(снапшот базы 6330d2ec); факт: ' + occurrences);
+    'items: суммарное число item-путей во всех referrer-файлах — 3166 '
+    + '(снапшот базы 6330d2ec + ре-пин 000320.27); факт: ' + occurrences);
   assert.equal(refFiles.length, TOTAL_REF_FILES,
-    'items: файлов-рефереров — 942 (снапшот базы); факт: ' + refFiles.length);
+    'items: файлов-рефереров — 943 (снапшот базы + ре-пин 000320.27); '
+    + 'факт: ' + refFiles.length);
   for (const [oldNum, id, count] of REFCOUNT_00031808) {
     assert.equal(perId.get(id) || 0, count,
       `items: «${id}» (бывший ${oldNum}) — ссылок ${count} по снапшоту, `
