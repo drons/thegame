@@ -31,15 +31,17 @@
 // и инварианты, не зависящие от порядка имён: зелёные и ДО, зуб
 // мутационный (M7/M8/M9/M10).
 //
-// Контракты:
-//   * T1 — ростер: шейп items == slug, 914 файла (ре-пин 000321.08: +50 еды), 0 numeric-имён,
-//     basename == id каждого файла, id уникальны, schema.json ∈ slug-regex
-//     (guard: исключение обязательно), чужих файлов нет.
+// Контракты (миграция 000379: ни ОДНОго литерала, равного живому счётчику;
+// self-gate T12 сторожит это машиной — вернуть число в файл нельзя):
+//   * T1 — ростер: шейп items == slug, каталог ≡ реестру по мощности (live)
+//     и ≥ FROZEN_PREFIX_END_I08 (864 — граница базы rename, монотонный пол),
+//     0 numeric-имён, basename == id каждого файла, id уникальны,
+//     schema.json ∈ slug-regex (guard: исключение обязательно), чужих нет.
 //   * T2 — зеркало: ITEMS — строгий lex-порядок по id (≠ прежний
-//     номерной: wood_sword был первым, absolute_zero_scroll), записи ≡
-//     каталогу (effect.recipe — резолв в id цели), комментарии
-//     «// <id>.json», numeric-имён нет, шапка-range из slug, фразы
-//     «нумерация файлов» нет.
+//     номерной: wood_sword был первым), записи ≡ каталогу по факту
+//     (effect.recipe — резолв в id цели), комментарии «// <id>.json»,
+//     numeric-имён нет, шапка-range ВЫВЕДЕНА из живых краёв каталога,
+//     фразы «нумерация файлов» нет, чертежей ≥ MIN_CRAFT_RECIPES_I08.
 //   * T3 — REF_RE побайтовый пин НОВОГО двухгруппного source (slug-группа
 //     ПЕРВОЙ по REF_LINKED_CATALOGS: items|spells|…; number: skills|npc) +
 //     таблица истинности (items slug — ref, items numeric — НЕ ref,
@@ -50,9 +52,13 @@
 //     собственных item-путей НЕ содержит (0-diff guard).
 //   * T5 — referrer-свип: numeric-путей «assets/items/\d{6}\.json» в
 //     данных/рантайме РОВНО 0 (после флипа numeric — НЕ ref, AR8 их не
-//     видит — единственный страж); позитивно: 3166 slug-пути в 943 файлах
-//     (ре-пин 000320.27: +Кремень),
-//     счётчики по id ≡ снапшоту по номерам базы, выборки из 6 каталогов
+//     видит — единственный страж; НЕ ПОДВИЖНО); позитивно — монотонные
+//     поля MIN_OCCURRENCES_I08 / MIN_REF_FILES_I08 /
+//     MIN_DISTINCT_REFERENCED_I08 (факт базы 52b75f90: 3166 / 943 / 860)
+//     вместо снапшотов, ref-integrity (каждая slug-ссылка ведёт на
+//     существующий файл каталога), non-vacuity по каждому из шести
+//     каталогов-рефереров, присутствие реферера у каждого id из
+//     REFERENCED_00031808 (точные счётчики сняты), выборки из 6 каталогов
 //     резолвятся ok, id цели == прежнему номеру файла.
 //   * T6 — grep-пины scripts/sync-items-data.js: фильтр ЧЕРЕЗ живой реестр
 //     lib + ЯВНОЕ исключение schema.json + компаратор по data.id + guard
@@ -62,25 +68,38 @@
 //     из assets/craft): sync на полном каталоге (schema.json внутри) —
 //     выход ПОБАЙТОВО ≡ закоммиченному зеркалу, повтор идемпотентен;
 //     перестановка СОДЕРЖИМОГО пары файлов — записи всё равно в id-порядке
-//     (компаратор наблюдаем).
+//     (компаратор наблюдаем). Главный зуб свежести зеркала после снятия
+//     head/tail-литералов из T2.
 //   * T8 — 0-diff стражи: прочие src/*-data.js ЗЕРКАЛА побайтово прежние
-//     (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + счётчики 914/33/
-//     232-161-117-46-23 инвариантны.
+//     (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + зеркало ≡ каталогу
+//     (live), лут ≥ MIN_LOOT_I08 (факт базы: 33), EQUIP_POOLS по длине ≡
+//     rarity-таблице, ПОСЧИТАННОЙ с диска (литералы 232/161/117/46/23
+//     сняты 000379).
 //   * T9 — spec/items.md побайтово прежний (канон memory/000230.16
 //     byte-identical — гейт; docs-эррата :324 — долг, не правится) +
 //     SPEC_FILE_LINES items.md = 477 не двигается.
 //   * T10 — порядок-чувствительные потребители (вилки): EQUIP_POOLS —
-//     set-равенство каталогу по редкости + числа 232/161/117/46/23
-//     (F2-P1: ПОРЯДОК пулов — свой append, не lex — guard); сид-каналы
+//     set-равенство каталогу по редкости для КАЖДОГО ключа пулов
+//     (обход по Object.keys(LE.EQUIP_POOLS), не по таблице-литералу);
+//     F2-P1: ПОРЯДОК пулов — свой append, не lex — guard; сид-каналы
 //     map.js/items.js побайтово прежние (0x4C4F4F54/0x43414d50 — переснят
 //     только контент золотых, F1-принять); makeShop bt2 — детерминизм и
 //     валидность id под НОВЫМ порядком allItems.
-//   * T11 — замороженный реестр «номер → id»
-//     tests/scripts/items-num2id-000318.08.json (его load'ят переписанные
-//     тесты ради ВИРТУАЛЬНЫХ numeric-имён — позиционные пины рядов):
-//     ключи 000001..000914 подряд (ре-пин 000321.08: +50 еды), значения уникальны и ≡ множеству id
-//     диска (двусторонне), disk-файл <value>.json несёт id == value,
-//     spot-строки. Порча реестра массово красит items-семейку — зуб здесь.
+//   * T11 — реестр «номер → id» tests/scripts/items-num2id-000318.08.json
+//     (его load'ят переписанные тесты ради ВИРТУАЛЬНЫХ numeric-имён —
+//     позиционные пины рядов) — APPEND-ONLY: ключи — префикс 000001..N,
+//     где N ЖИВОЙ (≥ границы rename; факт базы: 914 после 000321.08),
+//     ни одна строка HEAD не переписана/не удалена
+//     (LEDGER_APPEND_ONLY_I08) — заморожены СТРОКИ, а не длина; значения
+//     уникальны и ≡ множеству id диска двусторонне (live), disk-файл
+//     <value>.json несёт id == value, 10 spot-строк. Порча реестра массово
+//     красит items-семейку — зуб здесь.
+//   * T12 — SELF-GATE (000379, формат 000375): в исходнике этого файла нет
+//     имени замороженного счётчика и нет ассертов вида
+//     assert.equal(<…length|size>, <литерал>); positive-маркеры
+//     FROZEN_PREFIX_END_I08 и LEDGER_APPEND_ONLY_I08 на месте. Красен на
+//     базе миграции, зелёный после; сообщение содержит РЕЦЕПТ роста, чтобы
+//     волна «чинила» его правкой данных, а не возвратом числа.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -108,39 +127,87 @@ function readItem(f) {
   return JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
 }
 
-// Ростер: 864 файла на базе 6330d2ec (513 на 000318-split + волны
-// 000321.01–.07 + 50 еды 000321.08 — EXPECTED_COUNT живого каталога/реестра). Состав сторожат счётчик + basename==id + уникальность
+function catIdsT5() {
+  return itemFiles().map((f) => path.basename(f, '.json'));
+}
+
+// Ростер: ЖИВОЙ счётчик (задача 000379 — тройка «замороженный реестр ≡
+// живые зубы ≡ рост каталога» развязана в пользу роста). Литерала, равного
+// живому числу каталога/реестра/зеркала, в этом файле БОЛЬШЕ НЕТ (self-gate
+// T12 не даст его вернуть): мощность сверяется МЕЖДУ дисковыми источниками,
+// а вниз ограничена монотонной границей FROZEN_PREFIX_END_I08 — 864
+// предмета на базе rename 6330d2ec (513 на 000318-split + волны
+// 000321.01–.07); дальше каталог может только расти (+50 за волну 000321.YY).
+// Состав сторожат basename==id + уникальность id + биекция с реестром
 // (сегментные дыры прежней нумерации после rename теряют смысл —
 // прецедент craft .07).
-const EXPECTED_COUNT = 914;
+const FROZEN_PREFIX_END_I08 = 864;
 
-// [прежний номер, id, число numeric-вхождений во ВСЕХ referrer-файлах
-// assets/ на базе 6330d2ec] — снапшот живым свипом ДО rename (3163
-// вхождения, 860 различных номеров; 4 предмета без рефереров — нижний
-// анти-вакуум). Счётчик по id после rewrite обязан сойтись с числом по
-// номеру: rewrite меняет СПОСОБ записи, НЕ состав.
-const REFCOUNT_00031808 = [
-  ['000001', 'wood_sword', 6],
-  ['000002', 'iron_sword', 13],
-  ['000012', 'healing_potion', 11], // 10+1 ре-пин 000320.27 (Кремень)
-  ['000035', 'wood_log', 165],
-  ['000036', 'stone_chunk', 101],
-  ['000043', 'fireball_scroll', 2],
-  ['000051', 'resurrect_scroll', 1],
-  ['000062', 'diamond', 45],
-  ['000077', 'blueprint_forge', 3],
-  ['000283', 'cloth_cuff', 1],
-  ['000764', 'decadance_scroll', 2],
-  ['000765', 'tin_band', 1],
+const LEDGER_I08_PATH = path.join(__dirname, 'scripts',
+  'items-num2id-000318.08.json');
+const LEDGER_I08_REL = 'tests/scripts/items-num2id-000318.08.json';
+
+function REGISTRY_I08() {
+  return JSON.parse(fs.readFileSync(LEDGER_I08_PATH, 'utf8'));
+}
+
+// Реестр APPEND-ONLY относительно HEAD — выполнимая форма «замороженности»:
+// заморожены СТРОКИ (запрет пере-нумерации и удаления), длина ЖИВАЯ.
+// Возвращает список нарушений (пустой список = контракт выполнен).
+function LEDGER_APPEND_ONLY_I08() {
+  const before = JSON.parse(execFileSync('git',
+    ['-C', ROOT, 'show', 'HEAD:' + LEDGER_I08_REL],
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+  const now = REGISTRY_I08();
+  const bad = [];
+  for (const num of Object.keys(before)) {
+    if (now[num] === undefined) {
+      bad.push(num + ' → «' + before[num] + '» — СТРОКА УДАЛЕНА');
+    } else if (now[num] !== before[num]) {
+      bad.push(num + ': HEAD «' + before[num] + '» → диск «' + now[num]
+        + '» — строка ПЕРЕПИСАНА');
+    }
+  }
+  return bad;
+}
+
+// [прежний номер, id] — предметы, обязанные иметь ХОТЯ БЫ ОДНОГО referrer-а
+// во всех assets/* (анти-вакуум «rewrite не потерял ссылки»). Точные per-id
+// счётчики (6/13/11/165/101/2/1/45/3/1/2/1 на базе 6330d2ec; healing_potion
+// 10→11 — ре-пин 000320.27) были ЗУБОМ МИГРАЦИИ и постоянными быть не
+// могут: их двигает каждая npc/loot-волна. Снято задачей 000379 в пользу
+// присутствия (числа остаются здесь историей).
+const REFERENCED_00031808 = [
+  ['000001', 'wood_sword'],
+  ['000002', 'iron_sword'],
+  ['000012', 'healing_potion'],
+  ['000035', 'wood_log'],
+  ['000036', 'stone_chunk'],
+  ['000043', 'fireball_scroll'],
+  ['000051', 'resurrect_scroll'],
+  ['000062', 'diamond'],
+  ['000077', 'blueprint_forge'],
+  ['000283', 'cloth_cuff'],
+  ['000764', 'decadance_scroll'],
+  ['000765', 'tin_band'],
 ];
-const UNREFERENCED_00031808 = [
-  '000028/ice_spellbook', '000030/archer_scroll',
-  '000071/fruit_apple', '000072/fruit_plum',
-];
-// Ре-пин 000320.27: +Кремень assets/npc/000048.json — 3 slug-пути
-// (hide/healing_potion/mana_elixir), 943-й файл-реферер.
-const TOTAL_OCCURRENCES = 3166;
-const TOTAL_REF_FILES = 943;
+// Зуб «4 предмета без рефереров» (ice_spellbook/archer_scroll/fruit_apple/
+// fruit_plum) СНЯТ задачей 000379: он уже легитимно устарел диском — без
+// рефереров 54 предмета (50 из них — еда 000321.08), а следующая торговая
+// волна красила бы items-rename по корректной причине.
+//
+// Монотонные НИЖНИЕ границы агрегатов referrer-свипа вместо точных
+// снапшотов (факт базы 52b75f90: 3166 slug-путей в 943 файлах, 860
+// различных id; прежний ре-пин .27 «3166/943» снят задачей 000379, .28
+// готовила 3169/944). Запас ~3.5 % ниже факта: массовую ПОТЕРЮ ссылок
+// ловим, легитимный рост — нет.
+const MIN_OCCURRENCES_I08 = 3050;
+const MIN_REF_FILES_I08 = 915;
+const MIN_DISTINCT_REFERENCED_I08 = 830;
+// Те же поля там, где раньше были литералы T2/T8 (факт базы: 6 чертежей,
+// 33 лут-кандидата).
+const MIN_CRAFT_RECIPES_I08 = 6;
+const MIN_LOOT_I08 = 33;
 
 // Выборки из 6 каталогов-рефереров [файл (slug-имя на базе), ожидаемый
 // slug-путь на предмет, id цели] — позитив T5: путь переписан, резолв ok.
@@ -153,13 +220,7 @@ const REFERRER_PROBES_00031808 = [
   ['buildings/academy.json', 'assets/items/wood_log.json', 'wood_log'],
 ];
 
-// Счётчики F2-P1: пулы EQUIP_POOLS (loot-equip-data.js, ПОРЯДОК данных
-// отделён от порядка каталога) ≡ множеству rarity каталога.
-const RARITY_COUNTS = {
-  common: 232, rare: 161, epic: 117, legendary: 46, impossible: 23,
-};
-
-test('000318.08 T1: ростер assets/items — шейп slug, 914 файла (ре-пин 000321.08: +50 еды), 0 numeric-имён, basename == id, id уникальны; schema.json ∈ slug-regex (guard исключения)', () => {
+test('000318.08 T1: ростер assets/items — шейп slug, живой рост (каталог ≡ реестру по мощности и ≥ границы rename; 000379 — число не пинуется), 0 numeric-имён, basename == id, id уникальны; schema.json ∈ slug-regex (guard исключения)', () => {
   assert.equal(JR.ASSET_NAME_SHAPES.items, 'slug',
     'items: шейп в реестре — slug (000318.08); факт: «'
     + JR.ASSET_NAME_SHAPES.items + '»');
@@ -176,10 +237,20 @@ test('000318.08 T1: ростер assets/items — шейп slug, 914 файла 
   assert.deepEqual(foreign, [],
     'items: чужие файлы вне slug-формы: ' + foreign.join(', '));
   const files = itemFiles();
-  assert.equal(files.length, EXPECTED_COUNT,
-    'items: 914 файла (ростер базы 6330d2ec: 513 на split + волны '
-    + '000321.01–.07 + 50 еды 000321.08); факт: ' + files.length
-    + ' (краснота: rename не выполнен — slug-фильтр даёт 0)');
+  const registryKeys = Object.keys(REGISTRY_I08());
+  assert.ok(files.length >= FROZEN_PREFIX_END_I08,
+    'items: каталог МЕНЬШЕ границы rename (' + FROZEN_PREFIX_END_I08
+    + ' предмета на базе 6330d2ec: 513 на split + волны 000321.01–.07);'
+    + ' факт: ' + files.length + ' (краснота: rename не выполнен — slug-фильтр'
+    + ' даёт 0, либо каталог урезан; РАСТИ он может легально — ниже поля)');
+  assert.equal(files.length, registryKeys.length,
+    'items: каталог (' + files.length + ' slug-файлов) ≢ реестру «номер→id» ('
+    + registryKeys.length + ' строк) по мощности — РЕЦЕПТ (000379):'
+    + ' рост assets/items волной 000321.YY сопровождается APPEND строк'
+    + ' ' + LEDGER_I08_REL + ' (pad(N+1)..pad(N+k)) + regen'
+    + ' src/items-data.js в том же коммите; обход реестра даёт'
+    + ' num === undefined в canon-items-sync (игла c1: nums ≢ {1..N}) и'
+    + ' краснит канон без указания причины. Сам этот файл дальше не правится');
   const ids = [];
   for (const f of files) {
     const data = readItem(f);
@@ -191,36 +262,52 @@ test('000318.08 T1: ростер assets/items — шейп slug, 914 файла 
   }
   const dup = ids.filter((v, i) => ids.indexOf(v) !== i);
   assert.deepEqual(dup, [], 'items: дубликаты id после rename');
-  assert.equal(new Set(ids).size, EXPECTED_COUNT,
-    'items: 914 уникальных id (состав сторожат счётчик + basename==id)');
+  assert.equal(new Set(ids).size, files.length,
+    'items: id не уникальны (уникальных ' + new Set(ids).size + ' из '
+    + files.length + ') — состав сторожат basename==id + уникальность'
+    + ' + биекция с реестром (живые зубы, 000379)');
 });
 
 test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом lex-порядке по id (≠ прежний номерной), записи ≡ каталогу (recipe — id цели), комментарии «// <id>.json», numeric-имён нет, шапка-range из slug, «нумерация файлов» снята', () => {
   const { ITEMS } = require(MIRROR);
-  assert.equal(ITEMS.length, EXPECTED_COUNT,
-    'items-data: 914 записи; факт: ' + ITEMS.length);
+  const catFiles = itemFiles();
+  const catIds = catFiles.map((f) => path.basename(f, '.json'));
+  assert.equal(ITEMS.length, catFiles.length,
+    'items-data: зеркало ≢ каталогу по мощности (зеркало: ' + ITEMS.length
+    + ', диск: ' + catFiles.length + ') — regen scripts/sync-items-data.js'
+    + ' обязан идти в ТОМ ЖЕ коммите, что и рост assets/items (живой'
+    + ' счётчик вместо литерала — 000379)');
   const ids = ITEMS.map((r) => r.id);
   const sorted = [...ids].sort();
   assert.deepEqual(ids, sorted,
     'items-data: порядок ITEMS — строгий lex по id (sync обязан сортировать '
     + 'по data.id: прежний .sort() по ИМЕНИ ФАЙЛА = нумерации; после rename '
     + 'lex-порядок отличается от номерного ПОЛНОСТЬЮ — 860/864 позиций)');
-  assert.equal(new Set(ids).size, EXPECTED_COUNT,
-    'items-data: уникальность id в зеркале');
-  assert.equal(ids[0], 'absolute_zero_scroll',
-    'items-data: lex-первый предмет — absolute_zero_scroll (бывший 000139); '
-    + 'прежний первый — wood_sword (000001) — сдвиг наблюдаем');
-  assert.equal(ids[EXPECTED_COUNT - 1], 'zveroboy_chay',
-    'items-data: lex-последний предмет — zveroboy_chay (еда 000321.08; '
-    + 'до волны — yew_longbow; прежний номерной конец — ash_elixir (000864))');
+  assert.equal(new Set(ids).size, ids.length,
+    'items-data: id в зеркале не уникальны (уникальных '
+    + new Set(ids).size + ' из ' + ids.length + ')');
+  // Голова/хвост lex-порядка ВЫВОДЯТСЯ из диска (000379): литералы
+  // absolute_zero_scroll / zveroboy_chay красили бы чужой файл при
+  // легитимном росте, отсортированном раньше/позже прежнего края; свежесть самого
+  // зеркала сторожит T7 (regen побайтово ≡ коммиту).
+  assert.equal(ids[0], catIds[0],
+    'items-data: lex-первый зеркалу ≠ lex-первому каталога (зеркало: '
+    + ids[0] + ', диск: ' + catIds[0] + ') — прежний номерной первый'
+    + ' — wood_sword (000001), сдвиг наблюдаем');
+  assert.equal(ids[ids.length - 1], catIds[catIds.length - 1],
+    'items-data: lex-последний зеркалу ≠ lex-последнему каталога (зеркало: '
+    + ids[ids.length - 1] + ', диск: ' + catIds[catIds.length - 1]
+    + ') — прежний номерной конец — ash_elixir');
   assert.notEqual(ids[0], 'wood_sword',
     'items-data: зеркало всё ещё в прежнем номерном порядке (rename не '
     + 'отражён в генерации)');
-  const byId = new Map(itemFiles().map((f) => {
+  const byId = new Map(catFiles.map((f) => {
     const d = readItem(f);
     return [d.id, d];
   }));
-  assert.equal(byId.size, EXPECTED_COUNT, 'каталог: 914 записи по id');
+  assert.equal(byId.size, catFiles.length,
+    'каталог: id не уникальны (по id ' + byId.size + ' из '
+    + catFiles.length + ' файлов)');
   let recipes = 0;
   for (const r of ITEMS) {
     assert.equal(byId.has(r.id), true, `items-data: id «${r.id}» нет в каталоге`);
@@ -239,8 +326,10 @@ test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом
         `${r.id}: recipe — резолв в id ЦЕЛИ (${src.effect.recipe})`);
     }
   }
-  assert.equal(recipes, 6,
-    'анти-вакуум: ровно 6 чертежей craft_recipe; факт: ' + recipes);
+  assert.ok(recipes >= MIN_CRAFT_RECIPES_I08,
+    'анти-вакуум: чертежей craft_recipe не меньше ' + MIN_CRAFT_RECIPES_I08
+    + ' (факт базы 52b75f90: 6); факт: ' + recipes + ' — пол, а не «ровно»:'
+    + ' рецепты — легитимный рост соседних волн (000379)');
   const text = fs.readFileSync(MIRROR, 'utf8');
   assert.ok(text.includes('    // wood_sword.json\n'),
     'построчный комментарий «// wood_sword.json» (slug-имя, бывший 000001)');
@@ -248,10 +337,13 @@ test('000318.08 T2: зеркало src/items-data.js — ITEMS в строгом
     'построчный комментарий «// absolute_zero_scroll.json» (lex-первое)');
   assert.ok(!/^\s*\/\/ \d{6}\.json$/m.test(text),
     'в зеркале остались числовые комментарии-файлы «// 000NNN.json»');
-  assert.match(text,
-    /\/\/ Предметы \(assets\/items\/absolute_zero_scroll\.json … zveroboy_chay\.json\);/,
-    'шапка-диапазон «// Предметы (assets/items/<первый> … <последний>)» не в '
-    + 'slug-форме (факт: '
+  const HEADER_I08 = new RegExp('// Предметы \\(assets/items/'
+    + catIds[0] + '\\.json … ' + catIds[catIds.length - 1]
+    + '\\.json\\);');
+  assert.ok(HEADER_I08.test(text),
+    'шапка-диапазон «// Предметы (assets/items/<первый> … <последний>)»'
+    + ' не соответствует ЖИВЫМ краям каталога (ожидалось: ' + catIds[0]
+    + ' … ' + catIds[catIds.length - 1] + '; факт: '
     + (text.match(/\/\/ Предметы \([^\n]*\);/) || [''])[0] + ')');
   assert.doesNotMatch(text, /assets\/items\/\d{6}\.json/,
     'в зеркале остались numeric-пути каталога items (шапка либо данные)');
@@ -371,7 +463,7 @@ test('000318.08 T4: схемы-носители — skills ×2 ≡ живому 
     + 'собственный basename схемой не пинуется, 000318.08 её не трогает)');
 });
 
-test('000318.08 T5: referrer-свип — numeric-путей items в данных/рантайме РОВНО 0; позитивно: 3166 slug-пути в 943 файлах (ре-пин 000320.27), счётчики по id ≡ снапшоту по номерам, 4 предмета без рефереров, выборки из 6 каталогов резолвятся в прежние id', () => {
+test('000318.08 T5: referrer-свип — numeric-путей items в данных/рантайме РОВНО 0; позитивно (000379): монотонные поля агрегатов вместо снапшотов, каждая ссылка резолвится в файл каталога, non-vacuity по шести каталогам-реферерам, выборки резолвятся в прежние id', () => {
   const NUM_REF = /assets\/items\/\d{6}\.json/;
   const hits = [];
   const walk = (dir, pred) => {
@@ -392,11 +484,16 @@ test('000318.08 T5: referrer-свип — numeric-путей items в данны
     'остались numeric-пути items (после флипа реестра они НЕ ref — AR8 их '
     + 'не заметит, это единственный страж): ' + hits.slice(0, 10).join(', ')
     + (hits.length > 10 ? ' … (' + hits.length + ' файлов)' : ''));
-  // Позитив: slug-пути — 3166 вхождений в 943 файлах (ре-пин 000320.27).
+  // Позитив (000379): ЖИВОЙ свип по факту диска с монотонными полями
+  // вместо снапшотов «3166/943» + реф-целостность + анти-вакуум по
+  // каталогам-реферерам.
   const SLUG_REF = /assets\/items\/[a-z][a-z0-9_]*\.json/g;
   let occurrences = 0;
   const refFiles = [];
   const perId = new Map();
+  const perCatalog = new Map();
+  const dangling = [];
+  const catalogBase = new Set(catIdsT5());
   const walk2 = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, e.name);
@@ -404,31 +501,62 @@ test('000318.08 T5: referrer-свип — numeric-путей items в данны
       if (!e.name.endsWith('.json')) continue;
       const m = fs.readFileSync(p, 'utf8').match(SLUG_REF);
       if (!m || m.length === 0) continue;
-      refFiles.push(path.relative(ROOT, p));
+      const rel = path.relative(ROOT, p);
+      refFiles.push(rel);
       occurrences += m.length;
+      const top = path.relative(path.join(ROOT, 'assets'), p)
+        .split(path.sep)[0];
+      perCatalog.set(top, (perCatalog.get(top) || 0) + 1);
       for (const s of m) {
         const id = s.slice('assets/items/'.length, -'.json'.length);
         perId.set(id, (perId.get(id) || 0) + 1);
+        if (!catalogBase.has(id)) {
+          dangling.push(rel + ' → ' + s);
+        }
       }
     }
   };
   walk2(path.join(ROOT, 'assets'));
-  assert.equal(occurrences, TOTAL_OCCURRENCES,
-    'items: суммарное число item-путей во всех referrer-файлах — 3166 '
-    + '(снапшот базы 6330d2ec + ре-пин 000320.27); факт: ' + occurrences);
-  assert.equal(refFiles.length, TOTAL_REF_FILES,
-    'items: файлов-рефереров — 943 (снапшот базы + ре-пин 000320.27); '
-    + 'факт: ' + refFiles.length);
-  for (const [oldNum, id, count] of REFCOUNT_00031808) {
-    assert.equal(perId.get(id) || 0, count,
-      `items: «${id}» (бывший ${oldNum}) — ссылок ${count} по снапшоту, `
-      + 'факт: ' + (perId.get(id) || 0));
+  assert.ok(occurrences >= MIN_OCCURRENCES_I08,
+    'items: суммарное число item-путей во всех referrer-файлах упало ниже'
+    + ' поля ' + MIN_OCCURRENCES_I08 + ' (факт базы 52b75f90: 3166); факт: '
+    + occurrences + ' — массовая ПОТЕРЯ ссылок на каталог items (поле'
+    + ' намеренно с запасом: легитимный рост его не красит, 000379)');
+  assert.ok(refFiles.length >= MIN_REF_FILES_I08,
+    'items: файлов-рефереров стало меньше поля ' + MIN_REF_FILES_I08
+    + ' (факт базы 52b75f90: 943); факт: ' + refFiles.length);
+  assert.ok(perId.size >= MIN_DISTINCT_REFERENCED_I08,
+    'items: РАЗЛИЧНЫХ id, на которые ссылаются assets/*, меньше поля '
+    + MIN_DISTINCT_REFERENCED_I08 + ' (факт базы 52b75f90: 860); факт: '
+    + perId.size + ' — ссылки схлопнулись на узкое подмножество');
+  // Реф-целостность: КАЖДАЯ slug-ссылка на каталог указывает на
+  // существующий файл (битую ссылку AR8/sync:check по shape-правилам НЕ
+  // видят — путь легальной формы, файла нет).
+  assert.deepEqual(dangling, [],
+    'items: ссылки формы assets/items/<id>.json ведут на ОТСУТСТВУЮЩИЙ файл'
+    + ' каталога (' + dangling.length + ' шт): ' + dangling.slice(0, 8)
+    .join(', ') + (dangling.length > 8 ? ' …' : '')
+    + ' — shape-валидность это проходит, ломается резолв в рантайме');
+  // Анти-вакуум по каждому каталогу-рефереру (вместо трёх агрегатных
+  // чисел): исчезновение класса ссылок целиком красится здесь, а не в
+  // общем агрегате.
+  const referCats = new Set(REFERRER_PROBES_00031808
+    .map(([rel]) => rel.split('/')[0]));
+  assert.equal(referCats.size === 6, true,
+    'ожидается шесть каталогов-рефереров (craft/npc/dungeons/spells/mobs/'
+    + 'buildings); факт: ' + [...referCats].join(', '));
+  for (const cat of referCats) {
+    assert.ok((perCatalog.get(cat) || 0) >= 1,
+      'assets/' + cat + '/ не содержит НИ ОДНОЙ ссылки на каталог items —'
+      + ' класс referrer-ов исчез (на базе 52b75f90: '
+      + JSON.stringify(Object.fromEntries(perCatalog)) + ')');
   }
-  for (const row of UNREFERENCED_00031808) {
-    const [, id] = row.split('/');
-    assert.equal(perId.get(id) || 0, 0,
-      `items: «${id}» (${row}) — без рефереров (снапшот), факт: `
-      + (perId.get(id) || 0));
+  // Присутствие реферера вместо точного счётчика (000379): per-id числа
+  // двигает каждая npc/loot-волна (.27 сдвинул healing_potion 10→11).
+  for (const [oldNum, id] of REFERENCED_00031808) {
+    assert.ok((perId.get(id) || 0) >= 1,
+      `items: «${id}» (бывший ${oldNum}) вообще без рефереров — снапшот`
+      + ' миграции требовал хотя бы одной ссылки ( rewrite потерял их все)');
   }
   // Выборки из 6 каталогов: путь переписан, это ref, резолв ok, id цели.
   for (const [rel, ref, targetId] of REFERRER_PROBES_00031808) {
@@ -544,7 +672,7 @@ test('000318.08 T7: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зеркала побайтово прежние (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + счётчики 914 (ре-пин 000321.08: +50 еды) / лут 33 / rarity 232-161-117-46-23', () => {
+test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зеркала побайтово прежние (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + живые мощности (зеркало ≡ каталогу), пол лута и rarity-таблица, ВЫВЕДЕННАЯ с диска (000379: литералы 914/33/232-161-117-46-23 сняты)', () => {
   for (const mirror of ['craft-data.js', 'dungeons-data.js',
     'loot-equip-data.js', 'mob-groups-data.js', 'npc-data.js',
     'portraits-data.js', 'runes-data.js', 'skills-data.js',
@@ -559,15 +687,31 @@ test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зерк�
       + 'не файловые пути (пути item-ссылок живут ТОЛЬКО в assets)');
   }
   const { ITEMS } = require(MIRROR);
-  assert.equal(ITEMS.length, 914, 'items — 914');
-  assert.equal(ITEMS.filter((i) => i.loot).length, 33,
-    'лут-кандидатов (поле loot) — 33 (снапшот базы 6330d2ec; состав от '
-    + 'rename не зависит — переставляется ПОРЯДОК кандидатов, пины map.js '
-    + 'пересняты, F1-принять)');
+  assert.equal(ITEMS.length, itemFiles().length,
+    'items — зеркало ≢ каталогу (зеркало: ' + ITEMS.length + ', диск: '
+    + itemFiles().length + '); живая мощность вместо литерала — 000379');
+  const lootCount = ITEMS.filter((i) => i.loot).length;
+  assert.ok(lootCount >= MIN_LOOT_I08,
+    'лут-кандидатов (поле loot) меньше поля ' + MIN_LOOT_I08 + ' (факт базы'
+    + ' 6330d2ec: 33; состав от rename не зависит — переставляется ПОРЯДОК'
+    + ' кандидатов, пины map.js пересняты, F1-принять); факт: ' + lootCount);
   const LE = require(path.join(ROOT, 'src', 'loot-equip-data.js'));
-  for (const [rarity, count] of Object.entries(RARITY_COUNTS)) {
+  const byRarity = new Map();
+  for (const i of ITEMS) {
+    if (!i.rarity) continue;
+    byRarity.set(i.rarity, (byRarity.get(i.rarity) || 0) + 1);
+  }
+  assert.deepEqual(Object.keys(LE.EQUIP_POOLS).sort(),
+    [...byRarity.keys()].sort(),
+    'набор редкостей в EQUIP_POOLS ≢ rarity-таблице каталога (пулы: '
+    + Object.keys(LE.EQUIP_POOLS).sort().join(',') + ', каталог: '
+    + [...byRarity.keys()].sort().join(',') + ')');
+  for (const [rarity, count] of byRarity) {
     assert.equal(LE.EQUIP_POOLS[rarity].length, count,
-      `EQUIP_POOLS.${rarity} — ${count} (F2-P1: данные пулов 0-diff)`);
+      `EQUIP_POOLS.${rarity} (${LE.EQUIP_POOLS[rarity].length}) ≢`
+      + ' числу предметов этой редкости в каталоге (' + count
+      + ') — таблица выводится с диска, литералы 232/161/117/46/23 сняты'
+      + ' задачей 000379; F2-P1 (данные пулов 0-diff) остаётся зубом');
   }
 });
 
@@ -602,7 +746,7 @@ test('000318.08 T9: spec/items.md побайтово прежний (канон 
 test('000318.08 T10: потребители порядка — EQUIP_POOLS set-≡ каталогу по редкости при НЕ-lex порядке самих пулов (F2-P1); сид-каналы 0x4C4F4F54/0x43414d50 побайтово прежние (F1-принять); makeShop bt2 детерминирован и валиден под НОВЫМ lex-порядком allItems', () => {
   const { ITEMS } = require(MIRROR);
   const LE = require(path.join(ROOT, 'src', 'loot-equip-data.js'));
-  for (const rarity of Object.keys(RARITY_COUNTS)) {
+  for (const rarity of Object.keys(LE.EQUIP_POOLS)) {
     const pool = LE.EQUIP_POOLS[rarity];
     const cat = ITEMS.filter((i) => i.rarity === rarity).map((i) => i.id);
     assert.equal(new Set(pool).size, pool.length,
@@ -649,22 +793,27 @@ test('000318.08 T10: потребители порядка — EQUIP_POOLS set-�
   }
 });
 
-test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — ключи 000001..000914 подряд (ре-пин 000321.08: +50 еды), значения уникальны и ≡ множеству id каталога (двусторонне), disk-файл <value>.json несёт id == value, spot-строки', () => {
-  const LED = path.join(__dirname, 'scripts',
-    'items-num2id-000318.08.json');
+test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — APPEND-ONLY против HEAD (000379: заморожены СТРОКИ, а не длина), ключи — префикс 000001..N (N живой, ≥ границы rename), значения уникальны и ≡ множеству id каталога (двусторонне), disk-файл <value>.json несёт id == value, spot-строки', () => {
+  const LED = LEDGER_I08_PATH;
   assert.ok(fs.existsSync(LED),
     'RED: реестра «номер → id» ещё нет — его load' + 'ят переписанные тесты '
     + 'ради виртуальных numeric-имён (позиционные пины рядов)');
-  const led = JSON.parse(fs.readFileSync(LED, 'utf8'));
+  const led = REGISTRY_I08();
   const keys = Object.keys(led);
-  assert.equal(keys.length, EXPECTED_COUNT,
-    'реестр: 914 записей; факт: ' + keys.length);
+  const N_I08 = keys.length;
+  assert.ok(N_I08 >= FROZEN_PREFIX_END_I08,
+    'реестр: ' + N_I08 + ' строк — меньше границы rename ('
+    + FROZEN_PREFIX_END_I08 + '): существующие строки удалять нельзя'
+    + ' (append-only), а расти реестр обязан ВМЕСТЕ с каталогом — без'
+    + ' строки реестра num === undefined в canon-items-sync и канон c1'
+    + ' («nums ≢ {1..N}») краснеет невнятно');
   const want = [];
-  for (let i = 1; i <= EXPECTED_COUNT; i++) {
+  for (let i = 1; i <= N_I08; i++) {
     want.push(String(i).padStart(6, '0'));
   }
   assert.deepEqual([...keys].sort(), want,
-    'реестр: ключи — ровно 000001..000914 подряд (дыр/хвостов нет)');
+    'реестр: ключи — префикс 000001..' + want[N_I08 - 1] + ' подряд'
+    + ' (дыр и «хвостов» нет; N = ' + N_I08 + ' — ЖИВОЙ счётчик, не литерал)');
   const SPOTS = [
     ['000001', 'wood_sword'],
     ['000012', 'healing_potion'],
@@ -685,7 +834,7 @@ test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — 
   }
   const vals = Object.values(led);
   const valSet = new Set(vals);
-  assert.equal(valSet.size, EXPECTED_COUNT,
+  assert.equal(valSet.size, keys.length,
     'реестр: значения НЕ уникальны (' + (vals.length - valSet.size)
     + ' дублей) — виртуальные имена перестают быть биективными');
   for (const num of want) {
@@ -700,10 +849,73 @@ test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — 
       `реестр: disk-файл ${f} несёт внутренний id ≠ значению реестра`);
   }
   const diskIds = new Set(itemFiles().map((f) => readItem(f).id));
-  assert.equal(diskIds.size, EXPECTED_COUNT, 'каталог: 914 id на диске');
+  assert.equal(diskIds.size, N_I08,
+    'каталог (' + diskIds.size + ' id на диске) ≢ реестру (' + N_I08
+    + ' строк) по мощности — рост каталога без APPEND строк реестра'
+    + ' (рецепт — memory/000379-items-registry-unfetter.md)');
   for (const id of diskIds) {
     assert.ok(valSet.has(id),
       'каталог: id «' + id + '» отсутствует в реестре (реестр неполон — '
-      + 'зуб на удаление/подмену записи)');
+      + 'зуб на удаление/подмену записи либо на недописанный рост)');
   }
+  // Замороженность в выполнимой форме (000379): относительно HEAD легален
+  // ТОЛЬКО чистый append в конец. Пере-нумерация или удаление строки
+  // ломают виртуальные номера, на которые смотрят канон c1 и позиционные
+  // пины волн 000321.0{1..8}.
+  const rewritten = LEDGER_APPEND_ONLY_I08();
+  assert.deepEqual(rewritten, [],
+    'реестр ' + LEDGER_I08_REL + ' изменён относительно HEAD НЕ-append'
+    + ' правкой (' + rewritten.length + '): ' + rewritten.slice(0, 6)
+    .join('; ') + (rewritten.length > 6 ? ' …' : '')
+    + ' — существующие «номер → id» заморожены НАВСЕГДА (виртуальные'
+    + ' номера позиционных пинов и канона c1); дописывать pad(N+1)…'
+    + ' в конец — единственная легальная правка');
+});
+
+// SELF-GATE (задача 000379) — по образцу 000375: имя замороженного
+// счётчика и форма ассертов собираются concat-ом сегментов, поэтому
+// собственный текст зуба им не совпадает (иначе T12 был бы вечно красным).
+// Ограничение (осознанное, как у .375): ассерт-форма ловится в пределах
+// ОДНОЙ физической строки — перенос аргумента на новую строку от зуба
+// не спрячешь, но и не оправдан (style соседних файлов).
+const FROZEN_IDENT_RE_I08 = () => new RegExp('EXPECTED_' + 'COUNT\\b', 'g');
+const FROZEN_ASSERT_RE_I08 = () => new RegExp('assert' + '\\.equal\\([^\\n]*?'
+  + '\\.(?:length|size)\\s*,\\s*\\d+', 'g');
+
+test('000318.08 T12: self-gate — в исходнике этого файла нет замороженного живого счётчика каталога (ни имени-константы, ни assert.equal(<…length|size>, <литерал>)); positive-маркеры живой механики на месте', () => {
+  const src = fs.readFileSync(__filename, 'utf8');
+  const identHits = src.match(FROZEN_IDENT_RE_I08()) || [];
+  assert.ok(identHits.length === 0,
+    'в исходник items-rename вернулся замороженный счётчик каталога ('
+    + identHits.length + ' вхождений имени): '
+    + 'рост assets/items волнами 000321.YY легален, поэтому живое число'
+    + ' здесь пинить нельзя. РЕЦЕПТ вместо литерала: каталог ≡ реестру'
+    + ' по мощности (T1), зеркало ≡ каталогу (T2), ключи реестра — префикс'
+    + ' 000001..N с APPEND-ONLY по HEAD (T11), агрегаты referrer-ов —'
+    + ' монотонные поля MIN_* (T5); границы и рецепт —'
+    + ' memory/000379-items-registry-unfetter.md');
+  // Исключение (осознанное): line-пины документов вида
+  // `String(x).split('\n').length === <число>` — это НЕ счётчик каталога,
+  // а контракт line-neutral (SPEC_FILE_LINES / spec-split), он живёт по
+  // своим правилам и меняется только вместе с документом.
+  const frozenAsserts = [...src.matchAll(FROZEN_ASSERT_RE_I08())]
+    .filter((m) => !m[0].includes('split('))
+    .map((m) => src.slice(0, m.index).split('\n').length);
+  assert.ok(frozenAsserts.length === 0,
+    'в исходнике ' + frozenAsserts.length + ' ассерт-ов вида'
+    + ' assert.equal(<выражение .length|.size>, <литерал>) на строках '
+    + frozenAsserts.join(', ') + ' — это замороженный живой счётчик'
+    + ' (мощность каталога/реестра/зеркала или длина пула). РЕЦЕПТ:'
+    + ' сравнивать с живой величиной с диска (`=== itemFiles().length`),'
+    + ' либо с монотонным полом (FROZEN_PREFIX_END_I08 / MIN_*), либо'
+    + ' выводить из данных (rarity-таблица, lex-голова/хвост).'
+    + ' Мутационный класс зуба — см. tasks/result/000379.md');
+  assert.ok(src.includes('FROZEN_PREFIX_END_I08'),
+    'пропал positive-маркер FROZEN_PREFIX_END_I08 — монотонная граница'
+    + ' замороженного префикса (864 предмета на момент rename), ниже которой'
+    + ' каталог/реестр упасть не могут');
+  assert.ok(src.includes('LEDGER_APPEND_ONLY_I08'),
+    'пропал positive-маркер LEDGER_APPEND_ONLY_I08 — зуб «реестр'
+    + ' append-only относительно HEAD» (заморожены СТРОКИ, а не длина);'
+    + ' без него волна, дописавшая реестр, остаётся без стража пере-нумерации');
 });
