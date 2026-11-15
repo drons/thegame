@@ -5076,8 +5076,8 @@ test('000119 BAL-3: бой с Эфиром не тривиален — зафи�
 //     000245; ре-пин формулы 000132: шанс 0.25 / 0.05 + 0.01 ×
 //     maxLevel → P(D) = clamp(0.25 + 0.04·D, 0.05, 0.25));
 //     выбор — pool[floor(c._rng() * len)];
-//   * пулы — ДАННЫЕ МОДУЛЯ: LOOT_BASE_POOL (8: ВСЕ food/potion) и
-//     LOOT_RARE_POOL (18: ВСЕ skill_book + weapon/armor value > 35),
+//   * пулы — ДАННЫЕ МОДУЛЯ: LOOT_BASE_POOL (замороженные 8 конкретных id,
+//     НЕ «все» видов каталога) и LOOT_RARE_POOL (18: 11 skill_book + weapon/armor > 35),
 //     порядок файлов каталога; целостность — в одну сторону (id ∈
 //     каталогу, kind/value границы);
 //   * порядок c._rng в checkVictory: лут-роллы СТРОГО ПОСЛЕ gold-роллов
