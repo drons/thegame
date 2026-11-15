@@ -428,11 +428,12 @@ test('T6: профиль обучение — блок {навыки ≡ тре�
 
 // --- T7: ростер Арены — ДВОЕ, Карк первый; дом 5 не тронут ------------------
 
-test('T7: npcsForBuilding(NPCS, 7) — ПЯВЕРО Арены в порядке каталога [arena_master, sword_instructor, arena_champion, arena_challenger, arena_referee] (ре-пин 000320.29); npcForBuilding(7) — по-прежнему Карк; дом 5 Лавки странника — ВОСЕМЬ не тронут (.25 — НЕ дом 5!); Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 7) — ШЕСТЕРО Арены в порядке каталога [arena_master, sword_instructor, arena_champion, arena_challenger, arena_referee, arena_dummy] (ре-пин 000320.30); npcForBuilding(7) — по-прежнему Карк; дом 5 Лавки странника — ВОСЕМЬ не тронут (.25 — НЕ дом 5!); Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 7);
   assert.deepEqual(list.map((n) => n.id),
-    ['arena_master', ID, 'arena_champion', 'arena_challenger', 'arena_referee'],
-    'Арена (7): Карк (000005) + наставник мечника Насечка (000046) + чемпион Кремень (000048) + вызовший Шрам (000049) + арбитр Свисток (000050, ре-пин 000320.29), '
+    ['arena_master', ID, 'arena_champion', 'arena_challenger', 'arena_referee',
+      'arena_dummy'],
+    'Арена (7): Карк (000005) + наставник мечника Насечка (000046) + чемпион Кремень (000048) + вызовший Шрам (000049) + арбитр Свисток (000050) + мишень Чурка (000051, ре-пин 000320.30), '
     + 'порядок = нумерация файлов; факт: '
     + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 7).id, 'arena_master',
@@ -475,24 +476,25 @@ test('T7: npcsForBuilding(NPCS, 7) — ПЯВЕРО Арены в порядке
 
 // --- T8: оверлей Арены — ровно 2 dialog-строки -------------------------------
 
-test('T8: [E]-оверлей Арены — ровно 5 строк (ре-пин 000320.29): dialog (Карк), dialog:sword_instructor (Насечка), dialog:arena_champion (Кремень) — пин создан в 000320.25 (у дома 7 эффектов нет — только dialog-строки); хоткеи Digit1..2; по сводной таблице .26 — ТОЖЕ Арена/наставник-боец/обучение → ростер вырастет до ТРЁХ (диапазон Арены .25–.31 — до ВОСЬМИ NPC, граница /^Digit([1-9])$/ не превышена)', () => {
+test('T8: [E]-оверлей Арены — ровно 6 строк (ре-пин 000320.30): dialog (Карк), dialog:sword_instructor (Насечка), dialog:arena_champion (Кремень) — пин создан в 000320.25 (у дома 7 эффектов нет — только dialog-строки); хоткеи Digit1..2; по сводной таблице .26 — ТОЖЕ Арена/наставник-боец/обучение → ростер вырастет до ТРЁХ (диапазон Арены .25–.31 — до ВОСЬМИ NPC, граница /^Digit([1-9])$/ не превышена)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', 'arena.json'));
   const list = N.npcsForBuilding(NPCS, 7);
   const rows = BE.buildingActions(b, list, { day: 5 });
-  assert.equal(rows.length, 5,
+  assert.equal(rows.length, 6,
     'у здания 7 эффектов нет — список = dialog-строки по каждому NPC '
-    + '(РОВНО ПЯТЬ после .29), факт: ' + JSON.stringify(rows.map((r) => r.id)));
+    + '(РОВНО ШЕСТЬ после .30), факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
     ['dialog', 'dialog:' + ID, 'dialog:arena_champion', 'dialog:arena_challenger',
-      'dialog:arena_referee'],
+      'dialog:arena_referee', 'dialog:arena_dummy'],
     'порядок строк = нумерация файлов каталога, Карк по-прежнему '
     + 'ПЕРВЫЙ; факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
     ['Диалог: Карк', 'Диалог: ' + NAME, 'Диалог: Кремень', 'Диалог: Шрам',
-      'Диалог: Свисток'],
+      'Диалог: Свисток', 'Диалог: Чурка'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['arena_master', ID, 'arena_champion', 'arena_challenger', 'arena_referee'],
+    ['arena_master', ID, 'arena_champion', 'arena_challenger', 'arena_referee',
+      'arena_dummy'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
     + 'Digit1..2 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');

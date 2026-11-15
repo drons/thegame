@@ -523,12 +523,13 @@ test('T6: профиль квесты (1–2: id/цель/награды вал�
 
 // --- T7: ростер Арены — ЧЕТВЕРО, Карк первый; двор 9 и дом 5 не тронуты -----
 
-test('T7: npcsForBuilding(NPCS, 7) — ПЯВЕРО Арены в порядке каталога [arena_master, sword_instructor, arena_champion, arena_challenger, arena_referee]; npcForBuilding(7) — по-прежнему Карк; Гладиаторский двор (9) — ОДИН не тронут (.26); дом 5 Лавки странника — ВОСЕМЬ не тронут; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 7) — ШЕСТЕРО Арены в порядке каталога [arena_master, sword_instructor, arena_champion, arena_challenger, arena_referee, arena_dummy]; npcForBuilding(7) — по-прежнему Карк; Гладиаторский двор (9) — ОДИН не тронут (.26); дом 5 Лавки странника — ВОСЕМЬ не тронут; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 7);
   assert.deepEqual(list.map((n) => n.id),
-    ['arena_master', 'sword_instructor', 'arena_champion', ID, 'arena_referee'],
+    ['arena_master', 'sword_instructor', 'arena_champion', ID, 'arena_referee',
+      'arena_dummy'],
     'Арена (7): Карк (000005) + Насечка (000046) + чемпион Кремень '
-    + '(000048) + вызовший Шрам (000049) + арбитр Свисток (000050, ре-пин 000320.29), порядок = нумерация файлов; '
+    + '(000048) + вызовший Шрам (000049) + арбитр Свисток (000050) + мишень Чурка (000051, ре-пин 000320.30), порядок = нумерация файлов; '
     + 'факт: ' + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 7).id, 'arena_master',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Карк; HUD/«Здесь:» '
@@ -574,7 +575,7 @@ test('T7: npcsForBuilding(NPCS, 7) — ПЯВЕРО Арены в порядке
 
 // --- T8: оверлей Арены — ровно 4 dialog-строки ------------------------------
 
-test('T8: [E]-оверлей Арены — ровно 5 строк: dialog (Карк), dialog:sword_instructor (Насечка), dialog:arena_champion (Кремень), dialog:arena_challenger (Шрам), dialog:arena_referee (Свисток) — пин поднят в .25 (ДВЕ), .27 (ТРИ), здесь (ЧЕТЫРЕ) и ре-пином 000320.29 (ПЯТЬ); у дома 7 эффектов нет — EFFECTS не содержит ключа «7», только dialog-строки; хоткеи Digit1..5 — граница /^Digit([1-9])$/ не превышена (диапазон Арены .25–.31: следующие росты — .30…)', () => {
+test('T8: [E]-оверлей Арены — ровно 6 строк: dialog (Карк), dialog:sword_instructor (Насечка), dialog:arena_champion (Кремень), dialog:arena_challenger (Шрам), dialog:arena_referee (Свисток), dialog:arena_dummy (Чурка) — пин поднят в .25 (ДВЕ), .27 (ТРИ), здесь (ЧЕТЫРЕ), ре-пином 000320.29 (ПЯТЬ) и 000320.30 (ШЕСТЬ); у дома 7 эффектов нет — EFFECTS не содержит ключа «7», только dialog-строки; хоткеи Digit1..6 — граница /^Digit([1-9])$/ не превышена (диапазон Арены .25–.31: следующие росты — .31…)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', 'arena.json'));
   assert.equal(b.id, 7, 'здание arena — id 7 (фикс размещения)');
   assert.equal(b.категория, 'школа_навыков',
@@ -584,24 +585,25 @@ test('T8: [E]-оверлей Арены — ровно 5 строк: dialog (К�
     + 'здания = только dialog-строки (прецедент .25/.27)');
   const list = N.npcsForBuilding(NPCS, 7);
   const rows = BE.buildingActions(b, list, { day: 5 });
-  assert.equal(rows.length, 5,
+  assert.equal(rows.length, 6,
     'у здания 7 эффектов нет — список = dialog-строки по каждому NPC '
-    + '(РОВНО ПЯТЬ после .29), факт: ' + JSON.stringify(rows.map((r) => r.id)));
+    + '(РОВНО ШЕСТЬ после .30), факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
     ['dialog', 'dialog:sword_instructor', 'dialog:arena_champion',
       'dialog:' + ID,
-      'dialog:arena_referee'],
+      'dialog:arena_referee', 'dialog:arena_dummy'],
     'порядок строк = нумерация файлов каталога, Карк по-прежнему '
     + 'ПЕРВЫЙ (суффикс «:<id>» со второй строки — механизм '
     + 'building-actions); факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
     ['Диалог: Карк', 'Диалог: Насечка', 'Диалог: Кремень', 'Диалог: ' + NAME,
-      'Диалог: Свисток'],
+      'Диалог: Свисток', 'Диалог: Чурка'],
     'подписи — «Диалог: <имя>», факт: ' + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['arena_master', 'sword_instructor', 'arena_champion', ID, 'arena_referee'],
+    ['arena_master', 'sword_instructor', 'arena_champion', ID, 'arena_referee',
+      'arena_dummy'],
     'каждая строка несёт npcId своего NPC (роутинг клика); хоткеи '
-    + 'Digit1..5 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
+    + 'Digit1..6 — общий механизм /^Digit([1-9])$/ (src/building-ui.js) '
     + 'по индексу строки');
 });
 
