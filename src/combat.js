@@ -1261,14 +1261,14 @@
     return Math.min(LOOT_CHANCE_CAP,
       Math.max(LOOT_CHANCE_FLOOR, LOOT_CHANCE_BASE + LOOT_CHANCE_PER_LV * D));
   }
-  // Базовый пул — ВСЕ предметы каталога kind food/potion (8),
-  // порядок файлов каталога (000011..000018).
+  // Базовый пул — замороженный набор 8 конкретных id (5 potion + 3 food),
+  // порядок файлов каталога (000011..000018); за ростом каталога НЕ следует.
   const LOOT_BASE_POOL = [
     'minor_healing', 'healing_potion', 'greater_healing', 'mana_potion',
     'mana_elixir', 'bread', 'meat', 'honey_cake',
   ];
-  // Редкий пул — ВСЕ skill_book (11) + weapon/armor верхней половины
-  // каталога по value (value > 35 СТРОГО — медиана каталога 35; 7)
+  // Редкий пул — замороженный набор 11 конкретных книг skill_book (НЕ «все» —
+  // книг 61) + 7 weapon/armor по value > 35 СТРОГО из каталога 000132
   // = 18, порядок файлов каталога. Шанс — тот же P(D) (000245), что
   // и у базового, D = уровень героя − уровень старшего поверженного
   // моба (maxLvl): каталог БЕЗ уровней — дельта влияет на ШАНС пула,
