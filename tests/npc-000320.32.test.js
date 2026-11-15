@@ -62,10 +62,12 @@
 //     .33 — memory/000320-ore_merchant.md; МИННЫЕ ПОЛЯ тематики уже В
 //     списке: «спрашивай про руду», «три металла на прилавке», «товар
 //     помнит того, кто его привёз», «от кузницы до кузницы», «нагрудник»;
-//   * [E]-оверлей Кузницы — три dialog-строки (ре-пин 000320.33:
-//     добавлен Дымарь) + крафт-строка СИНТЕЗОМ КОНЦОМ (000126): 'dialog'
+//   * [E]-оверлей Кузницы — четыре dialog-строки (ре-пины 000320.33:
+//     добавлен Дымарь, 000320.34: добавлен Ухват) + крафт-строка
+//     СИНТЕЗОМ КОНЦОМ (000126): 'dialog'
 //     (Торн) → 'dialog:ore_merchant' (Рудяк) →
-//     'dialog:forge_instructor' (Дымарь) → 'craft'; хоткеи Digit1..4 — общий механизм
+//     'dialog:forge_instructor' (Дымарь) → 'dialog:tool_smith' (Ухват)
+//     → 'craft'; хоткеи Digit1..5 — общий механизм
 //     src/building-ui.js /^Digit([1-9])$/; пин роста дома 8 поднят
 //     ЗДЕСЬ ВПЕРВЫЕ (сиблинговых держателей оверлея Кузницы на диске
 //     нет — у .25–.31 Арена; CU-3 tests/craft-ui.test.js передаёт
@@ -491,13 +493,15 @@ test('T6: торговля РОВНО 4 существующих предмет�
     + '.json до id, прецедент Торна в src/npc-data.js)');
 });
 
-// --- T7: ростер Кузницы — ТРОЕ (ре-пин .33), Торн первый; чужие дома не тронуты
+// --- T7: ростер Кузницы — ЧЕТВЕРО (ре-пин .34), Торн первый; чужие дома не тронуты
 
-test('T7: npcsForBuilding(NPCS, 8) — ТРОЕ Кузницы в порядке каталога [blacksmith, ore_merchant, forge_instructor]; npcForBuilding(8) — по-прежнему Торн; Арена (7) — СЕВЕРО не тронута (.31); Гладиаторский двор (9) — ОДИН, дом 5 Лавки странника — ВОСЕМЬ не тронуты; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
+test('T7: npcsForBuilding(NPCS, 8) — ЧЕТВЕРО Кузницы в порядке каталога [blacksmith, ore_merchant, forge_instructor, tool_smith]; npcForBuilding(8) — по-прежнему Торн; Арена (7) — СЕВЕРО не тронута (.31); Гладиаторский двор (9) — ОДИН, дом 5 Лавки странника — ВОСЕМЬ не тронуты; Магазин магии — ЧЕТЫРЕ, Аптекарь — ПЯТЬ, Бронник — ТРИ и Оружейная — ДЕВЯТЬ не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 8);
-  assert.deepEqual(list.map((n) => n.id), ['blacksmith', ID, 'forge_instructor'],
+  assert.deepEqual(list.map((n) => n.id),
+    ['blacksmith', ID, 'forge_instructor', 'tool_smith'],
     'Кузница (8): Торн (000006) + торговец рудой Рудяк (000053) + '
-    + 'наставник Дымарь (000054, ре-пин 000320.33), порядок = нумерация '
+    + 'наставник Дымарь (000054, ре-пин 000320.33) + кузнец Ухват '
+    + '(000055, ре-пин 000320.34), порядок = нумерация '
     + 'файлов; пин роста дома 8 поднят ЗДЕСЬ ВПЕРВЫЕ (ЭРРАТА БРИФА: '
     + '«в Кузнице уже ДВОЕ» ложно — Грота 000002 в armor_shop, Хольд '
     + '000011 в wanderer_shop; дисковый житель был один); факт: '
@@ -549,9 +553,9 @@ test('T7: npcsForBuilding(NPCS, 8) — ТРОЕ Кузницы в порядке
     + JSON.stringify(armory.map((n) => n.id)));
 });
 
-// --- T8: [E]-оверлей Кузницы — dialog, dialog:ore_merchant, dialog:forge_instructor, craft ---
+// --- T8: [E]-оверлей Кузницы — dialog, dialog:ore_merchant, dialog:forge_instructor, dialog:tool_smith, craft ---
 
-test('T8: [E]-оверлей Кузницы — ровно 4 строки: dialog (Торн), dialog:ore_merchant (Рудяк), dialog:forge_instructor (Дымарь, ре-пин 000320.33), craft (СИНТЕЗ 000126 — крафтовые рецепты здания 8) — пин роста дома 8 поднят ЗДЕСЬ ВПЕРВЫЕ (у .25–.31 Арена, сиблинговых держателей Кузницы нет); эффектов у дома 8 нет — effectIds пуст, только dialog-строки + крафт КОНЦОМ; подписи «Диалог: Торн»/«Диалог: Рудяк»/«Диалог: Дымарь»; хоткеи Digit1..4 — граница /^Digit([1-9])$/ не превышена (третья dialog-строка дома 8 поднята ре-пином .33)', () => {
+test('T8: [E]-оверлей Кузницы — ровно 5 строк: dialog (Торн), dialog:ore_merchant (Рудяк), dialog:forge_instructor (Дымарь, ре-пин 000320.33), dialog:tool_smith (Ухват, ре-пин 000320.34), craft (СИНТЕЗ 000126 — крафтовые рецепты здания 8) — пин роста дома 8 поднят ЗДЕСЬ ВПЕРВЫЕ (у .25–.31 Арена, сиблинговых держателей Кузницы нет); эффектов у дома 8 нет — effectIds пуст, только dialog-строки + крафт КОНЦОМ; подписи «Диалог: Торн»/«Диалог: Рудяк»/«Диалог: Дымарь»/«Диалог: Ухват»; хоткеи Digit1..5 — граница /^Digit([1-9])$/ не превышена (четвёртая dialog-строка дома 8 поднята ре-пином .34)', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings', 'blacksmith.json'));
   assert.equal(b.id, 8, 'здание blacksmith — id 8 (фикс размещения)');
   assert.equal(b.категория, 'школа_навыков',
@@ -571,31 +575,33 @@ test('T8: [E]-оверлей Кузницы — ровно 4 строки: dialo
     if (prevGame === undefined) delete globalThis.Game;
     else globalThis.Game = prevGame;
   }
-  assert.equal(rows.length, 4,
-    'список здания 8 = dialog-строки по каждому NPC (РОВНО ТРИ после '
-    + '.33) + СИНТЕЗИРОВАННАЯ крафт-строка КОНЦОМ (000126: '
+  assert.equal(rows.length, 5,
+    'список здания 8 = dialog-строки по каждому NPC (РОВНО ЧЕТЫРЕ после '
+    + '.34) + СИНТЕЗИРОВАННАЯ крафт-строка КОНЦОМ (000126: '
     + 'CRAFT.здания ∋ 8), факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:' + ID, 'dialog:forge_instructor', 'craft'],
+    ['dialog', 'dialog:' + ID, 'dialog:forge_instructor',
+      'dialog:tool_smith', 'craft'],
     'порядок строк = нумерация файлов каталога, Торн по-прежнему '
     + 'ПЕРВЫЙ (суффикс «:<id>» со второй строки — механизм '
     + 'building-effects); «craft» — не запись EFFECTS и не каталог '
     + '(решение 1 контракта 000126); факт: '
     + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Торн', 'Диалог: ' + NAME, 'Диалог: Дымарь', 'Крафт'],
+    ['Диалог: Торн', 'Диалог: ' + NAME, 'Диалог: Дымарь',
+      'Диалог: Ухват', 'Крафт'],
     'подписи — «Диалог: <имя>» + «Крафт», факт: '
     + JSON.stringify(rows.map((r) => r.имя)));
-  assert.deepEqual(rows.slice(0, 3).map((r) => r.npcId),
-    ['blacksmith', ID, 'forge_instructor'],
+  assert.deepEqual(rows.slice(0, 4).map((r) => r.npcId),
+    ['blacksmith', ID, 'forge_instructor', 'tool_smith'],
     'каждая dialog-строка несёт npcId своего NPC (роутинг клика); '
     + 'крафт-строка npcId НЕ несёт (не персонифицирована)');
-  assert.equal(rows[3].npcId, undefined,
+  assert.equal(rows[4].npcId, undefined,
     'строка «craft» без npcId — синтез-строка здания');
   for (let i = 0; i < rows.length; i++) {
     assert.match('Digit' + (i + 1), /^Digit([1-9])$/,
       'хоткеи Digit1..' + rows.length + ' — общий механизм '
-      + 'src/building-ui.js /^Digit([1-9])$/ (четвёртая строка в границе)');
+      + 'src/building-ui.js /^Digit([1-9])$/ (пятая строка в границе)');
   }
 });
 
