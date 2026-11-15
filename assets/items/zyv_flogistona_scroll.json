@@ -1,0 +1,15 @@
+{
+  "id": "zyv_flogistona_scroll",
+  "name": "Свиток: Зов флогистона",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зов флогистона» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_flogistona"
+  },
+  "icon": "assets/sprites/items/zyv_flogistona_scroll.svg"
+}

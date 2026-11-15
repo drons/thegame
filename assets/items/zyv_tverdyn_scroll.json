@@ -1,0 +1,15 @@
+{
+  "id": "zyv_tverdyn_scroll",
+  "name": "Свиток: Зов твердынь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "base_price": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Зов твердынь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_tverdyn"
+  },
+  "icon": "assets/sprites/items/zyv_tverdyn_scroll.svg"
+}

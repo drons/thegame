@@ -1,0 +1,15 @@
+{
+  "id": "zyv_gluhomani_scroll",
+  "name": "Свиток: Зов глухомани",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "base_price": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зов глухомани» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_gluhomani"
+  },
+  "icon": "assets/sprites/items/zyv_gluhomani_scroll.svg"
+}

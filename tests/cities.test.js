@@ -1631,7 +1631,6 @@ const SHOP_GOLDEN = {
   // не сдвинулись (node-симуляция: seed/старые стоки
   // byte-identical). Прочие 3 голдены — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
-
     // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
     // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога,
     // rng-хвост allItems-пула → += 39 брони; остальные
@@ -1670,8 +1669,8 @@ const SHOP_GOLDEN = {
     // (seed byte-identical; переснято ЖИВЫМ кодом).
     // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула allItems (bt44, w3) → += 40 (не выпали: zveroboy_chay/zakuska_garlic/zasol_ogurcov/zernistaya_kasha/zapekanka_yablochnaya/zubrovka_med/zhulien_gribnoy/zhulien_syrny/zharkoe_lesnoe/zolotoe_zharkoe);
     // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
-
     // Ре-пин 000321.10: +50 реагентов zy* (000965–001014) — lex-хвост пула; сток вырос additions-only (старые ключи побайтово целы), переснят ЖИВЫМ кодом (seed byte-identical).
+    // Ре-пин 000321.11: свитки zy*_scroll 001015–001064 — lex-ХВОСТ пула allItems; сток вырос additions-only (старые ключи побайтово целы), переснят ЖИВЫМ кодом (seed byte-identical).
     absolute_zero_scroll: 1, acid_splash_scroll: 1, adobe_shield: 5, aegis_mantle: 2, aegis_scroll: 1,
     aegis_shield: 3, alchemy_manual: 4, alpine_brew: 3, amber_bead: 1, amber_disc: 2,
     amber_elixir: 2, amethyst: 5, amethyst_band: 3, amethyst_boots: 3, amethyst_choker: 4,
@@ -1843,7 +1842,17 @@ const SHOP_GOLDEN = {
     zybkaya_testo: 5, zybkaya_tina: 1, zybkaya_uksus: 1, zybkaya_voda: 2, zybkaya_zola: 3,
     zyudskaya_gorech: 4, zyudskaya_kamed: 1, zyudskaya_koritsa: 1, zyudskaya_kurkuma: 1, zyudskaya_ladan: 2,
     zyudskaya_mirra: 4, zyudskaya_sandal: 3, zyudskaya_shafran: 2, zyudskaya_surguch: 1, zyudskaya_vanil: 5,
-    zyuzya_almaz: 2, zyuzya_mifril: 4, zyuzya_perlamut: 2, zyuzya_yantar: 2,
+    zyuzya_almaz: 2, zyuzya_mifril: 4, zyuzya_perlamut: 2, zyuzya_yantar: 2, zyuzyachaya_handra_scroll: 3,
+    zyuzyachaya_izmoroz_scroll: 2, zyuzyachaya_kora_scroll: 5, zyuzyachaya_korka_scroll: 2, zyuzyachaya_polyana_scroll: 5, zyuzyachaya_pylica_scroll: 1,
+    zyuzyachaya_stuzha_scroll: 4, zyuzyachaya_vyuga_scroll: 3, zyuzyache_serdtse_scroll: 4, zyuzyache_teplo_scroll: 1, zyuzyachie_seni_scroll: 5,
+    zyuzyachiy_iney_scroll: 1, zyuzyachiy_vihor_scroll: 5, zyv_bureloma_scroll: 3, zyv_chistoty_scroll: 2, zyv_flogistona_scroll: 1,
+    zyv_garey_scroll: 4, zyv_gluhomani_scroll: 2, zyv_iskr_scroll: 5, zyv_kolybeli_scroll: 1, zyv_kostri_scroll: 2,
+    zyv_kreposti_scroll: 1, zyv_lat_scroll: 4, zyv_okov_scroll: 3, zyv_pepela_scroll: 2, zyv_pletei_scroll: 3,
+    zyv_poludnya_scroll: 2, zyv_pozharishcha_scroll: 2, zyv_rodnika_scroll: 2, zyv_rostkov_scroll: 2, zyv_smoly_scroll: 1,
+    zyv_tenei_scroll: 1, zyv_tishiny_scroll: 5, zyv_topei_scroll: 4, zyv_tropy_scroll: 3, zyv_tverdyn_scroll: 4,
+    zyv_utra_scroll: 1, zyv_vrat_scroll: 4, zyv_zabveniya_scroll: 3, zyv_zaslona_scroll: 4, zyv_zastavy_scroll: 5,
+    zyv_zdorovya_scroll: 1, zyv_zhivitsy_scroll: 5, zyv_zhizni_scroll: 5,
+
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).

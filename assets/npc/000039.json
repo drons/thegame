@@ -157,6 +157,46 @@
         "предмет": "assets/items/miracle_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyuzyache_teplo_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_chistoty_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_kolybeli_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_poludnya_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_rodnika_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_utra_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_zdorovya_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_zhizni_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
       }
     ]
   }

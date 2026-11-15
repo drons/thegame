@@ -1,0 +1,15 @@
+{
+  "id": "zyv_pepela_scroll",
+  "name": "Свиток: Зов пепла",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зов пепла» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_pepela"
+  },
+  "icon": "assets/sprites/items/zyv_pepela_scroll.svg"
+}

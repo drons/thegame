@@ -105,11 +105,22 @@ const SPELLS_SLUGS_000318 = [
   "vitality", "void_arrow", "void_horror", "wall_of_fire", "wall_of_ice",
   "wall_of_thorns", "ward", "warding_circle", "way_down", "way_up",
   "weaken_defense", "wild_growth", "winter_elemental", "winter_haste",
+  // ре-пин 000321.11: +50 спеллов волны свитков 001015–001064
+  "zyuzyachaya_handra", "zyuzyachaya_izmoroz", "zyuzyachaya_kora", "zyuzyachaya_korka", "zyuzyachaya_polyana",
+  "zyuzyachaya_pylica", "zyuzyachaya_stuzha", "zyuzyachaya_vyuga", "zyuzyache_serdtse", "zyuzyache_teplo",
+  "zyuzyachie_seni", "zyuzyachiy_iney", "zyuzyachiy_morok", "zyuzyachiy_vihor", "zyv_bureloma",
+  "zyv_chistoty", "zyv_flogistona", "zyv_garey", "zyv_gluhomani", "zyv_hvori",
+  "zyv_iskr", "zyv_kledi", "zyv_kolybeli", "zyv_kostri", "zyv_kreposti",
+  "zyv_lat", "zyv_okov", "zyv_pepela", "zyv_pletei", "zyv_poludnya",
+  "zyv_pozharishcha", "zyv_pustoty", "zyv_rodnika", "zyv_rostkov", "zyv_salamandry",
+  "zyv_smoly", "zyv_tenei", "zyv_tishiny", "zyv_topei", "zyv_tropy",
+  "zyv_tverdyn", "zyv_ugley", "zyv_utra", "zyv_vrat", "zyv_zabveniya",
+  "zyv_zaslona", "zyv_zastavy", "zyv_zdorovya", "zyv_zhivitsy", "zyv_zhizni",
 ].map((s) => s + '.json').sort();
 
 // Первый/последний в финальном id-порядке (шапка-диапазон зеркала).
 const FIRST_SLUG = 'absolute_zero.json';
-const LAST_SLUG = 'winter_haste.json';
+const LAST_SLUG = 'zyv_zhizni.json';
 
 function shapeFiles(dir) {
   const re = JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells];
@@ -134,7 +145,7 @@ function resolveSpell(data) {
   };
 }
 
-test('000318.05 T1: ростер — шейп slug, 172 файла ≡ пин-множеству, 0 numeric, basename == id + \'.json\', id уникальны; schema.json ∈ slug-regex (исключение обязательно)', () => {
+test('000318.05 T1: ростер — шейп slug, 222 файла ≡ пин-множеству, 0 numeric, basename == id + \'.json\', id уникальны; schema.json ∈ slug-regex (исключение обязательно)', () => {
   assert.equal(JR.ASSET_NAME_SHAPES.spells, 'slug',
     'spells: шейп в реестре — slug (000318.05)');
   const all = fs.readdirSync(SPELLS_DIR);
@@ -142,7 +153,7 @@ test('000318.05 T1: ростер — шейп slug, 172 файла ≡ пин-м
   assert.deepEqual(numeric, [],
     'spells: остались numeric-файлы после rename: ' + numeric.join(', '));
   assert.deepEqual(shapeFiles(SPELLS_DIR), SPELLS_SLUGS_000318,
-    'spells: 172 файла ≡ пин-множеству slug-имён (ре-пин 000348: +decadance; ре-пин 000349: +attraction; ре-пин 000350: +show_enemies)');
+    'spells: 222 файла ≡ пин-множеству slug-имён (ре-пин 000321.11: +50 спеллов волны свитков; ре-пин 000348: +decadance; ре-пин 000349: +attraction; ре-пин 000350: +show_enemies)');
   assert.ok(JR.SHAPE_BASENAME_RES.slug.test('schema.json'),
     'guard: schema.json обязан матчиться slug-regex (иначе фильтр-исключение '
     + 'ничего не сторожит и анти-вакуум T6 протухает)');
@@ -155,10 +166,10 @@ test('000318.05 T1: ростер — шейп slug, 172 файла ≡ пин-м
       `spells: id «${data.id}» — не slug-форма (схема пинит её же)`);
     ids.push(data.id);
   }
-  assert.equal(new Set(ids).size, 172, 'spells: 172 id уникальны');
+  assert.equal(new Set(ids).size, 222, 'spells: 222 id уникальны (ре-пин 000321.11: +50)');
 });
 
-test('000318.05 T2: зеркало — SPELLS в строгом id-порядку, записи ≡ каталогу (резолв в id); шапка-диапазон absolute_zero … winter_haste; построчные «// <slug>.json», numeric-имён нет', () => {
+test('000318.05 T2: зеркало — SPELLS в строгом id-порядку, записи ≡ каталогу (резолв в id); шапка-диапазон absolute_zero … zyv_zhizni; построчные «// <slug>.json», numeric-имён нет', () => {
   const { SPELLS, SPELLS_BY_ID } = require(MIRROR);
   const ids = SPELLS.map((s) => s.id);
   assert.deepEqual(ids, [...ids].sort(),
@@ -167,7 +178,7 @@ test('000318.05 T2: зеркало — SPELLS в строгом id-порядк�
   for (let i = 1; i < ids.length; i++) {
     assert.ok(ids[i - 1] < ids[i], `дубль/непорядок на позиции ${i}`);
   }
-  assert.equal(SPELLS.length, 172, 'SPELLS — 172 записи');
+  assert.equal(SPELLS.length, 222, 'SPELLS — 222 записи (ре-пин 000321.11: +50)');
   for (const f of shapeFiles(SPELLS_DIR)) {
     const data = readJson(f);
     assert.deepEqual(SPELLS[ids.indexOf(data.id)], resolveSpell(data),
@@ -179,11 +190,11 @@ test('000318.05 T2: зеркало — SPELLS в строгом id-порядк�
   assert.ok(text.includes(
     `  // Заклинания (assets/spells/${FIRST_SLUG} … ${LAST_SLUG}).`),
     'шапка-диапазон зеркала — финальный id-порядок (absolute_zero … '
-    + 'winter_haste)');
+    + 'zyv_zhizni — ре-пин 000321.11: +50 спеллов)');
   assert.ok(text.includes(`    // ${FIRST_SLUG}\n`),
     'построчный комментарий «// absolute_zero.json» (slug-имя)');
   assert.ok(text.includes(`    // ${LAST_SLUG}\n`),
-    'построчный комментарий «// winter_haste.json» (slug-имя)');
+    'построчный комментарий «// zyv_zhizni.json» (slug-имя)');
   assert.ok(!/^\s*\/\/ 000\d{3}\.json$/m.test(text),
     'в зеркале остались числовые комментарии-файлы «// 0000NN.json»');
 });

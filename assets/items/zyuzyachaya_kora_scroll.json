@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachaya_kora_scroll",
+  "name": "Свиток: Зюзячая кора",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зюзячая кора» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachaya_kora"
+  },
+  "icon": "assets/sprites/items/zyuzyachaya_kora_scroll.svg"
+}

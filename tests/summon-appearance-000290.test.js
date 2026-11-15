@@ -82,10 +82,11 @@ test('000290-CAST-1: frost_wisp (000063) — призывной несёт по�
     + 'default; факт: ' + JSON.stringify(a.mobId));
 });
 
-test('000290-AUDIT-1: ВСЕ 13 заклинаний «призыв» (каталог) — призывной несёт mobId = параметры.summon И name = MOB_TYPES[summon].name (пин таблицы аудита, контракт §2; красные, 000290)', () => {
+test('000290-AUDIT-1: ВСЕ 16 заклинаний «призыв» (каталог) — призывной несёт mobId = параметры.summon И name = MOB_TYPES[summon].name (пин таблицы аудита, контракт §2; красные, 000290; ре-пин 000321.11: +3 зова — zyuzyachiy_vihor/zyv_salamandry/zyv_tropy)', () => {
   const summons = summonSpells();
-  assert.equal(summons.length, 13,
-    'каталог: ровно 13 заклинаний «призыв» (таблица аудита 000290)');
+  assert.equal(summons.length, 16,
+    'каталог: ровно 16 заклинаний «призыв» (таблица аудита 000290; '
+    + 'ре-пин 000321.11: 13 → 16)');
   for (const s of summons) {
     const { a } = summonCombat(s.id);
     assert.equal(a.mobId, s.параметры.summon,
@@ -96,9 +97,9 @@ test('000290-AUDIT-1: ВСЕ 13 заклинаний «призыв» (ката�
   }
 });
 
-test('000290-AUDIT-2: у ВСЕХ 13 «призыв» параметры.summon ∈ MOB_TYPES И mobSpriteKind(summon) ∈ keys(MOB_FRAMES) — нет призывного без вида (гварда, 000290)', () => {
+test('000290-AUDIT-2: у ВСЕХ 16 «призыв» параметры.summon ∈ MOB_TYPES И mobSpriteKind(summon) ∈ keys(MOB_FRAMES) — нет призывного без вида (гварда, 000290; ре-пин 000321.11: 13 → 16)', () => {
   const summons = summonSpells();
-  assert.equal(summons.length, 13, 'каталог: ровно 13 (таблица аудита)');
+  assert.equal(summons.length, 16, 'каталог: ровно 16 (таблица аудита; ре-пин 000321.11: 13 → 16)');
   for (const s of summons) {
     const id = s.параметры.summon;
     assert.ok(MOB_TYPES[id], s.id + ': ' + id + ' ∈ MOB_TYPES');

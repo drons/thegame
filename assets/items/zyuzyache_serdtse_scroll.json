@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyache_serdtse_scroll",
+  "name": "Свиток: Зюзячье сердце",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 240,
+  "base_price": 240,
+  "tier": 4,
+  "desc": "Свиток: изучает «Зюзячье сердце» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyache_serdtse"
+  },
+  "icon": "assets/sprites/items/zyuzyache_serdtse_scroll.svg"
+}

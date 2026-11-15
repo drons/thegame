@@ -160,10 +160,10 @@ function lootSvgFiles() {
 
 // --- T1: форма 50 предметов --------------------------------------------------
 
-test('000321.10 T1: каталог — ровно 1014 файла <id>.json (позиции 000965–001014 по реестру 000318.08); новые 50 — kind reagent, БЕЗ effect/rarity/slot/base_price/subtype/stats/set/affixes/set_bonus (стопка 99 — рантайм MAX_STACK, JSON-поля stack в схеме нет), tier по ростуеру (0 — поля нет), icon = assets/sprites/loot/<id>.svg ПОСЛЕДНИМ ключом, порядок ключей = канон sync-items-data.js, roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 964 — волна не добавлена)', () => {
+test('000321.10 T1: каталог — ровно 1064 файла <id>.json (позиции 000965–001014 по реестру 000318.08); новые 50 — kind reagent, БЕЗ effect/rarity/slot/base_price/subtype/stats/set/affixes/set_bonus (стопка 99 — рантайм MAX_STACK, JSON-поля stack в схеме нет), tier по ростуеру (0 — поля нет), icon = assets/sprites/loot/<id>.svg ПОСЛЕДНИМ ключом, порядок ключей = канон sync-items-data.js, roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 964 — волна не добавлена)', () => {
   const files = FILES();
-  assert.equal(files.length, 1014,
-    'каталог — 1014 файла (964 + 50 реагентов 000321.10); факт: '
+  assert.equal(files.length, 1064,
+    'каталог — 1064 файла (964 + 50 реагентов 000321.10 + 50 свитков 000321.11); факт: '
     + files.length + ' (краснота: волна не добавлена)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
@@ -201,9 +201,9 @@ test('000321.10 T1: каталог — ровно 1014 файла <id>.json (п�
 
 // --- T2: ростер + глобальная уникальность + lex-хвост ------------------------
 
-test('000321.10 T2: ростер 50 строк ≡ JSON (id/имя/weight/value/desc «<Имя>: …»); sweep по 1014: id, ИМЕНА и ОПИСАНИЯ уникальны по всему живому каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zvukopis_unkill» (additions-only: lex-хвост ⇒ rng-потоки стоков/лутов существующих предметов не сдвигаются) (краснота: каталог 964)', () => {
+test('000321.10 T2: ростер 50 строк ≡ JSON (id/имя/weight/value/desc «<Имя>: …»); sweep по 1064: id, ИМЕНА и ОПИСАНИЯ уникальны по всему живому каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zvukopis_unkill» (additions-only: lex-хвост ⇒ rng-потоки стоков/лутов существующих предметов не сдвигаются) (краснота: каталог 964)', () => {
   const files = FILES();
-  assert.equal(files.length, 1014, 'каталог — 1014; факт: ' + files.length);
+  assert.equal(files.length, 1064, 'каталог — 1064; факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
@@ -219,7 +219,7 @@ test('000321.10 T2: ростер 50 строк ≡ JSON (id/имя/weight/value/
       'дубликат desc: ' + j.desc + ' (' + f + ')');
     descs.set(j.desc, f);
   }
-  assert.equal(ids.size, 1014);
+  assert.equal(ids.size, 1064);
   for (const [num, id, name, , weight, value, , , , tail] of ROSTER_00032110) {
     const j = JSON.parse(loadItemFile(num));
     assert.equal(j.id, id, num + ': id == ростер');
@@ -399,13 +399,13 @@ test('000321.10 T6: craft — РОВНО 718 (693 + 25 новых: алхими�
 
 // --- T7: зеркало + реестр + digest-инвариантность префикса 864 ---------------
 
-test('000321.10 T7: зеркало src/items-data.js — 1014 записей, новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — его ХВОСТ (additions-only); реестр — ключи «000001»…«001014» подряд, биекция с диском, 000965…001014 ≡ ростер (append-only); digest замороженного префикса 000001..000864 ≡ литералу 000392 — хвостовой append его НЕ касается (краснота: зеркало 964 / реестр 964)', () => {
+test('000321.10 T7: зеркало src/items-data.js — 1064 записей, новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — ПЕРЕД хвостом свитков 000321.11 (additions-only; ре-пин 000321.11); реестр — ключи «000001»…«001064» подряд, биекция с диском, 000965…001014 ≡ ростер (append-only); digest замороженного префикса 000001..000864 ≡ литералу 000392 — хвостовой append его НЕ касается (краснота: зеркало 964 / реестр 964)', () => {
   const diskCount = fs.readdirSync(ITEMS_DIR).filter(SLUG).length;
   assert.equal(ITD.ITEMS.length, diskCount,
     'зеркало ≡ диск по числу записей; факт: зеркало ' + ITD.ITEMS.length
     + ', диск ' + diskCount);
-  assert.equal(ITD.ITEMS.length, 1014,
-    'зеркало — 1014 записей; факт: ' + ITD.ITEMS.length);
+  assert.equal(ITD.ITEMS.length, 1064,
+    'зеркало — 1064 записей; факт: ' + ITD.ITEMS.length);
   const ids = ITD.ITEMS.map((it) => it.id);
   assert.ok(ids.every((v, i) => i === 0 || ids[i - 1] < v),
     'зеркало lex-упорядочено по id');
@@ -416,14 +416,14 @@ test('000321.10 T7: зеркало src/items-data.js — 1014 записей, н
   }
   const ours = ids.filter((v) => ROSTER_SET.has(v));
   assert.equal(ours.length, 50, 'в зеркале — все 50 реагентов волны');
-  assert.deepEqual(ours, ids.slice(-50),
-    'наши 50 — ХВОСТ зеркального lex-порядка (additions-only)');
+  assert.deepEqual(ours, ids.slice(-100, -50),
+    'наши 50 — сразу перед хвостом свитков 000321.11 (additions-only)');
   const nums = Object.keys(NUM2ID);
-  assert.equal(nums.length, 1014, 'реестр — 1014 строк; факт: ' + nums.length);
+  assert.equal(nums.length, 1064, 'реестр — 1064 строк; факт: ' + nums.length);
   assert.deepEqual(nums, nums.map((_, i) => String(i + 1).padStart(6, '0')),
-    'реестр — «000001»…«001014» подряд, без дыр');
+    'реестр — «000001»…«001064» подряд, без дыр');
   const byId = new Set(Object.values(NUM2ID));
-  assert.equal(byId.size, 1014, 'реестр — биекция с диском');
+  assert.equal(byId.size, 1064, 'реестр — биекция с диском');
   for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUG)) {
     assert.ok(byId.has(f.replace(/\.json$/, '')),
       f + ': позиция в реестре есть');
@@ -485,7 +485,7 @@ test('000321.10 T8: регресс-канарейки ЖИВЫМИ выраже�
 
 // --- T9: spec + канон + c9-entry lockstep -------------------------------------
 
-test('000321.10 T9: spec/items.md — «Каталог пополнен 50 реагентами 000321.10», живой счётчик «1014 файлов (на момент 000321.10)» ≡ диску, старое число счётчика не осталось; правка line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2; канон memory/000230.16 — c1 «1014 файлов (000001–001014;», c2 «reagent <живой счёт>», E-блок ≡ H2 spec нормализованно и содержит фразу волны; c9-entry memory/000230.16-c9/000321.10.md — первая строка «000321.10: <байты> (+Δ)» с байтами ≡ ЖИВОМУ Buffer.byteLength(spec) (краснота: spec отстал от диска)', () => {
+test('000321.10 T9: spec/items.md — «Каталог пополнен 50 реагентами 000321.10», живой счётчик «NNN файлов (на момент …)» ≡ диску (ре-пин 000321.11: литерал перехвачен свитками — сверка живая), старое число счётчика не осталось; правка line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2; канон memory/000230.16 — c1 «NNN файлов (000001–NNNNNN;», c2 «reagent <живой счёт>», E-блок ≡ H2 spec нормализованно и содержит фразу волны; c9-entry memory/000230.16-c9/000321.10.md — первая строка «000321.10: <байты> (+Δ)» с байтами ≡ ЖИВОМУ Buffer.byteLength(spec), пока хвост не перехвачен поздней волной (преемственность — ре-пин 000321.11) (краснота: spec отстал от диска)', () => {
   const spec = fs.readFileSync(path.join(ROOT, 'spec', 'items.md'), 'utf8');
   assert.ok(spec.includes('Каталог пополнен 50 реагентами 000321.10'),
     'spec/items.md: предложения о волне 000321.10 нет');
@@ -549,9 +549,23 @@ test('000321.10 T9: spec/items.md — «Каталог пополнен 50 ре�
     'c9-entry memory/000230.16-c9/000321.10.md: первой строки '
     + '«000321.10: <байты> (+Δ)» нет (рецепт memory/000386-c9-bytes-log.md §3)');
   const bytes = Buffer.byteLength(spec, 'utf8');
-  assert.equal(+em[1], bytes,
-    'c9-entry: байты ' + em[1] + ' ≠ живым байтам spec/items.md ' + bytes
-    + ' — re-замер на финальной ре-базе');
+  const c9dir = path.join(ROOT, 'memory', '000230.16-c9');
+  const takenLater = fs.readdirSync(c9dir).some((f) => {
+    if (!f.endsWith('.md') || f === '000321.10.md') return false;
+    const mm = fs.readFileSync(path.join(c9dir, f), 'utf8')
+      .match(/^\d{6}(?:\.\d+)?: (\d+) \([+-]\d+\)/m);
+    return mm !== null && +mm[1] === bytes;
+  });
+  if (takenLater) {
+    assert.ok(+em[1] < bytes,
+      'c9-entry преемственность (ре-пин 000321.11): байты ' + em[1]
+      + ' должны быть МЕНЬШЕ живых ' + bytes
+      + ' — живой счётчик перехвачен более поздней волной');
+  } else {
+    assert.equal(+em[1], bytes,
+      'c9-entry: байты ' + em[1] + ' ≠ живым байтам spec/items.md ' + bytes
+      + ' — re-замер на финальной ре-базе');
+  }
 });
 
 // --- T10: автоматика магазинов/лутов + стражи 0-diff --------------------------

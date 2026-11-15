@@ -297,6 +297,91 @@
         "предмет": "assets/items/way_down_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyuzyachaya_kora_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyuzyachaya_polyana_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyuzyachaya_pylica_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_bureloma_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_gluhomani_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_kledi_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_kreposti_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_lat_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_pletei_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_rostkov_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_topei_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_tropy_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_tverdyn_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_vrat_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_zaslona_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_zastavy_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_zhivitsy_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
       }
     ]
   }

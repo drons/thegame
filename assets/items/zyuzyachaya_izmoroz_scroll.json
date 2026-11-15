@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachaya_izmoroz_scroll",
+  "name": "Свиток: Зюзячая изморозь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зюзячая изморозь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachaya_izmoroz"
+  },
+  "icon": "assets/sprites/items/zyuzyachaya_izmoroz_scroll.svg"
+}

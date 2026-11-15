@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachiy_vihor_scroll",
+  "name": "Свиток: Зюзячий вихорь",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "base_price": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зюзячий вихорь» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachiy_vihor"
+  },
+  "icon": "assets/sprites/items/zyuzyachiy_vihor_scroll.svg"
+}

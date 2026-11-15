@@ -258,10 +258,10 @@ function spellIds() {
 
 // --- T1: каталог и форма 50 предметов ------------------------------
 
-test('000321.05 T1: каталог — ровно 1014 файла <id>.json (позиции — виртуальные номера по реестру 000318.08) (ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.08: +50 еды 000865–000914 — новый конец каталога; ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.06: +50 колец 000765–000814); 50 новых (000714–000763) — kind tool, slot РОВНО right_hand, equip-набор полей БЕЗ subtype/base_price/tier/stats (факт старых 10), порядок ключей = канон (set/set_bonus для сетовых), roundtrip-канон stringify(…,2)+\\n, валидность по assets/items/schema.json (краснота: каталог 713 — волна не добавлена)', () => {
+test('000321.05 T1: каталог — ровно 1064 файла <id>.json (позиции — виртуальные номера по реестру 000318.08) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.08: +50 еды 000865–000914 — новый конец каталога; ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин 000348: +1 свиток Декаданс 000764; ре-пин 000321.06: +50 колец 000765–000814); 50 новых (000714–000763) — kind tool, slot РОВНО right_hand, equip-набор полей БЕЗ subtype/base_price/tier/stats (факт старых 10), порядок ключей = канон (set/set_bonus для сетовых), roundtrip-канон stringify(…,2)+\\n, валидность по assets/items/schema.json (краснота: каталог 713 — волна не добавлена)', () => {
   const files = FILES_I08();
-  assert.equal(files.length, 1014,
-    'каталог — 1014 файла (713 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08); факт: '
+  assert.equal(files.length, 1064,
+    'каталог — 1064 файла (713 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08); факт: '
     + files.length + ' (краснота: волна не добавлена)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
@@ -296,9 +296,9 @@ test('000321.05 T1: каталог — ровно 1014 файла <id>.json (п�
 
 // --- T2: ростер и уникальность --------------------------------------
 
-test('000321.05 T2: ростер — 50 строк id/rarity/value/weight/аффикс/set сверяются с JSON; sweep: id уникальны в 1014, ИМЕНА и ОПИСАНИЯ уникальны по ВСЕМУ каталогу (включая артефакты 000664–000713) (краснота: каталог 713) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
+test('000321.05 T2: ростер — 50 строк id/rarity/value/weight/аффикс/set сверяются с JSON; sweep: id уникальны в 1064, ИМЕНА и ОПИСАНИЯ уникальны по ВСЕМУ каталогу (включая артефакты 000664–000713) (краснота: каталог 713) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = FILES_I08();
-  assert.equal(files.length, 1014, 'каталог — 1014; факт: ' + files.length);
+  assert.equal(files.length, 1064, 'каталог — 1064; факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
@@ -314,7 +314,7 @@ test('000321.05 T2: ростер — 50 строк id/rarity/value/weight/афф
       'дубликат desc: ' + j.desc + ' (' + f + ')');
     descs.set(j.desc, f);
   }
-  assert.equal(ids.size, 1014);
+  assert.equal(ids.size, 1064);
   for (const [num, id, name, rarity, skill, amount, value, weight,
       set] of ROSTER_00032105) {
     const j = JSON.parse(loadItemFile(num));
@@ -347,7 +347,7 @@ test('000321.05 T3: редкость волны РОВНО 20/14/10/4/2; rarity-
     'редкость волны РОВНО 20/14/10/4/2 (контракт 000230 на 50); факт: '
     + JSON.stringify(rarCount));
   const all = I.allItems();
-  assert.equal(all.length, 1014, 'live-каталог — 1014');
+  assert.equal(all.length, 1064, 'live-каталог — 1064');
   const rarAll = {};
   for (const it of all) {
     if (it.rarity) rarAll[it.rarity] = (rarAll[it.rarity] || 0) + 1;
@@ -546,10 +546,10 @@ test('000321.05 T6: сеты — forger ПРОДОЛЖЕН: РОВНО 5 чле�
 
 // --- T7: иконки -------------------------------------------------------
 
-test('000321.05 T7: иконки — у 50 новых поле icon ↔ файл существует; биекция json↔svg по basename; flat-SVG 64×64: viewBox ровно 1, ПЕРВЫЙ элемент — тень-эллипс rgba(0,0,0,0.22), без linearGradient/radialGradient/text/path/use/stroke (паттерн 000302/000335); sha256-уникальность против всех 931 иконок (ре-пин 000321.07: +50 зелий) (краснота: файлы не созданы)', () => {
+test('000321.05 T7: иконки — у 50 новых поле icon ↔ файл существует; биекция json↔svg по basename; flat-SVG 64×64: viewBox ровно 1, ПЕРВЫЙ элемент — тень-эллипс rgba(0,0,0,0.22), без linearGradient/radialGradient/text/path/use/stroke (паттерн 000302/000335); sha256-уникальность против всех 981 иконок (ре-пин 000321.11: +50 свитков 001015–001064 — иконки 931 → 981; ре-пин 000321.07: +50 зелий) (краснота: файлы не созданы)', () => {
   const allSvg = fs.readdirSync(SPR_DIR).filter((f) => f.endsWith('.svg'));
-  assert.equal(allSvg.length, 931,
-    'assets/sprites/items — 931 (680 + 50 + 1 иконка decadance_scroll '
+  assert.equal(allSvg.length, 981,
+    'assets/sprites/items — 981 (680 + 50 + 1 иконка decadance_scroll '
     + '+ 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08); факт: ' + allSvg.length);
   const hash = (p) => createHash('sha256').update(fs.readFileSync(p))
     .digest('hex');
@@ -557,7 +557,7 @@ test('000321.05 T7: иконки — у 50 новых поле icon ↔ файл
   for (const f of allSvg) {
     hashes.set(hash(path.join(SPR_DIR, f)), f);
   }
-  assert.equal(hashes.size, 931, 'все 931 иконок byte-уникальны');
+  assert.equal(hashes.size, 981, 'все 981 иконок byte-уникальны');
   for (const [, id] of ROSTER_00032105) {
     const f = id + '.svg';
     const p = path.join(SPR_DIR, f);
@@ -730,8 +730,8 @@ test('000321.05 T8: 50 рецептов — файлы по id (прежние �
 // --- T9: зеркала -------------------------------------------------------
 
 test('000321.05 T9: зеркала — src/items-data.js содержит 50 новых предметов ≡ JSON (getItem ≡ диск); src/craft-data.js содержит 50 рецептов с резолвом результат/исходники/навыки/здания в id (краснота: зеркало не регенерировано)', () => {
-  assert.equal(ITD.ITEMS.length, 1014,
-    'items-data — 1014; факт: ' + ITD.ITEMS.length);
+  assert.equal(ITD.ITEMS.length, 1064,
+    'items-data — 1064; факт: ' + ITD.ITEMS.length);
   const mirrorById = new Map(ITD.ITEMS.map((it) => [it.id, it]));
   for (const [num, id] of ROSTER_00032105) {
     const j = JSON.parse(loadItemFile(num));
@@ -770,9 +770,9 @@ test('000321.05 T9: зеркала — src/items-data.js содержит 50 н�
 
 // --- T10: счётчики/канарейки -----------------------------------------
 
-test('000321.05 T10: регресс-канарейки — каталог 1014 ≡ items-data (ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.07: +50 зелий); tool 60 (10 + 50), artifact 63, shield 62, armor 257, weapon 72 (не выросли), spell_scroll 161 (ре-пин 000348: +1 Декаданс); slot — у 589, «прочих» без slot — 425 (свиток Декаданс + 50 зелий 000321.07 + 50 еды 000321.08 без slot); base_price РОВНО у 302 (ре-пин 000321.08: +50 еды; ре-пин 000347.02) (у инструментов цены вычисляемые, НЕ вырос); free_cast — 28 (ре-пин 000321.06: +2 epic колец — в wave .05 добавлено 0); наборы 20 / 67 предметов (forger 2→5; moonlight 4 + tide 3 — новые сеты 000321.06); craft — 718 с типами зачарование 244 / кузнечное 173 / столярное 114 / резьба 95 / алхимия 86 / рунопись 6 (ре-пин 000321.07: +50 алхимии; ре-пин 000321.06: +25 зачарование +25 резьбы); иконки 931; stroke= — ровно 46 legacy (краснота: каталог 713)', () => {
-  assert.equal(I.allItems().length, 1014);
-  assert.equal(ITD.ITEMS.length, 1014, 'items-data ≡ каталог (1014)');
+test('000321.05 T10: регресс-канарейки — каталог 1064 ≡ items-data (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064, spell_scroll 161 → 211, base_price 302 → 352, без slot 425 → 475, иконки 931 → 981; ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.07: +50 зелий); tool 60 (10 + 50), artifact 63, shield 62, armor 257, weapon 72 (не выросли), spell_scroll 211 (ре-пин 000348: +1 Декаданс); slot — у 589, «прочих» без slot — 475 (свиток Декаданс + 50 зелий 000321.07 + 50 еды 000321.08 без slot); base_price РОВНО у 352 (ре-пин 000321.08: +50 еды; ре-пин 000347.02) (у инструментов цены вычисляемые, НЕ вырос); free_cast — 28 (ре-пин 000321.06: +2 epic колец — в wave .05 добавлено 0); наборы 20 / 67 предметов (forger 2→5; moonlight 4 + tide 3 — новые сеты 000321.06); craft — 718 с типами зачарование 244 / кузнечное 173 / столярное 114 / резьба 95 / алхимия 86 / рунопись 6 (ре-пин 000321.07: +50 алхимии; ре-пин 000321.06: +25 зачарование +25 резьбы); иконки 981; stroke= — ровно 46 legacy (краснота: каталог 713)', () => {
+  assert.equal(I.allItems().length, 1064);
+  assert.equal(ITD.ITEMS.length, 1064, 'items-data ≡ каталог (1064)');
   const all = I.allItems();
   assert.equal(all.filter((it) => it.kind === 'tool').length, 60,
     'tool — 60 (10 + 50); факт: '
@@ -785,19 +785,19 @@ test('000321.05 T10: регресс-канарейки — каталог 1014 �
     'armor — 257 (не вырос)');
   assert.equal(all.filter((it) => it.kind === 'weapon').length, 72,
     'weapon — 72 (не вырос)');
-  assert.equal(all.filter((it) => it.kind === 'spell_scroll').length, 161,
-    'spell_scroll — 161 (ре-пин 000348: +1 Декаданс)');
+  assert.equal(all.filter((it) => it.kind === 'spell_scroll').length, 211,
+    'spell_scroll — 211 (ре-пин 000321.11: +50 свитков 001015–001064 — spell_scroll 161 → 211; ре-пин 000348: +1 Декаданс)');
   const withBase = all.filter((it) => 'base_price' in it);
-  assert.equal(withBase.length, 302,
-    'base_price — ровно у 302 (инструменты не торгуют; ре-пин 000321.08: +50 еды — не они '
+  assert.equal(withBase.length, 352,
+    'base_price — ровно у 352 (инструменты не торгуют; ре-пин 000321.11: +50 свитков 001015–001064 — base_price 302 → 352; ре-пин 000321.08: +50 еды — не они '
     + 'добавили; ре-пин 000347.02: E1, base_price=value у всех '
     + 'spell_scroll); факт: ' + withBase.length);
   const withSlot = all.filter((it) => 'slot' in it);
   assert.equal(withSlot.length, 589,
     'slot — у 589 (489 + 50 + 50 колец 000321.06); факт: '
     + withSlot.length);
-  assert.equal(1014 - withSlot.length, 425,
-    'прочих без slot — 425 (свиток Декаданс + 50 зелий 000321.07 + 50 еды 000321.08 — без slot)');
+  assert.equal(1064 - withSlot.length, 475,
+    'прочих без slot — 475 (свиток Декаданс + 50 зелий 000321.07 + 50 еды 000321.08 — без slot)');
   const fc = [];
   for (const it of all) {
     for (const a of (it.affixes || [])) {
@@ -837,7 +837,7 @@ test('000321.05 T10: регресс-канарейки — каталог 1014 �
     'резьба_по_камню': 95, 'алхимия': 86, 'рунопись': 6,
   }, 'craft по типам; факт: ' + JSON.stringify(ct));
   const allSvg = fs.readdirSync(SPR_DIR).filter((f) => f.endsWith('.svg'));
-  assert.equal(allSvg.length, 931, 'иконки sprites/items — 931');
+  assert.equal(allSvg.length, 981, 'иконки sprites/items — 981');
   let strokeSeen = 0;
   for (const f of allSvg) {
     if (/stroke=/.test(fs.readFileSync(path.join(SPR_DIR, f), 'utf8'))) {

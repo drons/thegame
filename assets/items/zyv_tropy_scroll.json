@@ -1,0 +1,15 @@
+{
+  "id": "zyv_tropy_scroll",
+  "name": "Свиток: Зов тропы",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зов тропы» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_tropy"
+  },
+  "icon": "assets/sprites/items/zyv_tropy_scroll.svg"
+}

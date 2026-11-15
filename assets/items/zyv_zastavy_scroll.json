@@ -1,0 +1,15 @@
+{
+  "id": "zyv_zastavy_scroll",
+  "name": "Свиток: Зов заставы",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зов заставы» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_zastavy"
+  },
+  "icon": "assets/sprites/items/zyv_zastavy_scroll.svg"
+}

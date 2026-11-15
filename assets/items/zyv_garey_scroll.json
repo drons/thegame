@@ -1,0 +1,15 @@
+{
+  "id": "zyv_garey_scroll",
+  "name": "Свиток: Зов гарей",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "base_price": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зов гарей» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_garey"
+  },
+  "icon": "assets/sprites/items/zyv_garey_scroll.svg"
+}

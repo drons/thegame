@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyache_teplo_scroll",
+  "name": "Свиток: Зюзячье тепло",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зюзячье тепло» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyache_teplo"
+  },
+  "icon": "assets/sprites/items/zyuzyache_teplo_scroll.svg"
+}

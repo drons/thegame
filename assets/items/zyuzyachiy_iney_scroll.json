@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachiy_iney_scroll",
+  "name": "Свиток: Зюзячий иней",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зюзячий иней» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachiy_iney"
+  },
+  "icon": "assets/sprites/items/zyuzyachiy_iney_scroll.svg"
+}

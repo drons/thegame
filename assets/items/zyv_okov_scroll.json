@@ -1,0 +1,15 @@
+{
+  "id": "zyv_okov_scroll",
+  "name": "Свиток: Зов оков",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зов оков» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_okov"
+  },
+  "icon": "assets/sprites/items/zyv_okov_scroll.svg"
+}

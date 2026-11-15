@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachiy_morok_scroll",
+  "name": "Свиток: Зюзячий морок",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зюзячий морок» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachiy_morok"
+  },
+  "icon": "assets/sprites/items/zyuzyachiy_morok_scroll.svg"
+}

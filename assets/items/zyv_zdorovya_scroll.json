@@ -1,0 +1,15 @@
+{
+  "id": "zyv_zdorovya_scroll",
+  "name": "Свиток: Зов здоровья",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зов здоровья» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_zdorovya"
+  },
+  "icon": "assets/sprites/items/zyv_zdorovya_scroll.svg"
+}

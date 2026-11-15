@@ -1,0 +1,15 @@
+{
+  "id": "zyv_chistoty_scroll",
+  "name": "Свиток: Зов чистоты",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "base_price": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зов чистоты» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_chistoty"
+  },
+  "icon": "assets/sprites/items/zyv_chistoty_scroll.svg"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachaya_vyuga_scroll",
+  "name": "Свиток: Зюзячая вьюга",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зюзячая вьюга» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachaya_vyuga"
+  },
+  "icon": "assets/sprites/items/zyuzyachaya_vyuga_scroll.svg"
+}

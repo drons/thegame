@@ -1,0 +1,15 @@
+{
+  "id": "zyv_zaslona_scroll",
+  "name": "Свиток: Зов заслона",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зов заслона» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_zaslona"
+  },
+  "icon": "assets/sprites/items/zyv_zaslona_scroll.svg"
+}

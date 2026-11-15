@@ -1,0 +1,15 @@
+{
+  "id": "zyv_hvori_scroll",
+  "name": "Свиток: Зов хвори",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зов хвори» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_hvori"
+  },
+  "icon": "assets/sprites/items/zyv_hvori_scroll.svg"
+}

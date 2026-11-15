@@ -162,6 +162,46 @@
         "предмет": "assets/items/decadance_scroll.json",
         "mult_продажи": 0.5,
         "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyuzyachie_seni_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyuzyachiy_morok_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_hvori_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_okov_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_pustoty_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_tenei_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_tishiny_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
+      },
+      {
+        "предмет": "assets/items/zyv_zabveniya_scroll.json",
+        "mult_продажи": 0.5,
+        "количество": 1
       }
     ]
   }

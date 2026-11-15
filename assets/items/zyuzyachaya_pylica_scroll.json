@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachaya_pylica_scroll",
+  "name": "Свиток: Зюзячая пыльца",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 45,
+  "base_price": 45,
+  "tier": 1,
+  "desc": "Свиток: изучает «Зюзячая пыльца» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachaya_pylica"
+  },
+  "icon": "assets/sprites/items/zyuzyachaya_pylica_scroll.svg"
+}

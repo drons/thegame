@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachie_seni_scroll",
+  "name": "Свиток: Зюзячие сени",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 115,
+  "base_price": 115,
+  "tier": 3,
+  "desc": "Свиток: изучает «Зюзячие сени» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachie_seni"
+  },
+  "icon": "assets/sprites/items/zyuzyachie_seni_scroll.svg"
+}

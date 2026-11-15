@@ -1,0 +1,15 @@
+{
+  "id": "zyuzyachaya_polyana_scroll",
+  "name": "Свиток: Зюзячая поляна",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зюзячая поляна» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyuzyachaya_polyana"
+  },
+  "icon": "assets/sprites/items/zyuzyachaya_polyana_scroll.svg"
+}

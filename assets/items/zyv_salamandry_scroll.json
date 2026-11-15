@@ -1,0 +1,15 @@
+{
+  "id": "zyv_salamandry_scroll",
+  "name": "Свиток: Зов саламандры",
+  "kind": "spell_scroll",
+  "weight": 0.2,
+  "value": 60,
+  "base_price": 60,
+  "tier": 2,
+  "desc": "Свиток: изучает «Зов саламандры» (нужен ранг школы.)",
+  "effect": {
+    "kind": "spell",
+    "spell": "zyv_salamandry"
+  },
+  "icon": "assets/sprites/items/zyv_salamandry_scroll.svg"
+}
