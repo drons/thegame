@@ -432,14 +432,25 @@ test('000321.09 T8: регресс-канарейки ЖИВЫМИ выраже�
 
 // --- T9: spec/items.md + канон памяти ---------------------------------------
 
-test('000321.09 T9: spec/items.md — «Каталог пополнен 50 книгами навыков 000321.09» и счётчик «964 файлов (на момент 000321.09)» (единственный number-факт, паттерн 000312); правки line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2 (SPEC_FILE_LINES["items.md"] не двигается); канон memory/000230.16 — c1 «Каталог assets/items — 964 файлов (000001–000964;», c2 «skill_book 61» и E-блок ≡ H2 spec нормализованно (краснота: «на момент 000321.08»)', () => {
+test('000321.09 T9: spec/items.md — «Каталог пополнен 50 книгами навыков 000321.09» и живой счётчик «Каталог assets/items — NNN файлов (на момент …)» (ре-пин 000386: литералы счётчика «964 … на момент 000321.09», c1 и «skill_book 61» выведены на живую сверку с каталогом/kind-счётом — будущая волна не правит эту строку); правки line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2 (SPEC_FILE_LINES["items.md"] не двигается); канон memory/000230.16 — c1 «Каталог assets/items — NNN файлов (000001–NNNNNN;», c2 «skill_book <живой счёт>» и E-блок ≡ H2 spec нормализованно (краснота: счётчик отстал от диска)', () => {
   const spec = fs.readFileSync(path.join(ROOT, 'spec', 'items.md'), 'utf8');
   assert.ok(spec.includes(
     'Каталог пополнен 50 книгами навыков 000321.09'),
     'spec/items.md: предложения о волне 000321.09 нет');
-  assert.ok(spec.includes('964 файлов (на момент 000321.09)'),
-    'spec/items.md: счётчика «964 файлов (на момент 000321.09)» нет');
-  assert.ok(!spec.includes('914 файлов'),
+  const cm = spec.match(
+    /Каталог assets\/items — (\d+) файлов \(на момент ([0-9.]+)\):/);
+  assert.ok(cm,
+    'spec/items.md: строки счётчика «Каталог assets/items — NNN файлов '
+    + '(на момент T):» нет (000386: сверка на живом механизме)');
+  const diskCount = fs.readdirSync(ITEMS_DIR).filter(SLUG).length;
+  assert.equal(+cm[1], diskCount,
+    'spec-счётчик каталога ' + cm[1] + ' ≠ живого числа файлов '
+    + 'assets/items ' + diskCount + ' — ре-пин строки «на момент» в '
+    + 'коммите волны (рецепт memory/000386-c9-bytes-log.md §3)');
+  assert.ok(cm[2] >= '000321.09',
+    'счётчик «на момент ' + cm[2] + '» отстал — не раньше 000321.09 '
+    + '(создала 964); краснота: волна не ре-пиннула строку');
+  assert.ok(!/(?<!\d)914 файлов/.test(spec),
     'spec/items.md: старое число 914 не осталось');
   const lines = spec.split('\n');
   assert.ok(!spec.endsWith('\n'),
@@ -450,11 +461,18 @@ test('000321.09 T9: spec/items.md — «Каталог пополнен 50 кн�
     'spec/items.md — 13 H2 (новых H2 не заводили)');
   const canon = fs.readFileSync(
     path.join(ROOT, 'memory', '000230.16-spec-equipment-doc.md'), 'utf8');
-  assert.ok(canon.includes(
-    'Каталог assets/items — 964 файлов (000001–000964;'),
-    'канон c1: счётчика 964/000964 нет');
-  assert.ok(/skill_book 61[,\s]/.test(canon),
-    'канон c2: «skill_book 61» нет');
+  const c1 = canon.match(
+    /Каталог assets\/items — (\d+) файлов \(000001–(0\d+);/);
+  assert.ok(c1, 'канон c1: строки счётчика каталога нет');
+  assert.equal(+c1[1], diskCount,
+    'канон c1: число ' + c1[1] + ' ≠ живого числа файлов ' + diskCount
+    + ' — ре-пин c1 в коммите волны');
+  assert.equal(c1[2], String(diskCount).padStart(6, '0'),
+    'канон c1: хвост «000001–' + c1[2] + '» ≠ последнему номеру '
+    + String(diskCount).padStart(6, '0') + ' каталога');
+  const sbCount = allDiskObjects().filter((it) => it.kind === 'skill_book').length;
+  assert.ok(new RegExp('skill_book ' + sbCount + '[,\\s]').test(canon),
+    'канон c2: «skill_book ' + sbCount + '» (живой счёт kind) нет');
   const norm = (s) => s.replace(/\s+/g, ' ').trim();
   const h2 = (title) => {
     const i = lines.findIndex((l) => l.trim() === '## ' + title);
@@ -470,8 +488,12 @@ test('000321.09 T9: spec/items.md — «Каталог пополнен 50 кн�
     + '000321.09')), 'E-блок spec: предложения волны нет (норм.)');
   assert.ok(norm(canon).includes('Каталог пополнен 50 книгами навыков '
     + '000321.09'), 'канон (E-блок/§4.2): предложения волны нет');
-  assert.ok(specE.includes('964 файлов (на момент 000321.09)'),
-    'E-блок spec: счётчика 964 нет');
+  const cmE = specE.match(
+    /Каталог assets\/items — (\d+) файлов \(на момент [0-9.]+\):/);
+  assert.ok(cmE, 'E-блок spec: строки счётчика каталога нет');
+  assert.equal(cmE[1], cm[1],
+    'E-блок spec: счётчик ' + cmE[1] + ' ≠ spec-счётчику ' + cm[1]
+    + ' (doc-trio ре-синхронится в том же коммите)');
 });
 
 // --- T10: торговля автоматикой, лут-стражи, additions-only гейт -------------

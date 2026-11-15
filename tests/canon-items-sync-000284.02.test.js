@@ -360,10 +360,10 @@ test('T9: EQUIP_POOLS + RARITY: c8+c12 (диск == канон §2)', () => {
   assert.ok(tierOk, 'c12: tierEq — id в пуле тира A имеет rarity B');
 });
 
-test('T10: spec/items.md мета: c9 (R5/H2/H3/bytes == канон §2)', () => {
+test('T10: spec/items.md мета: c9 (R5/H2/H3 == канон §2; байты — живой расчёт, 000386)', () => {
   guard();
   const S = cat().specMeta;
-  const m = anchor(/Текущий spec\/items\.md: (\d+) строк.*?, (\d+) H2, (\d+) H3, (\d+) байт/, 'c9');
-  assert.ok(D(m[1]) === S.lines && D(m[2]) === S.h2 && D(m[3]) === S.h3 && D(m[4]) === S.bytes, 'c9: disk=' + JSON.stringify(S) + ' canon=' + m[1] + '/' + m[2] + '/' + m[3] + '/' + m[4]);
+  const m = anchor(/Текущий spec\/items\.md: (\d+) строк.*?, (\d+) H2, (\d+) H3/, 'c9');
+  assert.ok(D(m[1]) === S.lines && D(m[2]) === S.h2 && D(m[3]) === S.h3, 'c9: disk=' + JSON.stringify(S) + ' canon=' + m[1] + '/' + m[2] + '/' + m[3]);
   assert.ok(S.trailingNL === false, 'c9: spec/items.md закончился trailing-newline (R5/байты сдвинуты)');
 });

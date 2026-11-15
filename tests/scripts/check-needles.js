@@ -2,7 +2,7 @@
 'use strict';
 // Задача 000284.02: CLI-порт одноразового /tmp/thegame-wf-000284.01/
 // check-needles.js (не был закоммичен — теперь воспроизводим).
-// 25 констант tests/spec-000230.16-wording.test.js (фикс-regex, видит
+// 26 констант tests/spec-000230.16-wording.test.js (000386: W8A+W8A2; фикс-regex, видит
 // W7B1/W7B2) vs spec/items.md (norm'd, FOUND/NOT FOUND) + вербально
 // vs иглы канона §4.2 + W8F-space detail-проверка (пробел после
 // «кузнечное_дело/» пинует игла — факт spec, не баг).
