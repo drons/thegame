@@ -29,7 +29,9 @@
 // не переименовано, реестра num→id ещё нет — existsSync-гейт T11),
 // без краха загрузки. T8/T9/T10 — ГЕЙТ-стражи «вне scope не тронуто»
 // и инварианты, не зависящие от порядка имён: зелёные и ДО, зуб
-// мутационный (M7/M8/M9/M10).
+// мутационный (M7/M8/M9/M10). (000393, ретро-b24 F3/F4: HEAD-guard
+// механизмы T8/T10 заменены живым регеном и структурными пинами,
+// self-gate T12 усилен против обходных форм; T9 остаётся docs-гейтом.)
 //
 // Контракты (миграция 000379: ни ОДНОго литерала, равного живому счётчику;
 // self-gate T12 сторожит это машиной — вернуть число в файл нельзя):
@@ -70,11 +72,17 @@
 //     перестановка СОДЕРЖИМОГО пары файлов — записи всё равно в id-порядке
 //     (компаратор наблюдаем). Главный зуб свежести зеркала после снятия
 //     head/tail-литералов из T2.
-//   * T8 — 0-diff стражи: прочие src/*-data.js ЗЕРКАЛА побайтово прежние
-//     (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + зеркало ≡ каталогу
-//     (live), лут ≥ MIN_LOOT_I08 (факт базы: 33), EQUIP_POOLS по длине ≡
-//     rarity-таблице, ПОСЧИТАННОЙ с диска (литералы 232/161/117/46/23
-//     сняты 000379).
+//   * T8 — живые стражи зеркал (000393 вместо класса HEAD-guard): 9
+//     ГЕНЕРИРУЕМЫХ src/*-data.js побайтово ≡ РЕГЕНУ из ТЕКУЩЕГО диска
+//     assets/ в tmp-дереве (легальная регенерация зеркала волной зелена
+//     уже ДО коммита, дрейф зеркала ≢ JSON красен навсегда, включая
+//     закоммиченный; карта генераторов выводится из scripts/ живым
+//     свипом REGEN_SYNC_MAP_I08 и пинуется); item-ссылки в зеркалах —
+//     РАЗРЕШЁННЫЕ id, не пути (живой свип отсутствия item-путей вместо
+//     git-байтов) + зеркало ≡ каталогу (live), лут ≥ MIN_LOOT_I08,
+//     EQUIP_POOLS — ключи и длины ≡ rarity-таблице, ПОСЧИТАННОЙ с диска,
+//     и каждый id пула ∈ каталогу (loot-equip — hand-данные, своего
+//     sync-скрипта нет, живые смыслы вместо побайтовой сверки).
 //   * T9 — spec/items.md побайтово прежний (канон memory/000230.16
 //     byte-identical — гейт; docs-эррата :324 — долг, не правится) +
 //     SPEC_FILE_LINES items.md = 477 не двигается.
@@ -82,8 +90,12 @@
 //     set-равенство каталогу по редкости для КАЖДОГО ключа пулов
 //     (обход по Object.keys(LE.EQUIP_POOLS), не по таблице-литералу);
 //     F2-P1: ПОРЯДОК пулов — свой append, не lex — guard; сид-каналы
-//     map.js/items.js побайтово прежние (0x4C4F4F54/0x43414d50 — переснят
-//     только контент золотых, F1-принять); makeShop bt2 — детерминизм и
+//     map.js/items.js запинены ВЫРАЖЕНИЯМИ (`LOOT_SEED = GLOBAL_SEED ^
+//     0x4C4F4F54`, `CAMP_STOCK_SEED = 0x43414d50`) и отсутствием
+//     numeric-путей items (000393 вместо «≡ HEAD»: map.js/items.js — НЕ
+//     реген-файлы, побайтовая сверка красила бы легитимные правки
+//     живых параллельных волн); золотые — ответственность map.test /
+//     items.test / cities (F1-принять); makeShop bt2 — детерминизм и
 //     валидность id под НОВЫМ порядком allItems.
 //   * T11 — реестр «номер → id» tests/scripts/items-num2id-000318.08.json
 //     (его load'ят переписанные тесты ради ВИРТУАЛЬНЫХ numeric-имён —
@@ -700,19 +712,113 @@ test('000318.08 T7: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зеркала побайтово прежние (item-ссылки в них — РАЗРЕШЁННЫЕ id, не пути) + живые мощности (зеркало ≡ каталогу), пол лута и rarity-таблица, ВЫВЕДЕННАЯ с диска (000379: литералы 914/33/232-161-117-46-23 сняты)', () => {
-  for (const mirror of ['craft-data.js', 'dungeons-data.js',
-    'loot-equip-data.js', 'mob-groups-data.js', 'npc-data.js',
-    'portraits-data.js', 'runes-data.js', 'skills-data.js',
-    'spells-data.js', 'visuals-data.js']) {
-    const before = execFileSync('git',
-      ['-C', ROOT, 'show', 'HEAD:src/' + mirror],
-      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-    const after = fs.readFileSync(path.join(ROOT, 'src', mirror), 'utf8');
-    assert.equal(after, before,
-      'src/' + mirror + ' ИЗМЕНЁН: rename items его не касается — '
-      + 'зеркала хранят РАЗРЕШЁННЫЕ id предметов (sync резолвит пути), '
-      + 'не файловые пути (пути item-ссылок живут ТОЛЬКО в assets)');
+// Карта «генерируемое зеркало → sync-скрипт» выводится ЖИВОМ свипом scripts/:
+// sync-<X>.js породит src/<X>.js, если он существует, иначе src/<X>-data.js
+// (sync-portraits → portraits-data.js); sync-buildings-data и sync-all вне
+// класса (buildings.js — hand-файл с маркерными зонами, не зеркало-реген).
+// Новый sync-скрипт с зеркалом-регеном обязан appeared и в EXPECTED_карте
+// ниже — иначе зуб красит осмысленно (карта пинуется, класс наблюдаем).
+function REGEN_SYNC_MAP_I08() {
+  const map = new Map();
+  for (const s of fs.readdirSync(path.join(ROOT, 'scripts')).sort()) {
+    const m = /^sync-(.+)\.js$/.exec(s);
+    if (!m) continue;
+    for (const mirror of [m[1] + '.js', m[1] + '-data.js']) {
+      if (!mirror.endsWith('-data.js')) continue;
+      if (fs.existsSync(path.join(ROOT, 'src', mirror))) {
+        map.set(mirror, s);
+        break;
+      }
+    }
+  }
+  return map;
+}
+
+// tmp-«репозиторий» для regena: ПОЛНЫЙ assets (генераторы читают несколько
+// каталогов: portraits ← npc, craft/spells/mobs ← items) + scripts (lib) +
+// ВСЕ tests/scripts/*.json (sync-skills-data читает skills-num2id-000318.09
+// — без копии ENOENT, POC) + пустой src/ под выходы; живое дерево НЕ
+// мутируется (spawn идёт от tmp-копий скриптов).
+function makeTmpRegenTree_I08() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'items-rename-000393-'));
+  fs.cpSync(path.join(ROOT, 'assets'), path.join(tmp, 'assets'),
+    { recursive: true });
+  fs.cpSync(path.join(ROOT, 'scripts'), path.join(tmp, 'scripts'),
+    { recursive: true });
+  fs.cpSync(path.join(ROOT, 'tests', 'scripts'),
+    path.join(tmp, 'tests', 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+  return tmp;
+}
+
+const REGEN_MIRRORS_000393 = {
+  'craft-data.js': 'sync-craft-data.js',
+  'dungeons-data.js': 'sync-dungeons-data.js',
+  'mob-groups-data.js': 'sync-mob-groups-data.js',
+  'npc-data.js': 'sync-npc-data.js',
+  'portraits-data.js': 'sync-portraits.js',
+  'runes-data.js': 'sync-runes-data.js',
+  'skills-data.js': 'sync-skills-data.js',
+  'spells-data.js': 'sync-spells-data.js',
+  'visuals-data.js': 'sync-visuals-data.js',
+};
+
+test('000318.08 T8: живые стражи зеркал (000393 вместо HEAD-сверки) — 9 ГЕНЕРИРУЕМЫХ src/*-data.js побайтово ≡ РЕГЕНУ из текущего диска assets/ в tmp-дереве (легальная регенерация зелена ДО коммита, дрейф красен навсегда) + анти-хайджек (зеркала хранят РАЗРЕШЁННЫЕ id, не item-пути) + живые мощности (зеркало ≡ каталогу), пол лута и rarity-таблица, ВЫВЕДЕННАЯ с диска, и id пулов ∈ каталогу', () => {
+  const liveMap = REGEN_SYNC_MAP_I08();
+  const sortObj = (o) => Object.fromEntries(Object.entries(o)
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1)));
+  assert.deepEqual(sortObj(Object.fromEntries(liveMap)),
+    sortObj({ ...REGEN_MIRRORS_000393, 'items-data.js': 'sync-items-data.js' }),
+    'карта генераторов зеркал (живой свип scripts/^sync- ≡ существующее'
+    + ' src/*-data.js) изменилась — новый sync-скрипт/зеркало требует'
+    + ' осознанного включения в REGEN_MIRRORS_000393 (зуб Т8 обязан'
+    + ' сторожить НОВОЕ зеркало живым регеном, а не молча его пропустить)');
+  const tmp = makeTmpRegenTree_I08();
+  try {
+    for (const [mirror, script] of Object.entries(REGEN_MIRRORS_000393)) {
+      assert.equal(liveMap.get(mirror), script,
+        'генератор src/' + mirror + ' ≠ ' + script + ' (карта разъехалась)');
+      const r = spawnSync(process.execPath,
+        [path.join(tmp, 'scripts', script)], { encoding: 'utf8' });
+      assert.equal(r.status, 0,
+        'tmp-реген ' + script + ' завершился ошибкой: '
+        + String(r.stderr || r.stdout).slice(0, 400));
+      assert.ok(fs.readFileSync(path.join(tmp, 'src', mirror))
+        .equals(fs.readFileSync(path.join(ROOT, 'src', mirror))),
+        'src/' + mirror + ' ≢ побайтовому регену из ТЕКУЩЕГО assets/'
+        + ' (tmp-запуск ' + script + ') — зеркало отстаёт от JSON (sync'
+        + ' обязан идти в ТОМ ЖЕ коммите, что и правка assets) либо генератор'
+        + ' стал неидемпотентным. Механизм (000393, ретро-b24 F4) вместо'
+        + ' побайтовой сверки с HEAD: легитимная регенерация волной зелена'
+        + ' уже ДО коммита, а закоммиченный дрейф зеркала — красен (HEAD'
+        + ' -сверка на нём тавтологична); item-ссылки в зеркалах — РАЗРЕШЁННЫЕ'
+        + ' id предметов (sync резолвит пути), пути item-ссылок живут'
+        + ' ТОЛЬКО в assets');
+    }
+    for (const mirror of [...Object.keys(REGEN_MIRRORS_000393),
+      'loot-equip-data.js']) {
+      const text = fs.readFileSync(path.join(ROOT, 'src', mirror), 'utf8');
+      assert.ok(!text.includes('assets/items/'),
+        'src/' + mirror + ' содержит item-ПУТЬ «assets/items/» — зеркала'
+        + ' обязаны хранить РАЗРЕШЁННЫЕ id предметов, не файловые пути'
+        + ' (анти-хайджек 000393: живой свип содержимого вместо прежней'
+        + ' побайтовой сверки с HEAD); пути каталога живут ТОЛЬКО в assets');
+    }
+    const wf = path.join(tmp, 'assets', 'items', 'wood_sword.json');
+    const wData = JSON.parse(fs.readFileSync(wf, 'utf8'));
+    wData.value = Number(wData.value) + 1;
+    fs.writeFileSync(wf, JSON.stringify(wData, null, 2) + '\n', 'utf8');
+    const rt = spawnSync(process.execPath,
+      [path.join(tmp, 'scripts', 'sync-items-data.js')], { encoding: 'utf8' });
+    assert.ok(rt.status !== 0 || !fs.existsSync(path.join(tmp, 'src',
+      'items-data.js'))
+      || !fs.readFileSync(path.join(tmp, 'src', 'items-data.js'))
+        .equals(fs.readFileSync(MIRROR)),
+      'анти-вакуум механизма (постоянный, 000393): порт одного asset'
+      + ' (wood_sword.value +1) в tmp НЕ покрасил реген src/items-data.js —'
+      + ' сверка «≡ реген» ничего не сторожит (зуб вакуумный)');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
   const { ITEMS } = require(MIRROR);
   assert.equal(ITEMS.length, itemFiles().length,
@@ -734,12 +840,21 @@ test('000318.08 T8: 0-diff стражи — прочие src/*-data.js зерк�
     'набор редкостей в EQUIP_POOLS ≢ rarity-таблице каталога (пулы: '
     + Object.keys(LE.EQUIP_POOLS).sort().join(',') + ', каталог: '
     + [...byRarity.keys()].sort().join(',') + ')');
+  const catalogIds = new Set(catIdsT5());
   for (const [rarity, count] of byRarity) {
     assert.equal(LE.EQUIP_POOLS[rarity].length, count,
       `EQUIP_POOLS.${rarity} (${LE.EQUIP_POOLS[rarity].length}) ≢`
       + ' числу предметов этой редкости в каталоге (' + count
       + ') — таблица выводится с диска, литералы 232/161/117/46/23 сняты'
       + ' задачей 000379; F2-P1 (данные пулов 0-diff) остаётся зубом');
+    for (const id of LE.EQUIP_POOLS[rarity]) {
+      assert.ok(catalogIds.has(id),
+        `EQUIP_POOLS.${rarity}: id «${id}» нет в каталоге assets/items`
+        + ' (loot-equip — hand-данные без sync-генератора, 000393: вместо'
+        + ' побайтовой сверки с HEAD — живой смысл «каждый id пула ∈'
+        + ' каталогу»; вместе с равенством длин выше это ≡-состав по'
+        + ' редкости); фантом покраснеет здесь, а не в рантайме ролла');
+    }
   }
 });
 
@@ -771,7 +886,7 @@ test('000318.08 T9: spec/items.md побайтово прежний (канон 
 //     0-diff; (B) лут-хэш map.js по ПОЗИЦИИ в ITEMS — F1-принять: map.js
 //     0-diff, GOLDEN_TILES/loot пересняты, инвариант деградирует (долг);
 //     (C) EQUIP_POOLS — F2-P1: данные 0-diff, пины → set-равенство.
-test('000318.08 T10: потребители порядка — EQUIP_POOLS set-≡ каталогу по редкости при НЕ-lex порядке самих пулов (F2-P1); сид-каналы 0x4C4F4F54/0x43414d50 побайтово прежние (F1-принять); makeShop bt2 детерминирован и валиден под НОВЫМ lex-порядком allItems', () => {
+test('000318.08 T10: потребители порядка — EQUIP_POOLS set-≡ каталогу по редкости при НЕ-lex порядке самих пулов (F2-P1); сид-каналы 0x4C4F4F54/0x43414d50 запинены выражениями и отсутствием numeric-путей (000393 вместо «≡ HEAD», F1-принять: золотые — ответственность map.test/items.test/cities); makeShop bt2 детерминирован и валиден под НОВЫМ lex-порядком allItems', () => {
   const { ITEMS } = require(MIRROR);
   const LE = require(path.join(ROOT, 'src', 'loot-equip-data.js'));
   for (const rarity of Object.keys(LE.EQUIP_POOLS)) {
@@ -791,17 +906,33 @@ test('000318.08 T10: потребители порядка — EQUIP_POOLS set-�
         + 'оставаться 0-diff)');
     }
   }
-  for (const [file, needle] of [['src/map.js', '0x4C4F4F54'],
-    ['src/items.js', '0x43414d50']]) {
-    const before = execFileSync('git',
-      ['-C', ROOT, 'show', 'HEAD:' + file], { encoding: 'utf8' });
-    const after = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    assert.equal(after, before,
-      file + ' ИЗМЕНЁН: F1-принять — сид-канал и формулы 0-diff, под lex-'
-      + 'порядок пересняты ТОЛЬКО золотые (GOLDEN_TILES/loot, SHOP_GOLDEN, '
-      + 'GOLDEN_MAKESHOP, GOLDEN_CAMP, A57/B26/B27, T7/T6 счётчики)');
-    assert.ok(after.includes(needle), file + ': сид-константа ' + needle
+  // 000393 (ретро-b24 F4): map.js/items.js — НЕ реген-файлы (генераторов
+  // нет), «≡ побайтовому HEAD» красило легитимные правки живых волн
+  // (очередь 000359-01 правит items.js) и было тавтологично после коммита.
+  // Сид-каналы пинуются ВЫРАЖЕНИЯМИ — смена формулы/сида красит здесь,
+  // произвольная правка остального файла — нет; золотые (GOLDEN_TILES/
+  // loot, SHOP_GOLDEN, GOLDEN_MAKESHOP, GOLDEN_CAMP, A57/B26/B27) —
+  // ответственность map.test / items.test / cities (F1-принять).
+  const SEED_PINS_000393 = [
+    ['src/map.js', /^\s*const LOOT_SEED = GLOBAL_SEED \^ 0x4C4F4F54;$/m,
+      '0x4C4F4F54'],
+    ['src/items.js', /^\s*const CAMP_STOCK_SEED = 0x43414d50;/m,
+      '0x43414d50'],
+  ];
+  for (const [file, exprRe, needle] of SEED_PINS_000393) {
+    const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    assert.ok(exprRe.test(text),
+      file + ': выражение сида канала изменилось (ожидалось точное '
+      + exprRe + ') — канал лута/лагерного стока сдвигает ВСЕ золотые'
+      + ' этого файла: пересъём живым кодом в том же коммите (map.test /'
+      + ' items.test / cities), случайные сиды 0-diff; F1-принять: под'
+      + ' lex-порядок rename переснят только контент золотых');
+    assert.ok(text.includes(needle), file + ': сид-константа ' + needle
       + ' пропала');
+    assert.doesNotMatch(text, /assets\/items\/\d{6}\.json/,
+      file + ': numeric-пути каталога items (флип шейпа 000318.08) — в src'
+      + ' их быть не должно; T5 свипует src/ целиком, пин локален к'
+      + ' порядку-чувствительным потребителям');
   }
   const I = require(path.join(ROOT, 'src', 'items.js'));
   const M = require(path.join(ROOT, 'src', 'map.js'));
@@ -902,52 +1033,263 @@ test('000318.08 T11: реестр tests/scripts/items-num2id-000318.08.json — 
     + ' легальная правка');
 });
 
-// SELF-GATE (задача 000379) — по образцу 000375: имя замороженного
-// счётчика и форма ассертов собираются concat-ом сегментов, поэтому
-// собственный текст зуба им не совпадает (иначе T12 был бы вечно красным).
-// Ограничение (осознанное, как у .375): ассерт-форма ловится в пределах
-// ОДНОЙ физической строки — перенос аргумента на новую строку от зуба
-// не спрячешь, но и не оправдан (style соседних файлов).
+// SELF-GATE (задача 000379; усиление 000393 по ретро-b24 F3/F4) — по образцу
+// 000375: имя замороженного счётчика и формы-иглы собираются concat-ом
+// сегментов (или из рантаймовых значений), поэтому собственный текст зуба им
+// не совпадает (иначе T12 был бы вечно красным). Усиление против F3: предикат
+// БОЛЬШЕ не привязан к написанию одного ассерт-шаблона — он value-based:
+// любое числовое равенство живому счётчику каталога/реестра (FROZEN_LIVE_
+// COUNTS_I08 с диска) в любой из форм (сравнение слева/справа, присваивание/
+// hoisted-константа, стрелка-возврат, аргумент assert-а или литерал массива,
+// кавычковое сравнение, hex-форма, перенос литерала на новую строку) — это
+// замороженный счётчик. Сканируется исходник этого файла: строчные комментарии
+// и содержимое строковых литералов вырезаются сканером (комментарий —
+// история; проза сообщений не само-матчится), код остаётся. Ограничения
+// (зафиксированы в memory/000393-selfgate-headguard.md): строчные комментарии
+// вырезаются целиком (в т.ч. хвостовые после кода); кавычка внутри
+// литерал-regex способна открыть ложную строку до следующей кавычки (в файле
+// таких нет — не плоди), блочные комментарии не маскятся (в файле их нет);
+// структурная форма (любой .length|size, число) осталась однострочной, как
+// в 000379, а value-формы через \s* перенос литерала через строку ловят.
+// Усиление против F4 (К-антитавтология): класс побайтовых сверок файлов src
+// с их содержимым в HEAD запрещён в этом файле машиной (HEAD_GUARD_HITS_I08):
+// легальная регенерация зеркала до коммита краснела, а после коммита сравнение
+// тавтологично. Легальные механизмы: T7/T8 tmp-реген из assets, T10
+// структурные пины выражений, T11 append-зуб реестра, T9 документ-гейты
+// (spec/память). Allowlist конкатенированных обращений к HEAD — только
+// LEDGER_I08_REL (T11); документ-гейты T9 — полные литералы путей, они под
+// запрет не попадают. Постоянные таблицы истинности (по образцу 000388 T4 /
+// 000386 T8) пинуют сам предикат: красные формы обязаны краснеть, легальные —
+// зеленеть, иначе зуб вакуумный.
 const FROZEN_IDENT_RE_I08 = () => new RegExp('EXPECTED_' + 'COUNT\\b', 'g');
 const FROZEN_ASSERT_RE_I08 = () => new RegExp('assert' + '\\.equal\\([^\\n]*?'
   + '\\.(?:length|size)\\s*,\\s*\\d+', 'g');
 
-test('000318.08 T12: self-gate — в исходнике этого файла нет замороженного живого счётчика каталога (ни имени-константы, ни assert.equal(<…length|size>, <литерал>)); positive-маркеры живой механики на месте', () => {
+// Живые счётчики, чьи значения нельзя возвращать в файл литералом: мощность
+// каталога assets/items и мощность реестра «номер → id» (равны по биекции T1;
+// зеркало ITEMS ≡ каталогу — то же число).
+function FROZEN_LIVE_COUNTS_I08() {
+  return [...new Set([itemFiles().length,
+    Object.keys(REGISTRY_I08()).length])];
+}
+
+// Маскирование одной физической строки: содержимое строковых/шаблонных
+// литералов вырезается (маркер S), строчные комментарии — до конца строки.
+// Сканер посимвольный, поэтому апостроф в комментарии/строке не ломает
+// разбор (прецедент конкатенации «load' + 'ят» в T11).
+function FROZEN_MASK_LINE_I08(line) {
+  let out = '';
+  let q = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) {
+      if (c === '\\') { i += 1; continue; }
+      if (c === q) q = null;
+      continue;
+    }
+    if (c === '/' && line[i + 1] === '/') break;
+    if (c === "'" || c === '"' || c === '`') { q = c; out += 'S'; continue; }
+    out += c;
+  }
+  return out;
+}
+
+const FROZEN_LINE_OF_I08 = (t, idx) => 1 + t.slice(0, idx).split('\n').length;
+
+// Формы обнаружения литерала, равного живому счётчику V (кроме кавычковой —
+// она по RAW-тексту, маскирование съело бы кавычки). Адьяцентность именно
+// оператора сравнения/присваивания оставляет легальными арифметику
+// (64 * V * 1024 — maxBuffer-класс) и padded-имена строк реестра ('000NNN').
+function FROZEN_VALUE_RES_I08(v) {
+  const S = String(v);
+  const OP = '(?:===|!==|==|!=|<=|>=|<|>)';
+  const B = '(?<![\\w.])';
+  const E = '(?![\\w.])';
+  return [
+    ['сравнение с литералом справа', new RegExp(OP + '\\s*' + B + S + E, 'g')],
+    ['сравнение с литералом слева', new RegExp(B + S + '\\s*' + OP, 'g')],
+    ['присваивание литерала (hoisted-константа)',
+      new RegExp('(?<![=!<>+\\-*/%])=\\s*' + B + S + E, 'g')],
+    ['стрелка, возвращающая литерал', new RegExp('=>' + '\\s*' + B + S + E, 'g')],
+    ['литерал в позиции аргумента/элемента',
+      new RegExp('[\\[(,]\\s*' + B + S + E + '\\s*[\\]),]', 'g')],
+    ['hex-форма литерала',
+      new RegExp(B + '0x' + Number(v).toString(16) + '(?![0-9a-f])', 'gi')],
+  ];
+}
+
+function FROZEN_QUOTED_RES_I08(v) {
+  const S = String(v);
+  const OP = '(?:===|!==|==|!=)';
+  const Q = '[\\x27"]';
+  return [
+    ['кавычковый литерал справа от сравнения', new RegExp(OP + '\\s*' + Q + S + Q, 'g')],
+    ['кавычковый литерал слева от сравнения', new RegExp(Q + S + Q + '\\s*' + OP, 'g')],
+  ];
+}
+
+// Полный предикат замороженного литерала для произвольного текста: имена,
+// структурная однострочная форма (с split(-исключением line-пинов
+// документов) и все value-формы по живым счётчикам.
+function FROZEN_HITS_I08(text) {
+  const bad = [];
+  const masked = text.split('\n').map(FROZEN_MASK_LINE_I08).join('\n');
+  for (const v of FROZEN_LIVE_COUNTS_I08()) {
+    for (const [form, re] of FROZEN_VALUE_RES_I08(v)) {
+      for (const m of masked.matchAll(re)) {
+        bad.push('строка ' + FROZEN_LINE_OF_I08(masked, m.index) + ': '
+          + form + ' — литерал, равный живому счётчику');
+      }
+    }
+    for (const [form, re] of FROZEN_QUOTED_RES_I08(v)) {
+      for (const m of text.matchAll(re)) {
+        bad.push('строка ' + FROZEN_LINE_OF_I08(text, m.index) + ': '
+          + form + ' — кавычковый литерал, равный живому счётчику');
+      }
+    }
+  }
+  for (const m of masked.matchAll(FROZEN_IDENT_RE_I08())) {
+    bad.push('строка ' + FROZEN_LINE_OF_I08(masked, m.index)
+      + ': имя замороженного счётчика');
+  }
+  for (const m of masked.matchAll(FROZEN_ASSERT_RE_I08())) {
+    if (m[0].includes('split(')) continue;
+    bad.push('строка ' + FROZEN_LINE_OF_I08(masked, m.index)
+      + ': структурная форма ассерта с числовым литералом');
+  }
+  return bad;
+}
+
+// К-антитавтология (000393, ретро-b24 F4): побайдовые сверки файлов src с
+// HEAD в этом файле запрещены. Игла «HEAD:» + «src» собирается из сегментов,
+// поэтому собственный текст детектора ей не совпадает (self-match = 0).
+const HEAD_REF_COLON_I08 = 'HEAD' + ':';
+const HEAD_GUARD_ALLOW_I08 = ['LEDGER_I08_REL'];
+
+function HEAD_GUARD_HITS_I08(text) {
+  const bad = [];
+  const q = '[\\x27"]';
+  const res = [
+    { why: 'побайтовая сверка src-файла с HEAD',
+      re: new RegExp(HEAD_REF_COLON_I08 + 'src', 'g') },
+    { why: 'сверка с HEAD через конкатенацию переменной (вне allowlist)',
+      re: new RegExp(q + HEAD_REF_COLON_I08 + q
+        + '\\s*\\+\\s*([A-Za-z_$][\\w$]*)', 'g'),
+      ident: true },
+    { why: 'сверка с HEAD через конкатенацию quoted-src',
+      re: new RegExp(q + HEAD_REF_COLON_I08 + q + '\\s*\\+\\s*' + q + 'src',
+        'g') },
+  ];
+  for (const r of res) {
+    for (const m of text.matchAll(r.re)) {
+      if (r.ident && HEAD_GUARD_ALLOW_I08.includes(m[1])) continue;
+      bad.push('строка ' + FROZEN_LINE_OF_I08(text, m.index) + ': ' + r.why);
+    }
+  }
+  return bad;
+}
+
+test('000318.08 T12: self-gate (усиление 000393 против F3/F4 из ретро-b24) — в исходнике этого файла нет ни имени замороженного счётчика, ни ЛЮБОГО литерала, равного живому счётчику каталога/реестра (сравнения слева/справа, присваивание/hoisted, стрелка, аргумент/массив, кавычки, hex, перенос строки), ни побайдовых сверок src-файлов с HEAD; ПОСТОЯННЫЕ таблицы истинности ловушек и легальных форм; positive-маркеры живой механики на месте', () => {
   const src = fs.readFileSync(__filename, 'utf8');
-  const identHits = src.match(FROZEN_IDENT_RE_I08()) || [];
-  assert.ok(identHits.length === 0,
-    'в исходник items-rename вернулся замороженный счётчик каталога ('
-    + identHits.length + ' вхождений имени): '
-    + 'рост assets/items волнами 000321.YY легален, поэтому живое число'
-    + ' здесь пинить нельзя. РЕЦЕПТ вместо литерала: каталог ≡ реестру'
-    + ' по мощности (T1), зеркало ≡ каталогу (T2), ключи реестра — префикс'
-    + ' 000001..N с APPEND-ONLY по HEAD (T11), агрегаты referrer-ов —'
-    + ' монотонные поля MIN_* (T5); границы и рецепт —'
-    + ' memory/000379-items-registry-unfetter.md');
-  // Исключение (осознанное): line-пины документов вида
-  // `String(x).split('\n').length === <число>` — это НЕ счётчик каталога,
-  // а контракт line-neutral (SPEC_FILE_LINES / spec-split), он живёт по
-  // своим правилам и меняется только вместе с документом.
-  const frozenAsserts = [...src.matchAll(FROZEN_ASSERT_RE_I08())]
-    .filter((m) => !m[0].includes('split('))
-    .map((m) => src.slice(0, m.index).split('\n').length);
-  assert.ok(frozenAsserts.length === 0,
-    'в исходнике ' + frozenAsserts.length + ' ассерт-ов вида'
-    + ' assert.equal(<выражение .length|.size>, <литерал>) на строках '
-    + frozenAsserts.join(', ') + ' — это замороженный живой счётчик'
-    + ' (мощность каталога/реестра/зеркала или длина пула). РЕЦЕПТ:'
-    + ' сравнивать с живой величиной с диска (`=== itemFiles().length`),'
-    + ' либо с монотонным полом (FROZEN_PREFIX_END_I08 / MIN_*), либо'
-    + ' выводить из данных (rarity-таблица, lex-голова/хвост).'
-    + ' Мутационный класс зуба — см. tasks/result/000379.md');
-  assert.ok(src.includes('FROZEN_PREFIX_END_I08'),
-    'пропал positive-маркер FROZEN_PREFIX_END_I08 — монотонная граница'
-    + ' замороженного префикса (864 предмета на момент rename), ниже которой'
-    + ' каталог/реестр упасть не могут');
-  assert.ok(src.includes('LEDGER_APPEND_ONLY_I08'),
-    'пропал positive-маркер LEDGER_APPEND_ONLY_I08 — зуб «реестр'
-    + ' append-only относительно HEAD» (заморожены СТРОКИ, а не длина);'
-    + ' без него волна, дописавшая реестр, остаётся без стража пере-нумерации');
+  const bad = [];
+  for (const h of FROZEN_HITS_I08(src)) bad.push('литерал счётчика: ' + h);
+  for (const h of HEAD_GUARD_HITS_I08(src)) bad.push('антитавтология: ' + h);
+  const QI08 = String.fromCharCode(39);
+  const numTable = [];
+  for (const v of FROZEN_LIVE_COUNTS_I08()) {
+    const S = String(v);
+    const HX = Number(v).toString(16);
+    numTable.push(
+      ['inline-литерал в assert.equal(…, V)',
+        'assert.equal(registryKeys.length, ' + S + ', msg);', true],
+      ['assert.ok(.length === V) — обход E2 (ретро-b24 F3)',
+        'assert.ok(registryKeys.length === ' + S + ', msg);', true],
+      ['hoisted-константа const T = V — обход H2 (ретро-b24 F3)',
+        'const TOT_PROBE_I08 = ' + S
+        + '; assert.equal(registryKeys.length, TOT_PROBE_I08, msg);', true],
+      ['перенос литерала на новую строку',
+        'assert.equal(registryKeys.length,\n  ' + S + ', msg);', true],
+      ['swap аргументов assert.equal(V, …)',
+        'assert.equal(' + S + ', registryKeys.length, msg);', true],
+      ['кавычковое сравнение === V',
+        'const ok = shape === ' + QI08 + S + QI08 + ';', true],
+      ['hex-форма литерала 0x…',
+        'const cap = 0x' + HX + ';', true],
+      ['стрелка, возвращающая литерал',
+        'const fallback = () => ' + S + ';', true],
+      ['литерал в массиве',
+        'const rows = [' + S + ', 7];', true],
+      ['имя замороженного счётчика (ровно EXPECTED_COUNT)',
+        'const EXPECTED_' + 'COUNT = 1;', true],
+      ['число только в комментарии (история разрешена)',
+        '// исторический замер ' + S + ' предм.\nconst b = 5;', false],
+      ['padded-имя строки реестра вида 000NNN',
+        'const SPOT = [' + QI08 + S.padStart(6, '0') + QI08 + ', '
+        + QI08 + 'wood_sword' + QI08 + '];', false],
+      ['maxBuffer-арифметика (умножение, не сравнение)',
+        'execFileSync(git, a, { maxBuffer: 64 * ' + S + ' * ' + S + ' });',
+        false],
+      ['сверка двух живых величин без литерала',
+        'assert.equal(mirrorItems.length, itemFiles().length, msg);', false],
+      ['line-пин документа (split-исключение, число ≠ живого)',
+        'assert.equal(String(doc).split(' + QI08 + '\\n' + QI08
+        + ').length, ' + (Number(S) + 11) + ', msg);', false],
+    );
+  }
+  for (const [name, synth, mustCatch] of numTable) {
+    const caught = FROZEN_HITS_I08(synth).length > 0;
+    if (caught !== mustCatch) {
+      bad.push('таблица истинности литералов: форма «' + name + '» '
+        + (mustCatch ? 'НЕ поймана (обход класса F3 возвращается)'
+          : 'поймана ложно (легальная форма запрещена)'));
+    }
+  }
+  const headTable = [
+    ['побайтовая src-сверка литералом пути',
+      QI08 + HEAD_REF_COLON_I08 + 'src/probe.js' + QI08, true],
+    ['src-сверка через переменную вне allowlist',
+      "['show', '" + HEAD_REF_COLON_I08 + QI08 + ' + probeFile]', true],
+    ['src-сверка через quoted-src конкатенацию',
+      "['show', '" + HEAD_REF_COLON_I08 + QI08 + ' + ' + QI08
+      + 'src/probe.js' + QI08 + ']', true],
+    ['allowlist: append-зуб реестра (T11)',
+      "['show', '" + HEAD_REF_COLON_I08 + QI08 + ' + LEDGER_I08_REL]', false],
+    ['документ-гейт spec (T9)',
+      QI08 + HEAD_REF_COLON_I08 + 'spec/items.md' + QI08, false],
+    ['документ-гейт памяти (T9)',
+      QI08 + HEAD_REF_COLON_I08 + 'memory/000230.16-spec-equipment-doc.md'
+      + QI08, false],
+  ];
+  for (const [name, synth, mustCatch] of headTable) {
+    const caught = HEAD_GUARD_HITS_I08(synth).length > 0;
+    if (caught !== mustCatch) {
+      bad.push('таблица истинности HEAD-сверок: форма «' + name + '» '
+        + (mustCatch ? 'НЕ поймана (класс F4 возвращается молча)'
+          : 'поймана ложно (легальный гейт запрещён)'));
+    }
+  }
+  // Positive-маркеры: игла собирается из сегментов и считается ВХОЖДЕНИЯМИ
+  // (не includes), иначе строка самой проверки содержала бы маркер целиком и
+  // гейт был бы тавтологическим (наследный дефект формы 000379, убран здесь).
+  // minHits = 2 ⇒ живые определение И потребитель, а не объявление-пустышку.
+  const markerMiss = (head, tail, minHits, why) => {
+    const hits = (src.match(new RegExp(head + tail, 'g')) || []).length;
+    if (hits < minHits) {
+      bad.push('positive-маркер «' + head + tail + '»: вхождений ' + hits
+        + ' < ' + minHits + ' — ' + why);
+    }
+  };
+  markerMiss('FROZEN_PREFIX_', 'END_I08', 2,
+    'монотонная граница замороженного префикса (предметы на момент rename),'
+    + ' ниже которой каталог/реестр упасть не могут');
+  markerMiss('LEDGER_APPEND_ONLY_', 'I08', 2,
+    'зуб «реестр append-only относительно HEAD» (заморожены СТРОКИ, а не'
+    + ' длина); без него волна, дописавшая реестр, остаётся без стража'
+    + ' пере-нумерации');
+  markerMiss('REGEN_SYNC_MAP_', 'I08', 2,
+    'живой механизм «зеркало ≡ реген из assets» (T8, 000393 вместо класса'
+    + ' побайдовых сверок src с HEAD); без него карта генераторов зеркал не'
+    + ' сторожится, и F4 возвращается молча');
   // Форма-паттерн (а не includes имени): маркер требует саму декларацию
   // hex-литерала, поэтому собственный текст этого зуба ему НЕ совпадает
   // (self-match = 0) — удаление константы FROZEN_PREFIX_DIGEST_SHA256_I08
@@ -958,6 +1300,25 @@ test('000318.08 T12: self-gate — в исходнике этого файла �
     + 'литерал замороженного префикса 000001..864, T13/000392): без'
     + ' постоянной digest-пины закоммиченная пере-нумерация префикса снова'
     + ' машиной невидима (ретро-b24 F1) — возвращай зуб, а не глуши его');
+
+  assert.deepEqual(bad, [],
+    'self-gate T12 (усиление 000393: ретро-b24 F3/F4) покраснен ('
+    + bad.length + '): ' + bad.join(' | ')
+    + ' — КОНТРАКТ «К-живость»: ни одного литерала, равного живому счётчику'
+    + ' каталога/реестра, в исполняемом тексте файла (комментарии — история):'
+    + ' рост assets/items волнами 000321.YY+ легален, такой литерал'
+    + ' заморозил бы диск. КОНТРАКТ «К-антитавтология»: никаких побайтовых'
+    + ' сверок файлов src с их содержимым в HEAD — до коммита они красят'
+    + ' легитимную регенерацию зеркала, после коммита тавтологичны.'
+    + ' РЕЦЕПТ вместо литерала: сверять с живой величиной с диска'
+    + ' (itemFiles().length / Object.keys(REGISTRY_I08()).length), с'
+    + ' монотонным полом (FROZEN_PREFIX_END_I08 / MIN_*), выводить из данных'
+    + ' (rarity-таблица, lex-края) или регенерить в tmp (T7/T8). Свежие'
+    + ' обращения к HEAD легальны только для append-зуба реестра (T11) и'
+    + ' документ-гейтов spec/памяти (T9). Синтетика таблиц — только'
+    + ' конкатенацией из рантаймового значения. Предикат, вилки и границы —'
+    + ' memory/000393-selfgate-headguard.md; мутационный класс —'
+    + ' tasks/result/000393.md');
 });
 
 test('000318.08 T13: постоянный digest-зуб замороженного префикса (000392, ретро-b24 F1/К1) — sha256 канонической сериализации первых FROZEN_PREFIX_END_I08 пар num→id реестра ≡ неизменному литералу: подмена/пере-нумерация строк 000001..864 красна и ПОСЛЕ коммита (там HEAD-зуб T11 слепнет), легальный append pad(N+1)… в хвост литерал не двигает', () => {
