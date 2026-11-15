@@ -20,7 +20,8 @@
 // закоммичена и не правится; отмена — в memory/000318-skills-nature.md).
 //
 // Тесты:
-//   T1 — 0 коллизий id в assets/skills (44 файла, 44 уникальных id);
+//   T1 — 0 коллизий id в assets/skills (миграция 000387.02: живой ls-счётчик —
+//        пол >=44, уникальных id == числу файлов);
 //   T2 — резолв id→запись НЕ зависит от порядка readdir (winner по
 //        порядку больше не механизм: «nature» — вторичный, «nature_school»
 //        — школа при любом порядке обхода);
@@ -57,10 +58,11 @@ const skillFiles = () => fs.readdirSync(SKILLS_DIR)
   // 000318.09: skills — slug (имя == id); schema.json — вне каталога.
   .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f));
 
-test('000318.11 T1: 0 коллизий id в assets/skills — 44 файла, 44 уникальных id (инвариант basename==id для 000318.09)', () => {
+test('000318.11 T1: 0 коллизий id в assets/skills — живой ls-счётчик каталога, пол >=44, уникальных id == числу файлов (миграция 000387.02; инвариант basename==id для 000318.09)', () => {
   const files = skillFiles();
-  assert.equal(files.length, 44,
-    'assets/skills: 44 файла <id>.json (000318.09; факт: ' + files.length + ')');
+  assert.ok(files.length >= 44,
+    'assets/skills: ls-пол >=44 файла <id>.json (000318.09; рост вне реестра '
+    + 'легален — 000387.02; факт: ' + files.length + ')');
   const counts = new Map();
   for (const f of files) {
     const id = readJson(path.join(SKILLS_DIR, f)).id;
@@ -69,8 +71,9 @@ test('000318.11 T1: 0 коллизий id в assets/skills — 44 файла, 44
   const dups = [...counts.entries()].filter(([, n]) => n > 1);
   assert.deepEqual(dups, [],
     'коллизии id (id, количество): ' + JSON.stringify(dups));
-  assert.equal(counts.size, 44,
-    'уникальных id = числу файлов (факт: ' + counts.size + ')');
+  assert.equal(counts.size, files.length,
+    'уникальных id = числу файлов (факт: ' + counts.size + ' уникальных, '
+    + files.length + ' файлов)');
 });
 
 test('000318.11 T2: резолв id→запись не зависит от порядка readdir — nature остаётся вторичным 000031, nature_school — школой 000042 (winner по readdir больше не механизм)', () => {
@@ -85,11 +88,13 @@ test('000318.11 T2: резолв id→запись не зависит от по
   };
   const fwd = build(files);
   const rev = build([...files].reverse());
-  assert.equal(fwd.size, 44,
-    'Map(прямой порядок): 44 записей без перезатирания (факт: ' + fwd.size + ')');
-  assert.equal(rev.size, 44,
-    'Map(обратный порядок): 44 записей без перезатирания (факт: ' + rev.size
-    + ') — размер Map зависит от порядка ⇒ есть winner по readdir');
+  assert.equal(fwd.size, files.length,
+    'Map(прямой порядок): ' + files.length + ' записей без перезатирания '
+    + '(факт: ' + fwd.size + ')');
+  assert.equal(rev.size, fwd.size,
+    'Map(обратный порядок): размер не зависит от порядка обхода (факт: '
+    + rev.size + ' vs ' + fwd.size
+    + ') — если размер Map зависит от порядка ⇒ есть winner по readdir');
   const natureFwd = fwd.get('nature');
   const natureRev = rev.get('nature');
   assert.ok(natureFwd && natureRev,
@@ -166,8 +171,13 @@ test('000318.11 T4: GUARD 000336 в tests/efir.test.js перепинен чес
   assert.ok(start >= 0, 'GUARD-тест «000336 GUARD» в tests/efir.test.js');
   const end = src.indexOf('\ntest(', start + 10);
   const block = src.slice(start, end < 0 ? src.length : end);
-  assert.match(block, /SKILL_META\.size, 44/,
-    'GUARD перепинен: 44 уникальных id (было 43 при коллизии)');
+  assert.match(block, /SKILL_META\.size, SKILL_FILES\(\)\.length/,
+    'GUARD — живая биекция: уникальных id ≡ числу файлов (миграция 000387.02)');
+  assert.match(block, /SKILL_FILES\(\)\.length >= 44/,
+    'GUARD заявляет ls-пол >=44 (замороженный префикс numeric-эпохи — '
+    + 'memory/000387-frozen-prefix-contract.md)');
+  assert.doesNotMatch(block, /SKILL_(FILES\(\)\.length|META\.size), 4\d\b/,
+    'возврат замороженного счётчика 40–44 в GUARD запрещён (миграция 000387.02)');
   assert.match(block, /dups, \[\]/,
     'GUARD перепинен: deepEqual(dups, []) — ноль коллизий (было '
     + "[['nature', 2]])");

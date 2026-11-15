@@ -107,7 +107,9 @@ const SLUG_SWEEP_000318 = {
   craft: { count: 718 }, // ре-пин 000321.10: +25 рецептов реагентов
   items: { count: 1014 }, // 000318.08: rename в <id>.json;
   // ре-пин 000321.08: +50 еды; ре-пин 000321.10: +50 реагентов
-  skills: { count: 44 }, // 000318.09: rename в <id>.json
+  skills: { minCount: 44 }, // 000318.09: rename в <id>.json;
+  // миграция 000387.02: живой ls-пол — рост каталога навыков вне реестра
+  // легален (memory/000387-frozen-prefix-contract.md), зуб держит пол >=44
 };
 
 function catalogDir(name) {
@@ -375,10 +377,20 @@ for (const name of CATALOGS) {
       // 000318.07: сегментный пин «000001..000199, 000210..000237, …» с
       // резервами-дырами снят — файловых номеров больше нет; состав держит
       // свип basename === id + счётчик + лексикографический порядок имён.
-      const expected = SLUG_SWEEP_000318[name].count;
-      assert.equal(files.length, expected,
-        name + ': каталог — РОВНО ' + expected + ' файлов (000318.07: '
-        + 'счётчик снят диском после rename в <id>.json)');
+      // миграция 000387.02: записи с minCount — живой ls-пол (рост каталога
+      // вне реестра легален, memory/000387-frozen-prefix-contract.md);
+      // записи с count — прежняя точная сверка.
+      const entry = SLUG_SWEEP_000318[name];
+      if (entry.count !== undefined) {
+        assert.equal(files.length, entry.count,
+          name + ': каталог — РОВНО ' + entry.count + ' файлов (000318.07: '
+          + 'счётчик снят диском после rename в <id>.json)');
+      } else {
+        assert.ok(files.length >= entry.minCount,
+          name + ': каталог — ls-пол >=' + entry.minCount + ' (000387.02: '
+          + 'замороженный префикс защищён полом, рост вне реестра легален; '
+          + 'факт: ' + files.length + ')');
+      }
       const ids = [];
       for (const f of files) {
         assert.ok(!SHAPE_BASENAME_RES.number.test(f),

@@ -836,8 +836,11 @@ test('000115: deserializeEfir — id-валидация по каталогам-
   // Каталоги — полные зеркала assets (записи, не только id-набор).
   // Ре-пин 000324: +6 школ (type school) — 37 → 43.
   // Ре-пин 000337: +1 secondary «staff» (Владение посохом) — 43 → 44.
-  assert.equal(SKILL_CATALOG.length, 44,
-    'каталог skills: 44 записей (6 primary + 32 secondary + 6 school)');
+  // Миграция 000387.02: живой ls-пол — рост каталога навыков вне реестра
+  // легален (memory/000387-frozen-prefix-contract.md).
+  assert.ok(SKILL_CATALOG.length >= 44,
+    'каталог skills: ls-пол >=44 записей (6 primary + 32 secondary + 6 school — '
+    + 'замороженный префикс; факт: ' + SKILL_CATALOG.length + ')');
   // Ре-пин 000235.07: +25 заклинаний волны Огонь — 17 → 42.
   // Ре-пин 000235.08: +25 заклинаний волны Лёд — 42 → 67.
   // Ре-пин 000235.09: +25 заклинаний волны Тень — 67 → 92.
@@ -2056,17 +2059,21 @@ test('000163 E1: EFIR_SPELL_UNLOCKS — [22, «resurrect»] между 20 и 25:
 });
 
 test('000336 GUARD (перепин 000318.11): SKILL_META — ноль коллизий id каталога (деаноним школы «Природа»: «nature» → «nature_school»); явный резолв по id вместо winner-порядка readdir; все 38 id EFIR_SKILL_CATALOG — НЕ school (уникальность id — ПО ВСЕМУ каталогу)', () => {
-  // Зеркало assets: 44 файла (6 primary + 32 secondary + 6 school,
-  // ре-пин 000324; ре-пин 000337: +1 secondary «staff» — 43→44 файла).
-  // С 000318.11 — 44 УНИКАЛЬНЫХ id: id школы 000042 переименован
+  // Зеркало assets: ls-пол >=44 файла (6 primary + 32 secondary + 6 school,
+  // ре-пин 000324; ре-пин 000337: +1 secondary «staff» — 43→44 файла;
+  // миграция 000387.02: пол живой — рост каталога вне реестра легален).
+  // С 000318.11 — уникальный id на каждый файл (44 на момент rename):
+  // id школы 000042 переименован
   // «nature» → «nature_school» (контракт memory/000318-skills-nature.md;
   // решение 000336 «НЕ переименовывать» ОТМЕНЕНО — предусловие
   // basename==id для 000318.09; прежний winner — school-запись 000042
   // как позднее в readdirSync — больше не механизм).
-  assert.equal(SKILL_FILES().length, 44,
-    'assets/skills: 44 файла (6 primary + 32 secondary + 6 school)');
-  assert.equal(SKILL_META.size, 44,
-    '44 уникальных id — ноль id-коллизий каталога (000318.11)');
+  assert.ok(SKILL_FILES().length >= 44,
+    'assets/skills: ls-пол >=44 файла (6 primary + 32 secondary + 6 school — '
+    + 'замороженный префикс; факт: ' + SKILL_FILES().length + ')');
+  assert.equal(SKILL_META.size, SKILL_FILES().length,
+    'уникальных id == числу файлов — ноль id-коллизий каталога '
+    + '(000318.11; живой предикат — миграция 000387.02)');
   const dupCount = new Map();
   for (const f of SKILL_FILES()) {
     const id = JSON.parse(fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')).id;
