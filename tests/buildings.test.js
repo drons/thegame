@@ -61,6 +61,15 @@ function buildingFileById_00031806(n) {
   }
   throw new Error('assets/buildings: нет файла с id ' + n);
 }
+// 000398: миграция движущихся счётчиков каталога построек на живой
+// ls-предикат (класс 000387.01, рецепт memory/000387.01-npc-marker-migration.md
+// §1, форма адаптирована: имена slug — непрерывность на стороне id,
+// счёт = каталог минус schema.json — прецедент П3 .390). Пол
+// LEGACY_FLOOR_000398 — односторонний рэтчет наследия: легитимный рост
+// его не двигает, удаление файлов ниже пола красит (пол НЕ поднимать).
+const DISK_FILES_000398 = buildingsFiles_00031806();
+const DISK_N_000398 = DISK_FILES_000398.length;
+const LEGACY_FLOOR_000398 = 55;
 const { resolveRef } = require('../scripts/lib/json-ref.js');
 function resolveRefs(record) {
   const out = JSON.parse(JSON.stringify(record));
@@ -124,10 +133,14 @@ const EXPECTED_COUNTS = {
   прочее: 8,
 };
 
-test('каталог: 55 типов, id = 1..55 без дублей, порядок = id', () => {
-  assert.equal(BUILDINGS.length, 55);
+test('каталог — ls-предикат: типов = счётчику диска, id = 1..N без дублей, порядок = id (миграция 000398); зеркало BUILDINGS ≡ каталогу', () => {
+  assert.ok(DISK_N_000398 >= LEGACY_FLOOR_000398,
+    'в каталоге построек не менее 55 slug-файлов, факт: ' + DISK_N_000398);
+  assert.equal(BUILDINGS.length, DISK_N_000398,
+    'зеркало src/buildings.js ≡ каталогу (sync не прогнан?), факт: '
+    + BUILDINGS.length);
   const ids = BUILDINGS.map((b) => b.id);
-  assert.equal(new Set(ids).size, 55, 'id уникальны');
+  assert.equal(new Set(ids).size, DISK_N_000398, 'id уникальны');
   for (let i = 0; i < BUILDINGS.length; i++) {
     assert.equal(BUILDINGS[i].id, i + 1, 'id = позиция в каталоге + 1');
   }
@@ -168,22 +181,23 @@ test('каталог: обязательные поля, допустимые_т
   }
 });
 
-test('файлы assets/buildings: ровно 55 slug-файлов (000318.06: имя = slug, id 1..55 покрывают), содержимое = JS-фолбэк', () => {
-  const files = fs.readdirSync(DIR)
-    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
-    .sort();
-  assert.equal(files.length, 55, 'ровно 55 файла типа');
+test('файлы assets/buildings — ls-предикат: slug-файлов = счётчик диска (миграция 000398; 000318.06: имя = slug, id 1..N покрывают), содержимое = JS-фолбэк', () => {
+  const files = buildingsFiles_00031806();
+  assert.ok(files.length >= LEGACY_FLOOR_000398,
+    'не менее 55 файлов типа, факт: ' + files.length);
   const byId = new Map();
   for (const f of files) {
     const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
     assert.ok(Number.isInteger(fromFile.id) && fromFile.id >= 1
-      && fromFile.id <= 55,
-      f + ': id ∈ 1..55 (000318.06: номер файла больше не id)');
+      && fromFile.id <= DISK_N_000398,
+      f + ': id ∈ 1..N (N = счётчик диска; 000318.06: номер файла больше не id)');
     assert.ok(!byId.has(fromFile.id), f + ': дубль id ' + fromFile.id);
     byId.set(fromFile.id, { f, fromFile });
   }
-  for (let i = 1; i <= 55; i++) {
-    const { f, fromFile } = byId.get(i);
+  for (let i = 1; i <= DISK_N_000398; i++) {
+    const rec = byId.get(i);
+    assert.ok(rec, 'id 1..N покрывают каталог без пропусков: нет id ' + i);
+    const { f, fromFile } = rec;
     assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i - 1],
       f + ' совпадает с JS-фолбэком (ссылки — в id-форме)');
   }
@@ -198,7 +212,8 @@ test('getBuilding: id → объект из каталога, вне диапа�
   assert.equal(getBuilding(50), BUILDINGS[49]);
   assert.equal(getBuilding(25).название, 'Дом кузнеца');
   assert.equal(getBuilding(0), null);
-  assert.equal(getBuilding(56), null, 'вне каталога (1..55) — null');
+  assert.equal(getBuilding(DISK_N_000398 + 1), null,
+    'вне каталога (1..N, N = счётчик диска) — null');
   assert.equal(getBuilding(12345), null);
 });
 
@@ -730,9 +745,11 @@ test('CATEGORIES (000102): содержит «город»', () => {
   assert.ok(CATEGORIES.includes('город'), 'CATEGORIES: нет «город»');
 });
 
-test('каталог (000102): 55 типов, id = 1..55 без дублей, 4 из них — города', () => {
-  assert.equal(BUILDINGS.length, 55, 'в каталоге 55 типов');
-  assert.equal(new Set(BUILDINGS.map((b) => b.id)).size, 55,
+test('каталог (000102) — ls-предикат: типов = счётчику диска, id = 1..N без дублей, 4 из них — города (миграция 000398)', () => {
+  assert.equal(BUILDINGS.length, DISK_N_000398,
+    'зеркало src/buildings.js ≡ каталогу (sync не прогнан?), факт: '
+    + BUILDINGS.length);
+  assert.equal(new Set(BUILDINGS.map((b) => b.id)).size, DISK_N_000398,
     'id уникальны');
   for (let i = 0; i < BUILDINGS.length; i++) {
     assert.equal(BUILDINGS[i].id, i + 1, 'id = позиция в каталоге + 1');
@@ -895,24 +912,65 @@ test('placeBuilding (000102): флаг берётся строго === true — 
     'не_сжимать=true: не влез → null (3x3 не строится)');
 });
 
-test('зеркало (000102): файлы assets/buildings — 55 slug-имён (000318.06), id 1..55, содержимое = JS-каталог', () => {
-  const files = fs.readdirSync(DIR)
-    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
-    .sort();
-  assert.equal(files.length, 55, 'ровно 55 файла типа');
+test('зеркало (000102) — ls-предикат: файлы assets/buildings = счётчик диска slug-имён (миграция 000398; 000318.06), id 1..N, содержимое = JS-каталог; src/buildings.js ≡ побайтовому РЕГЕНУ из текущего assets в tmp', () => {
+  const files = buildingsFiles_00031806();
+  assert.ok(files.length >= LEGACY_FLOOR_000398,
+    'не менее 55 файлов типа, факт: ' + files.length);
   const byId = new Map();
   for (const f of files) {
     const fromFile = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'));
     assert.ok(Number.isInteger(fromFile.id) && fromFile.id >= 1
-      && fromFile.id <= 55,
-      f + ': id ∈ 1..55 (000318.06)');
+      && fromFile.id <= DISK_N_000398,
+      f + ': id ∈ 1..N (N = счётчик диска; 000318.06)');
     assert.ok(!byId.has(fromFile.id), f + ': дубль id ' + fromFile.id);
     byId.set(fromFile.id, { f, fromFile });
   }
-  for (let i = 1; i <= 55; i++) {
-    const { f, fromFile } = byId.get(i);
+  for (let i = 1; i <= DISK_N_000398; i++) {
+    const rec = byId.get(i);
+    assert.ok(rec, 'id 1..N покрывают каталог без пропусков: нет id ' + i);
+    const { f, fromFile } = rec;
     assert.deepEqual(resolveRefs(fromFile), BUILDINGS[i - 1],
       f + ' совпадает с JS-каталогом (ссылки — в id-форме)');
+  }
+  // Зуб «≡ git show HEAD» для зеркал машинозапрещён (класс 000393,
+  // memory/000393-selfgate-headguard.md): сверка — с побайтовым РЕГЕНОМ
+  // из ТЕКУЩЕГО assets в tmp-дереве. Свойства: легитимная перегенерация
+  // зелена, закоммиченный дрейф GENERATED красен навсегда, косметика
+  // вне GENERATED — не красит. src/buildings.js вне REGEN_SYNC_MAP_I08
+  // (выход sync-buildings-data — не *-data.js) — фиксация в
+  // memory/000398-buildings-count-migration.md (координация с 000395 п.5).
+  const os = require('node:os');
+  const ROOT = path.join(__dirname, '..');
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), '000398-regen-'));
+  try {
+    for (const d of ['assets/buildings', 'assets/items', 'assets/skills',
+      'scripts/lib', 'src']) {
+      fs.mkdirSync(path.join(tmp, d), { recursive: true });
+    }
+    for (const d of ['assets/buildings', 'assets/items', 'assets/skills']) {
+      fs.cpSync(path.join(ROOT, d), path.join(tmp, d), { recursive: true });
+    }
+    fs.copyFileSync(path.join(ROOT, 'scripts', 'sync-buildings-data.js'),
+      path.join(tmp, 'scripts', 'sync-buildings-data.js'));
+    for (const lf of fs.readdirSync(path.join(ROOT, 'scripts', 'lib'))) {
+      fs.copyFileSync(path.join(ROOT, 'scripts', 'lib', lf),
+        path.join(tmp, 'scripts', 'lib', lf));
+    }
+    fs.copyFileSync(path.join(ROOT, 'src', 'buildings.js'),
+      path.join(tmp, 'src', 'buildings.js'));
+    const res = spawnSync(process.execPath,
+      [path.join(tmp, 'scripts', 'sync-buildings-data.js')],
+      { cwd: tmp, encoding: 'utf8' });
+    assert.equal(res.status, 0,
+      'regen в tmp-дереве: sync-buildings-data.js обязан завершиться exit 0 '
+      + '(получено ' + res.status + '): ' + (res.stderr || res.stdout));
+    assert.ok(fs.readFileSync(path.join(tmp, 'src', 'buildings.js'))
+      .equals(fs.readFileSync(path.join(ROOT, 'src', 'buildings.js'))),
+      'src/buildings.js ≡ побайтовому РЕГЕНУ из текущего assets/buildings '
+      + '(sync-buildings-data в tmp; закоммиченный дрейф GENERATED-блока '
+      + 'красен навсегда, sync не прогнан или GENERATED правлен руками)');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 
@@ -1200,8 +1258,8 @@ function readBuildingRaw_000207(n) {
 
 test('000207 R1: assets/buildings: .стройка.исходники[].предмет — ссылка на файл items (паттерн ^assets/items/<id>.json$ — ре-пин 000318.08: slug); ровно 22 здания D3, 24 позиции; вне D3 — .стройка НЕТ (строгий контур)', () => {
   const files = buildingsFiles_00031806();
-  assert.equal(files.length, 55,
-    'каталог: ровно 55 slug-файлов (000318.06)');
+  assert.ok(files.length >= LEGACY_FLOOR_000398,
+    'каталог: не менее 55 slug-файлов (000318.06), факт: ' + files.length);
   const raw = buildingsRawById_00031806();
   const withBuild = [];
   let pos = 0;
@@ -1419,7 +1477,7 @@ test('000207 R4: sync-buildings-data.js резолвит ссылки в id пр
   }
 });
 
-test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/<id>.json$ — ре-пин 000318.08); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все 55 файлов каталога валидны', () => {
+test('000207 R5: schema.json закрепляет ссылочный контур: под-схема особые_параметры.стройка — строгая (D2: предмет — pattern ^assets/items/<id>.json$ — ре-пин 000318.08); отрицательный контроль: запись с ГОЛЫМ id предмета — ≥1 ошибка, со ссылкой — 0; особые_параметры остаётся свободным; все файлы каталога валидны (миграция 000398: счётчик — живой)', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   const rec = readBuildingRaw_000207(1);
@@ -1602,9 +1660,10 @@ function convertTrainsRefs_000211_07(record) {
   }
 }
 
-test('000211.07 R1 (ре-пин 000265): "спрайт" — ровно 29 из 55 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54 + 11 подтипов слотов 8..12 (000265)); значение = ЗАКРЫТОМУ пину (byte-идентично); файл svg существует; у остальных 26 — нет (строгий контур)', () => {
+test('000211.07 R1 (ре-пин 000265; миграция 000398: знаменатель каталога снят): "спрайт" — ровно 29 записей (13 slot-представителей — id из данных (map_index) + лагерь 47 + города 51-54 + 11 подтипов слотов 8..12 (000265)); значение = ЗАКРЫТОМУ пину (byte-идентично); файл svg существует; у остальных — нет (строгий контур)', () => {
   const raw = buildingsRawById_00031806();
-  assert.equal(Object.keys(raw).length, 55, 'каталог: 55 файлов');
+  assert.ok(Object.keys(raw).length >= LEGACY_FLOOR_000398,
+    'каталог: не менее 55 файлов, факт: ' + Object.keys(raw).length);
   const slotIds = Object.keys(raw).map(Number).filter((n) => {
     const p = raw[n].особые_параметры;
     return p && Number.isInteger(p.map_index);
@@ -1700,7 +1759,7 @@ test('000211.07 R2: "тренирует" — 18 школ (id 7-24, строги�
   }
 });
 
-test('000211.07 R3: schema.json — форма новых свойств: топ-level «спрайт» (svg-паттерн) + «особые_параметры.тренирует» (массив ссылочного паттерна); required — без изменений («спрайт»/«тренирует» — НЕ required: контур 37 записей без «спрайт» остаётся валидным); top-level additionalProperties: false; «особые_параметры» — СВОБОДНЫЙ; отрицательный контроль: запись школы с ИМЕНЕМ в «тренирует» → ≥1 ошибка (pattern), со ссылкой → 0; ВСЕ 55 файлов валидны', () => {
+test('000211.07 R3: schema.json — форма новых свойств: топ-level «спрайт» (svg-паттерн) + «особые_параметры.тренирует» (массив ссылочного паттерна); required — без изменений («спрайт»/«тренирует» — НЕ required: записи без «спрайт» остаются валидными); top-level additionalProperties: false; «особые_параметры» — СВОБОДНЫЙ; отрицательный контроль: запись школы с ИМЕНЕМ в «тренирует» → ≥1 ошибка (pattern), со ссылкой → 0; ВСЕ файлы каталога валидны (миграция 000398: счётчик — живой)', () => {
   const schema = JSON.parse(
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   assert.deepEqual(schema.properties['спрайт'], {
@@ -1882,7 +1941,8 @@ test('000265 R1 (RED): 11 записей-подтипов (37/38/39/41/42/43/45/
   assert.equal(SUBTYPE_IDS_000265.length, 11,
     'пин: ровно 11 подтипов');
   const raw = buildingsRawById_00031806();
-  assert.equal(Object.keys(raw).length, 55, 'каталог: 55 файлов');
+  assert.ok(Object.keys(raw).length >= LEGACY_FLOOR_000398,
+    'каталог: не менее 55 файлов, факт: ' + Object.keys(raw).length);
   for (const n of SUBTYPE_IDS_000265) {
     const pin = SUBTYPE_SPRITE_PIN_000265[n];
     const cat = SUBTYPE_CATALOG_PIN_000265[n];
