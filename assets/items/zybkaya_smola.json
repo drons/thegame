@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_smola",
+  "name": "Зыбкая смола",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 5,
+  "desc": "Зыбкая смола: течёт даже на ветру: янтарь вчерашнего дня.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.035
+  },
+  "icon": "assets/sprites/loot/zybkaya_smola.svg"
+}

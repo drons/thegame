@@ -1,0 +1,28 @@
+{
+  "id": "zybkaya_okhra",
+  "название": "Растирание зыбкой охры",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zybkaya_okhra.json",
+    "количество": 2
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/coal.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 6,
+  "описание": "Охру трут в пыль: камень камнем не красят."
+}

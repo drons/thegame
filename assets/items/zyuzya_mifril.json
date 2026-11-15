@@ -1,0 +1,17 @@
+{
+  "id": "zyuzya_mifril",
+  "name": "Зюзя-мифрил",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 95,
+  "tier": 4,
+  "desc": "Зюзя-мифрил: взял стужу в себя: звенит на ветру не звонко, а глухо.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "лес"
+    ],
+    "frequency": 0.005
+  },
+  "icon": "assets/sprites/loot/zyuzya_mifril.svg"
+}

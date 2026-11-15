@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_mel",
+  "name": "Зыбкий мел",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 4,
+  "desc": "Зыбкий мел: крошится в палец; чертит только по мокрому.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_mel.svg"
+}

@@ -14,6 +14,7 @@
 | 000321.07 | potion (зелья heal/mp, БЕЗ rarity/slot; рецепты тип «алхимия» — после CORE-rename .318.07 СРАЗУ slug-именованные `craft/<id>.json`) | items 000815–000864, craft 50×slug-id | 50 (+50 рецептов +50 иконок) | сделана |
 | 000321.08 | food (еда effect {kind: eat, amount}, БЕЗ rarity/slot; РЕЦЕПТОВ НЕТ по ТЗ — еда лут/торговля, магазины ловят вид автоматически) | items 000865–000914 | 50 (+50 иконок, 0 рецептов) | сделана |
 | 000321.09 | skill_book (книги навыков effect {kind: skill_xp, skill, amount: 10}; вторичных навыков 32, покрытие после волны 32/32; БЕЗ rarity/slot/base_price; РЕЦЕПТОВ НЕТ по ТЗ — продаёт только магазин магии + универсам w3) | items 000915–000964 | 50 (+50 иконок, 0 рецептов) | сделана |
+| 000321.10 | reagent (БЕЗ effect/rarity/slot/base_price; tier вместо редкости 20∅/15t2/10t3/5t4 «глубже = реже»; loot У ВСЕХ 50; 25 рецептов: алхимия 12 / резьба_по_камню 9 / рунопись 4) | items 000965–001014, craft 25×slug-id | 50 (+50 иконок sprites/loot 33→83, +25 рецептов) | сделана |
 
 Правила батча (валидны для последующих дочерних):
 - диапазоны ассетов фиксируются per-wave при запуске; при ре-базе под новый max —
@@ -113,3 +114,5 @@ universam items.test 770→815 / qty 2352→2479, cities SHOP_GOLDEN
 lex-хвосте намеренно). Следующий свободный диапазон 000965+. Подробности и
 ГРАБЛИ (I1-allowlist иконок, пин геометрии flat-SVG, doc-trio lockstep,
 HEAD-guard класс) — memory/000321-skillbook-items.md.
+
+Состояние каталога после 000321.10: 1014 предмета (reagent 88 — ВТОРОЙ по численности не-equip вид после spell_scroll; skill_book 61, food 53, potion 55), craft 718 (DISASSEMBLY_BY_ITEM 648→673), icons sprites/loot 33→83 (биекция «reagent с loot ⇔ loot-иконка» сохранена), «прочих» без slot 425, без base_price 712, rarity 579 НЕ двигался (реагенты без rarity). Магазин магии bt3 (30,40,w0) additions-only 52→83 ключей, universam w3 815→856 — пересъёмка ЖИВЫМ кодом, сида 0-diff (lex-хвост). LEX-конец зеркала сменился zvukopis_unkill → zyuzya_zlato (lex-хвост ≡ номерному хвосту впервые с .01: 001014 = zyuzya_zlato; id выбраны в lex-хвосте намеренно — additions-only rng-потоков). Следующий свободный диапазон 001015+. Подробности — memory/000321-reagent-items.md.

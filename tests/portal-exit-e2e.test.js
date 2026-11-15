@@ -1099,6 +1099,22 @@ test('PE-9: g.actions.enterDungeon() — подземелье из spawn-тай�
   assert.ok(g.state.player.x === 0 && g.state.player.y === 0,
     'сценарий: герой на спавне (0,0)');
   const day0 = g.state.day;
+  // Ре-пин 000321.10: травяной пул +32 реагента zy* — на мировом
+  // спавне (0,0) лёг zyabkaya_okalina. Штатным [E] в мире
+  // пред-собираем его: сценарий ниже про единый тайл выхода
+  // (000177/000183), а дубль [E]-диспетча (main.js KeyE →
+  // buildingActions.toggle при уже закрытом dungeonUI) собрал бы лут
+  // тайла приземления и затёр flash «Вы вышли…» (в старой базе лута
+  // на (0,0) не было вовсе).
+  const t00 = G.createMap(G.generateSeedPixels()).tileAt(0, 0);
+  assert.ok(t00.loot && t00.loot.item === 'zyabkaya_okalina',
+    'ре-пин 000321.10: на (0,0) сидит zyabkaya_okalina: ' +
+    JSON.stringify(t00.loot));
+  const ePre = press(h, 'KeyE');
+  release(h, ePre);
+  assert.equal((g.collectedLoot || {})['0,0'], g.state.day,
+    'лут спавна пред-собран штатным [E] в мире');
+  g.state.hero.inventory.length = 0;
   const ds = g.actions.enterDungeon();
   assert.ok(ds, 'enterDungeon() — dungeonState создан (debug-вход)');
   assert.equal(G.dungeonUI.isActive(), true, 'dungeonUI открыт (оверлей)');

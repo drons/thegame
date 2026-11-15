@@ -1,0 +1,34 @@
+{
+  "id": "zyuzya_mifril",
+  "название": "Руны на зюзя-мифриле",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/zyuzya_mifril.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/silver_ore.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/gold_ore.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/moonstone.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 52,
+  "описание": "Мифрил берут рунами на морозе: тёплый не держит черту."
+}

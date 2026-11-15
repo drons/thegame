@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_sandal",
+  "name": "Зюйдский сандал",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 30,
+  "tier": 3,
+  "desc": "Зюйдский сандал: стружка тонет в воде и красит её в закат.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_sandal.svg"
+}

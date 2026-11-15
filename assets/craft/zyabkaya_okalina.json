@@ -1,0 +1,28 @@
+{
+  "id": "zyabkaya_okalina",
+  "название": "Сбивание зябкой окалины",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zyabkaya_okalina.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/iron_ore.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/coal.json",
+      "количество": 2
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 19,
+  "описание": "Окалину сбивают с наковальни прошлого кузнеца."
+}

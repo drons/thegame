@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_voda",
+  "name": "Зыбкая вода",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 3,
+  "desc": "Зыбкая вода: стоит там, где её нет: обходи слева и не спрашивай почему.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.04
+  },
+  "icon": "assets/sprites/loot/zybkaya_voda.svg"
+}

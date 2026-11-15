@@ -1,0 +1,16 @@
+{
+  "id": "zybkaya_sol",
+  "name": "Зыбкая соль",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 4,
+  "desc": "Зыбкая соль: выкипает из горьких озёр крупным серым снегом.",
+  "loot": {
+    "terrains": [
+      "болото",
+      "трава"
+    ],
+    "frequency": 0.035
+  },
+  "icon": "assets/sprites/loot/zybkaya_sol.svg"
+}

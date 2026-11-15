@@ -648,12 +648,12 @@ test('visuals 000158.06: эффективный глиф при ZOOM_START — �
 // LOOT_VISUAL_SEED отсутствуют в exports, файлов в assets/ нет —
 // каждый тест падает по отсутствию символа/файла (не синтаксис).
 
-test('SP-LOOT-1a 000158.05: lootSprite — чистая/детерминированная; sprite = assets/sprites/loot/<id>.svg; size = LOOT_SIZE ∈ [0.20, 0.30]; x, y ∈ [0.08, 0.92]; все 33 файла существуют', () => {
+test('SP-LOOT-1a 000158.05: lootSprite — чистая/детерминированная; sprite = assets/sprites/loot/<id>.svg; size = LOOT_SIZE ∈ [0.20, 0.30]; x, y ∈ [0.08, 0.92]; все 83 файла существуют', () => {
   assert.equal(typeof S.lootSprite, 'function',
     'контракт: экспорт S.lootSprite (красный: символа нет в sprites.js)');
-  assert.equal(LOOT_ITEM_IDS.length, 33,
-    'пин каталога: 33 природных лут-предметов (live-скан; '
-    + '000220: +5 строительных reagent)');
+  assert.equal(LOOT_ITEM_IDS.length, 83,
+    'пин каталога: 83 природных лут-предметов (live-скан; '
+    + '000220: +5 строительных reagent; 000321.10: +50 реагентов)');
   const SIZE = S.LOOT_SIZE;
   assert.equal(typeof SIZE, 'number',
     'контракт: экспорт S.LOOT_SIZE (красный: отсутствует)');
@@ -746,13 +746,13 @@ test('SP-LOOT-3 000158.05: LOOT_MIN_ZOOM = 16 (жёсткий пин); LOOT_VISU
     'golden y (индекс 73 — пин формулы)');
 });
 
-test('SP-LOOT-2 000158.05: allAssetPaths ↔ каталог лута — ровно 33 пути assets/sprites/loot/<id>.svg, все существуют, чужих id нет', () => {
+test('SP-LOOT-2 000158.05: allAssetPaths ↔ каталог лута — ровно 83 пути assets/sprites/loot/<id>.svg, все существуют, чужих id нет', () => {
   const paths = S.allAssetPaths();
   const loot = paths.filter((p) => p.startsWith('assets/sprites/loot/'));
   const uniq = new Set(loot);
-  assert.equal(uniq.size, 33,
+  assert.equal(uniq.size, 83,
     'loot-путей в allAssetPaths: ' + uniq.size
-    + ' (ожидаем 33; красное: каталога assets/sprites/loot/ нет)');
+    + ' (ожидаем 83; ре-пин 000321.10: +50 реагентов; красное: каталога assets/sprites/loot/ нет)');
   for (const id of LOOT_ITEM_IDS) {
     const p = 'assets/sprites/loot/' + id + '.svg';
     assert.ok(uniq.has(p), 'allAssetPaths: нет пути ' + p);

@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_krapiva",
+  "name": "Зябкая крапива",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 15,
+  "tier": 2,
+  "desc": "Зябкая крапива: после первых холодов жалит слабее, но жжёт вернее.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_krapiva.svg"
+}

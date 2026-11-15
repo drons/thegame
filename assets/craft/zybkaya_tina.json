@@ -1,0 +1,27 @@
+{
+  "id": "zybkaya_tina",
+  "название": "Отжим зыбкой тины",
+  "тип": "алхимия",
+  "результат": {
+    "предмет": "assets/items/zybkaya_tina.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/berry_wild.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/herb_healing.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/alchemy.json"
+  ],
+  "здания": [
+    "assets/buildings/alchemy_lab.json"
+  ],
+  "уровень": 5,
+  "описание": "Тину отжимают дважды: второй раз уже для алхимии."
+}

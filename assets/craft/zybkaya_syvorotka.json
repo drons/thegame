@@ -1,0 +1,27 @@
+{
+  "id": "zybkaya_syvorotka",
+  "название": "Отделение зыбкой сыворотки",
+  "тип": "алхимия",
+  "результат": {
+    "предмет": "assets/items/zybkaya_syvorotka.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/herb_healing.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/coal.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/alchemy.json"
+  ],
+  "здания": [
+    "assets/buildings/alchemy_lab.json"
+  ],
+  "уровень": 7,
+  "описание": "Сыворотку отделяют холодом: тепло портит и сыр, и спор."
+}

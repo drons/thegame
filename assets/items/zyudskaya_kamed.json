@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_kamed",
+  "name": "Зюйдская камедь",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 28,
+  "tier": 3,
+  "desc": "Зюйдская камедь: застывший сок акации: связка для красок и пилюль.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_kamed.svg"
+}

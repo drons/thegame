@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_gryaz",
+  "name": "Зыбкая грязь",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 2,
+  "desc": "Зыбкая грязь: топит сапоги и сомнения; для гончаров — находка.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.04
+  },
+  "icon": "assets/sprites/loot/zybkaya_gryaz.svg"
+}

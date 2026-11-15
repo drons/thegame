@@ -615,6 +615,20 @@ test('000157.03-DE-3: приоритет выхода (000177): залежь н�
   assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
   const G = h.sandbox.Game;
   const g = h.sandbox.__game;
+  // Ре-пин 000321.10: травяной пул +32 реагента zy* — на мировом
+  // спавне (0,0) лёг zyabkaya_okalina. Штатным [E] в мире
+  // пред-собираем его: сценарий ниже про приоритет выхода/finally,
+  // а дубль [E]-диспетча (main.js KeyE → buildingActions.toggle при
+  // уже закрытом dungeonUI) собрал бы лут тайла приземления и затёр
+  // flash «Вы вышли…» (в старой базе лута на (0,0) не было вовсе).
+  const t00 = G.createMap(G.generateSeedPixels()).tileAt(0, 0);
+  assert.ok(t00.loot && t00.loot.item === 'zyabkaya_okalina',
+    'ре-пин 000321.10: на (0,0) сидит zyabkaya_okalina: ' +
+    JSON.stringify(t00.loot));
+  pressE(h);
+  assert.equal((g.collectedLoot || {})['0,0'], g.state.day,
+    'лут спавна пред-собран штатным [E] в мире');
+  g.state.hero.inventory.length = 0; // паттерн DE-2
   const ds = g.actions.enterDungeon();
   assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
   const cell = asideDir(G, ds.dg);
@@ -722,6 +736,20 @@ test('000157.03-DE-5: 000170 finally через выход: throw в G.playerUI.
   assert.equal(h.errors.length, 0, 'ошибок загрузки нет: ' + h.errors.join('; '));
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
+  // Ре-пин 000321.10: травяной пул +32 реагента zy* — на мировом
+  // спавне (0,0) лёг zyabkaya_okalina. Штатным [E] в мире
+  // пред-собираем его: сценарий ниже про приоритет выхода/finally,
+  // а дубль [E]-диспетча (main.js KeyE → buildingActions.toggle при
+  // уже закрытом dungeonUI) собрал бы лут тайла приземления и затёр
+  // flash «Вы вышли…» (в старой базе лута на (0,0) не было вовсе).
+  const t00 = G.createMap(G.generateSeedPixels()).tileAt(0, 0);
+  assert.ok(t00.loot && t00.loot.item === 'zyabkaya_okalina',
+    'ре-пин 000321.10: на (0,0) сидит zyabkaya_okalina: ' +
+    JSON.stringify(t00.loot));
+  pressE(h);
+  assert.equal((g.collectedLoot || {})['0,0'], g.state.day,
+    'лут спавна пред-собран штатным [E] в мире');
+  g.state.hero.inventory.length = 0; // паттерн DE-2
   const ds = g.actions.enterDungeon();
   assert.ok(ds, 'enterDungeon — состояние подземелья (отладочный вход)');
   const cell = asideDir(G, ds.dg);

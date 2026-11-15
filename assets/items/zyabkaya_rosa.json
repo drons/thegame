@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_rosa",
+  "name": "Зябкая роса",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 14,
+  "tier": 2,
+  "desc": "Зябкая роса: собрана на траве до рассвета: на вкус холодная.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_rosa.svg"
+}

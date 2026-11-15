@@ -1,0 +1,16 @@
+{
+  "id": "zybkaya_zola",
+  "name": "Зыбкая зола",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 3,
+  "desc": "Зыбкая зола: от костров, что горели три дня; щелочная и въедливая.",
+  "loot": {
+    "terrains": [
+      "лес",
+      "трава"
+    ],
+    "frequency": 0.035
+  },
+  "icon": "assets/sprites/loot/zybkaya_zola.svg"
+}

@@ -1,0 +1,28 @@
+{
+  "id": "zyuzya_almaz",
+  "название": "Огранка зюзя-алмаза",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zyuzya_almaz.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/quartz.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/moonstone.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 47,
+  "описание": "Алмаз ограняют о него же самого: других доводов он не слушает."
+}

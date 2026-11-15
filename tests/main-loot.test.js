@@ -427,13 +427,16 @@ function findLoot(G, start, isTarget, radius = 600) {
 
 // Ход к ближайшему луту (сценарий всех LM*; ре-пин 000318.08 F1):
 // (-2,0) root_ember, шаги [(-1,0), (-2,0)] — 2 шага (день НЕ проходит).
+// Ре-пин 000321.10: реагенты zy* в травяном пуле — ближайший лут
+// (-1,0) zybkaya_sol («Зыбкая соль»), шаг [[-1,0]] — 1 шаг; (-2,0) root_ember не тронут.
 function walkToNearestLoot(h, now) {
   const res = findLoot(h.sandbox.Game, { x: 0, y: 0 }, (t) =>
     t.loot != null);
   assert.ok(res, 'сценарий: ближайший лут достижим пешком');
-  assert.deepEqual(res.target, { x: -2, y: 0 },
-    'сценарий: ближайший лут — (-2,0)');
-  assert.equal(res.t.loot.item, 'root_ember', 'сценарий: Огненный корень');
+  assert.deepEqual(res.target, { x: -1, y: 0 },
+    'сценарий: ближайший лут — (-1,0) (ре-пин 000321.10)');
+  assert.equal(res.t.loot.item, 'zybkaya_sol',
+    'сценарий: Зыбкая соль (ре-пин 000321.10)');
   now = walkTiles(h, now, res.steps);
   return { now, res };
 }
@@ -466,24 +469,24 @@ test('LM1. 000158.04 e2e: ходьба к луту, подсказка, [E] → 
   const g = h.sandbox.__game;
   // Инвентарь ДО: предмета нет (свежий герой).
   assert.ok(!(g.state.hero.inventory || []).some(
-    (s) => s.id === 'root_ember'),
+    (s) => s.id === 'zybkaya_sol'),
     'сценарий: предмета нет в инвентаре до сбора');
   const { now: n0, res } = walkToNearestLoot(h, NOW);
-  const K = res.target.x + ',' + res.target.y; // "-2,0"
+  const K = res.target.x + ',' + res.target.y; // "-1,0"
   // Подсказка HUD на лут-тайле.
-  assert.ok(h.hud.textContent.includes('[E] Собрать: Огненный корень'),
+  assert.ok(h.hud.textContent.includes('[E] Собрать: Зыбкая соль'),
     'HUD: подсказка «[E] Собрать: <имя>» (красный: строки нет): ' +
     h.hud.textContent.replace(/\n/g, ' | '));
   // [E] — сбор.
   key(h, 'KeyE');
   let now = n0 + 200;
   h.frameFn(now);
-  // Инвентарь: +1 (root_ember — reagent, стакается).
+  // Инвентарь: +1 (zybkaya_sol — reagent, стакается).
   const slot = (g.state.hero.inventory || []).find(
-    (s) => s.id === 'root_ember');
+    (s) => s.id === 'zybkaya_sol');
   assert.ok(slot, 'инвентарь: предмет появился (красный: [E] no-op)');
   assert.equal(slot.qty, 1, 'инвентарь: qty 1');
-  // Состояние: ключ «-2,0» → день сбора (1).
+  // Состояние: ключ «-1,0» → день сбора (1).
   assert.equal((g.collectedLoot || {})[K], 1,
     '__game.collectedLoot: ключ → день (красный: getter/ключ нет)');
   // Сейв: раздел collectedLoot в localStorage (saveNow при сборе).
@@ -495,7 +498,7 @@ test('LM1. 000158.04 e2e: ходьба к луту, подсказка, [E] → 
   assert.equal(saved.data.collectedLoot[K], 1,
     'сейв: ключ → день 1');
   // Флэш «Собрано: <имя>».
-  assert.ok(h.hud.textContent.includes('Собрано: Огненный корень'),
+  assert.ok(h.hud.textContent.includes('Собрано: Зыбкая соль'),
     'флэш «Собрано: <имя>» (красный: флэша нет)');
   // Подсказка исчезла (собрано → lootVisible false).
   now += 200;
@@ -560,7 +563,7 @@ test('LM3. 000158.04 e2e: respawn-цикл — key живёт до дня ден
   key(h, 'KeyE');
   let now = n0 + 200;
   h.frameFn(now);
-  const dayC = g.state.day; // 1 (ход 2 шага — день не прошёл)
+  const dayC = g.state.day; // 1 (ход 1 шаг — день не прошёл)
   assert.equal(dayC, 1, 'сценарий: сбор на 1-й день');
   assert.equal((g.collectedLoot || {})[K], dayC,
     'марка: ключ → день сбора (красный: [E] no-op)');
@@ -581,14 +584,14 @@ test('LM3. 000158.04 e2e: respawn-цикл — key живёт до дня ден
   assert.equal((g.collectedLoot || {})[K], undefined,
     'день ' + (dayC + rd) + ': key удалён onDay-зачисткой ' +
     '(красный: зачистки нет)');
-  assert.ok(h.hud.textContent.includes('[E] Собрать: Огненный корень'),
+  assert.ok(h.hud.textContent.includes('[E] Собрать: Зыбкая соль'),
     'день ' + (dayC + rd) + ': лут СНОВА виден (подсказка вернулась)');
   // Повторный сбор: qty 2, новая марка = текущий день.
   key(h, 'KeyE');
   now += 200;
   h.frameFn(now);
   const slot = (g.state.hero.inventory || []).find(
-    (s) => s.id === 'root_ember');
+    (s) => s.id === 'zybkaya_sol');
   assert.equal(slot && slot.qty, 2, 'повторный сбор: qty 2');
   assert.equal((g.collectedLoot || {})[K], dayC + rd,
     'новая марка = день повторного сбора');
@@ -912,7 +915,7 @@ test('LM6. 000158.05 e2e: тайл с видимым лутом → drawImage lo
 // число рисований текстур/построек/мобов/Флогистона — неизменно.
 // =====================================================================
 
-test('LM7. 000158.05 e2e: [E] на (-2,0) → лут тайла невидим, остальные — в точности (пин числа ниже); декорации и другие слои не изменились', async () => {
+test('LM7. 000158.05 e2e: [E] на (-1,0) → лут тайла невидим (ре-пин 000321.10: ближайший лут — zybkaya_sol), остальные — в точности (пин числа ниже); декорации и другие слои не изменились', async () => {
   const h = await boot();
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -934,15 +937,16 @@ test('LM7. 000158.05 e2e: [E] на (-2,0) → лут тайла невидим, 
     g.collectedLoot || {});
   assertLootsEqual(lootDraws(before), exp0,
     'до сбора: точная геометрия лута');
-  // Положительный контроль: root_ember на (-2,0) нарисован.
-  const ls0 = G.lootSprite('root_ember', res.target.x, res.target.y);
+  // Положительный контроль: лут цели нарисован (ре-пин 000321.10:
+// zybkaya_sol на (-1,0); спрайт берётся из res.t.loot.item).
+  const ls0 = G.lootSprite(res.t.loot.item, res.target.x, res.target.y);
   const p0 = G.worldToScreen(res.target.x, res.target.y,
     st0.cam.x, st0.cam.y, st0.zoom, VIEW_W, VIEW_H);
   const s0 = ls0.size * st0.zoom;
   assert.ok(lootDraws(before).some(([, a]) => a[0].__asset === ls0.sprite
     && Math.abs(a[1] - (p0.x + ls0.x * st0.zoom - s0 / 2)) < EPS
     && Math.abs(a[2] - (p0.y + ls0.y * st0.zoom - s0 / 2)) < EPS),
-    'сценарий: root_ember на (-2,0) нарисован ДО сбора');
+    'сценарий: лут цели нарисован ДО сбора (ре-пин 000321.10)');
   const decoBefore = decoDraws(before);
   const countsBefore = familyCounts(before);
   // [E] — сбор (сценарий LM1: подсказка → addItem + ключ).
@@ -952,7 +956,7 @@ test('LM7. 000158.05 e2e: [E] на (-2,0) → лут тайла невидим, 
   const st1 = g.state;
   assert.equal((g.collectedLoot || {})[res.target.x + ',' + res.target.y], 1,
     'сбор: ключ тайла → день 1 (механика 000158.04)');
-  // Лут: пересчёт видит collectedLoot → (-2,0) отсутствует; ровно −1.
+  // Лут: пересчёт видит collectedLoot → (-1,0) отсутствует; ровно −1.
   // (Число spawn-вида переснято вместе с лут-каналом 000318.08.)
   const exp1 = expectedLoots(G, G.__liveMap, st1.cam, st1.zoom,
     g.collectedLoot || {});

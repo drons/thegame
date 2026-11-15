@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_syvorotka",
+  "name": "Зыбкая сыворотка",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 4,
+  "desc": "Зыбкая сыворотка: остаётся после сыра: на лице стягивает, на ране чистит.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.035
+  },
+  "icon": "assets/sprites/loot/zybkaya_syvorotka.svg"
+}

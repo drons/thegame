@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_polyn",
+  "name": "Зябкая полынь",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 16,
+  "tier": 2,
+  "desc": "Зябкая полынь: горечь после мороза становится металлической.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_polyn.svg"
+}

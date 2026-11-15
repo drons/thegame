@@ -1,0 +1,16 @@
+{
+  "id": "zybkaya_uksus",
+  "name": "Зыбкий уксус",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 5,
+  "desc": "Зыбкий уксус: кислый до слёз: вытравливает ржавчину и старые обиды.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "болото"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_uksus.svg"
+}

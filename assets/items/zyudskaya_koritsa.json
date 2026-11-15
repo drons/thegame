@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_koritsa",
+  "name": "Зюйдская корица",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 26,
+  "tier": 3,
+  "desc": "Зюйдская корица: кора свёрнута в трубку и пахнет чужими деньгами.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_koritsa.svg"
+}

@@ -1,0 +1,24 @@
+{
+  "id": "zybkaya_mel",
+  "название": "Резьба зыбкого мела",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zybkaya_mel.json",
+    "количество": 2
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 2
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 5,
+  "описание": "Мел режут наискось: крошится, но помнит форму."
+}

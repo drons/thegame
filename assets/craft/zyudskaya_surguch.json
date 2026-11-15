@@ -1,0 +1,28 @@
+{
+  "id": "zyudskaya_surguch",
+  "название": "Резьба зюйдского сургуча",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zyudskaya_surguch.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/amber_disc.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/sulfur.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 26,
+  "описание": "Сургуч режут тёплым ножом: холодный ломает печать пополам."
+}

@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_mylo",
+  "name": "Зыбкое мыло",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 5,
+  "desc": "Зыбкое мыло: мылится в холодной воде и не смеётся над грязью.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_mylo.svg"
+}

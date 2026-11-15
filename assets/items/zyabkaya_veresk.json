@@ -1,0 +1,17 @@
+{
+  "id": "zyabkaya_veresk",
+  "name": "Зябкий вереск",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 17,
+  "tier": 2,
+  "desc": "Зябкий вереск: соцветия под снегом сохраняют медвяную горечь.",
+  "loot": {
+    "terrains": [
+      "лес",
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_veresk.svg"
+}

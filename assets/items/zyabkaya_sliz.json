@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_sliz",
+  "name": "Зябкая слизь",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 13,
+  "tier": 2,
+  "desc": "Зябкая слизь: тянется нитью и не рвётся на морозу.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_sliz.svg"
+}

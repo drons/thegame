@@ -1,0 +1,28 @@
+{
+  "id": "zyabkaya_selitra",
+  "название": "Резьба по зябкой селитре",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zyabkaya_selitra.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/quartz.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 22,
+  "описание": "Селитру режут в сухом подвале: влага соберёт её обратно в камень."
+}

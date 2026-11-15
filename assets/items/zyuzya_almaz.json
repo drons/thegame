@@ -1,0 +1,16 @@
+{
+  "id": "zyuzya_almaz",
+  "name": "Зюзя-алмаз",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 100,
+  "tier": 4,
+  "desc": "Зюзя-алмаз: лежал в жиле до первой вьюги: режет даже стекло настроения.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.005
+  },
+  "icon": "assets/sprites/loot/zyuzya_almaz.svg"
+}

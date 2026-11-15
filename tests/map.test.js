@@ -1030,7 +1030,12 @@ test('vm, реальный порядок index.html: имена построе�
 // lootCandidates выбирают других предметов — на 6 сухих лут у ДВУХ
 // ДРУГИХ: (−58,1) root_rock, (−57,−1) root_ember; (−58,−1) berry_red
 // и (−58,1) herb_wind — уехали (переснято живым createMap по
-// assets/map.png). Зеркало СТАРЫХ 13
+// assets/map.png). РЕ-ПИН 000321.10 (тот же F1-класс: лут-канал по
+// ПОЗИЦИИ в живом пуле — +32 реагента zy* в травяном пуле роллы
+// переставили): на 6 сухих лут у ЧЕТЫРЁХ — (−59,0) zybkaya_syvorotka,
+// (−58,0) zybkaya_pyl, (−57,−2) zyudskaya_shafran, (−57,−1)
+// zyabkaya_okalina; (−58,1) root_rock — прежний; (−58,−1) — null.
+// Зеркало СТАРЫХ 13
 // ПОЛЕЙ — GOLDEN_OLD_48 (tests/map-loot.test.js, гард ML7b) —
 // ОБНОВЛЯТЬ В ПАРЕ с этим литералом (ревью 000158.03: ручной
 // зеркальный массив).
@@ -1079,12 +1084,13 @@ const GOLDEN_TILES = {
   '-119,27': { x: -119, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // горы
   '-118,26': { x: -118, y: 26, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // горы
   '-118,27': { x: -118, y: 27, terrain: 6, passable: false, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // горы
-  '-59,0': { x: -59, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
+  '-59,0': { x: -59, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'zybkaya_syvorotka' } }, // суша, лут (ре-пин 000321.10)
   '-58,-1': { x: -58, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша (лут уехал — ре-пин 000318.08 F1)
-  '-58,0': { x: -58, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
+  '-58,0': { x: -58, y: 0, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'zybkaya_pyl' } }, // суша, лут (ре-пин 000321.10)
   '-58,1': { x: -58, y: 1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'root_rock' } }, // суша, лут (ре-пин 000318.08 F1)
-  '-57,-2': { x: -57, y: -2, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: null }, // суша
-  '-57,-1': { x: -57, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'root_ember' } }, // суша, лут (ре-пин 000318.08 F1)
+  '-57,-2': { x: -57, y: -2, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'zyudskaya_shafran' } }, // суша, лут (ре-пин 000321.10)
+  '-57,-1': { x: -57, y: -1, terrain: 3, passable: true, hasBuilding: false, building: -1, buildingWealth: 0, hasMobGroup: false, mobGroup: -1, inBuilding: false, isEntrance: false, buildingAnchor: null, buildingId: null, loot: { item: 'zyabkaya_okalina' } }, // суша, лут (ре-пин 000321.10:
+  //   roll перескочил на zy* — root_ember уехал; ре-пин 000318.08 F1)
 };
 
 test('golden: tileAt на фиксированных координатах (реальный assets/map.png, node)', () => {

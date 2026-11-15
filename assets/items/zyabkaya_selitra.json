@@ -1,0 +1,17 @@
+{
+  "id": "zyabkaya_selitra",
+  "name": "Зябкая селитра",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 22,
+  "tier": 2,
+  "desc": "Зябкая селитра: выцветает на стенах подвалов белым инеем.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "болото"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_selitra.svg"
+}

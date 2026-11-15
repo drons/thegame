@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_shafran",
+  "name": "Зюйдский шафран",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 35,
+  "tier": 3,
+  "desc": "Зюйдский шафран: три рыльца на горшок: дороже золота, капризнее приданого.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_shafran.svg"
+}

@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_kvas",
+  "name": "Зыбкий квас",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 4,
+  "desc": "Зыбкий квас: бродит в бочке и требует, чтобы его наконец выпили.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_kvas.svg"
+}

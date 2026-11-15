@@ -1,0 +1,30 @@
+{
+  "id": "zyuzya_perlamut",
+  "название": "Вписывание рун в перламутр",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/zyuzya_perlamut.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/moonstone.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/quartz.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 45,
+  "описание": "Перламутр помнит море и принимает руны с морщью."
+}

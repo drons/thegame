@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_krupa",
+  "name": "Зыбкая крупа",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 4,
+  "desc": "Зыбкая крупа: полбяная, соринок вчетверо больше зерна.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_krupa.svg"
+}

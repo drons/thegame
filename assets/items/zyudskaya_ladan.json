@@ -1,0 +1,17 @@
+{
+  "id": "zyudskaya_ladan",
+  "name": "Зюйдский ладан",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 34,
+  "tier": 3,
+  "desc": "Зюйдский ладан: серёжки смолы; в храме и в алхимии — на вес серебра.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "лес"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_ladan.svg"
+}

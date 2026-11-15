@@ -1,0 +1,17 @@
+{
+  "id": "zyabkaya_rtut",
+  "name": "Зябкая ртуть",
+  "kind": "reagent",
+  "weight": 0.5,
+  "value": 30,
+  "tier": 2,
+  "desc": "Зябкая ртуть: катится тяжелее, чем кажется: ногтем не поддевай.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "болото"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_rtut.svg"
+}

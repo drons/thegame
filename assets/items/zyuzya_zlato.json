@@ -1,0 +1,17 @@
+{
+  "id": "zyuzya_zlato",
+  "name": "Зюзя-злато",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 80,
+  "tier": 4,
+  "desc": "Зюзя-злато: самородок в изморози: алхимии нужен холод, а не тепло.",
+  "loot": {
+    "terrains": [
+      "болото",
+      "трава"
+    ],
+    "frequency": 0.005
+  },
+  "icon": "assets/sprites/loot/zyuzya_zlato.svg"
+}

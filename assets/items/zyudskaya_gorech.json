@@ -1,0 +1,17 @@
+{
+  "id": "zyudskaya_gorech",
+  "name": "Зюйдская горечь",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 40,
+  "tier": 3,
+  "desc": "Зюйдская горечь: вытяжка из южных трав: ложка отрезвит хуже пощёчины.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "болото"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_gorech.svg"
+}

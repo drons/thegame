@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_izvest",
+  "name": "Зыбкая известь",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 4,
+  "desc": "Зыбкая известь: гасится паром и собственной жадностью; стены белит, руки кусает.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_izvest.svg"
+}

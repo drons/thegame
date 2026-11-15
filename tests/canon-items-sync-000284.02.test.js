@@ -135,11 +135,11 @@ test('T5: E-блок канона ≡ H2 «Каталог новых предм�
   assert.equal(eC, eS, 'E-блок канона ≠ H2 «Каталог новых предметов экипировки» spec/items.md — ре-синхронизировать канон в том же коммите');
 });
 
-test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2)', () => {
+test('T6: items-каталог: c1+c2+c3+c4+c11 (диск == канон §2; ре-пин 000321.10: якорь c1 — `0*(\\d+)` — каталог пересёк 001000)', () => {
   guard();
   const it = cat().items;
 
-  let m = anchor(/Каталог assets\/items — (\d+) файлов \(000001–000(\d+);/, 'c1');
+  let m = anchor(/Каталог assets\/items — (\d+) файлов \(000001–0*(\d+);/, 'c1');
   const N = D(m[1]);
   assert.equal(N, it.count, 'c1: канон «' + N + ' файлов» != диск count=' + it.count);
   assert.equal(D(m[2]), it.count, 'c1: канон max num != диск count');
@@ -314,7 +314,7 @@ test('T8: craft + иконки: c6+c7 (диск == канон §2)', () => {
   guard();
   const C = cat();
 
-  let m = anchor(/Крафт \(ФАКТ каталога assets\/craft, (\d+) рецепта/, 'c6a');
+  let m = anchor(/Крафт \(ФАКТ каталога assets\/craft, (\d+) рецепт[аов]?/, 'c6a');
   assert.equal(D(m[1]), C.craft.count, 'c6a: канон ' + m[1] + ' рецептов != диск ' + C.craft.count);
   m = anchor(/у ВСЕХ (\d+) предметов — минимум 1 рецепт \((\d+) — 1, (\d+) — 2/, 'c6b');
   assert.equal(D(m[1]), C.craft.rarityCovered, 'c6b: покрытие canon=' + m[1] + ' disk=' + C.craft.rarityCovered);

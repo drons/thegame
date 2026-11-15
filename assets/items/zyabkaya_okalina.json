@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_okalina",
+  "name": "Зябкая окалина",
+  "kind": "reagent",
+  "weight": 0.4,
+  "value": 20,
+  "tier": 2,
+  "desc": "Зябкая окалина: отслаивается от остывшего чугуна звонко, как чешуя.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_okalina.svg"
+}

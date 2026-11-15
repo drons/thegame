@@ -1,0 +1,31 @@
+{
+  "id": "zybkaya_voda",
+  "название": "Сгонка зыбкой воды",
+  "тип": "алхимия",
+  "результат": {
+    "предмет": "assets/items/zybkaya_voda.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/coal.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/mushroom_glow.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/alchemy.json"
+  ],
+  "здания": [
+    "assets/buildings/alchemy_lab.json"
+  ],
+  "уровень": 4,
+  "описание": "Перегоняют через лёд: вода остаётся водой, а прочее стекает."
+}

@@ -1,0 +1,27 @@
+{
+  "id": "zyabkaya_myata",
+  "название": "Холодный отжим зябкой мяты",
+  "тип": "алхимия",
+  "результат": {
+    "предмет": "assets/items/zyabkaya_myata.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/herb_mana.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/root_moon.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/alchemy.json"
+  ],
+  "здания": [
+    "assets/buildings/alchemy_lab.json"
+  ],
+  "уровень": 12,
+  "описание": "Мяту жмут на морозе: тепло уносит главное."
+}

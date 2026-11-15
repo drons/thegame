@@ -1,0 +1,16 @@
+{
+  "id": "zybkaya_okhra",
+  "name": "Зыбкая охра",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 4,
+  "desc": "Зыбкая охра: красит пальцы на неделю; в грунтовке незаменима.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "лес"
+    ],
+    "frequency": 0.035
+  },
+  "icon": "assets/sprites/loot/zybkaya_okhra.svg"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_pudra",
+  "name": "Зябкая пудра",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 18,
+  "tier": 2,
+  "desc": "Зябкая пудра: мельчайший помол из промёрзшей руды: липнет к языку.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_pudra.svg"
+}

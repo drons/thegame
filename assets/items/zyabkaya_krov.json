@@ -1,0 +1,17 @@
+{
+  "id": "zyabkaya_krov",
+  "name": "Зябкая кровь",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 24,
+  "tier": 2,
+  "desc": "Зябкая кровь: застывает рыжими хлопьями; в реактивах держит цвет.",
+  "loot": {
+    "terrains": [
+      "болото",
+      "лес"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_krov.svg"
+}

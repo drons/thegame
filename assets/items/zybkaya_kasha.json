@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_kasha",
+  "name": "Зыбкая каша",
+  "kind": "reagent",
+  "weight": 0.4,
+  "value": 5,
+  "desc": "Зыбкая каша: размазня по густоте, зато держит тепло дольше руки.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_kasha.svg"
+}

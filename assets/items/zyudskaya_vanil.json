@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_vanil",
+  "name": "Зюйдская ваниль",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 28,
+  "tier": 3,
+  "desc": "Зюйдская ваниль: стручки из юных колоний: дух на всю лавку.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_vanil.svg"
+}

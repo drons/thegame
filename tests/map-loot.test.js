@@ -44,18 +44,24 @@ const NUGGET_LOOT = new Set([
   'mithril_ore', 'quartz', 'obsidian', 'phosphorite', 'ruby',
   'sapphire', 'emerald', 'amethyst', 'diamond',
 ]);
-// 18 лесных reagent (terrains ⊇ 'лес'); грибы ⊆ лес (SPEC/000158.02).
-// 000220: +5 строительных reagent (все 5 несут «лес»).
+// 32 лесных reagent (terrains ⊇ 'лес'); грибы ⊆ лес (SPEC/000158.02).
+// 000220: +5 строительных reagent (все 5 несут «лес»); ре-пин 000321.10:
+// +14 реагентов zy* с «лес».
 const FOREST_REAGENTS = new Set([
   'berry_red', 'berry_blue', 'berry_wild', 'herb_sun', 'herb_wind',
   'root_moon', 'root_ember', 'fruit_apple', 'fruit_plum', 'fruit_quince',
   'mushroom_grey', 'mushroom_glow', 'mushroom_ink',
   'wood_log', 'hide', 'herb_healing', 'herb_mana', 'herb_bitter',
+  'zyabkaya_hvoya', 'zyabkaya_iney', 'zyabkaya_krov', 'zyabkaya_veresk',
+  'zybkaya_okhra', 'zybkaya_smola', 'zybkaya_zola',
+  'zyudskaya_kamed', 'zyudskaya_koritsa', 'zyudskaya_ladan',
+  'zyudskaya_sandal', 'zyudskaya_vanil', 'zyuzya_almaz', 'zyuzya_mifril',
 ]);
 const MUSHROOM_LOOT = new Set(
   ['mushroom_grey', 'mushroom_glow', 'mushroom_ink']);
-// Живой анти-дрейф: id ВСЕХ предметов каталога с полем loot (сейчас 33:
-// 14 самородков + 19 reagent — 000220: +5 строительных).
+// Живой анти-дрейф: id ВСЕХ предметов каталога с полем loot (сейчас 83:
+// 14 самородков + 19 reagent — 000220: +5 строительных; ре-пин 000321.10:
+// +50 реагентов zy* → 83).
 const LOOT_ITEM_IDS = new Set(
   ITEMS.filter((it) => it && it.loot && typeof it.loot === 'object')
        .map((it) => it.id));
@@ -93,10 +99,11 @@ function oldFields(t) {
   return o;
 }
 
-test('000158.03 ML1: поле loot в tileAt — null | {item: id} на ВСЁМ 240×240; id ∈ каталогу (33 loot-предмета)', () => {
-  assert.equal(LOOT_ITEM_IDS.size, 33,
-    'каталог: 33 предмета с полем loot (14 самородков + 19 reagent; '
-    + '000220: +5 строительных)');
+test('000158.03 ML1: поле loot в tileAt — null | {item: id} на ВСЁМ 240×240; id ∈ каталогу (83 loot-предмета; ре-пин 000321.10)', () => {
+  assert.equal(LOOT_ITEM_IDS.size, 83,
+    'каталог: 83 предмета с полем loot (14 самородков + 19 reagent; '
+    + '000220: +5 строительных; ре-пин 000321.10: +50 реагентов zy* '
+    + '→ 83)');
   const { tiles } = getProbe();
   let checked = 0;
   for (const t of tiles.values()) {
@@ -154,11 +161,21 @@ test('000158.03 ML2: взаимоисключение (0 нарушений на
     'тайл mob-группы (−120,−113): lootAt → null (моб приоритетнее)');
 });
 
-test('000158.03 ML3: распределение — трава: первые 2000 ПУСТЫХ травяных (детерм. скан x→y) — доля с лутом ≈ 0.32 (Σf трав, 000158.02 §2.1) ±0.05', () => {
-  // Σf 8 травяных кандидатов: 0.04+0.1 (berry_wild — дефолт)+0.03+0.03
-  // +0.03+0.03+0.04+0.02 = 0.32. Теор. 1−Π(1−f) ≈ 0.2804 — в диапазоне.
+test('000158.03 ML3: распределение — трава: первые 2000 ПУСТЫХ травяных (детерм. скан x→y) — доля с лутом ≈ live 1−Π(1−f) травяных кандидатов (ре-пин 000321.10: формула вместо литерала 0.32 — пул вырос до 40 кандидатов) ±0.05', () => {
+  // Ре-пин 000321.10: травяной пул вырос с 8 кандидатов (Σf=0.32) до 40
+  // (+32 реагента zy*) — пин переснят с литерала на ЖИВУЮ формулу
+  // 1−Π(1−f) по всем кандидатам с «трава» (дефолт frequency 0.1 при
+  // чтении — ≡ src/map.js); теория 0.682, наблюдение 0.674.
   const { tiles } = getProbe();
-  const GRASS_SUM_FREQ = 0.32;
+  let gProd = 1;
+  for (const it of ITEMS) {
+    if (!it || !it.loot || typeof it.loot !== 'object') continue;
+    if (!it.loot.terrains.includes('трава')) continue;
+    const f = typeof it.loot.frequency === 'number' ? it.loot.frequency
+      : 0.1;
+    gProd *= (1 - f);
+  }
+  const GRASS_SUM_FREQ = 1 - gProd;
   let n = 0, withLoot = 0;
   for (let x = -R; x < R && n < 2000; x++) {
     for (let y = -R; y < R && n < 2000; y++) {
@@ -171,11 +188,12 @@ test('000158.03 ML3: распределение — трава: первые 200
   assert.equal(n, 2000, 'в окне ≥2000 пустых травяных тайлов (зонд)');
   const obs = withLoot / n;
   assert.ok(Math.abs(obs - GRASS_SUM_FREQ) <= 0.05,
-    `трава: доля с лутом ${obs.toFixed(4)} ≠ 0.32 ±0.05 `
-    + '(Σ frequency травяных reagent, 000158.02 §2.1; паттерн 000021)');
+    `трава: доля с лутом ${obs.toFixed(4)} ≠ ${GRASS_SUM_FREQ.toFixed(4)} ±0.05 `
+    + '(live 1−Π(1−f) травяных кандидатов, 000158.02 §2.1; ре-пин '
+    + '000321.10; паттерн 000021)');
 });
 
-test('000158.03 ML4: распределение — лес: состав (18 лесных reagent; самородки ТОЛЬКО если nearMountain), ≥1 mushroom_*', () => {
+test('000158.03 ML4: распределение — лес: состав (32 лесных reagent; самородки ТОЛЬКО если nearMountain), ≥1 mushroom_*', () => {
   const { map, tiles } = getProbe();
   assert.equal(typeof map.nearMountain, 'function',
     'map.js: нет функции инстанса nearMountain(x, y) (краснота: не реализовано)');
@@ -196,7 +214,7 @@ test('000158.03 ML4: распределение — лес: состав (18 л�
   }
   assert.ok(n > 500, 'в окне ≥500 пустых лесных тайлов (зонд)');
   assert.equal(bad, 0,
-    `лоут леса: нарушен состав (${bad}: 18 лесных reagent + самородки `
+    `лоут леса: нарушен состав (${bad}: 32 лесных reagent + самородки `
     + `только рядом с горой; класс→terrain — SPEC/000158.02); `
     + `первый: ${firstBad}`);
   assert.ok(withLoot >= 1,

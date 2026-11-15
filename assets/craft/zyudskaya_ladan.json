@@ -1,0 +1,34 @@
+{
+  "id": "zyudskaya_ladan",
+  "название": "Начертание ладанных рун",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/zyudskaya_ladan.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/moonstone.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/herb_bitter.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 30,
+  "описание": "Руны ведут дымом: обелиск учит ладан помнить начертание."
+}

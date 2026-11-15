@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_muka",
+  "name": "Зыбкая мука",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 3,
+  "desc": "Зыбкая мука: помол с водой: хранится сутки, потом начинает дышать.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_muka.svg"
+}

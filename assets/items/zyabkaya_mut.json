@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_mut",
+  "name": "Зябкая муть",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 13,
+  "tier": 2,
+  "desc": "Зябкая муть: со дна холодных заводей: пахнет тиной и железом.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_mut.svg"
+}

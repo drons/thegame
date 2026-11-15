@@ -1,0 +1,28 @@
+{
+  "id": "zyuzya_yantar",
+  "название": "Резьба зюзя-янтаря",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zyuzya_yantar.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/amber_disc.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/coal.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 41,
+  "описание": "Янтарь берут полированным резцом: царапина съест мошку."
+}

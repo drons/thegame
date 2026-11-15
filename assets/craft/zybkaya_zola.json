@@ -1,0 +1,28 @@
+{
+  "id": "zybkaya_zola",
+  "название": "Выщелачивание зыбкой золы",
+  "тип": "резьба_по_камню",
+  "результат": {
+    "предмет": "assets/items/zybkaya_zola.json",
+    "количество": 2
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/coal.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/ruins.json"
+  ],
+  "уровень": 5,
+  "описание": "Золу выщелачивают в корыте: щёлок наверху, сор на дне."
+}

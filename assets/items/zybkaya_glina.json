@@ -1,0 +1,16 @@
+{
+  "id": "zybkaya_glina",
+  "name": "Зыбкая глина",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 3,
+  "desc": "Зыбкая глина: липнет к рукам и просит обжига.",
+  "loot": {
+    "terrains": [
+      "болото",
+      "трава"
+    ],
+    "frequency": 0.04
+  },
+  "icon": "assets/sprites/loot/zybkaya_glina.svg"
+}

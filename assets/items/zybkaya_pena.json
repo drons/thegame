@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_pena",
+  "name": "Зыбкая пена",
+  "kind": "reagent",
+  "weight": 0.05,
+  "value": 2,
+  "desc": "Зыбкая пена: собирают совком; на ладонях живёт недолго.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.04
+  },
+  "icon": "assets/sprites/loot/zybkaya_pena.svg"
+}

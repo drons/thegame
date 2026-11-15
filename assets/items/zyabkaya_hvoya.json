@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_hvoya",
+  "name": "Зябкая хвоя",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 12,
+  "tier": 2,
+  "desc": "Зябкая хвоя: собрана в первые заморозки: хрустит и колется.",
+  "loot": {
+    "terrains": [
+      "лес"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_hvoya.svg"
+}

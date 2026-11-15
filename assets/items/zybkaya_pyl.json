@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_pyl",
+  "name": "Зыбкая пыль",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 3,
+  "desc": "Зыбкая пыль: поднимается столбом, а падает камнем.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.035
+  },
+  "icon": "assets/sprites/loot/zybkaya_pyl.svg"
+}

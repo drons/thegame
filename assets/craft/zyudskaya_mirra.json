@@ -1,0 +1,30 @@
+{
+  "id": "zyudskaya_mirra",
+  "название": "Начертание мирровых рун",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/zyudskaya_mirra.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/silver_ore.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 34,
+  "описание": "Мирру вводят в руны на третьем часу: раньше — закипит, позже — застынет."
+}

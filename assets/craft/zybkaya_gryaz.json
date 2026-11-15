@@ -1,0 +1,27 @@
+{
+  "id": "zybkaya_gryaz",
+  "название": "Вымывание зыбкой грязи",
+  "тип": "алхимия",
+  "результат": {
+    "предмет": "assets/items/zybkaya_gryaz.json",
+    "количество": 2
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/herb_bitter.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/alchemy.json"
+  ],
+  "здания": [
+    "assets/buildings/alchemy_lab.json"
+  ],
+  "уровень": 3,
+  "описание": "Грязь промывают горьким: лишнее уходит с водой."
+}

@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_mirra",
+  "name": "Зюйдская мирра",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 32,
+  "tier": 3,
+  "desc": "Зюйдская мирра: смола из-за моря: жгут там, где хотят быть услышанными.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_mirra.svg"
+}

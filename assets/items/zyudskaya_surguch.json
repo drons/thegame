@@ -1,0 +1,16 @@
+{
+  "id": "zyudskaya_surguch",
+  "name": "Зюйдский сургуч",
+  "kind": "reagent",
+  "weight": 0.3,
+  "value": 26,
+  "tier": 3,
+  "desc": "Зюйдский сургуч: воск с киноварью: печать ставит тот, кому доверяют.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_surguch.svg"
+}

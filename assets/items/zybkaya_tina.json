@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_tina",
+  "name": "Зыбкая тина",
+  "kind": "reagent",
+  "weight": 0.2,
+  "value": 2,
+  "desc": "Зыбкая тина: со дна: пахнет летом, которое было три года назад.",
+  "loot": {
+    "terrains": [
+      "болото"
+    ],
+    "frequency": 0.04
+  },
+  "icon": "assets/sprites/loot/zybkaya_tina.svg"
+}

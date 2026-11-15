@@ -1,0 +1,15 @@
+{
+  "id": "zybkaya_testo",
+  "name": "Зыбкое тесто",
+  "kind": "reagent",
+  "weight": 0.4,
+  "value": 6,
+  "desc": "Зыбкое тесто: бежит через край кадки, если задать ему мало ходу.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.03
+  },
+  "icon": "assets/sprites/loot/zybkaya_testo.svg"
+}

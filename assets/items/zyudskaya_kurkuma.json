@@ -1,0 +1,17 @@
+{
+  "id": "zyudskaya_kurkuma",
+  "name": "Зюйдская куркума",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 25,
+  "tier": 3,
+  "desc": "Зюйдская куркума: красит всё, чего коснётся: еду, пальцы и репутацию.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "болото"
+    ],
+    "frequency": 0.015
+  },
+  "icon": "assets/sprites/loot/zyudskaya_kurkuma.svg"
+}

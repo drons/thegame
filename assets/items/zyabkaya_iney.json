@@ -1,0 +1,17 @@
+{
+  "id": "zyabkaya_iney",
+  "name": "Зябкий иней",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 14,
+  "tier": 2,
+  "desc": "Зябкий иней: снимают с камней до рассвета: тает в тёплой ладони.",
+  "loot": {
+    "terrains": [
+      "трава",
+      "лес"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_iney.svg"
+}

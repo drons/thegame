@@ -1631,6 +1631,7 @@ const SHOP_GOLDEN = {
   // не сдвинулись (node-симуляция: seed/старые стоки
   // byte-identical). Прочие 3 голдены — без изменений.
   '100,-40,7,5,44,3': { seed: 3425630131, stock: {
+
     // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).
     // Ре-пин 000321.02: броня 000564–000613 — КОНЕЦ каталога,
     // rng-хвост allItems-пула → += 39 брони; остальные
@@ -1670,6 +1671,7 @@ const SHOP_GOLDEN = {
     // Ре-пин 000321.08: еда 000865–000914 — КОНЕЦ каталога, rng-хвост пула allItems (bt44, w3) → += 40 (не выпали: zveroboy_chay/zakuska_garlic/zasol_ogurcov/zernistaya_kasha/zapekanka_yablochnaya/zubrovka_med/zhulien_gribnoy/zhulien_syrny/zharkoe_lesnoe/zolotoe_zharkoe);
     // остальные ключи стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
 
+    // Ре-пин 000321.10: +50 реагентов zy* (000965–001014) — lex-хвост пула; сток вырос additions-only (старые ключи побайтово целы), переснят ЖИВЫМ кодом (seed byte-identical).
     absolute_zero_scroll: 1, acid_splash_scroll: 1, adobe_shield: 5, aegis_mantle: 2, aegis_scroll: 1,
     aegis_shield: 3, alchemy_manual: 4, alpine_brew: 3, amber_bead: 1, amber_disc: 2,
     amber_elixir: 2, amethyst: 5, amethyst_band: 3, amethyst_boots: 3, amethyst_choker: 4,
@@ -1823,19 +1825,25 @@ const SHOP_GOLDEN = {
     zeppole_medovye: 3, zernisty_hleb: 5, zharkoe_kartofelnoe: 2, zharkoe_myasnoe: 5, zharovnya_kuritsa: 3,
     zhele_limonnoe: 4, zhele_yagodnoe: 3, zhur_lesnoy: 1, zhyto_kasha: 5, zimniy_kompot: 5,
     ziti_cheese: 1, ziti_tomato: 1, ziti_zapechennye: 1, zucchini_boat: 5, zucchini_patty: 3,
-    zucchini_salad: 1, zucchini_soup: 3, zvany_obed: 5,
-    // Ре-пин 000321.09: книги навыков 000915–000964 — lex-хвост каталога, rng-хвост пула allItems (вид 44, w3) → += 45 книг (не выпали 5); остальные 768 ключей стока не сдвинулись (seed byte-identical; переснято ЖИВЫМ кодом).
-    zvezdopis_accuracy: 1, zvezdopis_acro: 1, zvezdopis_alchemy: 4, zvezdopis_archer: 3,
-    zvezdopis_back: 3, zvezdopis_breath: 4, zvezdopis_catseye: 3, zvezdopis_endurance: 2,
-    zvezdopis_firelord: 4, zvezdopis_fists: 5, zvezdopis_forge: 3, zvezdopis_fright: 2,
-    zvezdopis_heavy: 1, zvezdopis_leader: 1, zvezdopis_meditation: 5, zvezdopis_merchant: 2,
-    zvezdopis_perception: 5, zvezdopis_precog: 3, zvezdopis_runes: 3, zvezdopis_scholar: 2,
-    zvezdopis_staff: 2, zvezdopis_step: 4, zvezdopis_swordsman: 3, zvezdopis_thief: 2,
-    zvezdopis_unkill: 1, zvukopis_acro: 5, zvukopis_artist: 5, zvukopis_back: 4, zvukopis_breath: 1,
-    zvukopis_catseye: 4, zvukopis_elder: 4, zvukopis_endurance: 3, zvukopis_forge: 4,
-    zvukopis_fright: 5, zvukopis_golem: 5, zvukopis_leader: 3, zvukopis_merchant: 5,
-    zvukopis_orator: 1, zvukopis_perception: 2, zvukopis_precog: 2, zvukopis_scholar: 2,
-    zvukopis_staff: 1, zvukopis_step: 3, zvukopis_thief: 2, zvukopis_unkill: 2,
+    zucchini_salad: 1, zucchini_soup: 3, zvany_obed: 5, zvezdopis_accuracy: 1, zvezdopis_acro: 1,
+    zvezdopis_alchemy: 4, zvezdopis_archer: 3, zvezdopis_back: 3, zvezdopis_breath: 4, zvezdopis_catseye: 3,
+    zvezdopis_endurance: 2, zvezdopis_firelord: 4, zvezdopis_fists: 5, zvezdopis_forge: 3, zvezdopis_fright: 2,
+    zvezdopis_heavy: 1, zvezdopis_leader: 1, zvezdopis_meditation: 5, zvezdopis_merchant: 2, zvezdopis_perception: 5,
+    zvezdopis_precog: 3, zvezdopis_runes: 3, zvezdopis_scholar: 2, zvezdopis_staff: 2, zvezdopis_step: 4,
+    zvezdopis_swordsman: 3, zvezdopis_thief: 2, zvezdopis_unkill: 1, zvukopis_acro: 5, zvukopis_artist: 5,
+    zvukopis_back: 4, zvukopis_breath: 1, zvukopis_catseye: 4, zvukopis_elder: 4, zvukopis_endurance: 3,
+    zvukopis_forge: 4, zvukopis_fright: 5, zvukopis_golem: 5, zvukopis_leader: 3, zvukopis_merchant: 5,
+    zvukopis_orator: 1, zvukopis_perception: 2, zvukopis_precog: 2, zvukopis_scholar: 2, zvukopis_staff: 1,
+    zvukopis_step: 3, zvukopis_thief: 2, zvukopis_unkill: 2, zyabkaya_hvoya: 5, zyabkaya_iney: 2,
+    zyabkaya_iva: 5, zyabkaya_krapiva: 5, zyabkaya_krov: 3, zyabkaya_mut: 4, zyabkaya_myata: 5,
+    zyabkaya_okalina: 5, zyabkaya_polyn: 2, zyabkaya_pudra: 4, zyabkaya_rosa: 2, zyabkaya_rtut: 2,
+    zyabkaya_sliz: 1, zyabkaya_veresk: 2, zybkaya_gryaz: 5, zybkaya_izvest: 3, zybkaya_kasha: 4,
+    zybkaya_krupa: 5, zybkaya_kvas: 3, zybkaya_mel: 1, zybkaya_muka: 5, zybkaya_okhra: 5,
+    zybkaya_pena: 5, zybkaya_pyl: 2, zybkaya_smola: 5, zybkaya_sol: 1, zybkaya_syvorotka: 2,
+    zybkaya_testo: 5, zybkaya_tina: 1, zybkaya_uksus: 1, zybkaya_voda: 2, zybkaya_zola: 3,
+    zyudskaya_gorech: 4, zyudskaya_kamed: 1, zyudskaya_koritsa: 1, zyudskaya_kurkuma: 1, zyudskaya_ladan: 2,
+    zyudskaya_mirra: 4, zyudskaya_sandal: 3, zyudskaya_shafran: 2, zyudskaya_surguch: 1, zyudskaya_vanil: 5,
+    zyuzya_almaz: 2, zyuzya_mifril: 4, zyuzya_perlamut: 2, zyuzya_yantar: 2,
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {
     // Ре-пин 000318.08: assets/items переименован в <id>.json — порядок зеркал лекс по id, rng-порядки пулов allItems переупорядочены ЦЕЛИКОМ (не хвостом); сток переснят ЖИВЫМ кодом (seed byte-identical).

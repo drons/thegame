@@ -1,0 +1,16 @@
+{
+  "id": "zyabkaya_myata",
+  "name": "Зябкая мята",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 15,
+  "tier": 2,
+  "desc": "Зябкая мята: холодит по-настоящему: мятный дух перехватывает дыхание.",
+  "loot": {
+    "terrains": [
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_myata.svg"
+}

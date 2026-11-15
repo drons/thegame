@@ -1,0 +1,17 @@
+{
+  "id": "zyabkaya_iva",
+  "name": "Зябкая ива",
+  "kind": "reagent",
+  "weight": 0.1,
+  "value": 12,
+  "tier": 2,
+  "desc": "Зябкая ива: кора с подмороженных веток: вяжет сильнее летней.",
+  "loot": {
+    "terrains": [
+      "болото",
+      "трава"
+    ],
+    "frequency": 0.025
+  },
+  "icon": "assets/sprites/loot/zyabkaya_iva.svg"
+}

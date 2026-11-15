@@ -153,10 +153,10 @@ const NEEDLE_A = 'base_price';
 
 // --- T1: форма 50 предметов --------------------------------------------------
 
-test('000321.09 T1: каталог — ровно 964 файла <id>.json (позиции 000915–000964 по реестру 000318.08); новые 50 — kind skill_book, БЕЗ rarity/slot/set/subtype/tier/stats/loot/affixes/set_bonus и БЕЗ base_price (решение станции: цена продажи через SELL_BASE_VALUE.skill_book), порядок ключей = канон sync-items-data.js (icon ПОСЛЕДНИМ), roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 914 — волна не добавлена)', () => {
+test('000321.09 T1: каталог — ровно 1014 файла <id>.json (позиции 000915–000964 по реестру 000318.08); новые 50 — kind skill_book, БЕЗ rarity/slot/set/subtype/tier/stats/loot/affixes/set_bonus и БЕЗ base_price (решение станции: цена продажи через SELL_BASE_VALUE.skill_book), порядок ключей = канон sync-items-data.js (icon ПОСЛЕДНИМ), roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 914 — волна не добавлена) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = FILES();
-  assert.equal(files.length, 964,
-    'каталог — 964 файла (914 + 50 книг 000321.09); факт: ' + files.length
+  assert.equal(files.length, 1014,
+    'каталог — 1014 файла (914 + 50 книг 000321.09); факт: ' + files.length
     + ' (краснота: волна не добавлена)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
@@ -189,9 +189,9 @@ test('000321.09 T1: каталог — ровно 964 файла <id>.json (по
 
 // --- T2: ростер + глобальная уникальность + additions-only ------------------
 
-test('000321.09 T2: ростер 50 строк ≡ JSON (id/имя/skill/weight/value/desc «<Имя>: …»); sweep по 964: id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zveroboy_chay» (additions-only: хвост зеркального lex-порядка ⇒ rng-потоки существующих стоков не сдвигаются) (краснота: каталог 914)', () => {
+test('000321.09 T2: ростер 50 строк ≡ JSON (id/имя/skill/weight/value/desc «<Имя>: …»); sweep по 1014: id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zveroboy_chay» (additions-only: хвост зеркального lex-порядка ⇒ rng-потоки существующих стоков не сдвигаются) (краснота: каталог 914) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = FILES();
-  assert.equal(files.length, 964, 'каталог — 964; факт: ' + files.length);
+  assert.equal(files.length, 1014, 'каталог — 1014; факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
@@ -207,7 +207,7 @@ test('000321.09 T2: ростер 50 строк ≡ JSON (id/имя/skill/weight/
       'дубликат desc: ' + j.desc + ' (' + f + ')');
     descs.set(j.desc, f);
   }
-  assert.equal(ids.size, 964);
+  assert.equal(ids.size, 1014);
   for (const [num, id, name, skill, weight, value, tail] of ROSTER_00032109) {
     const j = JSON.parse(loadItemFile(num));
     assert.equal(j.id, id, num + ': id == ростер');
@@ -339,10 +339,10 @@ test('000321.09 T5: иконки — у 50 новых поле icon ↔ файл
 
 // --- T6: страж «рецептов с результатом skill_book нет» (зелёный и до волны) -
 
-test('000321.09 T6: страж факта диска — каталог craft РОВНО 693; НИ У ОДНОГО рецепта результат не kind skill_book (sweep по 693); ни один id волны не является результатом рецепта (книги — лут/торговля, ТЗ-п.2)', () => {
+test('000321.09 T6: страж факта диска — каталог craft РОВНО 718; НИ У ОДНОГО рецепта результат не kind skill_book (sweep по 718); ни один id волны не является результатом рецепта (книги — лут/торговля, ТЗ-п.2) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = recFiles();
-  assert.equal(files.length, 693,
-    'craft — 693 файла (не вырос: рецептов книг нет); факт: ' + files.length);
+  assert.equal(files.length, 718,
+    'craft — 718 файла (не вырос: рецептов книг нет); факт: ' + files.length);
   for (const f of files) {
     const j = JSON.parse(
       fs.readFileSync(path.join(CRAFT_DIR, f), 'utf8'));
@@ -360,7 +360,7 @@ test('000321.09 T6: страж факта диска — каталог craft Р
 
 // --- T7: зеркало + реестр + additions-only в зеркале ------------------------
 
-test('000321.09 T7: зеркало src/items-data.js — 964 записи, новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — его ХВОСТ (additions-only); реестр tests/scripts/items-num2id-000318.08.json — ключи «000001»…«000964» подряд, биекция с диском, 000915…000964 ≡ ростер (append-only: прежние 914 строк не тронуты) (краснота: зеркало 914 / реестр 914)', () => {
+test('000321.09 T7: зеркало src/items-data.js — 1014 записи, новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — НЕМЕДЛЕННО ПЕРЕД хвостом (ре-пин 000321.10: ХВОСТ заняли реагенты zy* > zv*); реестр tests/scripts/items-num2id-000318.08.json — ключи «000001»…«000964» подряд, биекция с диском, 000915…000964 ≡ ростер (append-only: прежние 914 строк не тронуты) (краснота: зеркало 914 / реестр 914) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const diskCount = fs.readdirSync(ITEMS_DIR).filter(SLUG).length;
   assert.equal(ITD.ITEMS.length, diskCount,
     'зеркало ≡ диск по числу записей; факт: зеркало ' + ITD.ITEMS.length
@@ -375,15 +375,16 @@ test('000321.09 T7: зеркало src/items-data.js — 964 записи, но�
   }
   const ours = ids.filter((v) => ROSTER_SET.has(v));
   assert.equal(ours.length, 50, 'в зеркале — все 50 книг волны');
-  assert.deepEqual(ours, ids.slice(-50),
-    'наши 50 — ХВОСТ зеркального lex-порядка (additions-only)');
+  assert.deepEqual(ours, ids.slice(-100, -50),
+    'наши 50 — сразу перед хвостом реагентов 000321.10 (additions-only;'
+    + ' zyabkaya… > zvukopis… — книги перестали быть хвостом)');
   const nums = Object.keys(NUM2ID);
-  assert.equal(nums.length, 964,
-    'реестр — 964 строк; факт: ' + nums.length);
+  assert.equal(nums.length, 1014,
+    'реестр — 1014 строк; факт: ' + nums.length);
   assert.deepEqual(nums, nums.map((_, i) => String(i + 1).padStart(6, '0')),
     'реестр — «000001»…«000964» подряд, без дыр');
   const byId = new Set(Object.values(NUM2ID));
-  assert.equal(byId.size, 964, 'реестр — биекция с диском');
+  assert.equal(byId.size, 1014, 'реестр — биекция с диском');
   for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUG)) {
     assert.ok(byId.has(f.replace(/\.json$/, '')),
       f + ': позиция в реестре есть');
@@ -406,7 +407,7 @@ test('000321.09 T8: регресс-канарейки ЖИВЫМИ выраже�
   assert.equal(all.length, ITD.ITEMS.length, 'диск ≡ зеркало');
   assert.equal(nums.length, all.length, 'диск ≡ реестр');
   const deltas = {
-    'каталог (914 → 964)': all.length - rest.length,
+    'каталог (914 → 1014)': all.length - rest.length,
     'без slot (325 → 375)':
       all.filter((it) => !('slot' in it)).length
       - rest.filter((it) => !('slot' in it)).length,
@@ -432,7 +433,7 @@ test('000321.09 T8: регресс-канарейки ЖИВЫМИ выраже�
 
 // --- T9: spec/items.md + канон памяти ---------------------------------------
 
-test('000321.09 T9: spec/items.md — «Каталог пополнен 50 книгами навыков 000321.09» и живой счётчик «Каталог assets/items — NNN файлов (на момент …)» (ре-пин 000386: литералы счётчика «964 … на момент 000321.09», c1 и «skill_book 61» выведены на живую сверку с каталогом/kind-счётом — будущая волна не правит эту строку); правки line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2 (SPEC_FILE_LINES["items.md"] не двигается); канон memory/000230.16 — c1 «Каталог assets/items — NNN файлов (000001–NNNNNN;», c2 «skill_book <живой счёт>» и E-блок ≡ H2 spec нормализованно (краснота: счётчик отстал от диска)', () => {
+test('000321.09 T9: spec/items.md — «Каталог пополнен 50 книгами навыков 000321.09» и живой счётчик «Каталог assets/items — NNN файлов (на момент …)» (ре-пин 000386: литералы счётчика «1014 … на момент 000321.09», c1 и «skill_book 61» выведены на живую сверку с каталогом/kind-счётом — будущая волна не правит эту строку); правки line-neutral: 477 строк БЕЗ trailing-\\n и 13 H2 (SPEC_FILE_LINES["items.md"] не двигается); канон memory/000230.16 — c1 «Каталог assets/items — NNN файлов (000001–NNNNNN;», c2 «skill_book <живой счёт>» и E-блок ≡ H2 spec нормализованно (краснота: счётчик отстал от диска) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const spec = fs.readFileSync(path.join(ROOT, 'spec', 'items.md'), 'utf8');
   assert.ok(spec.includes(
     'Каталог пополнен 50 книгами навыков 000321.09'),
@@ -498,7 +499,7 @@ test('000321.09 T9: spec/items.md — «Каталог пополнен 50 кн�
 
 // --- T10: торговля автоматикой, лут-стражи, additions-only гейт -------------
 
-test('000321.09 T10: 0-diff стражи и магазинная автоматика (src/ НЕ трогали): shopKindsFor(магазин магии) содержит «skill_book» ⇒ наши книги входят в магические лавки АВТОМАТИЧЕСКИ (сток (30,40,type 3,w 0) содержит ≥ 20 книг ростера); makeCampShop (пул food/potion/weapon/armor) НЕ содержит ни одной книги; LOOT_RARE_POOL combat.js — ни одного id волны; src/loot-equip-data.js побайтово прежний, EQUIP_POOLS 232/161/117/46/23, DISASSEMBLY_BY_ITEM 648 и ни одного id волны; у всех 50 новых НЕТ поля loot (краснота: книг нет в стоках)', () => {
+test('000321.09 T10: 0-diff стражи и магазинная автоматика (src/ НЕ трогали): shopKindsFor(магазин магии) содержит «skill_book» ⇒ наши книги входят в магические лавки АВТОМАТИЧЕСКИ (сток (30,40,type 3,w 0) содержит ≥ 20 книг ростера); makeCampShop (пул food/potion/weapon/armor) НЕ содержит ни одной книги; LOOT_RARE_POOL combat.js — ни одного id волны; src/loot-equip-data.js побайтово прежний, EQUIP_POOLS 232/161/117/46/23, DISASSEMBLY_BY_ITEM 673 (ре-пин 000321.10: +25) и ни одного id волны; у всех 50 новых НЕТ поля loot (краснота: книг нет в стоках)', () => {
   const M = require('../src/map.js');
   const B = M.BUILDING_TYPES;
   const kinds = I.shopKindsFor(B.MAGIC_SHOP);
@@ -544,7 +545,8 @@ test('000321.09 T10: 0-diff стражи и магазинная автомат�
     + L.RARITY.map((t) => P[t.id].length).join('/'));
   assert.equal(L.RARITY.reduce((s, t) => s + t.chance, 0), 1,
     'DROP-таблица — Σ 1 (НЕ тронута)');
-  assert.equal(Object.keys(C.DISASSEMBLY_BY_ITEM).length, 648,
-    'DISASSEMBLY_BY_ITEM — 648 (книги рецептов не добавили); факт: '
+  assert.equal(Object.keys(C.DISASSEMBLY_BY_ITEM).length, 673,
+    'DISASSEMBLY_BY_ITEM — 673 (книги рецептов не добавили; ре-пин'
+    + ' 000321.10: +25 рецептов реагентов 648 → 673); факт: '
     + Object.keys(C.DISASSEMBLY_BY_ITEM).length);
 });
