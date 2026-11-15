@@ -16,8 +16,8 @@
 // BI-3: schema.json — properties.icon (union-паттерн) + icon_prompt;
 //       icon — required (конец), icon_prompt — НЕ required;
 //       additionalProperties:false.
-// BI-4: зеркало src/buildings.js — у всех 55 icon === значению сырого
-//       JSON (диалог читает каталожную запись).
+// BI-4: зеркало src/buildings.js — у всех записей каталога icon ===
+//       значению сырого JSON (диалог читает каталожную запись).
 // BI-5: диалог — a.icon всех 22 строк === icon сырого JSON; rename-city
 //       без icon; 23 строки; меню открыт.
 // BI-6: консистентность с артом карты/города — НЕЗАВИСИМЫМ резолвом
@@ -179,7 +179,8 @@ test('BI-1. 000293: 29 записей с «спрайт» — icon = «спра�
   const withSprite = RECORDS.filter((r) =>
     typeof r.data.спрайт === 'string' && r.data.спрайт !== '');
   assert.equal(withSprite.length, 29,
-    'контур R1: ровно 29 из 55 с «спрайт» (факт: ' + withSprite.length + ')');
+    'контур R1: ровно 29 из ' + FILES.length + ' с «спрайт» '
+    + '(миграция 000405; факт: ' + withSprite.length + ')');
   for (const r of withSprite) {
     const id = r.data.id;
     assert.equal(r.data.icon, r.data.спрайт,
@@ -194,10 +195,12 @@ test('BI-2. 000293: 26 записей без «спрайт» — icon = assets/
   const noSprite = RECORDS.filter((r) =>
     typeof r.data.спрайт !== 'string' || r.data.спрайт === '');
   assert.equal(noSprite.length, 26,
-    'ровно 26 из 55 без «спрайт» (факт: ' + noSprite.length + ')');
+    'ровно 26 из ' + FILES.length + ' без «спрайт» '
+    + '(миграция 000405; факт: ' + noSprite.length + ')');
   assert.deepEqual(
     noSprite.map((r) => r.data.id).sort((a, b) => a - b), ICON_IDS,
-    'набор 26 — механика по id (55 − 29)');
+    'набор ' + ICON_IDS.length + ' — механика по id (миграция 000405: '
+    + 'знаменатель с диска, контур состава — ростер ICON_IDS)');
   for (const r of noSprite) {
     const id = r.data.id;
     assert.equal(r.data.icon, iconPathFor(id),
@@ -232,8 +235,9 @@ test('BI-2. 000293: 26 записей без «спрайт» — icon = assets/
       iconPathFor(id) + ' == ' + byHash.get(h) + ': дубль иконки (копия)');
     byHash.set(h, iconPathFor(id));
   }
-  assert.equal(byHash.size, 26,
-    '26 парно-уникальных sha256 (факт: ' + byHash.size + ')');
+  assert.equal(byHash.size, ICON_IDS.length,
+    'парно-уникальных sha256 ровно ' + ICON_IDS.length
+    + ' (миграция 000405; факт: ' + byHash.size + ')');
 });
 
 test('BI-3. 000293: schema.json — properties.icon (union-паттерн sprites/buildings|cities|building-icons) + properties.icon_prompt; icon — required (конец), icon_prompt — НЕ required; additionalProperties:false', () => {
@@ -260,7 +264,7 @@ test('BI-3. 000293: schema.json — properties.icon (union-паттерн sprite
     'icon_prompt НЕ в required (опциональное поле-сопровождение)');
 });
 
-test('BI-4. 000293: зеркало src/buildings.js — у всех 55 icon = значению сырого JSON-файла (строка; источник данных диалога — 22 buildable)', () => {
+test('BI-4. 000293: зеркало src/buildings.js — у всех записей каталога (миграция 000405) icon = значению сырого JSON-файла (строка; источник данных диалога — 22 buildable)', () => {
   assert.equal(buildableIds.length, 22,
     'набор D3 — ровно 22 (факт: ' + buildableIds.length + ')');
   for (const r of RECORDS) {

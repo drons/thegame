@@ -270,7 +270,15 @@ test('000221-R1. каталог: 000055.json «Хранилище» + зерка
   }, 'RED: стройка — 100 з. + Бревно×2 + Каменный обломок×2 (ссылки-файлы)');
 
   // Зеркало (buildings.js, ссылки-файлы → id):
-  assert.equal(B.BUILDINGS.length, 55, 'RED: зеркало 54 → 55');
+  const DISK_N_000405 = fs.readdirSync(path.join(ROOT, 'assets', 'buildings'))
+    .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f))
+    .length;
+  assert.ok(DISK_N_000405 >= 55,
+    'в каталоге построек не менее 55 slug-файлов (пол-наследие .398; '
+    + 'миграция 000405), факт: ' + DISK_N_000405);
+  assert.equal(B.BUILDINGS.length, DISK_N_000405,
+    'миграция 000405: зеркало src/buildings.js ≡ каталогу '
+    + '(sync-buildings-data не прогнан?), факт: ' + B.BUILDINGS.length);
   const b55 = B.getBuilding(55);
   assert.ok(b55, 'RED: зеркало getBuilding(55)');
   assert.equal(b55.название, 'Хранилище');
