@@ -5294,7 +5294,7 @@ test('000132-N6: пулы — данные модуля: точные списк
   assert.deepEqual(LOOT_BASE_POOL, [
     'minor_healing', 'healing_potion', 'greater_healing', 'mana_potion',
     'mana_elixir', 'bread', 'meat', 'honey_cake',
-  ], 'базовый пул: ВСЕ food/potion каталога, порядок файлов каталога');
+  ], 'базовый пул: замороженные 8 конкретных id (5 potion + 3 food), порядок файлов каталога');
   assert.deepEqual(LOOT_RARE_POOL, [
     'iron_sword', 'steel_sword', 'hunting_bow', 'battle_axe', 'war_hammer',
     'chainmail', 'knight_plate',
