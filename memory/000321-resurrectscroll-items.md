@@ -24,8 +24,10 @@ additions-only, сиды byte-identical, золотые дописываются
 - camp-пул (food/potion/weapon/armor) NOT contains resurrection_scroll — 227/335 инертны,
   GOLDEN_CAMP и building-effects не переснимались.
 Диапазон реестра 001065–001114 (резерв при старте волны, исчерпан точно); append в
-лекс-порядке внутри блока (ASCII: '_' < буквы ⇒ zmeev_ перед zmei? нет — zmei < zmeev;
-порядок = [..IDS].sort(), сверен T7 .11-миграции).
+лекс-порядке внутри блока (ASCII: 4-я буква e < i ⇒ zmeev < zmei — реестр 001086
+zyv_zmeev_scroll / 001087 zyv_zmei_scroll, живой [..IDS].sort(); порядок сверен
+T7 .11-миграции). ЭРРАТА b29: прежняя форма «zmeev_ перед zmei? нет — zmei < zmeev»
+была ложной инверсией (кавычки — цитата прежнего текста, не диска).
 Цены 130–220, вес 0.4–0.6 (ТЗ-вилка); base_price/tier/rarity/slot НЕТ (стоп-лист T1
 FORBIDDEN_KEYS); desc = префикс «В бою (быстрый слот): возвращает первого погибшего
 союзника на поле боя (50% HP). » + вкус. Имена «Зов …» — схема .11 «Свиток: Зов X» не
@@ -40,19 +42,22 @@ zo янтарь / zv фиолет / zy уголь). sha256-уникальнос�
 прогона генератор исключает по ownSet — грабля «icon hash clash» при повторном запуске).
 sprites/items 981→1031: svg.test.js таблица + 9 семейных держателей (T7 «против всех N
 иконок», allSvg/hashes asserts, T10 icon-assert у shield/artifact/tool, message «иконок —
-N; факт:» у ring/potion/food, items.test.js:2688 L3 «прочих — ровно N»). skillbook .09
+N; факт:» у ring/potion/food, items.test.js message «прочих предметов — ровно 1031» (ЭРРАТА b29: символьный якорь
+вместо протухшего номера :2688 — дисковая форма начинается с «прочих предметов — ровно»,
+а не «прочих — ровно»). skillbook .09
 message-иголки не было (только hashes/name).
 
 ## 4. Ре-пин-карта (финал — живой диск)
 
 icons 981→1031 (см. §3); без slot 475→525: ui.test.js (шапка :49 + name/message +
-«1114 − 589»), 5 fam withSlot asserts + ring/food/potion `in it)).length`, items.test.js:3869
-L3-message, 000252 заголовок-пин (5 иголок; НЕгативы «прочие 425»/«104» живут), 000243
+«1114 − 589»), 5 fam withSlot asserts + ring/food/potion `in it)).length`, items.test.js message
+«прочих предметов — ровно 525» (ЭРРАТА b29: символьный якорь вместо :3869), 000252 заголовок-пин (5 иголок; НЕгативы «прочие 425»/«104» живут), 000243
 (7 иголок, name-prefix clause); без base_price 712→762: potion/food T8 (assert+message+name),
 000322 R6 name-chain (историческое «712 НЕ двинулся» в .11-clause — НЕ трогать); каталог
-1064→1114: items.test.js «= 1064 » equality-message ×2 (8225 floor «= 1064)» НЕ тронут —
-ls-пол), ls-предикаты ≥1064 СТОЯТ (items.test floors, assets-schemas minCount, e9-canary,
-item-icons .302.08). I1 (items.test.js «000211.06 I1»): RESURRECTSCROLLS_00032112 exclusion
+1064→1114: items.test.js «= 1064 » equality-message ×2 сняты миграцией 000397 в ls-форму
+«каталог — ls-пол ≥ 1064» (4 живые message-иглы; ЭРРАТА b29: «8225 floor» больше не
+floor — там golden-данные, и равенства «= 1064» в файле уже нет), ls-предикаты ≥1064
+СТОЯТ (items.test floors, assets-schemas minCount, e9-canary, item-icons .302.08). I1 (items.test.js «000211.06 I1»): RESURRECTSCROLLS_00032112 exclusion
 set + цепочка `.has(it.id)) continue;` + clause в имени.
 
 ## 5. Миграция сиблинговых хвостовых гардов (ГРАБЛЯ для следующей волны)
@@ -87,9 +92,12 @@ changelog-day-structure: буллет в СУЩЕСТВУЮЩУЮ секцию �
 процесс» (keep-both, заголовок не дублировать); зуб changelog-merge-date-000408:
 каждый буллет ВЕРХНЕГО дня требует строку в тестовом манифесте
 tests/data/changelog-merge-dates.json ({title:{date,sha?}}, sha informational —
-для будущего мержа sha неизвестна до мержа, дописывается приёмкой оркестратора в
-ff-amend; после такого аменда — обязательный пересрез 000408+000389, post-TAP
-инертность tests/data НЕ покрывает — протокол 11-16).
+для будущего мержа sha неизвестна до мержа; ЭРРАТА b29: sha дописывается ПОСЛЕДУЮЩИМ
+коммитом, двигающим манифест — собственный ff-sha в свой ff-amend не помещается
+(хэш-цикличность), ОТСУТСТВИЕ sha у записи есть норма (зуб T1 валидирует sha только
+при наличии; «Полтинник зовов воскрешения»/«Кречет» живут в манифесте без sha — зуб
+зелёный); после аменда, двигающего манифест, — обязательный пересрез 000408+000389,
+post-TAP инертность tests/data НЕ покрывает — протокол 11-16).
 
 ## 8. RED/GREEN/мутации
 
