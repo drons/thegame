@@ -508,7 +508,7 @@ test('боевой UI: фон (terrain: grass) — первый слой, до �
     hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
     terrain: G.TERRAIN.GRASS,
     spriteLoader: {
-      image: (p) => (p === 'assets/combat/bg/grass.svg' ? fakeImg : null),
+      image: (p) => (p === 'assets/sprites/combat/bg/grass.svg' ? fakeImg : null),
     },
   });
   const canvas = findCanvas(body);
@@ -540,7 +540,7 @@ test('боевой UI: фон (dungeonType: 4 — abyss) → abyss.svg', () => {
     hero, mobs: ['lower_demon'], mobLevel: 8, seed: 42,
     dungeonType: 4, // DUNGEON_TYPES.ABYSS
     spriteLoader: {
-      image: (p) => (p === 'assets/combat/bg/abyss.svg' ? fakeImg : null),
+      image: (p) => (p === 'assets/sprites/combat/bg/abyss.svg' ? fakeImg : null),
     },
   });
   const calls = findCanvas(body).drawCalls;
@@ -558,7 +558,7 @@ test('боевой UI: фон, загрузившийся ПОСЛЕ старт�
     hero, mobs: ['wolf'], mobLevel: 1, seed: 42,
     terrain: G.TERRAIN.SAND,
     spriteLoader: {
-      image: (p) => (ready && p === 'assets/combat/bg/sand.svg' ? fakeImg : null),
+      image: (p) => (ready && p === 'assets/sprites/combat/bg/sand.svg' ? fakeImg : null),
     },
   });
   const canvas = findCanvas(body);
@@ -1100,7 +1100,7 @@ test('боевой UI: препятствия — слой ПОСЛЕ сетки
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
     spriteLoader: {
       image: (p) => {
-        if (p.startsWith('assets/combat/obstacles/')) return fakeObs;
+        if (p.startsWith('assets/sprites/combat/obstacles/')) return fakeObs;
         if (p.startsWith('assets/sprites/mobs/wolf_')) return fakeWolf;
         return null;
       },
@@ -1200,7 +1200,7 @@ test('боевой UI: 000076 — startCombat пробрасывает buffMods 
 // --- Экран боя: вьюпорт + иконные кнопки (задача 000124) ---
 //
 // Контракт — memory/000124-combat-layout.md:
-//  * кнопки .combat-actions — SVG-иконка (img assets/ui/combat_*.svg)
+//  * кнопки .combat-actions — SVG-иконка (img assets/sprites/ui/combat_*.svg)
 //    + aria-label = имя действия, текстовой подписи НЕТ (подпись
 //    «Имя [клавиша]» уходит; таблица combat-keys.js не меняется);
 //  * боевой оверлей несёт скоуп-класс .combat-overlay--combat — весь
@@ -1210,7 +1210,7 @@ test('боевой UI: 000076 — startCombat пробрасывает buffMods 
 //    canvas.width/height (регрессия: при CSS-scale клик падал НЕ В ТУ
 //    клетку, см. «Состояние сейчас» в tasks/pending/000124.md).
 
-test('боевой UI: кнопки .combat-actions — иконка (img assets/ui/combat_*.svg) + aria-label, без текстовой подписи (000124)', () => {
+test('боевой UI: кнопки .combat-actions — иконка (img assets/sprites/ui/combat_*.svg) + aria-label, без текстовой подписи (000124)', () => {
   const { G, buttons } = loadCombatUi();
   G.combatUI.startCombat({
     hero: G.createCharacter(), mobs: ['wolf'], mobLevel: 1, seed: 42,
@@ -1224,15 +1224,15 @@ test('боевой UI: кнопки .combat-actions — иконка (img assets
     const isLastSpell = b.dataset.act === 'lastSpell';
     assert.ok(item || isLastSpell,
       'кнопка из таблицы (или lastSpell, 000227): ' + b.dataset.act);
-    // Иконка — единственный img-ребёнок; src — файл assets/ui/,
+    // Иконка — единственный img-ребёнок; src — файл assets/sprites/ui/,
     // и файл СУЩЕСТВУЕТ (контракт иконок — память 000124).
     const imgs = b.children.filter((ch) => ch.tagName === 'img');
     assert.equal(imgs.length, 1,
       'кнопка ' + b.dataset.act + ': ровно одна иконка <img>, найдено: '
       + imgs.length);
     const img = imgs[0];
-    assert.match(img.src, /^assets\/ui\/combat_[a-z]+\.svg$/,
-      'кнопка ' + b.dataset.act + ': src иконки — assets/ui/combat_*.svg, '
+    assert.match(img.src, /^assets\/sprites\/ui\/combat_[a-z]+\.svg$/,
+      'кнопка ' + b.dataset.act + ': src иконки — assets/sprites/ui/combat_*.svg, '
       + 'факт: ' + img.src);
     assert.ok(fs.existsSync(path.join(ROOT, img.src)),
       'кнопка ' + b.dataset.act + ': файл иконки существует: ' + img.src);
@@ -2587,7 +2587,7 @@ test('боевой UI: 000151 R2 — e2e размера отрисованног
     terrain: G.TERRAIN.GRASS,
     spriteLoader: {
       image: (p) => {
-        if (p === 'assets/combat/bg/grass.svg') return fakeBg;
+        if (p === 'assets/sprites/combat/bg/grass.svg') return fakeBg;
         if (p.startsWith('assets/sprites/phlogiston/idle_')) return fakeHero;
         return null;
       },
@@ -3358,7 +3358,7 @@ test('боевой UI: 000166 — книга содержит строку «В�
   assert.equal(row.dataset.spell, 'resurrect', 'id строки — каталог 000017');
   const icon = row.children.find((ch) => ch.className === 'combat-spellicon');
   assert.ok(icon, 'иконка в строке');
-  assert.equal(icon.src, 'assets/spell-icons/resurrect.svg',
+  assert.equal(icon.src, 'assets/sprites/spells/resurrect.svg',
     'иконка 000017 (000149: существует в каталоге)');
   const body = row.children.find((ch) => ch.className === 'combat-spellrow-body');
   assert.ok(body, 'тело строки');
@@ -3781,7 +3781,7 @@ function hatchCallIdx175(slice) {
 test('боевой UI: 000175 H1 — выделение живого моба: штриховка на ТОЧНОМ наборе (== G.mobReachCells), одна 8px-inset диагональ на клетку, z-порядок: сетка < штриховка < препятствия < моб', () => {
   const S = scene175({
     loader: [
-      ['assets/combat/obstacles/', { __fake: 'obs' }],
+      ['assets/sprites/combat/obstacles/', { __fake: 'obs' }],
       ['assets/sprites/mobs/wolf_', { __fake: 'wolf' }],
     ],
   });
@@ -3891,10 +3891,10 @@ test('боевой UI: 000175 H5 — c.targetId = мёртвый СОЮЗНИК 
 
 test('боевой UI: 000175 H6 — регрессия сцены H1: calls[0] = базовый fillRect, calls[1] = фон; #ffe27a = 1 (кольцо цели цело); число drawImage не изменилось (штриховка — stroke, не drawImage)', () => {
   const S = scene175({
-    dungeonType: 4, // abyss → 'assets/combat/bg/abyss.svg'
+    dungeonType: 4, // abyss → 'assets/sprites/combat/bg/abyss.svg'
     loader: [
-      ['assets/combat/bg/', { __fake: 'bg' }],
-      ['assets/combat/obstacles/', { __fake: 'obs' }],
+      ['assets/sprites/combat/bg/', { __fake: 'bg' }],
+      ['assets/sprites/combat/obstacles/', { __fake: 'obs' }],
       ['assets/sprites/mobs/wolf_', { __fake: 'wolf' }],
     ],
   });
@@ -4357,9 +4357,9 @@ test('боевой UI: 000171 — кнопка «Воскрешение» в .co
   assert.equal(b.children.length, 1, 'ровно ОДИН дочерний элемент');
   const img = b.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
-  assert.equal(img.src, 'assets/spell-icons/resurrect.svg',
+  assert.equal(img.src, 'assets/sprites/spells/resurrect.svg',
     'иконка 000017 (та же, что в строке книги; НОВЫХ ассетов нет)');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/spell-icons/resurrect.svg')),
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/sprites/spells/resurrect.svg')),
     'файл иконки существует в каталоге');
   assert.equal(img.alt, '', 'alt="" (иконка презентационная)');
   assert.equal(c.targetId, wolf.id,
@@ -5155,12 +5155,12 @@ test('боевой UI: 000178 — кнопки «Каст»/«Лечение»: 
   assert.equal(byAct.heal.ariaLabel, 'Лечение', 'aria-label «Лечение»');
   const castImg = byAct.cast.children[0];
   assert.equal(castImg.tagName, 'img', '«Каст»: иконка — <img>');
-  assert.equal(castImg.src, 'assets/ui/combat_cast.svg',
-    '«Каст»: иконка assets/ui/combat_cast.svg (конвенция 000124)');
+  assert.equal(castImg.src, 'assets/sprites/ui/combat_cast.svg',
+    '«Каст»: иконка assets/sprites/ui/combat_cast.svg (конвенция 000124)');
   const healImg = byAct.heal.children[0];
   assert.equal(healImg.tagName, 'img', '«Лечение»: иконка — <img>');
-  assert.equal(healImg.src, 'assets/ui/combat_heal.svg',
-    '«Лечение»: иконка assets/ui/combat_heal.svg (конвенция 000124)');
+  assert.equal(healImg.src, 'assets/sprites/ui/combat_heal.svg',
+    '«Лечение»: иконка assets/sprites/ui/combat_heal.svg (конвенция 000124)');
   // Ход ЭФИРА: «Каст» видима; «Лечение» скрыта И disabled (пин kind-
   // гейта: У ЭФИРА role 'support' ТОЖЕ — без kind==='merc' кнопка
   // светилась бы на ходу Эфира).
@@ -5232,10 +5232,10 @@ test('боевой UI: 000178 — тап «Каст» на ходу Эфира =
     + 'клавиши [K])');
   const img = byAct.cast.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
-  assert.equal(img.src, 'assets/ui/combat_cast.svg',
-    'иконка — assets/ui/combat_cast.svg (конвенция 000124)');
+  assert.equal(img.src, 'assets/sprites/ui/combat_cast.svg',
+    'иконка — assets/sprites/ui/combat_cast.svg (конвенция 000124)');
   assert.equal(img.alt, '', 'alt="" (иконка презентационная)');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/ui/combat_cast.svg')),
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/sprites/ui/combat_cast.svg')),
     'файл иконки существует в каталоге');
   // Снапшот ДО каста («до-значения»).
   assert.equal(u.mp, 11, 'фикстура: мана 11');
@@ -5351,10 +5351,10 @@ test('боевой UI: 000178 — тап «Лечение» на ходу suppor
     + 'клавиши [H])');
   const img = byAct.heal.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
-  assert.equal(img.src, 'assets/ui/combat_heal.svg',
-    'иконка — assets/ui/combat_heal.svg (конвенция 000124)');
+  assert.equal(img.src, 'assets/sprites/ui/combat_heal.svg',
+    'иконка — assets/sprites/ui/combat_heal.svg (конвенция 000124)');
   assert.equal(img.alt, '', 'alt="" (иконка презентационная)');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/ui/combat_heal.svg')),
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/sprites/ui/combat_heal.svg')),
     'файл иконки существует в каталоге');
   // Снапшот ДО лечения («до-значения»).
   assert.equal(c.player.hp, 15, 'фикстура: игрок ранен 15/25');
@@ -7303,7 +7303,7 @@ test('боевой UI: 000199.01 — бейдж у НЕАКТИВНЫХ: чис�
 // кнопки 'lastSpell' нет (grep src — ноль), бейджей
 // .combat-actcount на 'cast'/'heal' нет (children — только img),
 // состояния выбора (lastSpells) и lastSpellChk/lastSpellPress нет,
-// файла assets/ui/combat_lastspell.svg нет. Сцены собираются
+// файла assets/sprites/ui/combat_lastspell.svg нет. Сцены собираются
 // штатно — падение на assert контракта, не на окружение.
 //
 // scene227 — self-contained копия scene178 + прокидка withAllySpells
@@ -7388,11 +7388,11 @@ test('боевой UI: 000227 — панель: кнопка «Последне�
     'children — [img, span.combat-actcount]: ' + b.children.length);
   const img = b.children[0];
   assert.equal(img.tagName, 'img', 'иконка — <img>');
-  assert.equal(img.src, 'assets/ui/combat_lastspell.svg',
-    'иконка — assets/ui/combat_lastspell.svg (конвенция 000124): '
+  assert.equal(img.src, 'assets/sprites/ui/combat_lastspell.svg',
+    'иконка — assets/sprites/ui/combat_lastspell.svg (конвенция 000124): '
     + img.src);
   assert.equal(img.alt, '', 'alt="" (иконка — презентационная)');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets/ui/combat_lastspell.svg')),
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets/sprites/ui/combat_lastspell.svg')),
     'файл иконки существует в каталоге');
   const cnt = badgeOf199(b);
   assert.ok(cnt, 'постоянный бейдж .combat-actcount (конвенция 000199)');
@@ -8364,12 +8364,12 @@ test('боевой UI: 000291 — герой: выбор ЗАПОМИНАЕТС�
 // (1) иконка = НОВОЕ: img трёх кнопок (cast ~L470 / heal ~L503 /
 // lastSpell ~L535 combat-ui.js) ставится СТАТИЧНО один раз в build()
 // и НИГДА не переключается на icon выбранного заклинания (grep
-// spell-icons — только прецедент resurrect ~L572); (2) перист —
+// sprites/spells — только прецедент resurrect ~L572); (2) перист —
 // красный round-trip E2E через новый наблюдаемый срез (иконку).
 //
 // КРАСНЫЕ тесты (TDD, до реализации): сцены собираются штатно (механизм
 // выбора есть) — падение на ассертах img.src, осмысленное: факт generic
-// (assets/ui/combat_*.svg) ≠ assets/spell-icons/<id>.svg — нет точек
+// (assets/sprites/ui/combat_*.svg) ≠ assets/sprites/spells/<id>.svg — нет точек
 // (a) build / (b) recordLastSpell (D2). Зелёные guard'ы (падают ни до,
 // ни после): CU22701-NONE — без выбора своя иконка кнопки (D3:
 // legacy-иконка вне scope); guard подделки id в CU22701-SEED (гвард
@@ -8402,14 +8402,14 @@ test('боевой UI: 000227.01 — build: сидованный выбор (ctx
   tickSlice(S.canvas, S.rafStubs);
   const byAct = byActOf178(S);
   assert.equal(byAct.lastSpell.children[0].src,
-    'assets/spell-icons/mend.svg',
+    'assets/sprites/spells/mend.svg',
     'lastSpell: иконка = icon сидованного «Заговора» героя (D1: поле '
     + 'icon каталога SPELLS_BY_ID); краснота (a): факт '
     + JSON.stringify(byAct.lastSpell.children[0].src));
-  assert.equal(byAct.cast.children[0].src, 'assets/spell-icons/spark.svg',
+  assert.equal(byAct.cast.children[0].src, 'assets/sprites/spells/spark.svg',
     'cast: иконка = icon сидованной «Искры» Эфира; краснота (a): факт '
     + JSON.stringify(byAct.cast.children[0].src));
-  assert.equal(byAct.heal.children[0].src, 'assets/spell-icons/mend.svg',
+  assert.equal(byAct.heal.children[0].src, 'assets/sprites/spells/mend.svg',
     'heal: иконка = icon сидованного «Заговора» первого медика (a1); '
     + 'краснота (a): факт ' + JSON.stringify(byAct.heal.children[0].src));
   assert.equal(byAct.lastSpell.children[0].alt, '', 'alt="" (D6)');
@@ -8442,7 +8442,7 @@ test('боевой UI: 000227.01 — build: сидованный выбор (ctx
     }
     const byAct2 = byActOf178(S2);
     assert.equal(byAct2.lastSpell.children[0].src,
-      'assets/ui/combat_lastspell.svg',
+      'assets/sprites/ui/combat_lastspell.svg',
       'guard: подделанный id — без сидинга → СВОЯ иконка кнопки: '
       + JSON.stringify(byAct2.lastSpell.children[0].src));
     assert.equal(errors.length, 0, 'guard: 0 console.error: '
@@ -8468,7 +8468,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
     tickSlice(S.canvas, S.rafStubs);
     const byAct = byActOf178(S);
     assert.equal(byAct.lastSpell.children[0].src,
-      'assets/spell-icons/spark.svg',
+      'assets/sprites/spells/spark.svg',
       'старт: иконка сидованного «Искра» героя (точка (a)); краснота: '
       + JSON.stringify(byAct.lastSpell.children[0].src));
     press(S.keydown, 'KeyQ');
@@ -8490,7 +8490,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
       'выбор записан в live на УСПЕШНОМ касте (000249 S1): '
       + JSON.stringify(live));
     assert.equal(byAct.lastSpell.children[0].src,
-      'assets/spell-icons/mend.svg',
+      'assets/sprites/spells/mend.svg',
       'после каста: иконка нового «Заговора» (точка (b)); краснота: '
       + 'факт ' + JSON.stringify(byAct.lastSpell.children[0].src));
     // Guard S1 (зелёный после фикса): неудачный каст (не хватает маны)
@@ -8513,7 +8513,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
     assert.equal(live.flogiston, 'mend',
       'S1: выбор НЕ сброшен отказом: ' + JSON.stringify(live));
     assert.equal(byAct.lastSpell.children[0].src,
-      'assets/spell-icons/mend.svg',
+      'assets/sprites/spells/mend.svg',
       'S1: иконка НЕ изменена отказом (факт '
       + JSON.stringify(byAct.lastSpell.children[0].src) + ')');
   }
@@ -8533,7 +8533,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
     assert.equal(c.efs.spellInt, 1, 'фикстура: пул Интеллект 1');
     tickSlice(S.canvas, S.rafStubs);
     const byAct = byActOf178(S);
-    assert.equal(byAct.cast.children[0].src, 'assets/spell-icons/mend.svg',
+    assert.equal(byAct.cast.children[0].src, 'assets/sprites/spells/mend.svg',
       'старт: иконка сидованного «Заговора» Эфира («mend» — в дефолтной '
       + 'книге EFIR_SPELL_START, без whitebox); краснота (a): факт '
       + JSON.stringify(byAct.cast.children[0].src));
@@ -8555,7 +8555,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
     assert.equal(live.efir, 'spark',
       'выбор обновлён на «Искра» (live, ключ «efir»): '
       + JSON.stringify(live));
-    assert.equal(byAct.cast.children[0].src, 'assets/spell-icons/spark.svg',
+    assert.equal(byAct.cast.children[0].src, 'assets/sprites/spells/spark.svg',
       'после каста: иконка новой «Искры» (точка (b)); краснота: факт '
       + JSON.stringify(byAct.cast.children[0].src));
   }
@@ -8571,7 +8571,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
     assert.equal(medic.id, 'a0', 'фикстура: id «a0» (без Эфира)');
     tickSlice(S.canvas, S.rafStubs);
     const byAct = byActOf178(S);
-    assert.equal(byAct.heal.children[0].src, 'assets/spell-icons/mend.svg',
+    assert.equal(byAct.heal.children[0].src, 'assets/sprites/spells/mend.svg',
       'старт: иконка сидованного «Заговора» Медика (точка (a)); '
       + 'краснота: факт ' + JSON.stringify(byAct.heal.children[0].src));
     press(S.keydown, 'Space');
@@ -8600,7 +8600,7 @@ test('боевой UI: 000227.01 — каст: УСПЕШНЫЙ каст стр�
       'выбор обновлён на «Свет исцеления» (live, ключ «a0»): '
       + JSON.stringify(live));
     assert.equal(byAct.heal.children[0].src,
-      'assets/spell-icons/light_heal.svg',
+      'assets/sprites/spells/light_heal.svg',
       'после каста: иконка нового «Света исцеления» (точка (b)); '
       + 'краснота: факт ' + JSON.stringify(byAct.heal.children[0].src));
   }
@@ -8612,13 +8612,13 @@ test('боевой UI: 000227.01 — без выбора: три кнопки �
   tickSlice(S.canvas, S.rafStubs);
   const byAct = byActOf178(S);
   assert.equal(byAct.lastSpell.children[0].src,
-    'assets/ui/combat_lastspell.svg',
+    'assets/sprites/ui/combat_lastspell.svg',
     'без выбора — своя иконка lastSpell: '
     + JSON.stringify(byAct.lastSpell.children[0].src));
-  assert.equal(byAct.cast.children[0].src, 'assets/ui/combat_cast.svg',
+  assert.equal(byAct.cast.children[0].src, 'assets/sprites/ui/combat_cast.svg',
     'без выбора — своя иконка cast: '
     + JSON.stringify(byAct.cast.children[0].src));
-  assert.equal(byAct.heal.children[0].src, 'assets/ui/combat_heal.svg',
+  assert.equal(byAct.heal.children[0].src, 'assets/sprites/ui/combat_heal.svg',
     'без выбора — своя иконка heal: '
     + JSON.stringify(byAct.heal.children[0].src));
 });
@@ -9083,7 +9083,7 @@ test('боевой UI: 000196 — строки оверлея: 1:1 с книго
     'порядок строк = порядок c.player.spells');
   for (const [row, id] of [[rows[0], 'spark'], [rows[1], 'mend']]) {
     const img = row.children.find((ch) => ch.tagName === 'img');
-    assert.equal(img && img.src, 'assets/spell-icons/' + id + '.svg',
+    assert.equal(img && img.src, 'assets/sprites/spells/' + id + '.svg',
       id + ': иконка src = icon каталога, факт: ' + (img && img.src));
     const bodyDiv = row.children
       .find((ch) => ch.className === 'combat-spellrow-body');
@@ -10901,8 +10901,8 @@ test('боевой UI: 000236 — гейт «Лечение» у НЕsupport-н�
     assert.equal(hb.ariaLabel, 'Лечение', 'aria-label «Лечение»');
     const img = hb.children[0];
     assert.equal(img.tagName, 'img', 'иконка — <img>');
-    assert.equal(img.src, 'assets/ui/combat_heal.svg',
-      'иконка — assets/ui/combat_heal.svg (конвенция 000124)');
+    assert.equal(img.src, 'assets/sprites/ui/combat_heal.svg',
+      'иконка — assets/sprites/ui/combat_heal.svg (конвенция 000124)');
     assert.equal(hb.style.display, 'none',
       'ход игрока — скрыта (castHealVis: активен не наёмник)');
     press(S.keydown, 'Space');

@@ -16,6 +16,6 @@
     "assets/buildings/mage_tower.json"
   ],
   "описание": "Зюзячая вьюга: вьюга хлещет врага ледяной крупою.",
-  "icon": "assets/spell-icons/zyuzyachaya_vyuga.svg",
+  "icon": "assets/sprites/spells/zyuzyachaya_vyuga.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: вьюжная спираль, школа лёд, степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

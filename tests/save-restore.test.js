@@ -1724,15 +1724,15 @@ test('22701-E2E-ROUNDTRIP: реальный main.js — сейв last_spells { f
   assert.equal(mira.mp, 10, 'фикстура: мана 10 (5+Int3+Wis2)');
   assert.equal(mira.spellWis, 1, 'фикстура: пул Мудрость 1');
   const srcLast1 = iconSrc('lastSpell');
-  assert.equal(srcLast1, 'assets/spell-icons/spark.svg',
+  assert.equal(srcLast1, 'assets/sprites/spells/spark.svg',
     'бой 1: иконка lastSpell = icon сидованного «Искра» героя (точка '
     + '(a)); краснота: факт ' + JSON.stringify(srcLast1));
   const srcCast1 = iconSrc('cast');
-  assert.equal(srcCast1, 'assets/spell-icons/mend.svg',
+  assert.equal(srcCast1, 'assets/sprites/spells/mend.svg',
     'бой 1: иконка cast = icon сидованного «Заговора» Эфира (точка '
     + '(a)); краснота: факт ' + JSON.stringify(srcCast1));
   const srcHeal1 = iconSrc('heal');
-  assert.equal(srcHeal1, 'assets/spell-icons/light_heal.svg',
+  assert.equal(srcHeal1, 'assets/sprites/spells/light_heal.svg',
     'бой 1: иконка heal = icon сидованного «Света исцеления» Миры '
     + '(первый merc с книгой; точка (a)); краснота: факт '
     + JSON.stringify(srcHeal1));
@@ -1758,7 +1758,7 @@ test('22701-E2E-ROUNDTRIP: реальный main.js — сейв last_spells { f
   assert.equal(efir.mp, 8, 'мана 11→8 (Искра: 3)');
   assert.equal(c.efs.spellInt, 0, 'пул 1→0');
   const srcCast1b = iconSrc('cast');
-  assert.equal(srcCast1b, 'assets/spell-icons/spark.svg',
+  assert.equal(srcCast1b, 'assets/sprites/spells/spark.svg',
     'бой 1: после каста — иконка новой «Искры» (точка (b)); краснота: '
     + 'факт ' + JSON.stringify(srcCast1b));
   assert.equal(g.state.lastSpells.efir, 'spark',
@@ -1785,7 +1785,7 @@ test('22701-E2E-ROUNDTRIP: реальный main.js — сейв last_spells { f
   assert.equal(mira.mp, 4, 'мана 10→4 (light_heal: 6)');
   assert.equal(mira.spellWis, 0, 'пул 1→0');
   const srcHeal1b = iconSrc('heal');
-  assert.equal(srcHeal1b, 'assets/spell-icons/light_heal.svg',
+  assert.equal(srcHeal1b, 'assets/sprites/spells/light_heal.svg',
     'бой 1: иконка heal — БЕЗ ИЗМЕНЕНИЙ (выбор не сменился: '
     + 'light_heal); краснота: факт ' + JSON.stringify(srcHeal1b));
   // Герой: каст «Заговора» строкой книги (смена выбора (b)).
@@ -1814,7 +1814,7 @@ test('22701-E2E-ROUNDTRIP: реальный main.js — сейв last_spells { f
   assert.equal(player.mp, 13, 'мана 16→13 (Заговора: 3)');
   assert.equal(c.ps.spellWis, 0, 'пул 1→0');
   const srcLast1b = iconSrc('lastSpell');
-  assert.equal(srcLast1b, 'assets/spell-icons/mend.svg',
+  assert.equal(srcLast1b, 'assets/sprites/spells/mend.svg',
     'бой 1: после каста — иконка нового «Заговора» (точка (b)); '
     + 'краснота: факт ' + JSON.stringify(srcLast1b));
   assert.equal(g.state.lastSpells.flogiston, 'mend',
@@ -1883,16 +1883,16 @@ test('22701-E2E-ROUNDTRIP: реальный main.js — сейв last_spells { f
   assert.ok(mira2, 'фикстура: целительница в бою 2');
   assert.equal(mira2.id, 'merc_mira', 'бой 2: id юнита = npcId снова');
   const srcLast2 = iconSrc2('lastSpell');
-  assert.equal(srcLast2, 'assets/spell-icons/mend.svg',
+  assert.equal(srcLast2, 'assets/sprites/spells/mend.svg',
     'бой 2: иконка lastSpell = icon выбора героя ИЗ БОЯ 1 «Заговора» '
     + '(то же заклинание на кнопке, у каждого своё); краснота: факт '
     + JSON.stringify(srcLast2));
   const srcCast2 = iconSrc2('cast');
-  assert.equal(srcCast2, 'assets/spell-icons/spark.svg',
+  assert.equal(srcCast2, 'assets/sprites/spells/spark.svg',
     'бой 2: иконка cast = icon выбора Эфира ИЗ БОЯ 1 «Искра»; '
     + 'краснота: факт ' + JSON.stringify(srcCast2));
   const srcHeal2 = iconSrc2('heal');
-  assert.equal(srcHeal2, 'assets/spell-icons/light_heal.svg',
+  assert.equal(srcHeal2, 'assets/sprites/spells/light_heal.svg',
     'бой 2: иконка heal = icon выбора Миры ИЗ БОЯ 1 «Свет '
     + 'исцеления»; краснота: факт ' + JSON.stringify(srcHeal2));
   // Дискриминатор legacy (паттерн 249-E2E-2FIGHTS, ПОСЛЕ build):

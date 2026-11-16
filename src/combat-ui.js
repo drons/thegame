@@ -15,7 +15,7 @@
 // герой, c.player; «активная единица» — 000167), каст —
 // G.Spells.castSpell (движок 000045), предпросмотр строки —
 // G.Spells.canCastSpell (причина — title + класс -off), строка —
-// div, не <button> (R9). Иконки строк — assets/spell-icons/<id>.svg
+// div, не <button> (R9). Иконки строк — assets/sprites/spells/<id>.svg
 // (поле icon в JSON каталога assets/spells; prompt — icon_prompt).
 // Союзники (задача 000084): на мини-карте — спрайт (Эфир —
 // efirFrames 000034, наёмник — MOB_FRAMES orc), полоса HP
@@ -24,7 +24,7 @@
 // герой рисуется ПОСЛЕ всех союзников (контракт —
 // memory/000084-ally-render.md).
 // Экран боя (задача 000124): кнопки действий — SVG-иконки
-// (assets/ui/combat_<action>.svg) БЕЗ текстовой подписи; клавиша-
+// (assets/sprites/ui/combat_<action>.svg) БЕЗ текстовой подписи; клавиша-
 // подсказка [J] и т.п. с кнопок убрана (сами клавиши работают;
 // aria-label = имя действия из таблицы). ВЕСЬ layout боя (вьюпорт,
 // 4 колонки, лог flex:1) — CSS в скоупе .combat-overlay--combat
@@ -72,7 +72,7 @@
 // на ходу X»); гашение — СТАНДАРТНЫЙ canDoAction (ветки 'cast'/'heal'
 // в ядре 000168 — строки причины 1:1 с клавишами); клик — allyBtn
 // (предпроверка + runAction — зеркало клавиши; стаб-клик — причина в
-// журнал, трат нет). Иконки — assets/ui/combat_cast.svg /
+// журнал, трат нет). Иконки — assets/sprites/ui/combat_cast.svg /
 // combat_heal.svg. Контракты — memory/000178-combat-cast-heal-
 // buttons.md.
 // Рамки (задача 000197): голубая рамка 39×39 (ALLY_MARKER) и
@@ -249,9 +249,9 @@
   // memory/000227.01-combat-last-spell-icon.md (D1–D6).
   let lastSpellIcons = null;
   const LASTSPELL_DEFAULT_ICON = {
-    lastSpell: 'assets/ui/combat_lastspell.svg',
-    cast: 'assets/ui/combat_cast.svg',
-    heal: 'assets/ui/combat_heal.svg',
+    lastSpell: 'assets/sprites/ui/combat_lastspell.svg',
+    cast: 'assets/sprites/ui/combat_cast.svg',
+    heal: 'assets/sprites/ui/combat_heal.svg',
   };
   let ended = false;
   let rafId = null; // id rAF-цикла анимации (задача 000047); null — нет rAF
@@ -437,7 +437,7 @@
     // Кнопки — из единой таблицы src/combat-keys.js (задача 000048):
     // порядок = порядок в таблице. Содержимое — SVG-иконка БЕЗ
     // текстовой подписи (задача 000124): имя файла — деривация из
-    // имени действия (assets/ui/combat_<action>.svg; контракт иконок
+    // имени действия (assets/sprites/ui/combat_<action>.svg; контракт иконок
     // — memory/000124-combat-layout.md), клавиша-подсказка с кнопок
     // убрана (сами клавиши работают). aria-label = имя действия
     // (доступность; alt="" — иконка презентационная).
@@ -445,7 +445,7 @@
     for (const item of G.CombatKeys.describeCombatKeys()) {
       const b = document.createElement('button');
       const icon = document.createElement('img');
-      icon.src = 'assets/ui/combat_' + item.action.toLowerCase() + '.svg';
+      icon.src = 'assets/sprites/ui/combat_' + item.action.toLowerCase() + '.svg';
       icon.alt = '';
       b.appendChild(icon);
       b.ariaLabel = item.label;
@@ -494,7 +494,7 @@
     if (c.units.some((u) => u.side === 'ally' && u.kind === 'efir')) {
       const cb = document.createElement('button');
       const icon = document.createElement('img');
-      icon.src = 'assets/ui/combat_cast.svg';
+      icon.src = 'assets/sprites/ui/combat_cast.svg';
       icon.alt = '';
       cb.appendChild(icon);
       cb.ariaLabel = 'Каст';
@@ -532,7 +532,7 @@
         && Array.isArray(u.spells) && u.spells.length > 0)) {
       const hb = document.createElement('button');
       const icon = document.createElement('img');
-      icon.src = 'assets/ui/combat_heal.svg';
+      icon.src = 'assets/sprites/ui/combat_heal.svg';
       icon.alt = '';
       hb.appendChild(icon);
       hb.ariaLabel = 'Лечение';
@@ -569,7 +569,7 @@
         && c.player.spells.length > 0) {
       const lb = document.createElement('button');
       const icon = document.createElement('img');
-      icon.src = 'assets/ui/combat_lastspell.svg';
+      icon.src = 'assets/sprites/ui/combat_lastspell.svg';
       icon.alt = '';
       lb.appendChild(icon);
       lb.ariaLabel = 'Последнее заклинание';
@@ -610,7 +610,7 @@
     if (canResurrect(c)) {
       const rb = document.createElement('button');
       const icon = document.createElement('img');
-      icon.src = 'assets/spell-icons/resurrect.svg';
+      icon.src = 'assets/sprites/spells/resurrect.svg';
       icon.alt = '';
       rb.appendChild(icon);
       rb.ariaLabel = 'Воскрешение';

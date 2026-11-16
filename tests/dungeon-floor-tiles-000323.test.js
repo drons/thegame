@@ -10,7 +10,7 @@
 //
 // КРАСНЫЕ (ERR_ASSERTION осмысленные — модули грузятся, файлы n=1..3
 // существуют):
-//  R1: каталог assets/dungeon/floor — ровно 40 файлов (8 на каждый из
+//  R1: каталог assets/sprites/dungeon/floor — ровно 40 файлов (8 на каждый из
 //      5 типов, имена <slug>_<n>.svg, n = 1..8) — на диске 15 (3/тип);
 //  R2: flat-SVG формат всех 40: только rect/circle/ellipse/polygon,
 //      без defs/linearGradient/radialGradient/path/text/transform/
@@ -44,8 +44,8 @@ const S = require('../src/sprites.js');
 const M = require('../src/map.js');
 
 const SLUGS = ['cave', 'crypt', 'ruins', 'drowned', 'abyss'];
-const FLOOR_DIR = path.join(ROOT, 'assets', 'dungeon', 'floor');
-const FLOOR_WEB_DIR = 'assets/dungeon/floor/';
+const FLOOR_DIR = path.join(ROOT, 'assets', 'sprites', 'dungeon', 'floor');
+const FLOOR_WEB_DIR = 'assets/sprites/dungeon/floor/';
 const PX = M.syntheticPixels(8, 8, 128, 128, 128, 255);
 
 const diskFloorFiles = () =>
@@ -53,7 +53,7 @@ const diskFloorFiles = () =>
 
 // --- R1: SWEEP каталога ---
 
-test('R1: assets/dungeon/floor — ровно 40 файлов: 8 на каждый из 5 типов (<slug>_<n>.svg, n = 1..8)', () => {
+test('R1: assets/sprites/dungeon/floor — ровно 40 файлов: 8 на каждый из 5 типов (<slug>_<n>.svg, n = 1..8)', () => {
   const files = diskFloorFiles();
   assert.equal(files.length, 40,
     `в каталоге ${files.length} файлов, ожидается 40 (5 типов × 8): `

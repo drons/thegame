@@ -5,7 +5,7 @@
 //
 // Контракты (красные): 6 вкладок .spoc-tab c data-school в порядке
 // ТЗ [защита, исцеление, лёд, огонь, природа, тень]; вкладка =
-// <button> + img.spoc-tab-icon (assets/school-icons/*.svg — 1:1 со
+// <button> + img.spoc-tab-icon (assets/sprites/skills/*.svg — 1:1 со
 // SCHOOLS, файлы на диске), title/alt = имя школы; дефолт (и после
 // close) — «все» = АКТИВНОЙ вкладки нет (нет 7-й вкладки «Все»);
 // клик по вкладке = фильтр списка по «школе» (ровно строки этой
@@ -23,7 +23,7 @@
 // empty-текст отсутствуют (книга открывается KeyB'ом, строки
 // рисуются — падение в ассертах на отсутствующий DOM/текст); T5 —
 // CSS-правил .spoc-tab* в index.html нет; svg.test.js (отдельный
-// файл) — пин 'school-icons': 6 при 0 файлов на диске.
+// файл) — пин 'sprites/skills': 6 при 0 файлов на диске.
 //
 // Фикстуры — 6 РЕАЛЬНЫХ вне_боя заклинаний по одному на школу
 // (каталог assets/spells, сверено 2026-11-02): warding_circle
@@ -60,12 +60,12 @@ const NOW = 1000; // performance.now() в песочнице заморожен 
 // SCHOOLS — ожидаемая мапа школа→(имя, иконка, фикстурное заклинание);
 // порядок массива = порядок вкладок = порядок ТЗ (контракт §2.2-2.3).
 const SCHOOLS = [
-  { id: 'защита', name: 'Защита', icon: 'assets/school-icons/protection.svg', spell: 'warding_circle' },
-  { id: 'исцеление', name: 'Исцеление', icon: 'assets/school-icons/healing.svg', spell: 'prayer' },
-  { id: 'лёд', name: 'Лёд', icon: 'assets/school-icons/ice.svg', spell: 'frost_walk' },
-  { id: 'огонь', name: 'Огонь', icon: 'assets/school-icons/fire.svg', spell: 'firelight' },
-  { id: 'природа', name: 'Природа', icon: 'assets/school-icons/nature_school.svg', spell: 'wild_growth' },
-  { id: 'тень', name: 'Тень', icon: 'assets/school-icons/shadow.svg', spell: 'shadow_step' },
+  { id: 'защита', name: 'Защита', icon: 'assets/sprites/skills/protection.svg', spell: 'warding_circle' },
+  { id: 'исцеление', name: 'Исцеление', icon: 'assets/sprites/skills/healing.svg', spell: 'prayer' },
+  { id: 'лёд', name: 'Лёд', icon: 'assets/sprites/skills/ice.svg', spell: 'frost_walk' },
+  { id: 'огонь', name: 'Огонь', icon: 'assets/sprites/skills/fire.svg', spell: 'firelight' },
+  { id: 'природа', name: 'Природа', icon: 'assets/sprites/skills/nature_school.svg', spell: 'wild_growth' },
+  { id: 'тень', name: 'Тень', icon: 'assets/sprites/skills/shadow.svg', spell: 'shadow_step' },
 ];
 const ALL_SIX = SCHOOLS.map((s) => s.spell);
 // Ре-пин 000358: книга в мире показывает ВСЕ изученные — боевые
@@ -435,7 +435,7 @@ async function bootBook(h) {
 // T1-T4, T6 — vm (full-chain из index.html); T5 — node (fs-read CSS)
 // =====================================================================
 
-test('000301/ре-пин 000358 T1: книга — 6 вкладок .spoc-tab c иконками в порядке ТЗ; у каждой img.spoc-tab-icon (src = assets/school-icons/*.svg, файл на диске, alt = имя); title = имя; НИ ОДНОЙ .spoc-tab--active (дефолт «все»); строк .spoc-row ровно 8 = [spark, mend (боевые — неактивными), ...ALL_SIX] (000358: боевые ВИДНЫ в мире); errors не растут', async () => {
+test('000301/ре-пин 000358 T1: книга — 6 вкладок .spoc-tab c иконками в порядке ТЗ; у каждой img.spoc-tab-icon (src = assets/sprites/skills/*.svg, файл на диске, alt = имя); title = имя; НИ ОДНОЙ .spoc-tab--active (дефолт «все»); строк .spoc-row ровно 8 = [spark, mend (боевые — неактивными), ...ALL_SIX] (000358: боевые ВИДНЫ в мире); errors не растут', async () => {
   const h = await boot();
   await bootBook(h);
   const errBefore = h.errors.length;

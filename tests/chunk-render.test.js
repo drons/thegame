@@ -463,8 +463,8 @@ function blitsOf(draw, h) {
 }
 
 function isWaterAsset(a) {
-  return a.startsWith('assets/tiles/water_')
-    || a.startsWith('assets/tiles/deepwater_');
+  return a.startsWith('assets/sprites/tiles/water_')
+    || a.startsWith('assets/sprites/tiles/deepwater_');
 }
 
 function waterDrawsOf(draw) {
@@ -472,7 +472,7 @@ function waterDrawsOf(draw) {
 }
 
 function tileDrawsOf(draw) {
-  return drawImages(draw).filter((c) => assetOf(c).startsWith('assets/tiles/'));
+  return drawImages(draw).filter((c) => assetOf(c).startsWith('assets/sprites/tiles/'));
 }
 
 // Статичные тайловые текстуры (вода исключена — она per-tile и в
@@ -1001,8 +1001,8 @@ test('CC-6: подземелье 63×63 @ z=4 — 16 чанков/блитов (
   // (a) 0 per-cell floor/wall на основном канвасе (запеклось).
   const cellDraws = f1.filter((c) => c[0] === 'drawImage'
     && c[1][0] && typeof c[1][0].__img === 'string'
-    && (c[1][0].__img.startsWith('assets/dungeon/floor/')
-      || c[1][0].__img.startsWith('assets/dungeon/walls/')));
+    && (c[1][0].__img.startsWith('assets/sprites/dungeon/floor/')
+      || c[1][0].__img.startsWith('assets/sprites/dungeon/walls/')));
   assert.equal(cellDraws.length, 0,
     '0 per-cell floor/wall drawImage (контент в чанках); RED: '
     + cellDraws.length + ' per-cell');

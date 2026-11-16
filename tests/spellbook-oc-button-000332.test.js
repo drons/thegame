@@ -18,7 +18,7 @@
 //   * B1 — DOM-кнопка: .spellbook-oc-btn в body.children (создаётся
 //     JS main.js — скан по className, в стаб-нодах нет id); button
 //     type=button, title, aria-label, ОДИН дочерний img
-//     (assets/ui/combat_spellbook.svg — переиспользование, иконка на
+//     (assets/sprites/ui/combat_spellbook.svg — переиспользование, иконка на
 //     диске + alt); load-clean (h.errors 0 — кнопка создаётся тихой).
 //   * B2 — CSS-пин: правило .spellbook-oc-btn (position: fixed;
 //     top: 12px; right: 12px; z-index: 15 — свободная зона: правый
@@ -548,7 +548,7 @@ function tcBlock(h) {
 
 function findButton(h) {
   return tcBlock(h).find((b) => b.children.some(
-    (ch) => String(ch.src || '') === 'assets/ui/combat_spellbook.svg'))
+    (ch) => String(ch.src || '') === 'assets/sprites/ui/combat_spellbook.svg'))
     || null;
 }
 
@@ -565,7 +565,7 @@ function clickButton(h) {
   l[l.length - 1]({ pointerId: 1, preventDefault() {} });
 }
 
-test('000332 B1 (000351 ре-пин): кнопка книги — 4-я button.tc-action в #touch-controls (общий блок с [E]/[I]/«Отряд»), ОДИН дочерний img (assets/ui/combat_spellbook.svg, alt=""), aria-label — src-сканом ui.js; load-clean', async () => {
+test('000332 B1 (000351 ре-пин): кнопка книги — 4-я button.tc-action в #touch-controls (общий блок с [E]/[I]/«Отряд»), ОДИН дочерний img (assets/sprites/ui/combat_spellbook.svg, alt=""), aria-label — src-сканом ui.js; load-clean', async () => {
   const h = await boot();
   dismissStartWindow(h);
   assert.equal(h.errors.length, 0,
@@ -587,9 +587,9 @@ test('000332 B1 (000351 ре-пин): кнопка книги — 4-я button.tc
   const imgs = (btn.children || []).filter(
     (c) => String(c.tagName).toLowerCase() === 'img');
   assert.equal(imgs.length, 1, 'ОДИН дочерний img (иконка): ' + imgs.length);
-  assert.equal(imgs[0].src, 'assets/ui/combat_spellbook.svg',
+  assert.equal(imgs[0].src, 'assets/sprites/ui/combat_spellbook.svg',
     'иконка — переиспользование существующей UI-иконки '
-    + '(000302-каталог assets/ui): ' + imgs[0].src);
+    + '(000302-каталог assets/sprites/ui): ' + imgs[0].src);
   assert.equal(imgs[0].alt, '',
     "alt='' — презентационная иконка (паттерн E/I/C, 000124)");
   // makeEl-стаб роняет aria-* (setAttribute — только data-*), имя —
@@ -598,8 +598,8 @@ test('000332 B1 (000351 ре-пин): кнопка книги — 4-я button.tc
     "ui.js задаёт кнопке книги setAttribute('aria-label', «Книга "
     + 'заклинаний») (паттерн сиблингов)');
   assert.ok(
-    fs.existsSync(path.join(ROOT, 'assets', 'ui', 'combat_spellbook.svg')),
-    'иконка assets/ui/combat_spellbook.svg — на диске');
+    fs.existsSync(path.join(ROOT, 'assets', 'sprites', 'ui', 'combat_spellbook.svg')),
+    'иконка assets/sprites/ui/combat_spellbook.svg — на диске');
 });
 
 test('000332 B2 (000351 ре-пин — инверсия): CSS-правило .spellbook-oc-btn УДАЛЕНО из index.html; лестничный коммент кнопку не упоминает', () => {

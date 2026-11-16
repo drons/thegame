@@ -890,7 +890,7 @@ function touchButtons(h) {
   assert.equal(btns.length, 4,
     'кнопки [E], [I], «Отряд» и книга (tc-action): 4 (000351 ре-пин)');
   const byIcon = (name) => btns.find((b) => b.children.some(
-    (ch) => ch.src === 'assets/ui/' + name));
+    (ch) => ch.src === 'assets/sprites/ui/' + name));
   const action = byIcon('icon_action.svg');
   const inventory = byIcon('icon_inventory.svg');
   const squad = byIcon('icon_squad.svg');

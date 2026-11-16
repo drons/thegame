@@ -298,7 +298,7 @@ function tileDraws(calls) {
   return calls.filter((c) => c[0] === 'drawImage'
     && c[1][0]
     && typeof c[1][0].__asset === 'string'
-    && c[1][0].__asset.startsWith('assets/tiles/'));
+    && c[1][0].__asset.startsWith('assets/sprites/tiles/'));
 }
 
 // Ожидаемые декорации кадра: пересчёт из Game песочницы (тот же мир —
@@ -414,7 +414,7 @@ test('декорации: порядок слоёв — после тексту�
       const sx = p.x, sy = p.y;
       // Текстура тайла: drawImage(img, sx, sy, zoom, zoom).
       const iTile = calls.findIndex((c) => c[0] === 'drawImage'
-        && c[1][0] && c[1][0].__asset.startsWith('assets/tiles/')
+        && c[1][0] && c[1][0].__asset.startsWith('assets/sprites/tiles/')
         && Math.abs(c[1][1] - sx) < EPS
         && Math.abs(c[1][2] - sy) < EPS
         && Math.abs(c[1][3] - zoom) < EPS);
@@ -920,7 +920,7 @@ test('порядок слоёв: текстура < декорации < пос�
   // целый зум, камера на целой/полуцелой сетке с точностью 1e-3 px).
   const iTile = calls.findIndex((c) => c[0] === 'drawImage'
     && c[1][0] && typeof c[1][0].__asset === 'string'
-    && c[1][0].__asset.startsWith('assets/tiles/')
+    && c[1][0].__asset.startsWith('assets/sprites/tiles/')
     && Math.abs(c[1][1] - Math.round(p.x)) < EPS
     && Math.abs(c[1][2] - Math.round(p.y)) < EPS
     && Math.abs(c[1][3] - zoom) < EPS && Math.abs(c[1][4] - zoom) < EPS);

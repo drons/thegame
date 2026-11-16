@@ -37,7 +37,7 @@
 // zero-length буферы НЕ шарит — T2 красен и на steady-серии. T1/T3/T4/
 // T5/T7 — инвариант-пины, зелены до и после — прецедент 000340 T1/T6):
 //   T1 GOLD бит-в-бит: серии pump'ов (rebuild → hit → spawnBuildingTile →
-//      hit-с-маркером → тёплые) в partial-boot (не готовы assets/tiles/) и
+//      hit-с-маркером → тёплые) в partial-boot (не готовы assets/sprites/tiles/) и
 //      steady-boot на крошечном вьюпорте 16×16 (диапазон 3×3 тайла); после
 //      каждого pumpa bufNorm === золотой литерал (снят на HEAD); допы:
 //      miss ≡ hit и повторный boot ≡ boot (T5-паттерн 000339). Ловит
@@ -97,10 +97,10 @@ const ARRAY_BUFFER = 34962;
 const DYNAMIC_DRAW = 35048;
 const BUILDING_COLOR = [0.98, 0.83, 0.30];
 const EPS = 1e-4;
-// Частичная загрузка (000339-паттерн): НЕ готовы assets/tiles/* → базовые
+// Частичная загрузка (000339-паттерн): НЕ готовы assets/sprites/tiles/* → базовые
 // legacy-квады рисуются; спрайты мобов/построек/героя ready → маркерных
 // веток нет ( кроющий маркер даёт только spawnBuildingTile).
-const TILES_BROKEN = (v) => v.startsWith('assets/tiles/');
+const TILES_BROKEN = (v) => v.startsWith('assets/sprites/tiles/');
 
 // --- Золотые буферы (RED-фаза, HEAD до правки; крошечный вьюпорт 16×16, ---
 // --- диапазон 3×3 тайла вокруг спавна (0,0); по 6 floats на вершину)   ---

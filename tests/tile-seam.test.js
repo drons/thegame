@@ -544,10 +544,10 @@ function wAssetOf(c) {
   return img && typeof img.__asset === 'string' ? img.__asset : '';
 }
 
-// Текстуры тайлов (assets/tiles/*.svg) — проход 1 drawSprites.
+// Текстуры тайлов (assets/sprites/tiles/*.svg) — проход 1 drawSprites.
 function wTileDraws(draw) {
   return wDrawImages(draw).filter(
-    (c) => wAssetOf(c).startsWith('assets/tiles/'));
+    (c) => wAssetOf(c).startsWith('assets/sprites/tiles/'));
 }
 
 function wAssertReady(h) {

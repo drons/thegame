@@ -1005,7 +1005,7 @@ test('000109 R10b: вход через день после визита (20 − 
 // Изоляция: мир (canvas #sprites) ТОЖЕ рисует assets/sprites/buildings/
 // (карта мира) — ассерты берут drawCalls canvas ОВЕРЛЕЯ (findLastCanvas
 // по body), НЕ spriteCanvas. Префикс-фильтр 'assets/sprites/buildings/'
-// не пересекается с door.svg (assets/dungeon/) и игроком
+// не пересекается с door.svg (assets/sprites/dungeon/) и игроком
 // (assets/sprites/phlogiston/).
 //
 // КАДР = ровно ОДИН render из start() (вход синхронный); frame() main.js
@@ -1107,7 +1107,7 @@ test('город 000148.02 G1 (e2e): постройки деревни РЕНД�
 // не закреплён ни одним тестом (dungeon-ui.js:569 — «пол → ПОСТРОЙКИ
 // → стена-слой → дверь → игрок»).
 
-test('город 000191.6b (e2e): z-порядок слоя — ВСЕ building-drawImage (2×tavern + 1×weapons_shop) ПЕРЕД door-drawImage (assets/dungeon/door.svg), door ПЕРЕД player-drawImage (assets/sprites/phlogiston/): index(building) < index(door) < index(player)', async () => {
+test('город 000191.6b (e2e): z-порядок слоя — ВСЕ building-drawImage (2×tavern + 1×weapons_shop) ПЕРЕД door-drawImage (assets/sprites/dungeon/door.svg), door ПЕРЕД player-drawImage (assets/sprites/phlogiston/): index(building) < index(door) < index(player)', async () => {
   const h = await bootSeeded({ day: V109.day, steps: 0, hero: HERO109 });
   const { dg } = await enterVillage109(h);
   assert.equal(dg.buildings.length, 3,
@@ -1124,14 +1124,14 @@ test('город 000191.6b (e2e): z-порядок слоя — ВСЕ building-
     const src = typeof c[1][0].__src === 'string' ? c[1][0].__src : null;
     if (!src) return;
     if (src.indexOf('assets/sprites/buildings/') === 0) buildingIdx.push(i);
-    else if (src === 'assets/dungeon/door.svg') doorIdx.push(i);
+    else if (src === 'assets/sprites/dungeon/door.svg') doorIdx.push(i);
     else if (src.indexOf('assets/sprites/phlogiston/') === 0)
       playerIdx.push(i);
   });
   assert.equal(buildingIdx.length, 3,
     '3 building-спрайта (один рендер): ' + buildingIdx.length);
   assert.ok(doorIdx.length >= 1,
-    'дверь (assets/dungeon/door.svg) — нарисована drawImage');
+    'дверь (assets/sprites/dungeon/door.svg) — нарисована drawImage');
   assert.ok(playerIdx.length >= 1,
     'игрок (assets/sprites/phlogiston/) — нарисован drawImage');
   for (const bi of buildingIdx)

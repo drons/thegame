@@ -243,10 +243,10 @@ test('T3: скоуп-регистр — прецедент цел, house-style �
     + '[C]/[B] наследуют невыделяемость кнопки): ' +
     JSON.stringify(tca && tca['user-select']));
   const keyByIcon = {
-    'assets/ui/icon_action.svg': '[E]',
-    'assets/ui/icon_inventory.svg': '[I]',
-    'assets/ui/icon_squad.svg': '[C]',
-    'assets/ui/combat_spellbook.svg': '[B]',
+    'assets/sprites/ui/icon_action.svg': '[E]',
+    'assets/sprites/ui/icon_inventory.svg': '[I]',
+    'assets/sprites/ui/icon_squad.svg': '[C]',
+    'assets/sprites/ui/combat_spellbook.svg': '[B]',
   };
   const env = bootControls();
   for (const btn of env.actions) {

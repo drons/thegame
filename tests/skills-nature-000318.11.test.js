@@ -33,10 +33,10 @@
 //        коллизий, winner-ассертов по readdir-порядку нет, skip «nature»
 //        снят (grep-пины текста — прецедент wording/grep-пинов);
 //   T5 — ссылки на изменённый id резолвятся: nature_school.json проходит
-//        ветвь school схемы, icon = assets/school-icons/<id>.svg на
+//        ветвь school схемы, icon = assets/sprites/skills/<id>.svg на
 //        диске (nature.svg НЕ существует), src/spellbook.js «природа»
 //        → та же иконка, зеркало src/skills-data.js ≡ JSON, вложений
-//        «school-icons/nature.svg» в репозитории не осталось.
+//        «sprites/skills/nature.svg» в репозитории не осталось.
 //
 // RED (база 6657e0d): T1, T2, T4, T5 — красные (коллизия «nature»×2,
 // winner по readdir, GUARD пинит дубль, id/иконка ещё old); T3 — зелёный
@@ -204,16 +204,16 @@ test('000318.11 T5: ссылки на изменённый id резолвятс
   const schema = readJson(path.join(SKILLS_DIR, 'schema.json'));
   const errs = validateData(schema, d, 'nature_school.json');
   assert.deepEqual(errs, [], 'nature_school.json проходит schema.json: ' + errs.join('; '));
-  assert.equal(d.icon, 'assets/school-icons/nature_school.svg',
-    'nature_school.json: icon = assets/school-icons/<id>.svg (контракт '
+  assert.equal(d.icon, 'assets/sprites/skills/nature_school.svg',
+    'nature_school.json: icon = assets/sprites/skills/<id>.svg (контракт '
     + 'spec/skills.md — спека остаётся истинной) (факт: ' + d.icon + ')');
   assert.ok(fs.existsSync(path.join(ROOT, d.icon)),
     'иконка на диске: ' + d.icon);
-  assert.ok(!fs.existsSync(path.join(ROOT, 'assets', 'school-icons', 'nature.svg')),
-    'assets/school-icons/nature.svg НЕ существует (git mv nature_school.svg)');
+  assert.ok(!fs.existsSync(path.join(ROOT, 'assets', 'sprites', 'skills', 'nature.svg')),
+    'assets/sprites/skills/nature.svg НЕ существует (git mv nature_school.svg)');
   const pb = fs.readFileSync(path.join(ROOT, 'src', 'spellbook.js'), 'utf8');
   assert.match(pb,
-    /\{ id: "природа", name: "Природа",\s*\n?\s*icon: "assets\/school-icons\/nature_school\.svg" \}/,
+    /\{ id: "природа", name: "Природа",\s*\n?\s*icon: "assets\/sprites\/skills\/nature_school\.svg" \}/,
     'src/spellbook.js: вкладка «природа» → nature_school.svg');
   const M = require('../src/skills-data.js');
   const mirrored = M.SCHOOLS.find((s) => s.id === 'nature_school');
@@ -233,12 +233,12 @@ test('000318.11 T5: ссылки на изменённый id резолвятс
       if (st.isDirectory()) { scan(p, skipDirs); continue; }
       if (!/\.(js|json|html|md)$/.test(f)) continue;
       const txt = fs.readFileSync(p, 'utf8');
-      if (txt.includes('school-icons/nature.svg')) stale.push(p.slice(ROOT.length + 1));
+      if (txt.includes('sprites/skills/nature.svg')) stale.push(p.slice(ROOT.length + 1));
     }
   };
   for (const d2 of ['src', 'tests', 'assets', 'scripts']) {
     scan(path.join(ROOT, d2), ['node_modules', '.git']);
   }
   assert.deepEqual(stale, [],
-    'вложений «school-icons/nature.svg» не осталось; найдено: ' + stale.join(', '));
+    'вложений «sprites/skills/nature.svg» не осталось; найдено: ' + stale.join(', '));
 });

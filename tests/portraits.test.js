@@ -1,8 +1,8 @@
 // Каталог портретов партии (задача 000142, родитель 000139).
 //
 // Иконки-портреты для выбора активного персонажа (потребитель — 000145):
-//  * assets/portraits/ — source of truth: 8 JSON + 8 SVG (Флогистон,
-//    Эфир, 6 наёмных = assets/npc/000012..000017.json, паттерн 000053);
+//  * assets/portraits/ — source of truth: 8 JSON (иконки-SVG — с 000329
+//    в assets/sprites/portraits/): Флогистон, Эфир, 6 наёмных = assets/npc/000012..000017.json, паттерн 000053);
 //  * scripts/sync-portraits.js → src/portraits-data.js (UMD-зеркало
 //    Game.PortraitsData; конвенция 000054: идемпотентная byte-
 //    идентичная генерация + writeFileAtomic);
@@ -33,6 +33,7 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const PDIR = path.join(ROOT, 'assets', 'portraits');
+const SDIR = path.join(ROOT, 'assets', 'sprites', 'portraits');
 const NPC_DIR = path.join(ROOT, 'assets', 'npc');
 const MIRROR = path.join(ROOT, 'src', 'portraits-data.js');
 const SYNC = path.join(ROOT, 'scripts', 'sync-portraits.js');
@@ -70,6 +71,9 @@ function assertCatalogExists() {
   assert.ok(fs.existsSync(PDIR),
     'assets/portraits/ отсутствует — каталог портретов партии не создан ' +
     '(задача 000142)');
+  assert.ok(fs.existsSync(SDIR),
+    'assets/sprites/portraits/ отсутствует — SVG-иконки перенесены ' +
+    '(000329), каталог обязан существовать');
 }
 
 // JSON-запись каталога; ошибки — с именем файла в сообщении.
@@ -122,14 +126,18 @@ test('портреты: каталог assets/portraits — 8 персон (flog
   const files = fs.readdirSync(PDIR).sort();
   const canonJson = new Set(CANON_FILES);
   for (const f of files) {
-    assert.ok(canonJson.has(f) || CANON_SVG.has(f),
+    assert.ok(canonJson.has(f),
       'чужой файл в каталоге портретов: ' + f);
   }
   for (const f of CANON_FILES) {
     assert.ok(files.includes(f), 'нет файла каталога: ' + f);
   }
-  assert.equal(files.length, 16,
-    'в каталоге ровно 8 JSON + 8 SVG, а файлов: ' + files.length);
+  assert.equal(files.length, 8,
+    'в каталоге ровно 8 JSON (SVG — в assets/sprites/portraits), ' +
+    'а файлов: ' + files.length);
+  const svgs = fs.readdirSync(SDIR).sort();
+  assert.deepEqual(svgs, [...CANON_SVG].sort(),
+    'в assets/sprites/portraits — ровно 8 канонических SVG-иконок (000329)');
 
   const seenIds = new Set();
   for (const f of CANON_FILES) {
@@ -157,14 +165,14 @@ test('портреты: каталог assets/portraits — 8 персон (flog
 });
 
 // P2 — иконки существуют на диске.
-test('портреты: у всех 8 иконки существуют (assets/portraits/<icon>) (задача 000142)', () => {
+test('портреты: у всех 8 иконки существуют (assets/sprites/portraits/<icon>) (задача 000142, перенос 000329)', () => {
   assertCatalogExists();
   let n = 0;
   for (const f of CANON_FILES) {
     const p = readEntry(f);
-    const svg = path.join(PDIR, p.icon);
+    const svg = path.join(SDIR, p.icon);
     assert.ok(fs.existsSync(svg),
-      f + ': иконка assets/portraits/' + p.icon + ' отсутствует');
+      f + ': иконка assets/sprites/portraits/' + p.icon + ' отсутствует');
     n += 1;
   }
   assert.equal(n, 8, 'проверено ровно 8 иконок');
@@ -175,9 +183,9 @@ test('портреты: иконки — svg-схема (корень <svg> с x
   assertCatalogExists();
   for (const f of CANON_FILES) {
     const p = readEntry(f);
-    const svgPath = path.join(PDIR, p.icon);
+    const svgPath = path.join(SDIR, p.icon);
     assert.ok(fs.existsSync(svgPath),
-      f + ': svg assets/portraits/' + p.icon + ' отсутствует');
+      f + ': svg assets/sprites/portraits/' + p.icon + ' отсутствует');
     const text = fs.readFileSync(svgPath, 'utf8');
     const errors = checkPortraitSvgErrors(text, p.имя);
     assert.deepEqual(errors, [], p.icon + ': ' + errors.join('; '));

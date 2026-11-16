@@ -15,7 +15,7 @@
    src/buildings.js (`passableTiles()`/`denseTiles()`, ленивое разрешение — buildings.js
    может грузиться и без map.js), src/sprites.js (`TILE_BASE`), src/main.js (`TILE_COLORS`).
    Копии имён на стороне данных (enum «допустимые_тайлы» assets/buildings/schema.json,
-   enum «террейны» assets/visuals/schema.json, имена файлов assets/tiles/*.svg) связаны
+   enum «террейны» assets/visuals/schema.json, имена файлов assets/sprites/tiles/*.svg) связаны
    с таблицей тестами; имена файлов не переименовывать.
 
  * Hero-level проходимость (frost_walk, 000235.08): статичный

@@ -23,7 +23,7 @@
 //   PE-3b: [E] в подземелье = no-op (000121) → g.dungeon !== null
 //     (1-я часть — шаг в сторону + [E] ничего — зелёная на master:
 //     закрепляет СОХРАНЁННОЕ свойство);
-//   PE-4a/4b: нет assets/dungeon/{door,cave_mouth}.svg, нет
+//   PE-4a/4b: нет assets/sprites/dungeon/{door,cave_mouth}.svg, нет
 //     sprites.DUNGEON_PORTAL → маркера-спрайта нет; зелёный
 //     #3f9d55 маркер входа есть;
 //   PE-4c: маркер «X» (нет фолбэка с «E»);
@@ -785,9 +785,9 @@ test('PE-4a: рендер города: ДВЕРЬ в единой клетке 
   const { p, zoom, canvas } = overlayMarkerPoint(h, dg);
   const calls = canvas.drawCalls;
   const doors = calls.filter(([m, a]) => m === 'drawImage'
-    && a[0] && a[0].__src === 'assets/dungeon/door.svg');
+    && a[0] && a[0].__src === 'assets/sprites/dungeon/door.svg');
   assert.equal(doors.length, 1,
-    'ОДИН маркер-дверь (спрайт assets/dungeon/door.svg; на master: '
+    'ОДИН маркер-дверь (спрайт assets/sprites/dungeon/door.svg; на master: '
     + 'файла нет, DUNGEON_PORTAL отсутствует — маркер = «X»+зелёный)');
   assert.equal(doors[0][1][1], p.x, 'дверь в ТОЧНОЙ proj-точке: x');
   assert.equal(doors[0][1][2], p.y, 'дверь в ТОЧНОЙ proj-точке: y');
@@ -814,9 +814,9 @@ test('PE-4b: рендер подземелья: ПЕЩЕРА в единой к�
   const { p, zoom, canvas } = overlayMarkerPoint(h, dg);
   const calls = canvas.drawCalls;
   const mouths = calls.filter(([m, a]) => m === 'drawImage'
-    && a[0] && a[0].__src === 'assets/dungeon/cave_mouth.svg');
+    && a[0] && a[0].__src === 'assets/sprites/dungeon/cave_mouth.svg');
   assert.equal(mouths.length, 1,
-    'ОДИН маркер-пещера (спрайт assets/dungeon/cave_mouth.svg; на '
+    'ОДИН маркер-пещера (спрайт assets/sprites/dungeon/cave_mouth.svg; на '
     + 'master: файла нет, маркер = «X» в rooms[last] + зелёный вход)');
   assert.equal(mouths[0][1][1], p.x, 'пещера в ТОЧНОЙ proj-точке: x');
   assert.equal(mouths[0][1][2], p.y, 'пещера в ТОЧНОЙ proj-точке: y');
@@ -831,9 +831,9 @@ test('PE-4c: рендер: фолбэк без спрайта — ОДИН ма�
   // Спрайты портала «не загрузились» (Image-стаб → onerror →
   // spriteLoader 'failed' → image() null → фолбэк ветки).
   const h = await boot({ failImages: new Set([
-    'assets/dungeon/door.svg',
-    'assets/dungeon/stairs.svg',
-    'assets/dungeon/cave_mouth.svg',
+    'assets/sprites/dungeon/door.svg',
+    'assets/sprites/dungeon/stairs.svg',
+    'assets/sprites/dungeon/cave_mouth.svg',
   ]) });
   const g = h.sandbox.__game;
   const G = h.sandbox.Game;
@@ -862,12 +862,12 @@ test('PE-4c: рендер: фолбэк без спрайта — ОДИН ма�
     'маркера «X» НИГДЕ нет (удалён, D3)');
 });
 
-test('PE-4d: реестр: assets/dungeon/{door,cave_mouth,stairs}.svg + DUNGEON_PORTAL + allAssetPaths', () => {
+test('PE-4d: реестр: assets/sprites/dungeon/{door,cave_mouth,stairs}.svg + DUNGEON_PORTAL + allAssetPaths', () => {
   const S = require('../src/sprites.js');
   const paths = {
-    door: 'assets/dungeon/door.svg',
-    stairs: 'assets/dungeon/stairs.svg',
-    cave_mouth: 'assets/dungeon/cave_mouth.svg',
+    door: 'assets/sprites/dungeon/door.svg',
+    stairs: 'assets/sprites/dungeon/stairs.svg',
+    cave_mouth: 'assets/sprites/dungeon/cave_mouth.svg',
   };
   for (const p of Object.values(paths)) {
     assert.ok(fs.existsSync(path.join(ROOT, p)),

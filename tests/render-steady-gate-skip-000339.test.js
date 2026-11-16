@@ -425,7 +425,7 @@ test('T1: steady state (ready===total): цикл legacy-гейта НЕ выпо
 // --- T2 (ГЛАВНЫЙ НОВЫЙ ПИН): гейт возвращается при частичной загрузке ---
 
 test('T2: частичная загрузка (ready < total): ГЕЙТ ВОЗВРАЩАЕТСЯ — тайловые квады неразрешённых кадров в WebGL-буфере, brightness вызывается на rebuild- И hit-кадре; герой ready — ромба нет (regression RM-4/RM-8, 000339)', async () => {
-  const h = await boot((v) => v.startsWith('assets/tiles/'));
+  const h = await boot((v) => v.startsWith('assets/sprites/tiles/'));
   const s = h.sandbox.__game.state.sprites;
   assert.ok(s.total > 0, 'сценарий: лоадер с очередью');
   assert.ok(s.ready > 0, 'сценарий: остальные ассеты ready');
@@ -493,7 +493,7 @@ test('T4: bufferData (new Float32Array, DYNAMIC_DRAW) — РОВНО 1 на ка
     assert.equal(da[0].count, bds[0].length / 6,
       'drawArrays count === вершин в буфере');
   }
-  const hp = await boot((v) => v.startsWith('assets/tiles/'));
+  const hp = await boot((v) => v.startsWith('assets/sprites/tiles/'));
   frameAt(hp, NOW + 200);
   const bds = bufferDataOf(hp.glCalls);
   assert.equal(bds.length, 1,
@@ -518,7 +518,7 @@ test('T5: бит-в-бит: miss-кадр ≡ hit-кадр по буферу (st
   assert.deepStrictEqual(sHit, sMiss,
     'steady: hit-кадр бит-в-бит ≡ miss-кадру');
   // частичная: miss ≡ hit — квады неразрешённых тайлов идентичны.
-  const h1 = await boot((v) => v.startsWith('assets/tiles/'));
+  const h1 = await boot((v) => v.startsWith('assets/sprites/tiles/'));
   frameAt(h1, NOW + 200);
   const pMiss = bufNorm(h1.glCalls);
   frameAt(h1, NOW + 400);
@@ -527,7 +527,7 @@ test('T5: бит-в-бит: miss-кадр ≡ hit-кадр по буферу (st
   assert.deepStrictEqual(pHit, pMiss,
     'частичная: hit-кадр бит-в-бит ≡ miss-кадру');
   // детерминизм фикстуры: повторный boot того же предиката — тот же кадр.
-  const h2 = await boot((v) => v.startsWith('assets/tiles/'));
+  const h2 = await boot((v) => v.startsWith('assets/sprites/tiles/'));
   frameAt(h2, NOW + 200);
   assert.deepStrictEqual(bufNorm(h2.glCalls), pMiss,
     'повторный boot: WebGL-буфер первого кадра идентичен');

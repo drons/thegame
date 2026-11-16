@@ -78,7 +78,7 @@ function guest(id, over = {}) {
     параметры: { days: 2 },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000230.17)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000230.17)',
   }, over);
 }

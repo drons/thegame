@@ -474,7 +474,7 @@
       type: "school",
       name: "Защита",
       desc: "Щиты и бафы союзников, телепорт, создание и призыв.",
-      icon: "assets/school-icons/protection.svg",
+      icon: "assets/sprites/skills/protection.svg",
     },
     // healing.json
     {
@@ -482,7 +482,7 @@
       type: "school",
       name: "Исцеление",
       desc: "Лечение и воскрешение союзников, бафы, контроль.",
-      icon: "assets/school-icons/healing.svg",
+      icon: "assets/sprites/skills/healing.svg",
     },
     // ice.json
     {
@@ -490,7 +490,7 @@
       type: "school",
       name: "Лёд",
       desc: "Урон и контроль холодом, дебафы, создание и призыв.",
-      icon: "assets/school-icons/ice.svg",
+      icon: "assets/sprites/skills/ice.svg",
     },
     // fire.json
     {
@@ -498,7 +498,7 @@
       type: "school",
       name: "Огонь",
       desc: "Урон огнём, бафы и дебафы, телепорт и внебойные действия.",
-      icon: "assets/school-icons/fire.svg",
+      icon: "assets/sprites/skills/fire.svg",
     },
     // nature_school.json
     {
@@ -506,7 +506,7 @@
       type: "school",
       name: "Природа",
       desc: "Урон и бафы природы, контроль, создание и призыв.",
-      icon: "assets/school-icons/nature_school.svg",
+      icon: "assets/sprites/skills/nature_school.svg",
     },
     // shadow.json
     {
@@ -514,7 +514,7 @@
       type: "school",
       name: "Тень",
       desc: "Урон и дебафы, невидимость и контроль.",
-      icon: "assets/school-icons/shadow.svg",
+      icon: "assets/sprites/skills/shadow.svg",
     },
   ];
 

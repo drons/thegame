@@ -12,7 +12,7 @@
 //
 // 000331 (единый рендер вкладок по школам, контракт 000301):
 //   * SCHOOLS — ЕДИНЫЙ источник 6 школ (id = поле «школа» каталога,
-//     icon = assets/school-icons/*.svg); перенесён из
+//     icon = assets/sprites/skills/*.svg); перенесён из
 //     src/spellbook-oc.js (книга вне боя — тоже через него, 000331);
 //   * buildTabs(d, tag, onSelect) — ряд вкладок: контейнер
 //     .spoc-tabs с 6 элементами `tag` (бой — div, R9; вне боя —
@@ -43,14 +43,14 @@
 
   const SCHOOLS = [
     { id: "защита", name: "Защита",
-      icon: "assets/school-icons/protection.svg" },
+      icon: "assets/sprites/skills/protection.svg" },
     { id: "исцеление", name: "Исцеление",
-      icon: "assets/school-icons/healing.svg" },
-    { id: "лёд", name: "Лёд", icon: "assets/school-icons/ice.svg" },
-    { id: "огонь", name: "Огонь", icon: "assets/school-icons/fire.svg" },
+      icon: "assets/sprites/skills/healing.svg" },
+    { id: "лёд", name: "Лёд", icon: "assets/sprites/skills/ice.svg" },
+    { id: "огонь", name: "Огонь", icon: "assets/sprites/skills/fire.svg" },
     { id: "природа", name: "Природа",
-      icon: "assets/school-icons/nature_school.svg" },
-    { id: "тень", name: "Тень", icon: "assets/school-icons/shadow.svg" },
+      icon: "assets/sprites/skills/nature_school.svg" },
+    { id: "тень", name: "Тень", icon: "assets/sprites/skills/shadow.svg" },
   ];
 
   function buildTabs(d, tag, onSelect) {
@@ -88,7 +88,7 @@
   // Строки книги: [{id, name, desc, mana, poolKey, poolName, icon}].
   // poolKey — ключ пула действий листа (spellInt/spellWis) для UI-
   // подсказок; poolName — подпись атрибута; icon — путь из JSON
-  // каталога (assets/spell-icons/<id>.svg) либо null.
+  // каталога (assets/sprites/spells/<id>.svg) либо null.
   function entriesFor(sheet, catalog) {
     if (!sheet || typeof sheet !== 'object') return [];
     const spells = sheet.spells;

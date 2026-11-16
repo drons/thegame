@@ -13,7 +13,7 @@
 //   * AC1–AC4: Game.playerUI.setActiveCharId — публичный сеттер
 //     (идемпотентен, БЕЗ открытия/закрытия панели [I], без saveNow) +
 //     ряд в оверлее [E] (N button.cp-portrait[data-memberid], активный
-//     — cp-portrait-active, img 'assets/portraits/<icon>', title
+//     — cp-portrait-active, img 'assets/sprites/portraits/<icon>', title
 //     «имя — роль») + клик (активный сменился, оверлей НЕ закрыт,
 //     onAction не зван, saveNow не зван, узел ряда тот же — in place);
 //   * AC5: Эфир-гейт: efirMet=false → иконки Эфира НЕТ; stale id
@@ -483,8 +483,8 @@ test('AC3. оверлей [E]: ряд .cp-portraits перед .cp-items, N по
   for (const b of btns) {
     const img = b.querySelector('img');
     assert.ok(img, 'у портрета <img>');
-    assert.ok(String(img.src).startsWith('assets/portraits/'),
-      'префикс assets/portraits/ у потребителя');
+    assert.ok(String(img.src).startsWith('assets/sprites/portraits/'),
+      'префикс assets/sprites/portraits/ у потребителя');
     assert.ok(img.alt, 'alt — имя member');
     assert.ok(b.title.includes(' — '),
       'title — «имя — роль»');
@@ -499,9 +499,9 @@ test('AC3. оверлей [E]: ряд .cp-portraits перед .cp-items, N по
       'нет data-npcact — своя ветка клика (000311)');
   }
   assert.equal(f.querySelector('img').src,
-    'assets/portraits/flogiston.svg', 'иконка героя из каталога 000142');
+    'assets/sprites/portraits/flogiston.svg', 'иконка героя из каталога 000142');
   assert.equal(btns[2].querySelector('img').src,
-    'assets/portraits/npc-000012.svg', 'иконка наёмного из каталога');
+    'assets/sprites/portraits/npc-000012.svg', 'иконка наёмного из каталога');
   assert.ok(btns[2].title.startsWith('Вольк'),
     'имя наёмного — из каталога NPC (000012 — Вольк)');
   assert.equal(btns[0].title, 'Флогистон — Герой', 'title героя');

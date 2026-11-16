@@ -1,9 +1,9 @@
 // Генерирует 11 статичных SVG-фонов поля боя (задача 000049) —
-// assets/combat/bg/<name>.svg: 5 проходимых террейнов (палитра TILE_BASE
+// assets/sprites/combat/bg/<name>.svg: 5 проходимых террейнов (палитра TILE_BASE
 // из src/sprites.js), 5 подземелий (DUNGEON_TYPES из src/dungeon.js)
 // и 1 фолбэк (plain — нейтральный тёмный, в духе текущего #0d1117).
 //
-// Стиль — единый, как у assets/tiles/*.svg: вертикальный linearGradient
+// Стиль — единый, как у assets/sprites/tiles/*.svg: вертикальный linearGradient
 // из двух близких тонов + мягкая текстура (пятна света/тени через
 // radialGradient) + мелкие детали (stroke-linecap round). Препятствия в
 // фон НЕ запекаются (их рисует задача 000050 отдельными спрайтами поверх).
@@ -469,7 +469,7 @@ function buildCombatBackground(bg) {
 
 if (isMain) {
   const root = join(__dirname, '..');
-  const dir = join(root, 'assets', 'combat', 'bg');
+  const dir = join(root, 'assets', 'sprites', 'combat', 'bg');
   mkdirSync(dir, { recursive: true });
   for (const bg of BACKGROUNDS) {
     const p = join(dir, bg.key + '.svg');

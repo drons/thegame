@@ -11,6 +11,6 @@
   "предметы": ["assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/healing_temple.json", "assets/buildings/temple.json", "assets/buildings/moon_temple.json", "assets/buildings/mountain_temple.json"],
   "описание": "Возвращает павшего союзника (или Флогистона) на поле боя с половиной здоровья. Спасательное заклинание: дальность не ограничена.",
-  "icon": "assets/spell-icons/resurrect.svg",
+  "icon": "assets/sprites/spells/resurrect.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: перо феникса — бородка-полумесяц над острым стержнем, школа исцеление, степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

@@ -108,7 +108,7 @@ test('F-2: страж текста и ПАРАМЕТРОВ — префикс «
       'assets/buildings/healing_temple.json',
       'assets/buildings/mountain_temple.json',
     ],
-    icon: 'assets/spell-icons/show_enemies.svg',
+    icon: 'assets/sprites/spells/show_enemies.svg',
     icon_prompt: 'Плоская одноцветная иконка для игры «Приключения '
       + 'Флогистона»: глаз в пунктирном кольце радиуса, школа защита, '
       + 'степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, '

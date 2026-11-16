@@ -338,7 +338,7 @@ test('000258 AT-4: WALL_AUTOTILE_NAMES/WALL_AUTOTILES — 4 стиля × 20, п
     assert.ok(Array.isArray(arr) && arr.length === 20,
       st + ': 20 плиток (mask 16 + углы 4)');
     const prefix = st === 'city'
-      ? 'assets/city/walls/city_' : 'assets/dungeon/walls/' + st + '_';
+      ? 'assets/sprites/city/walls/city_' : 'assets/sprites/dungeon/walls/' + st + '_';
     for (let i = 0; i < 20; i++) {
       const p = prefix + AT_NAMES[i] + '.svg';
       assert.equal(arr[i], p, st + '[' + i + ']: путь ≠ имени-паттерна');
@@ -349,7 +349,7 @@ test('000258 AT-4: WALL_AUTOTILE_NAMES/WALL_AUTOTILES — 4 стиля × 20, п
   }
   for (const old of ['rock_1', 'rock_2', 'column_1', 'column_2',
     'stalactite_1', 'stalactite_2']) {
-    assert.ok(!fs.existsSync(path.join(ROOT, 'assets', 'dungeon', 'walls',
+    assert.ok(!fs.existsSync(path.join(ROOT, 'assets', 'sprites', 'dungeon', 'walls',
       old + '.svg')),
       'старый фасадный SVG ' + old + '.svg (000070) — удалён (замена)');
   }
@@ -375,27 +375,27 @@ test('000258 AT-5: город — стена рисуется спрайтом �
   });
   let calls = findCanvas(loaded.body).drawCalls;
   assertWallAt(calls, G, 0, 0, 40, 2.5, 2.5,
-    'assets/city/walls/city_cSE.svg', 'хутор: угол (0,0) cSE (16)');
+    'assets/sprites/city/walls/city_cSE.svg', 'хутор: угол (0,0) cSE (16)');
   assertWallAt(calls, G, 4, 0, 40, 2.5, 2.5,
-    'assets/city/walls/city_cSW.svg', 'хутор: угол (4,0) cSW (17)');
+    'assets/sprites/city/walls/city_cSW.svg', 'хутор: угол (4,0) cSW (17)');
   assertWallAt(calls, G, 0, 4, 40, 2.5, 2.5,
-    'assets/city/walls/city_cNE.svg', 'хутор: угол (0,4) cNE (18)');
+    'assets/sprites/city/walls/city_cNE.svg', 'хутор: угол (0,4) cNE (18)');
   for (const [x, y] of [[1, 0], [2, 0], [3, 0]])
     assertWallAt(calls, G, x, y, 40, 2.5, 2.5,
-      'assets/city/walls/city_m04.svg',
+      'assets/sprites/city/walls/city_m04.svg',
       'хутор: стена (' + x + ',' + y + ') mask 4');
   for (const [x, y] of [[0, 1], [0, 2], [0, 3]])
     assertWallAt(calls, G, x, y, 40, 2.5, 2.5,
-      'assets/city/walls/city_m02.svg',
+      'assets/sprites/city/walls/city_m02.svg',
       'хутор: стена (' + x + ',' + y + ') mask 2');
   for (const [x, y] of [[4, 1], [4, 2], [4, 3], [4, 4]])
     assertWallAt(calls, G, x, y, 40, 2.5, 2.5,
-      'assets/city/walls/city_m08.svg',
+      'assets/sprites/city/walls/city_m08.svg',
       'хутор: стена (' + x + ',' + y + ') mask 8');
   assertWallAt(calls, G, 1, 4, 40, 2.5, 2.5,
-    'assets/city/walls/city_m01.svg', 'хутор: стена (1,4) mask 1');
+    'assets/sprites/city/walls/city_m01.svg', 'хутор: стена (1,4) mask 1');
   assertWallAt(calls, G, 2, 4, 40, 2.5, 2.5,
-    'assets/city/walls/city_m03.svg',
+    'assets/sprites/city/walls/city_m03.svg',
     'хутор: левее двери (2,4) mask 3');
   assert.ok(!calls.some((c) => c[0] === 'fillRect'
       && (c[2] === '#77685a' || c[2] === '#66594c')),
@@ -422,23 +422,23 @@ test('000258 AT-5: город — стена рисуется спрайтом �
     state: s2, onMove() {}, zoom: 60, spriteLoader: makeLoader(),
   });
   calls = findCanvas(loaded.body).drawCalls;
-  assertWallAt(calls, G, 0, 0, 60, 3, 3, 'assets/city/walls/city_cSE.svg',
+  assertWallAt(calls, G, 0, 0, 60, 3, 3, 'assets/sprites/city/walls/city_cSE.svg',
     '6x6: угол (0,0) cSE (16)');
-  assertWallAt(calls, G, 5, 0, 60, 3, 3, 'assets/city/walls/city_cSW.svg',
+  assertWallAt(calls, G, 5, 0, 60, 3, 3, 'assets/sprites/city/walls/city_cSW.svg',
     '6x6: угол (5,0) cSW (17)');
-  assertWallAt(calls, G, 0, 5, 60, 3, 3, 'assets/city/walls/city_cNE.svg',
+  assertWallAt(calls, G, 0, 5, 60, 3, 3, 'assets/sprites/city/walls/city_cNE.svg',
     '6x6: угол (0,5) cNE (18)');
-  assertWallAt(calls, G, 5, 5, 60, 3, 3, 'assets/city/walls/city_cNW.svg',
+  assertWallAt(calls, G, 5, 5, 60, 3, 3, 'assets/sprites/city/walls/city_cNW.svg',
     '6x6: угол (5,5) cNW (19)');
-  assertWallAt(calls, G, 1, 0, 60, 3, 3, 'assets/city/walls/city_m04.svg',
+  assertWallAt(calls, G, 1, 0, 60, 3, 3, 'assets/sprites/city/walls/city_m04.svg',
     '6x6: стена (1,0) mask 4');
-  assertWallAt(calls, G, 0, 1, 60, 3, 3, 'assets/city/walls/city_m02.svg',
+  assertWallAt(calls, G, 0, 1, 60, 3, 3, 'assets/sprites/city/walls/city_m02.svg',
     '6x6: стена (0,1) mask 2');
-  assertWallAt(calls, G, 1, 5, 60, 3, 3, 'assets/city/walls/city_m01.svg',
+  assertWallAt(calls, G, 1, 5, 60, 3, 3, 'assets/sprites/city/walls/city_m01.svg',
     '6x6: стена (1,5) mask 1');
-  assertWallAt(calls, G, 2, 5, 60, 3, 3, 'assets/city/walls/city_m03.svg',
+  assertWallAt(calls, G, 2, 5, 60, 3, 3, 'assets/sprites/city/walls/city_m03.svg',
     '6x6: левее двери (2,5) mask 3');
-  assertWallAt(calls, G, 4, 5, 60, 3, 3, 'assets/city/walls/city_m09.svg',
+  assertWallAt(calls, G, 4, 5, 60, 3, 3, 'assets/sprites/city/walls/city_m09.svg',
     '6x6: правее двери (4,5) mask 9');
   assert.ok(!calls.some((c) => c[0] === 'fillRect'
       && (c[2] === '#77685a' || c[2] === '#66594c')),
@@ -474,7 +474,7 @@ test('000258 AT-6: подземелье — wall с floor-соседом рис�
     const y = Number(parts[1]);
     const idx = expected[k];
     const kind = kindAt(x, y, 0, s.dg.seed);
-    const path = 'assets/dungeon/walls/' + kind + '_'
+    const path = 'assets/sprites/dungeon/walls/' + kind + '_'
       + AT_NAMES[idx] + '.svg';
     const i = assertWallAt(calls, G, x, y, 48, 2.5, 2.5, path,
       'стена (' + x + ',' + y + ') idx ' + idx);
@@ -512,19 +512,19 @@ test('000258 AT-7: подземелье — fog-гейт 000136 на автот�
   const seed = s.dg.seed;
   // (0,2): dist 2 ≤ R — ВИДИМА wall-клетка; mask 2 (E — пол) → m02.
   assertWallAt(calls, G, 0, 2, 48, 4.5, 4.5,
-    'assets/dungeon/walls/' + kindAt(0, 2, 0, seed) + '_m02.svg',
+    'assets/sprites/dungeon/walls/' + kindAt(0, 2, 0, seed) + '_m02.svg',
     'видимая стена (0,2) — спрайт маски');
   // (2,0): dist 2 ≤ R — ВИДИМА; mask 4 (S — пол) → m04.
   assertWallAt(calls, G, 2, 0, 48, 4.5, 4.5,
-    'assets/dungeon/walls/' + kindAt(2, 0, 0, seed) + '_m04.svg',
+    'assets/sprites/dungeon/walls/' + kindAt(2, 0, 0, seed) + '_m04.svg',
     'видимая стена (2,0) — спрайт маски');
   // (8,4): dist 6 > R — НЕИСЛЕДОВАНА (mask 0) → стенового спрайта
   // НЕТ (фон #0a0d12).
   assertNoCellDrawImage(calls, G, 8, 4, 48, 4.5, 4.5,
-    'assets/dungeon/walls/', 'неисследованная стена (8,4)');
+    'assets/sprites/dungeon/walls/', 'неисследованная стена (8,4)');
   // (4,8): dist 6 > R — тоже скрыта (контроль другого края).
   assertNoCellDrawImage(calls, G, 4, 8, 48, 4.5, 4.5,
-    'assets/dungeon/walls/', 'неисследованная стена (4,8)');
+    'assets/sprites/dungeon/walls/', 'неисследованная стена (4,8)');
   // Контроль гейта на полу: видимый пол (3,1) — floor-спрайт ЕСТЬ;
   // скрытый пол (6,6) — ничего нет (гейт работает, не «рисует всё»).
   const floorVisible = G.dungeonFloorFrame(0, 3, 1);
@@ -533,5 +533,5 @@ test('000258 AT-7: подземелье — fog-гейт 000136 на автот�
   assertWallAt(calls, G, 3, 1, 48, 4.5, 4.5, floorVisible,
     'видимый пол (3,1) — floor-спрайт (гейт открыт)');
   assertNoCellDrawImage(calls, G, 6, 6, 48, 4.5, 4.5,
-    'assets/dungeon/floor/', 'скрытый пол (6,6) — не рисуется');
+    'assets/sprites/dungeon/floor/', 'скрытый пол (6,6) — не рисуется');
 });

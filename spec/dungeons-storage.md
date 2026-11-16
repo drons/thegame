@@ -4,7 +4,7 @@
  * Один тип подземелья — один JSON-файл: `<slug>.json` (simple_cave, crypt,
    castle_ruins, flooded_cave, abyss — 000318.04). JSON хранит `id` = 0…4, значения
    `DUNGEON_TYPES` 0..4 (CAVE, CRYPT, RUINS, DROWNED, ABYSS).
-   Перенумерация ЗАПРЕЩЕНА: фон боя `assets/combat/bg` выбирается именно
+   Перенумерация ЗАПРЕЩЕНА: фон боя `assets/sprites/combat/bg` выбирается именно
    по этим числам (задача 000049), а `DUNGEON_TYPES` — часть публичного
    API `src/dungeon.js`.
  * Структура файла закреплена в JSON-схеме `assets/dungeons/schema.json`
@@ -77,7 +77,7 @@
    БЕЗ require `dungeon.js` и БЕЗ data-модулей (vm-песочница
    `tests/combat-ui.test.js`, задача 000049); тест сверяет зеркало с
    каталогом по порядку файлов (перенумерация сдвинет фоны боя).
- * Тайлы пола `assets/dungeon/floor/<slug>_<n>.svg` — 8 на тип
+ * Тайлы пола `assets/sprites/dungeon/floor/<slug>_<n>.svg` — 8 на тип
    (000069: 3 на тип; 000323: 8 на тип + flat-конверсия всех 40) в
    каталог НЕ перенесены: `DUNGEON_FLOOR_FRAMES` в `src/sprites.js`
    — как `COMBAT_BG_DUNGEON`, ЛИТЕРАЛЬНОЕ зеркало по числам 0..4 БЕЗ
@@ -195,7 +195,7 @@
    мобами/сундуками/босс-клеткой (паттерн 000183) и с безопасной
    зоной 5×5 — БЕСПЛАТНО; две залежи не делят клетку.
  * Рендер — спрайт по «виду» (`sprites.js`: `DUNGEON_DEPOSIT` →
-   `assets/dungeon/deposit_{ore,mineral,gem}.svg`, 64×64 в стиле
+   `assets/sprites/dungeon/deposit_{ore,mineral,gem}.svg`, 64×64 в стиле
    `chest.svg`), туман-маска 000136; собранная (gathered) залежь —
    НЕ рисуется (паттерн открытого сундука, 000067); изображение не
    готово — фолбэк-квадрат + полоса ЦВЕТОМ ПО ВИДУ. «Вид» — из пула

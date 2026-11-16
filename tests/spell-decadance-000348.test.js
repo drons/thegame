@@ -44,7 +44,7 @@ const ROOT = path.join(__dirname, '..');
 const SPELL_FILE = path.join(ROOT, 'assets', 'spells', 'decadance.json');
 const SCROLL_FILE = path.join(ROOT, 'assets', 'items',
   'decadance_scroll.json');
-const SPELL_ICON = path.join(ROOT, 'assets', 'spell-icons', 'decadance.svg');
+const SPELL_ICON = path.join(ROOT, 'assets', 'sprites', 'spells', 'decadance.svg');
 const SCROLL_ICON = path.join(
   ROOT, 'assets', 'sprites', 'items', 'decadance_scroll.svg');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');

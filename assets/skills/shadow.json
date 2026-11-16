@@ -3,5 +3,5 @@
   "type": "school",
   "name": "Тень",
   "desc": "Урон и дебафы, невидимость и контроль.",
-  "icon": "assets/school-icons/shadow.svg"
+  "icon": "assets/sprites/skills/shadow.svg"
 }

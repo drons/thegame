@@ -425,9 +425,9 @@ function (G0, rootRef) {
               img = ctx.el('img');
               btn.appendChild(img);
             }
-            // Префикс 'assets/portraits/' — у ПОТРЕБИТЕЛЯ (000142 D2:
+            // Префикс 'assets/sprites/portraits/' — у ПОТРЕБИТЕЛЯ (000142 D2:
             // icon в каталоге — basename).
-            img.src = 'assets/portraits/' + p.icon;
+            img.src = 'assets/sprites/portraits/' + p.icon;
             img.alt = m.name;
             row.appendChild(btn);
           }

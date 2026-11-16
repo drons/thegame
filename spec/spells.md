@@ -187,7 +187,7 @@
   .tc-action в контейнере #touch-controls (src/ui.js, 000351):
   тот же квадрат B×B правой колонки (layout.spellbook из
   G.layoutTouchControls), что [E]/[I]/[C]; иконка
-  assets/ui/combat_spellbook.svg; слушатель pointerdown →
+  assets/sprites/ui/combat_spellbook.svg; слушатель pointerdown →
   preventDefault → onSpellbook → blur (click-слушателя нет);
   роут — тот же, что [B]: G.spellbookOC.toggle() (та же
   blocked-политика). В бою — display:none единицей buttons;
@@ -501,7 +501,7 @@
   * `здания` — непустой список связанных построек: id из
     `assets/buildings`;
   * `описание` — эффект и лор (не пустое).
-  * `icon` — SVG-иконка (assets/spell-icons/<id>.svg; required);
+  * `icon` — SVG-иконка (assets/sprites/spells/<id>.svg; required);
   * `icon_prompt` — промпт иконки (required);
 * Ссылочная целостность: `база` → заклинание каталога (одна школа,
   `степень` = +1 к базовой, `уровень` не ниже, без циклов); `предметы` →

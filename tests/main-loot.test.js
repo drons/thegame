@@ -786,7 +786,7 @@ function drawsOf(calls, prefix) {
 
 const lootDraws = (calls) => drawsOf(calls, 'assets/sprites/loot/');
 const decoDraws = (calls) => drawsOf(calls, 'assets/sprites/visuals/');
-const tileDraws = (calls) => drawsOf(calls, 'assets/tiles/');
+const tileDraws = (calls) => drawsOf(calls, 'assets/sprites/tiles/');
 const buildingDraws = (calls) => drawsOf(calls, 'assets/sprites/buildings/');
 const mobDraws = (calls) => drawsOf(calls, 'assets/sprites/mobs/');
 const phlogistonDraws = (calls) => drawsOf(calls, 'assets/sprites/phlogiston/');
@@ -1098,7 +1098,7 @@ test('LM9. 000158.05 e2e: порядок слоёв — текстура < де�
       // целый зум, камера на целой/полуцелой сетке с точностью 1e-3 px).
       const iTile = calls.findIndex((c) => c[0] === 'drawImage'
         && c[1][0] && c[1][0].__asset
-        && c[1][0].__asset.startsWith('assets/tiles/')
+        && c[1][0].__asset.startsWith('assets/sprites/tiles/')
         && Math.abs(c[1][1] - Math.round(sx)) < EPS
         && Math.abs(c[1][2] - Math.round(sy)) < EPS
         && Math.abs(c[1][3] - zoom) < EPS

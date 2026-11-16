@@ -262,7 +262,7 @@
       font-size: 16px;
       pointer-events: none;
     }
-    /* Кнопки [E]/[I] (000123): содержимое — SVG-иконка (assets/ui/),
+    /* Кнопки [E]/[I] (000123): содержимое — SVG-иконка (assets/sprites/ui/),
        буквы убраны; flex-центрирование под img. */
     .tc-action {
       position: absolute;
@@ -395,7 +395,7 @@
     }
     /* Кнопки действий — только бой (grep по src/): ЧЕТЫРЕ колонки
        (8 кнопок = 2 ряда) и иконные кнопки БЕЗ текстовой подписи
-       (задача 000124; иконки assets/ui/combat_*.svg). */
+       (задача 000124; иконки assets/sprites/ui/combat_*.svg). */
     .combat-actions {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -1281,7 +1281,7 @@
     .spoc-empty { padding: 8px; color: #9a9484; }
     .spoc-hint { margin-top: 8px; color: #9a9484; }
     /* 000301 — вкладки по школам магии (книга вне боя): 6 кнопок
-       с иконками (assets/school-icons), палитра блока .spoc-*;
+       с иконками (assets/sprites/skills), палитра блока .spoc-*;
        активная — акцент #d8c27a (прецедент .cp-portrait-active). */
     .spoc-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
     .spoc-tab {

@@ -227,7 +227,7 @@
   //   src/main.js      — TILE_COLORS (поле rgb).
   // Копии имён на стороне ДАННЫХ (enum «допустимые_тайлы» в
   // assets/buildings/schema.json, enum «террейны» в assets/visuals/
-  // schema.json, имена файлов assets/tiles/*.svg) связаны с этой
+  // schema.json, имена файлов assets/sprites/tiles/*.svg) связаны с этой
   // таблицей тестами (tests/buildings.test.js, tests/sprites.test.js).
   //
   // Цвет — ДВА представления, согласованные соотношением

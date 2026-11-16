@@ -142,7 +142,7 @@
       btn.dataset.memberid = m.id;
       btn.title = m.name + ' — ' + m.role;
       const img = el('img');
-      img.src = 'assets/portraits/' + p.icon;
+      img.src = 'assets/sprites/portraits/' + p.icon;
       img.alt = m.name;
       btn.appendChild(img);
       row.appendChild(btn);

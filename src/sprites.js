@@ -1,7 +1,7 @@
 // 2D-графика: выбор спрайтов и загрузка ассетов (spec/graphics.md).
 //
 // Ассеты:
-//   assets/tiles/<террейн>[_n].svg            — текстуры тайлов (вода — анимация);
+//   assets/sprites/tiles/<террейн>[_n].svg            — текстуры тайлов (вода — анимация);
 //   assets/sprites/phlogiston/<действие>_n.svg — Флогистон (idle/walk/attack/cast);
 //   assets/sprites/efir/<действие>_n.svg       — Эфир (дух, старая форма
 //     Флогистона; задача 000034 — прежние кадры героя перенесены без
@@ -70,61 +70,61 @@
   // остальные — одна текстура.
   const TILE_FRAMES = {
     [TERRAIN.DEEP_WATER]: [
-      'assets/tiles/deepwater_1.svg',
-      'assets/tiles/deepwater_2.svg',
+      'assets/sprites/tiles/deepwater_1.svg',
+      'assets/sprites/tiles/deepwater_2.svg',
     ],
     [TERRAIN.WATER]: [
-      'assets/tiles/water_1.svg',
-      'assets/tiles/water_2.svg',
-      'assets/tiles/water_3.svg',
-      'assets/tiles/water_4.svg',
+      'assets/sprites/tiles/water_1.svg',
+      'assets/sprites/tiles/water_2.svg',
+      'assets/sprites/tiles/water_3.svg',
+      'assets/sprites/tiles/water_4.svg',
     ],
-    [TERRAIN.SAND]: ['assets/tiles/sand_1.svg'],
-    [TERRAIN.GRASS]: ['assets/tiles/grass_1.svg'],
-    [TERRAIN.FOREST]: ['assets/tiles/forest_1.svg'],
-    [TERRAIN.HILL]: ['assets/tiles/hill_1.svg'],
-    [TERRAIN.MOUNTAIN]: ['assets/tiles/mountain_1.svg'],
-    [TERRAIN.SWAMP]: ['assets/tiles/swamp_1.svg'],
+    [TERRAIN.SAND]: ['assets/sprites/tiles/sand_1.svg'],
+    [TERRAIN.GRASS]: ['assets/sprites/tiles/grass_1.svg'],
+    [TERRAIN.FOREST]: ['assets/sprites/tiles/forest_1.svg'],
+    [TERRAIN.HILL]: ['assets/sprites/tiles/hill_1.svg'],
+    [TERRAIN.MOUNTAIN]: ['assets/sprites/tiles/mountain_1.svg'],
+    [TERRAIN.SWAMP]: ['assets/sprites/tiles/swamp_1.svg'],
   };
 
   const MAP_TILE_VARIANT_SALT = 0x7d150353;
 
   const TILE_VARIANTS = {
     [TERRAIN.SAND]: [
-      'assets/tiles/sand_1.svg',
-      'assets/tiles/sand_2.svg',
-      'assets/tiles/sand_3.svg',
-      'assets/tiles/sand_4.svg',
+      'assets/sprites/tiles/sand_1.svg',
+      'assets/sprites/tiles/sand_2.svg',
+      'assets/sprites/tiles/sand_3.svg',
+      'assets/sprites/tiles/sand_4.svg',
     ],
     [TERRAIN.GRASS]: [
-      'assets/tiles/grass_1.svg',
-      'assets/tiles/grass_2.svg',
-      'assets/tiles/grass_3.svg',
-      'assets/tiles/grass_4.svg',
+      'assets/sprites/tiles/grass_1.svg',
+      'assets/sprites/tiles/grass_2.svg',
+      'assets/sprites/tiles/grass_3.svg',
+      'assets/sprites/tiles/grass_4.svg',
     ],
     [TERRAIN.FOREST]: [
-      'assets/tiles/forest_1.svg',
-      'assets/tiles/forest_2.svg',
-      'assets/tiles/forest_3.svg',
-      'assets/tiles/forest_4.svg',
+      'assets/sprites/tiles/forest_1.svg',
+      'assets/sprites/tiles/forest_2.svg',
+      'assets/sprites/tiles/forest_3.svg',
+      'assets/sprites/tiles/forest_4.svg',
     ],
     [TERRAIN.HILL]: [
-      'assets/tiles/hill_1.svg',
-      'assets/tiles/hill_2.svg',
-      'assets/tiles/hill_3.svg',
-      'assets/tiles/hill_4.svg',
+      'assets/sprites/tiles/hill_1.svg',
+      'assets/sprites/tiles/hill_2.svg',
+      'assets/sprites/tiles/hill_3.svg',
+      'assets/sprites/tiles/hill_4.svg',
     ],
     [TERRAIN.MOUNTAIN]: [
-      'assets/tiles/mountain_1.svg',
-      'assets/tiles/mountain_2.svg',
-      'assets/tiles/mountain_3.svg',
-      'assets/tiles/mountain_4.svg',
+      'assets/sprites/tiles/mountain_1.svg',
+      'assets/sprites/tiles/mountain_2.svg',
+      'assets/sprites/tiles/mountain_3.svg',
+      'assets/sprites/tiles/mountain_4.svg',
     ],
     [TERRAIN.SWAMP]: [
-      'assets/tiles/swamp_1.svg',
-      'assets/tiles/swamp_2.svg',
-      'assets/tiles/swamp_3.svg',
-      'assets/tiles/swamp_4.svg',
+      'assets/sprites/tiles/swamp_1.svg',
+      'assets/sprites/tiles/swamp_2.svg',
+      'assets/sprites/tiles/swamp_3.svg',
+      'assets/sprites/tiles/swamp_4.svg',
     ],
   };
 
@@ -559,7 +559,7 @@
 
   // --- Фон поля боя (задача 000049) ---
   //
-  // Статичные SVG-фоны в assets/combat/bg/ (11 файлов, генератор —
+  // Статичные SVG-фоны в assets/sprites/combat/bg/ (11 файлов, генератор —
   // scripts/gen-combat-bg.js): 5 проходимых террейнов, 5 подземелий,
   // 1 фолбэк. combat-ui.js рисует их первым слоем боевого canvas;
   // загрузчик передаётся в startCombat опцией spriteLoader (main.js).
@@ -572,7 +572,7 @@
   // require в node-ветке UMD дал бы рассинхрон node/браузер веток
   // (задача 000049). Равенство зеркала с каталогом закрывает тест
   // (tests/sprites.test.js).
-  const COMBAT_BG_DIR = 'assets/combat/bg/';
+  const COMBAT_BG_DIR = 'assets/sprites/combat/bg/';
   const COMBAT_BG_TERRAIN = {
     [TERRAIN.SAND]: 'sand',
     [TERRAIN.GRASS]: 'grass',
@@ -587,7 +587,7 @@
 
   // --- Тайлы пола подземелья (задачи 000069, 000323) ---
   //
-  // Статичные flat-SVG тайлы 64×64 в assets/dungeon/floor/ (40
+  // Статичные flat-SVG тайлы 64×64 в assets/sprites/dungeon/floor/ (40
   // файлов: 5 типов × 8 вариантов, генератор —
   // scripts/gen-dungeon-tiles.js, палитры — в духе фонов боя 000049
   // того же типа; базовая заливка — один плоский тон на тип во всех
@@ -603,13 +603,13 @@
   // require в node-ветке UMD дал бы рассинхрон node/браузер).
   // Равенство зеркала с DUNGEON_TYPES и каталогом assets/dungeons
   // закрывает тест (tests/sprites.test.js).
-  const DUNGEON_FLOOR_DIR = 'assets/dungeon/floor/';
+  const DUNGEON_FLOOR_DIR = 'assets/sprites/dungeon/floor/';
   const DUNGEON_FLOOR_FRAMES = {
-    0: ['assets/dungeon/floor/cave_1.svg', 'assets/dungeon/floor/cave_2.svg', 'assets/dungeon/floor/cave_3.svg', 'assets/dungeon/floor/cave_4.svg', 'assets/dungeon/floor/cave_5.svg', 'assets/dungeon/floor/cave_6.svg', 'assets/dungeon/floor/cave_7.svg', 'assets/dungeon/floor/cave_8.svg'],
-    1: ['assets/dungeon/floor/crypt_1.svg', 'assets/dungeon/floor/crypt_2.svg', 'assets/dungeon/floor/crypt_3.svg', 'assets/dungeon/floor/crypt_4.svg', 'assets/dungeon/floor/crypt_5.svg', 'assets/dungeon/floor/crypt_6.svg', 'assets/dungeon/floor/crypt_7.svg', 'assets/dungeon/floor/crypt_8.svg'],
-    2: ['assets/dungeon/floor/ruins_1.svg', 'assets/dungeon/floor/ruins_2.svg', 'assets/dungeon/floor/ruins_3.svg', 'assets/dungeon/floor/ruins_4.svg', 'assets/dungeon/floor/ruins_5.svg', 'assets/dungeon/floor/ruins_6.svg', 'assets/dungeon/floor/ruins_7.svg', 'assets/dungeon/floor/ruins_8.svg'],
-    3: ['assets/dungeon/floor/drowned_1.svg', 'assets/dungeon/floor/drowned_2.svg', 'assets/dungeon/floor/drowned_3.svg', 'assets/dungeon/floor/drowned_4.svg', 'assets/dungeon/floor/drowned_5.svg', 'assets/dungeon/floor/drowned_6.svg', 'assets/dungeon/floor/drowned_7.svg', 'assets/dungeon/floor/drowned_8.svg'],
-    4: ['assets/dungeon/floor/abyss_1.svg', 'assets/dungeon/floor/abyss_2.svg', 'assets/dungeon/floor/abyss_3.svg', 'assets/dungeon/floor/abyss_4.svg', 'assets/dungeon/floor/abyss_5.svg', 'assets/dungeon/floor/abyss_6.svg', 'assets/dungeon/floor/abyss_7.svg', 'assets/dungeon/floor/abyss_8.svg'],
+    0: ['assets/sprites/dungeon/floor/cave_1.svg', 'assets/sprites/dungeon/floor/cave_2.svg', 'assets/sprites/dungeon/floor/cave_3.svg', 'assets/sprites/dungeon/floor/cave_4.svg', 'assets/sprites/dungeon/floor/cave_5.svg', 'assets/sprites/dungeon/floor/cave_6.svg', 'assets/sprites/dungeon/floor/cave_7.svg', 'assets/sprites/dungeon/floor/cave_8.svg'],
+    1: ['assets/sprites/dungeon/floor/crypt_1.svg', 'assets/sprites/dungeon/floor/crypt_2.svg', 'assets/sprites/dungeon/floor/crypt_3.svg', 'assets/sprites/dungeon/floor/crypt_4.svg', 'assets/sprites/dungeon/floor/crypt_5.svg', 'assets/sprites/dungeon/floor/crypt_6.svg', 'assets/sprites/dungeon/floor/crypt_7.svg', 'assets/sprites/dungeon/floor/crypt_8.svg'],
+    2: ['assets/sprites/dungeon/floor/ruins_1.svg', 'assets/sprites/dungeon/floor/ruins_2.svg', 'assets/sprites/dungeon/floor/ruins_3.svg', 'assets/sprites/dungeon/floor/ruins_4.svg', 'assets/sprites/dungeon/floor/ruins_5.svg', 'assets/sprites/dungeon/floor/ruins_6.svg', 'assets/sprites/dungeon/floor/ruins_7.svg', 'assets/sprites/dungeon/floor/ruins_8.svg'],
+    3: ['assets/sprites/dungeon/floor/drowned_1.svg', 'assets/sprites/dungeon/floor/drowned_2.svg', 'assets/sprites/dungeon/floor/drowned_3.svg', 'assets/sprites/dungeon/floor/drowned_4.svg', 'assets/sprites/dungeon/floor/drowned_5.svg', 'assets/sprites/dungeon/floor/drowned_6.svg', 'assets/sprites/dungeon/floor/drowned_7.svg', 'assets/sprites/dungeon/floor/drowned_8.svg'],
+    4: ['assets/sprites/dungeon/floor/abyss_1.svg', 'assets/sprites/dungeon/floor/abyss_2.svg', 'assets/sprites/dungeon/floor/abyss_3.svg', 'assets/sprites/dungeon/floor/abyss_4.svg', 'assets/sprites/dungeon/floor/abyss_5.svg', 'assets/sprites/dungeon/floor/abyss_6.svg', 'assets/sprites/dungeon/floor/abyss_7.svg', 'assets/sprites/dungeon/floor/abyss_8.svg'],
   };
   // Сид раскладки вариантов пола — ЛЕГАСИ-ветка dungeonFloorFrame
   // (вызов без 4-го аргумента, 000323): раскладка ГЛОБАЛЬНАЯ —
@@ -626,8 +626,8 @@
   // idx 16..19 = углы (клетка с ровно ОДНИМ диагональным полом:
   // cSE, cSW, cNE, cNW). 4 стиля: city (стены городов) + 3 вида
   // объектов_стен каталога (rock/column/stalactite — подземелья):
-  //   assets/city/walls/city_<имя>.svg (20, НОВЫЙ каталог),
-  //   assets/dungeon/walls/<kind>_<имя>.svg (3 × 20 = 60),
+  //   assets/sprites/city/walls/city_<имя>.svg (20, НОВЫЙ каталог),
+  //   assets/sprites/dungeon/walls/<kind>_<имя>.svg (3 × 20 = 60),
   // генератор scripts/gen-wall-autotiles.js (80 SVG, byte-identical).
   // Индекс плитки на клетке — wallTileIndex, вид — wallKindFor
   // (src/dungeon.js). ЛИТЕРАЛ без require dungeon.js и data-модулей —
@@ -643,10 +643,10 @@
   ];
   const WALL_AUTOTILES = (() => {
     const styles = {
-      city: 'assets/city/walls/city_',
-      rock: 'assets/dungeon/walls/rock_',
-      column: 'assets/dungeon/walls/column_',
-      stalactite: 'assets/dungeon/walls/stalactite_',
+      city: 'assets/sprites/city/walls/city_',
+      rock: 'assets/sprites/dungeon/walls/rock_',
+      column: 'assets/sprites/dungeon/walls/column_',
+      stalactite: 'assets/sprites/dungeon/walls/stalactite_',
     };
     const out = {};
     for (const st of Object.keys(styles)) {
@@ -657,14 +657,14 @@
 
   // --- Спрайт сундука подземелья (задача 000067) ---
   //
-  // ОДИН статичный SVG 64×64 (assets/dungeon/chest.svg, прозрачный
+  // ОДИН статичный SVG 64×64 (assets/sprites/dungeon/chest.svg, прозрачный
   // фон, в стиле полов/стен 000069/000070): подземелье рисует его
   // через DI spriteLoader (zoom*0.8, центр клетки); ОТКРЫТЫЙ сундук
   // не рисуется вовсе. Литерал в паттерне BUILDING_SPRITES (без
   // require dungeon.js); существование файла и путь в allAssetPaths
   // закрывают тесты (tests/dungeon-ui.test.js, обход
   // tests/svg.test.js).
-  const DUNGEON_CHEST = 'assets/dungeon/chest.svg';
+  const DUNGEON_CHEST = 'assets/sprites/dungeon/chest.svg';
 
   // Маркеры тайла входа-выхода (задача 000177): ОДИН тайл = вход и
   // выход (дверь/лестница/пещера); вид по kind: city → door, dungeon
@@ -673,26 +673,26 @@
   // dungeon-ui.js рисует drawImage(целая клетка) или фолбэк-квадрат с
   // 'E' (изображение не готово).
   const DUNGEON_PORTAL = {
-    door: 'assets/dungeon/door.svg',
-    stairs: 'assets/dungeon/stairs.svg',
-    cave_mouth: 'assets/dungeon/cave_mouth.svg',
+    door: 'assets/sprites/dungeon/door.svg',
+    stairs: 'assets/sprites/dungeon/stairs.svg',
+    cave_mouth: 'assets/sprites/dungeon/cave_mouth.svg',
   };
 
   // Спрайты залежей (задача 000157.02): 3 статичных SVG 64×64
-  // (assets/dungeon/deposit_*.svg, прозрачный фон, в стиле chest.svg),
+  // (assets/sprites/dungeon/deposit_*.svg, прозрачный фон, в стиле chest.svg),
   // ОДИН на ВИД залежи: руда (руда), минерал, самоцвет. dungeon-ui.js
   // рисует спрайт zoom*0.8 (центр клетки); «вид» — из DUNGEON_ORES
   // (dungeon.js) по предмету залежи. Собранные (gathered) не рисуются;
   // изображение не готово — фолбэк-квадрат ЦВЕТОМ ПО ВИДУ (dungeon-ui).
   const DUNGEON_DEPOSIT = {
-    'руда': 'assets/dungeon/deposit_ore.svg',
-    'минерал': 'assets/dungeon/deposit_mineral.svg',
-    'самоцвет': 'assets/dungeon/deposit_gem.svg',
+    'руда': 'assets/sprites/dungeon/deposit_ore.svg',
+    'минерал': 'assets/sprites/dungeon/deposit_mineral.svg',
+    'самоцвет': 'assets/sprites/dungeon/deposit_gem.svg',
   };
 
   // --- Препятствия поля боя (задача 000050) ---
   //
-  // 3 статичных универсальных SVG в assets/combat/obstacles/ (камень,
+  // 3 статичных универсальных SVG в assets/sprites/combat/obstacles/ (камень,
   // валун, пни-кусты) — читаются на ВСЕХ 11 фонах 000049 (нейтральная
   // палитра: серые, как у мирских декораций-камней, + приглушённая
   // зелень; без насыщенных цветов). combat-ui.js рисует их слоем между
@@ -700,7 +700,7 @@
   // визуал — отдельный слой поверх общего фона (решение (б) 000030).
   // ЛИТЕРАЛ без require combat.js (паттерн MOB_SPRITE_KINDS): набор
   // клеток боя (c.obstacles) приходит из ядра, вид — только от координат.
-  const OBSTACLE_DIR = 'assets/combat/obstacles/';
+  const OBSTACLE_DIR = 'assets/sprites/combat/obstacles/';
   const OBSTACLE_SPRITES = [
     OBSTACLE_DIR + 'rock.svg',
     OBSTACLE_DIR + 'boulder.svg',
@@ -1144,7 +1144,7 @@
 
   /**
    * Путь SVG-фона боевого поля (задача 000049).
-   * Чистая функция: bg → 'assets/combat/bg/<name>.svg'.
+   * Чистая функция: bg → 'assets/sprites/combat/bg/<name>.svg'.
    * bg — { terrain: <TERRAIN из map.js> } | { dungeon: <DUNGEON_TYPES> }
    * | {} / null / неизвестный ключ → фолбэк plain.svg.
    * Вода/глубокая вода/горы (непроходимы — боя там по дизайну нет)
@@ -1167,7 +1167,7 @@
   /**
    * Путь SVG-тайла пола подземелья (задачи 000069, 000323).
    * Чистая функция: (type, x, y[, floorSeed]) →
-   * 'assets/dungeon/floor/<slug>_<n>.svg' (паттерн tileVisuals:
+   * 'assets/sprites/dungeon/floor/<slug>_<n>.svg' (паттерн tileVisuals:
    * вариант — hash2 от координат, детерминизм, без RNG-состояния и
    * факта загрузки; повторный вызов — тот же путь). type — целое
    * DUNGEON_TYPES (0..4); неизвестный или нецелый type (5, −1, 0.5,

@@ -10,7 +10,7 @@
 //
 // BI-1: 29 записей с «спрайт» — icon === «спрайт» (вид на карте/в
 //       городе — конструктивно), файл существует.
-// BI-2: 26 записей без «спрайт» — icon = assets/building-icons/
+// BI-2: 26 записей без «спрайт» — icon = assets/sprites/building/
 //       0000NN.svg (имя по id), icon_prompt непустой, файл существует;
 //       26 SVG — 24×24/viewBox/xmlns/#e8dcc0/well-formed/пара-уникальны.
 // BI-3: schema.json — properties.icon (union-паттерн) + icon_prompt;
@@ -56,11 +56,11 @@ const byId = {};
 for (const r of RECORDS) byId[r.data.id] = r.data;
 
 // 26 построек без «спрайт» — НОВЫЕ иконки (имя файла = id записи,
-// механически, без параллельной таблицы имён — прецеденты spell-icons
+// механически, без параллельной таблицы имён — прецеденты sprites/spells
 // <id>.svg, sprites/loot <id>.svg).
 const ICON_IDS = [5, 6, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
   23, 24, 26, 27, 28, 29, 30, 32, 33, 34, 35, 50];
-const ICON_DIR = 'assets/building-icons';
+const ICON_DIR = 'assets/sprites/building';
 const iconPathFor = (id) => ICON_DIR + '/'
   + String(id).padStart(6, '0') + '.svg';
 
@@ -191,7 +191,7 @@ test('BI-1. 000293: 29 записей с «спрайт» — icon = «спра�
   }
 });
 
-test('BI-2. 000293: 26 записей без «спрайт» — icon = assets/building-icons/0000NN.svg (имя по id) + icon_prompt (конвенция заклинаний), файл существует; 26 SVG — 24×24/viewBox/xmlns/#e8dcc0/well-formed, парно-уникальны (sha256)', () => {
+test('BI-2. 000293: 26 записей без «спрайт» — icon = assets/sprites/building/0000NN.svg (имя по id) + icon_prompt (конвенция заклинаний), файл существует; 26 SVG — 24×24/viewBox/xmlns/#e8dcc0/well-formed, парно-уникальны (sha256)', () => {
   const noSprite = RECORDS.filter((r) =>
     typeof r.data.спрайт !== 'string' || r.data.спрайт === '');
   assert.equal(noSprite.length, 26,
@@ -240,7 +240,7 @@ test('BI-2. 000293: 26 записей без «спрайт» — icon = assets/
     + ' (миграция 000405; факт: ' + byHash.size + ')');
 });
 
-test('BI-3. 000293: schema.json — properties.icon (union-паттерн sprites/buildings|cities|building-icons) + properties.icon_prompt; icon — required (конец), icon_prompt — НЕ required; additionalProperties:false', () => {
+test('BI-3. 000293: schema.json — properties.icon (union-паттерн sprites/buildings|cities|sprites/building) + properties.icon_prompt; icon — required (конец), icon_prompt — НЕ required; additionalProperties:false', () => {
   const s = JSON.parse(
     fs.readFileSync(path.join(DIR, 'schema.json'), 'utf8'));
   assert.equal(s.additionalProperties, false,
@@ -248,7 +248,7 @@ test('BI-3. 000293: schema.json — properties.icon (union-паттерн sprite
   assert.deepEqual(s.properties.icon,
     { type: 'string',
       pattern: '^assets/(sprites/(buildings|cities)'
-        + '|building-icons)/[\\w]+\\.svg$' },
+        + '|sprites/building)/[\\w]+\\.svg$' },
     'RED: properties.icon — точная форма; факт: '
     + JSON.stringify(s.properties.icon));
   assert.deepEqual(s.properties.icon_prompt,

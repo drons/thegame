@@ -106,7 +106,7 @@ const K4_H = 2160;
 const NOW = 1000; // performance.now() в песочнице заморожен на NOW
 const HIT_NOW = NOW + 400;
 
-const TILE_PREFIX = 'assets/tiles/';
+const TILE_PREFIX = 'assets/sprites/tiles/';
 const DECO_PREFIX = 'assets/sprites/visuals/';
 const LOOT_PREFIX = 'assets/sprites/loot/';
 const BUILD_PREFIX = 'assets/sprites/buildings/';

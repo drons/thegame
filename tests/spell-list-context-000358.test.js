@@ -554,7 +554,7 @@ function oc358Guest(id, over = {}) {
     параметры: { days: 1 },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Гостевое внебоевое заклинание (000358)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000358)',
   }, over);
 }

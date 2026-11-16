@@ -115,10 +115,10 @@ test('TILE_BASE ≡ base единой таблицы (потребитель ≡
   }
 });
 
-test('TILE_FRAMES: ключи ≡ id таблицы (ровно 8, без лишних); файлы assets/tiles ≡ объединению путей', () => {
+test('TILE_FRAMES: ключи ≡ id таблицы (ровно 8, без лишних); файлы assets/sprites/tiles ≡ объединению путей', () => {
   // Прямое направление (террейн → файлы существуют) закрывает тест выше
   // («у каждого террейна есть текстура»); обратное — сиротских файлов
-  // assets/tiles нет: на диске ровно то, что перечислено в
+  // assets/sprites/tiles нет: на диске ровно то, что перечислено в
   // TILE_FRAMES ∪ TILE_VARIANTS (000353).
   assert.ok(TERRAIN_DATA && typeof TERRAIN_DATA === 'object',
     'map.js: нет TERRAIN_DATA');
@@ -132,11 +132,11 @@ test('TILE_FRAMES: ключи ≡ id таблицы (ровно 8, без лиш
     ...Object.values(S.TILE_FRAMES).flat(),
     ...Object.values(S.TILE_VARIANTS).flat(),
   ])].sort();
-  const onDisk = fs.readdirSync(path.join(__dirname, '..', 'assets', 'tiles'))
+  const onDisk = fs.readdirSync(path.join(__dirname, '..', 'assets', 'sprites', 'tiles'))
     .filter((f) => f.endsWith('.svg'))
-    .map((f) => 'assets/tiles/' + f)
+    .map((f) => 'assets/sprites/tiles/' + f)
     .sort();
-  assert.deepEqual(onDisk, listed, 'сиротские/отсутствующие файлы assets/tiles');
+  assert.deepEqual(onDisk, listed, 'сиротские/отсутствующие файлы assets/sprites/tiles');
 });
 
 // --- Флогистон ---
@@ -257,15 +257,15 @@ test('SP-C2: городские спрайты — 4 РАЗНЫХ пути в as
   }
 });
 
-test('SP-177: DUNGEON_PORTAL (000177) — маркеры единого тайла входа-выхода: 3 РАЗНЫХ assets/dungeon/*.svg, файлы существуют, все в allAssetPaths', () => {
+test('SP-177: DUNGEON_PORTAL (000177) — маркеры единого тайла входа-выхода: 3 РАЗНЫХ assets/sprites/dungeon/*.svg, файлы существуют, все в allAssetPaths', () => {
   assert.ok(S.DUNGEON_PORTAL && typeof S.DUNGEON_PORTAL === 'object',
     'src/sprites.js: нет таблицы DUNGEON_PORTAL');
   // kind → путь: door — город, cave_mouth — подземелье, stairs —
   // РЕЗЕРВ (системы этажей нет — точек отрисовки).
   assert.deepEqual(S.DUNGEON_PORTAL, {
-    door: 'assets/dungeon/door.svg',
-    stairs: 'assets/dungeon/stairs.svg',
-    cave_mouth: 'assets/dungeon/cave_mouth.svg',
+    door: 'assets/sprites/dungeon/door.svg',
+    stairs: 'assets/sprites/dungeon/stairs.svg',
+    cave_mouth: 'assets/sprites/dungeon/cave_mouth.svg',
   }, 'DUNGEON_PORTAL: kind → путь');
   const paths = Object.values(S.DUNGEON_PORTAL);
   assert.equal(new Set(paths).size, 3,
@@ -277,13 +277,13 @@ test('SP-177: DUNGEON_PORTAL (000177) — маркеры единого тайл
   }
 });
 
-test('SP-DEP-1: DUNGEON_DEPOSIT (000157.02) — 3 РАЗНЫХ assets/dungeon/deposit_*.svg по виду, файлы существуют, все в allAssetPaths', () => {
+test('SP-DEP-1: DUNGEON_DEPOSIT (000157.02) — 3 РАЗНЫХ assets/sprites/dungeon/deposit_*.svg по виду, файлы существуют, все в allAssetPaths', () => {
   assert.ok(S.DUNGEON_DEPOSIT && typeof S.DUNGEON_DEPOSIT === 'object',
     'src/sprites.js: нет таблицы DUNGEON_DEPOSIT (вид → путь спрайта)');
   assert.deepEqual(S.DUNGEON_DEPOSIT, {
-    'руда': 'assets/dungeon/deposit_ore.svg',
-    'минерал': 'assets/dungeon/deposit_mineral.svg',
-    'самоцвет': 'assets/dungeon/deposit_gem.svg',
+    'руда': 'assets/sprites/dungeon/deposit_ore.svg',
+    'минерал': 'assets/sprites/dungeon/deposit_mineral.svg',
+    'самоцвет': 'assets/sprites/dungeon/deposit_gem.svg',
   }, 'DUNGEON_DEPOSIT: вид → путь');
   const paths = Object.values(S.DUNGEON_DEPOSIT);
   assert.equal(new Set(paths).size, 3,
@@ -1181,13 +1181,13 @@ test('hpBarColor: frac вне [0,1] — clamp, NaN/Infinity не ломают', 
 
 // --- Фоны поля боя (задача 000049) ---
 //
-// Состав 11 файлов: assets/combat/bg/{sand,grass,forest,hill,swamp,
+// Состав 11 файлов: assets/sprites/combat/bg/{sand,grass,forest,hill,swamp,
 // cave,crypt,ruins,drowned,abyss,plain}.svg. Пропускаемые террейны
 // перечислены ЯВНО: map.js НЕ экспортирует PASSABLE (в exports:
 // TERRAIN, TERRAIN_NAMES, BUILDING_*, MOB_GROUP_*, ZOOM_*, createMap,
 // syntheticPixels, visibleTileRange, createTileCache, hash2) —
 // сверить с PASSABLE в src/map.js при изменении.
-const BG_DIR = 'assets/combat/bg/';
+const BG_DIR = 'assets/sprites/combat/bg/';
 const PASSABLE_TERRAINS = [
   TERRAIN.SAND, TERRAIN.GRASS, TERRAIN.FOREST, TERRAIN.HILL, TERRAIN.SWAMP,
 ];
@@ -1259,14 +1259,14 @@ test('combatBackground: allAssetPaths содержит все 11 путей, ф�
 
 // --- Препятствия поля боя (задача 000050) ---
 //
-// 3 универсальных SVG (камень/валун/куст) в assets/combat/obstacles/ —
+// 3 универсальных SVG (камень/валун/куст) в assets/sprites/combat/obstacles/ —
 // рисуются ПОВЕРХ общего фона в слое «фон/сетка/препятствия/юниты».
 // Выбор типа по клетке — чистая функция obstacleSprite(x, y)
 // (литерал в sprites.js, без зависимости от combat.js — паттерн
 // MOB_SPRITE_KINDS). Пути — в allAssetPaths (main.js сам кьюит их
 // в spriteLoader).
 
-const OBST_DIR = 'assets/combat/obstacles/';
+const OBST_DIR = 'assets/sprites/combat/obstacles/';
 const OBST_FILES = ['rock', 'boulder', 'bush'];
 
 test('obstacleSprite: чистая функция, (x*3+y*5)%3, пути из OBSTACLE_SPRITES (000050)', () => {
@@ -1739,7 +1739,7 @@ test('SP-C3: vm без каталога (perlin→map→sprites): citySprite —
 // --- Тайлы пола подземелья (задача 000069; 000323: 8 вариантов, 40 файлов) ---
 //
 // DUNGEON_FLOOR_FRAMES — ЛИТЕРАЛЬНОЕ зеркало DUNGEON_TYPES (0..4 → 8
-// путей assets/dungeon/floor/<slug>_<n>.svg, n = 1..8, 40 файлов),
+// путей assets/sprites/dungeon/floor/<slug>_<n>.svg, n = 1..8, 40 файлов),
 // тот же паттерн, что COMBAT_BG_DUNGEON (000049): sprites.js НЕ
 // зависит от dungeon.js (vm-песочница tests/combat-ui.test.js не
 // грузит dungeon.js; require в node-ветке UMD рассинхронил бы
@@ -1758,7 +1758,7 @@ test('SP-C3: vm без каталога (perlin→map→sprites): citySprite —
 // Реализация существует (000323: ВСЕ 15 legacy переделаны в flat + 25
 // новых = 40 файлов; 8 вариантов на тип) — тесты ниже зелёные.
 
-const FLOOR_DIR = 'assets/dungeon/floor/';
+const FLOOR_DIR = 'assets/sprites/dungeon/floor/';
 const FLOOR_KEYS = [
   'cave_1', 'cave_2', 'cave_3', 'cave_4', 'cave_5', 'cave_6', 'cave_7', 'cave_8',
   'crypt_1', 'crypt_2', 'crypt_3', 'crypt_4', 'crypt_5', 'crypt_6', 'crypt_7', 'crypt_8',
@@ -1910,7 +1910,7 @@ test('package.json: npm-скрипт gen:dungeon запускает генера
 });
 
 // Стоп-цвета ПЕРВОГО linearGradient тайла (базовый вертикальный градиент
-// из двух близких тонов — приём мировых тайлов assets/tiles и
+// из двух близких тонов — приём мировых тайлов assets/sprites/tiles и
 // gen-combat-bg.js). Возвращает пару «top|bottom» (lowercase).
 function baseGradientPair(svg, label) {
   const m = svg.match(/<linearGradient[^>]*>([\s\S]*?)<\/linearGradient>/);
@@ -1933,8 +1933,8 @@ function floorBaseFill(svg, label) {
 
 // --- Задача 000258: автотайлинг кромки стены (вариант A) ---
 //
-// 80 SVG: assets/city/walls/city_<имя>.svg (20) +
-// assets/dungeon/walls/<kind>_<имя>.svg (rock/column/stalactite × 20);
+// 80 SVG: assets/sprites/city/walls/city_<имя>.svg (20) +
+// assets/sprites/dungeon/walls/<kind>_<имя>.svg (rock/column/stalactite × 20);
 // детерминированный генератор scripts/gen-wall-autotiles.js
 // (byte-identical; чистый вид SVG тестом НЕ проверяется, прецедент
 // 000049/000058). WALL_AUTOTILES — ЛИТЕРАЛ в sprites.js (без require
@@ -1952,7 +1952,7 @@ const WALL_TILE_NAMES_000258 = [
   'cSE', 'cSW', 'cNE', 'cNW',
 ];
 const WALL_STYLES_000258 = ['city', 'rock', 'column', 'stalactite'];
-const WALLS_DIR_000258 = 'assets/dungeon/walls/';
+const WALLS_DIR_000258 = 'assets/sprites/dungeon/walls/';
 
 test('000258 WALL_AUTOTILES: 4 стиля × 20 плиток, имена/пути, файлы существуют', () => {
   assert.ok(S.WALL_AUTOTILES && typeof S.WALL_AUTOTILES === 'object',
@@ -1965,7 +1965,7 @@ test('000258 WALL_AUTOTILES: 4 стиля × 20 плиток, имена/пут�
     assert.equal(S.WALL_AUTOTILES[st].length, 20, `${st}: 20 плиток`);
     WALL_TILE_NAMES_000258.forEach((n, i) => {
       const prefix = st === 'city' ? 'city_' : st + '_';
-      const dir = st === 'city' ? 'assets/city/walls/' : WALLS_DIR_000258;
+      const dir = st === 'city' ? 'assets/sprites/city/walls/' : WALLS_DIR_000258;
       assert.equal(S.WALL_AUTOTILES[st][i], dir + prefix + n + '.svg',
         `${st}[${i}] ≠ ${dir}${prefix}${n}.svg`);
       assert.ok(exists(dir + prefix + n + '.svg'),
@@ -1990,7 +1990,7 @@ test('000258 WALL_AUTOTILES ≡ каталог: все виды объектов
   // На диске — ровно 80 файлов (4 стиля × 20), сиротских/отсутствующих
   // нет; 6 фасадных SVG 000070 удалены.
   for (const st of WALL_STYLES_000258) {
-    const dir = st === 'city' ? 'assets/city/walls' : WALLS_DIR_000258;
+    const dir = st === 'city' ? 'assets/sprites/city/walls' : WALLS_DIR_000258;
     const prefix = st === 'city' ? 'city_' : st + '_';
     const onDisk = fs.readdirSync(path.join(ROOT, dir))
       .filter((f) => f.startsWith(prefix)).sort();

@@ -54,10 +54,10 @@ const S = require('../src/save.js');
 
 const ROOT = path.join(__dirname, '..');
 const SPELL_FILE = path.join(ROOT, 'assets', 'spells', 'show_enemies.json');
-const SPELL_ICON = path.join(ROOT, 'assets', 'spell-icons',
+const SPELL_ICON = path.join(ROOT, 'assets', 'sprites', 'spells',
   'show_enemies.svg');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
-const ICONS_DIR = path.join(ROOT, 'assets', 'spell-icons');
+const ICONS_DIR = path.join(ROOT, 'assets', 'sprites', 'spells');
 const SPELL_SCHEMA = JSON.parse(
   fs.readFileSync(path.join(SPELLS_DIR, 'schema.json'), 'utf8'));
 
@@ -141,7 +141,7 @@ test('S-JSON-1: assets/spells/show_enemies.json — есть, схема чис�
     'assets/buildings/mountain_temple.json',
   ], 'здания — сет warding_circle (единственный внебоевой защиты)');
   assert.equal(s['описание'], DESC);
-  assert.equal(s['icon'], 'assets/spell-icons/show_enemies.svg');
+  assert.equal(s['icon'], 'assets/sprites/spells/show_enemies.svg');
   assert.ok(typeof s['icon_prompt'] === 'string' && s['icon_prompt'],
     'icon_prompt — schema.required');
 });
@@ -150,7 +150,7 @@ test('S-JSON-1: assets/spells/show_enemies.json — есть, схема чис�
 // S-SWEEP-2 — каталожный свип: уникальности id/названия/иконки/sha256
 // =====================================================================
 
-test('S-SWEEP-2: свип каталога — show_enemies ∈ каталога, id/название/иконка уникальны, sha256 иконки уникален среди всех spell-icons', () => {
+test('S-SWEEP-2: свип каталога — show_enemies ∈ каталога, id/название/иконка уникальны, sha256 иконки уникален среди всех sprites/spells', () => {
   const files = fs.readdirSync(SPELLS_DIR)
     .filter((f) => f !== 'schema.json' && /^[a-z][a-z0-9_]*\.json$/.test(f));
   assert.ok(files.includes('show_enemies.json'),
@@ -558,7 +558,7 @@ function tileDraws(calls) {
   return calls.filter((c) => c[0] === 'drawImage'
     && c[1][0]
     && typeof c[1][0].__asset === 'string'
-    && c[1][0].__asset.startsWith('assets/tiles/'));
+    && c[1][0].__asset.startsWith('assets/sprites/tiles/'));
 }
 
 function arcsOf(calls) {

@@ -21,6 +21,6 @@
     "assets/buildings/mountain_temple.json"
   ],
   "описание": "Железный бастион: +1 к броне на 3 раунда.",
-  "icon": "assets/spell-icons/iron_bulwark.svg",
+  "icon": "assets/sprites/spells/iron_bulwark.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: щит-крепость с зубцами, школа защита, степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

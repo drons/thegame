@@ -44,7 +44,7 @@
 //     повтор идемпотентен; перестановка СОДЕРЖИМОГО имя↔имя двух файлов
 //     (basename==id иначе делает компаратор ненаблюдаемым — прецедент
 //     runes T5/M2) — выход всё равно в id-порядке и записи ≡ зеркалу.
-//   * T7 — иконки: биекция каталога с assets/spell-icons/<id>.svg —
+//   * T7 — иконки: биекция каталога с assets/sprites/spells/<id>.svg —
 //     basename json === basename svg (иконки УЖЕ id-именованы — 0-diff).
 //   * T8 (000338, follow-up ретро-b14 Finding 1) — SPEC-guard: § «Архитектура
 //     хранения (каталог assets/spells)» spec/spells.md (читается с диска,
@@ -413,17 +413,17 @@ test('000318.05 T6: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.05 T7: иконки — биекция каталога assets/spell-icons/<id>.svg (basename json === basename svg, 172 — ре-пин 000348: +decadance; ре-пин 000349: +attraction; ре-пин 000350: +show_enemies)', () => {
-  const iconsDir = path.join(ROOT, 'assets', 'spell-icons');
+test('000318.05 T7: иконки — биекция каталога assets/sprites/spells/<id>.svg (basename json === basename svg, 172 — ре-пин 000348: +decadance; ре-пин 000349: +attraction; ре-пин 000350: +show_enemies)', () => {
+  const iconsDir = path.join(ROOT, 'assets', 'sprites', 'spells');
   const svgs = new Set(fs.readdirSync(iconsDir).filter((f) => f.endsWith('.svg')));
   const files = shapeFiles(SPELLS_DIR);
   assert.equal(files.length, svgs.size, 'иконка на каждое заклинание (172)');
   for (const f of files) {
     const data = readJson(f);
-    assert.equal(data.icon, 'assets/spell-icons/' + f.replace(/\.json$/, '.svg'),
-      `${f}: icon ≠ assets/spell-icons/<basename>.svg`);
+    assert.equal(data.icon, 'assets/sprites/spells/' + f.replace(/\.json$/, '.svg'),
+      `${f}: icon ≠ assets/sprites/spells/<basename>.svg`);
     assert.ok(svgs.has(f.replace(/\.json$/, '.svg')),
-      `${f}: файла иконки нет в assets/spell-icons`);
+      `${f}: файла иконки нет в assets/sprites/spells`);
   }
 });
 

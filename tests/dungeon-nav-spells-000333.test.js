@@ -300,7 +300,7 @@ test('N-JSON-1: assets/spells/way_up,way_down (000318.05) + assets/items/way_up_
     assert.deepEqual(s['здания'],
       ['assets/buildings/healing_temple.json', 'assets/buildings/mountain_temple.json'],
       `${id}: здания [21, 38] — общий якорь внебоевых природных`);
-    assert.equal(s.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(s.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof s.icon_prompt === 'string'
       && s.icon_prompt.trim().length > 0, `${id}: icon_prompt непустое`);
     assert.ok(typeof s['описание'] === 'string'
@@ -357,9 +357,9 @@ function sha256(f) {
     .update(fs.readFileSync(path.join(ROOT, f))).digest('hex');
 }
 
-test('N-JSON-2: 4 новых SVG (spell-icons way_up/way_down + sprites/items way_{up,down}_scroll) — существуют, xmlns+viewBox без NaN/пустых атрибутов, sha256-уникальны среди каталога (паттерн W-05)', () => {
+test('N-JSON-2: 4 новых SVG (sprites/spells way_up/way_down + sprites/items way_{up,down}_scroll) — существуют, xmlns+viewBox без NaN/пустых атрибутов, sha256-уникальны среди каталога (паттерн W-05)', () => {
   const files = [
-    'assets/spell-icons/way_up.svg', 'assets/spell-icons/way_down.svg',
+    'assets/sprites/spells/way_up.svg', 'assets/sprites/spells/way_down.svg',
     'assets/sprites/items/way_up_scroll.svg',
     'assets/sprites/items/way_down_scroll.svg',
   ];
@@ -379,14 +379,14 @@ test('N-JSON-2: 4 новых SVG (spell-icons way_up/way_down + sprites/items wa
     assert.ok(text.trimEnd().endsWith('</svg>'), f + ': закрыт </svg>');
   }
   const spellIconHashes = new Map();
-  for (const f of svgFiles('spell-icons')) {
-    const h = sha256('assets/spell-icons/' + f);
+  for (const f of svgFiles('sprites/spells')) {
+    const h = sha256('assets/sprites/spells/' + f);
     assert.ok(!spellIconHashes.has(h),
-      'фикстура: дубль spell-icons в каталоге — ' + f);
+      'фикстура: дубль sprites/spells в каталоге — ' + f);
     spellIconHashes.set(h, f);
   }
   for (const id of ['way_up', 'way_down']) {
-    const h = sha256(`assets/spell-icons/${id}.svg`);
+    const h = sha256(`assets/sprites/spells/${id}.svg`);
     assert.equal(spellIconHashes.get(id), undefined,
       `иконка ${id} должна ОТЛИЧАТЬСЯ от всех существующих (W-05)`);
     spellIconHashes.set(h, id);
@@ -404,8 +404,8 @@ test('N-JSON-2: 4 новых SVG (spell-icons way_up/way_down + sprites/items wa
       `иконка ${id} должна ОТЛИЧАТЬСЯ от всех существующих (W-05)`);
     itemIconHashes.set(h, id);
   }
-  assert.notEqual(sha256('assets/spell-icons/way_up.svg'),
-    sha256('assets/spell-icons/way_down.svg'),
+  assert.notEqual(sha256('assets/sprites/spells/way_up.svg'),
+    sha256('assets/sprites/spells/way_down.svg'),
     'way_up ≠ way_down иконки между собой');
 });
 

@@ -549,7 +549,7 @@
       btn.dataset.memberid = m.id;
       btn.title = m.name + ' — ' + m.role;
       const img = el('img');
-      img.src = 'assets/portraits/' + p.icon;
+      img.src = 'assets/sprites/portraits/' + p.icon;
       img.alt = m.name;
       btn.appendChild(img);
       row.appendChild(btn);
@@ -2254,7 +2254,7 @@
   // — движение, скольжение пальца — переключение направления.
   // Кнопки внизу справа (ОБЕ схемы, задача 000123): [I] (инвентарь,
   // панель персонажа) НАД [E] (действие — то же, что клавиша [E]) —
-  // вертикальная пара. Содержимое кнопок — SVG-иконки assets/ui/
+  // вертикальная пара. Содержимое кнопок — SVG-иконки assets/sprites/ui/
   // (000123, паттерн 000124: img + alt + aria-label), ТЕКСТОВЫХ букв
   // «E»/«I» на кнопках больше нет.
   // 000150 (задача 000154): per-control видимость — applyVisibility(v)
@@ -2394,13 +2394,13 @@
       }
 
       // Кнопки [E]/[I] — БЕЗ текстовых букв (задача 000123):
-      // содержимое — SVG-иконка assets/ui/ (паттерн 000124: img +
+      // содержимое — SVG-иконка assets/sprites/ui/ (паттерн 000124: img +
       // alt="" — иконка презентационная, aria-label несёт имя).
       // blur() — чтобы Enter/Space на гибридных устройствах не
       // «перепечатывали» сфокусированную кнопку.
       actionEl = el('button', 'tc-action');
       const actionIcon = el('img');
-      actionIcon.src = 'assets/ui/icon_action.svg';
+      actionIcon.src = 'assets/sprites/ui/icon_action.svg';
       actionIcon.alt = '';
       actionEl.appendChild(actionIcon);
       actionEl.setAttribute('aria-label', 'Действие (диалог NPC / постройка)');
@@ -2413,7 +2413,7 @@
 
       inventoryEl = el('button', 'tc-action');
       const invIcon = el('img');
-      invIcon.src = 'assets/ui/icon_inventory.svg';
+      invIcon.src = 'assets/sprites/ui/icon_inventory.svg';
       invIcon.alt = '';
       inventoryEl.appendChild(invIcon);
       inventoryEl.setAttribute('aria-label', 'Инвентарь');
@@ -2430,7 +2430,7 @@
       // иконка, без текстовой буквы; поведение — callback onSquad.
       squadEl = el('button', 'tc-action');
       const squadIcon = el('img');
-      squadIcon.src = 'assets/ui/icon_squad.svg';
+      squadIcon.src = 'assets/sprites/ui/icon_squad.svg';
       squadIcon.alt = '';
       squadEl.appendChild(squadIcon);
       squadEl.setAttribute('aria-label', 'Отряд');
@@ -2443,7 +2443,7 @@
 
       spellbookEl = el('button', 'tc-action');
       const sbIcon = el('img');
-      sbIcon.src = 'assets/ui/combat_spellbook.svg';
+      sbIcon.src = 'assets/sprites/ui/combat_spellbook.svg';
       sbIcon.alt = '';
       spellbookEl.appendChild(sbIcon);
       spellbookEl.setAttribute('aria-label', 'Книга заклинаний');

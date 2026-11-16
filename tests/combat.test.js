@@ -8004,7 +8004,7 @@ function ghostSpell0235(id, action, params, attrs) {
     действие: action,
     здания: [17],
     описание: 'Тестовое заклинание (000235.01)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.01)',
   };
   if (params !== undefined) s.параметры = params;

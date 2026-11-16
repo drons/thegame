@@ -728,7 +728,7 @@ test('TV8: e2e — кнопка «Отряд» в DOM (touch-схема); бой
   assert.ok(root, 'сценарий: #touch-controls в body (init при загрузке)');
   const squad = root.children.find((c) =>
     String(c.className).includes('tc-action')
-    && c.children.some((ch) => ch.src === 'assets/ui/icon_squad.svg'));
+    && c.children.some((ch) => ch.src === 'assets/sprites/ui/icon_squad.svg'));
   assert.ok(squad,
     'RED: кнопка «Отряд» (icon_squad.svg) — в #touch-controls');
   assert.equal(root.children.length, 5,

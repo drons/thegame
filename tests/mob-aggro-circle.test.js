@@ -309,7 +309,7 @@ function tileDraws(calls) {
   return calls.filter((c) => c[0] === 'drawImage'
     && c[1][0]
     && typeof c[1][0].__asset === 'string'
-    && c[1][0].__asset.startsWith('assets/tiles/'));
+    && c[1][0].__asset.startsWith('assets/sprites/tiles/'));
 }
 
 // drawImage-вызовы спрайтов построек (проход 2; M4 «после построек»).

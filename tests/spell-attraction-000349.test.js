@@ -64,9 +64,9 @@ const SNode = require('../src/save.js');
 
 const ROOT = path.join(__dirname, '..');
 const SPELL_FILE = path.join(ROOT, 'assets', 'spells', 'attraction.json');
-const SPELL_ICON = path.join(ROOT, 'assets', 'spell-icons', 'attraction.svg');
+const SPELL_ICON = path.join(ROOT, 'assets', 'sprites', 'spells', 'attraction.svg');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
-const ICONS_DIR = path.join(ROOT, 'assets', 'spell-icons');
+const ICONS_DIR = path.join(ROOT, 'assets', 'sprites', 'spells');
 const SPELL_SCHEMA = JSON.parse(
   fs.readFileSync(path.join(SPELLS_DIR, 'schema.json'), 'utf8'));
 
@@ -158,7 +158,7 @@ test('A-JSON-1: assets/spells/attraction.json — есть, схема чист�
   ], 'learnability без свитка — храмы природы: healing_temple (21) + '
     + 'mountain_temple (38)');
   assert.equal(s['описание'], DESC);
-  assert.equal(s['icon'], 'assets/spell-icons/attraction.svg');
+  assert.equal(s['icon'], 'assets/sprites/spells/attraction.svg');
 });
 
 // =====================================================================
@@ -185,12 +185,12 @@ test('A-SWEEP-2: в каталоге spells ровно один attraction; id/�
   assert.equal(files.filter((f) => f === 'attraction.json').length, 1,
     'ровно один файл attraction.json');
   assert.ok(fs.existsSync(SPELL_ICON),
-    'RED: иконка assets/spell-icons/attraction.svg отсутствует');
+    'RED: иконка assets/sprites/spells/attraction.svg отсутствует');
   const svg = fs.readFileSync(SPELL_ICON, 'utf8');
   assert.ok(svg.includes('xmlns="http://www.w3.org/2000/svg"'),
     'иконка — валидный SVG с xmlns');
   assert.ok(svg.includes('width="24"') && svg.includes('height="24"'),
-    'иконка 24×24 (формат spell-icons)');
+    'иконка 24×24 (формат sprites/spells)');
   assert.ok(/viewBox="0 0 24 24"/.test(svg), 'viewBox 0 0 24 24');
   assert.ok(svg.includes('#e8dcc0'), 'заливка #e8dcc0 (палитра карточек)');
   assert.ok(!/NaN|undefined/.test(svg), 'нет NaN/undefined в разметке');
@@ -201,7 +201,7 @@ test('A-SWEEP-2: в каталоге spells ровно один attraction; id/�
     assert.notEqual(sha(fs.readFileSync(path.join(ICONS_DIR, f))), mine,
       'sha256-уникальность иконки (sweep svg.test W-05): совпала с ' + f);
   }
-  assert.equal(s.icon, 'assets/spell-icons/attraction.svg');
+  assert.equal(s.icon, 'assets/sprites/spells/attraction.svg');
 });
 
 // =====================================================================

@@ -103,7 +103,7 @@
     },
     "icon": {
       "type": "string",
-      "pattern": "^assets/[a-z0-9_-]+/[a-z][a-z0-9_]*\\.svg$"
+      "pattern": "^assets/sprites/spells/[a-z][a-z0-9_]*\\.svg$"
     },
     "icon_prompt": {
       "type": "string",

@@ -489,7 +489,7 @@ function portalGuest(over = {}) {
     параметры: { mode: 'город' },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.04)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.04)',
   }, over);
 }

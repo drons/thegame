@@ -50,7 +50,7 @@
 //   * босс — N спрайтов юнитов + ОДИН #b06ad4-прямоугольник
 //     (bounding box юнитов, рисован ПОДО спрайтами), покрывает центр
 //     группы; без босса — #b06ad4 нет;
-//   * сундук — drawImage assets/dungeon/chest.svg (zoom*0.8, центр
+//   * сундук — drawImage assets/sprites/dungeon/chest.svg (zoom*0.8, центр
 //     клетки) при !opened; opened — НЕ рисуется; image не готов —
 //     фолбэк (золотой квадрат + полоса);
 //   * смена кадра во времени (разные now → разные кадры) + детерминизм
@@ -1650,7 +1650,7 @@ test('подземелье UI 000067: legacy-группа БЕЗ mobIds + ready-
 });
 
 test('подземелье UI 000067: сундук — спрайт при !opened (zoom*0.8, центр клетки), НЕ рисуется при opened', () => {
-  const CHEST = 'assets/dungeon/chest.svg'; // путь спрайта (спека 000067)
+  const CHEST = 'assets/sprites/dungeon/chest.svg'; // путь спрайта (спека 000067)
   // (а) !opened + ready-лоадер — спрайт сундука.
   let { G, body } = loadSpriteDungeon();
   let loader = makeSpriteLoader([CHEST]);
@@ -1701,12 +1701,12 @@ test('sprites.js 000067: DUNGEON_CHEST экспортирован, путь в a
   // Константа-путь (паттерн BUILDING_SPRITES — литерал) + allAssetPaths
   // += путь (очередь загрузчика подхватит автоматически).
   const { G } = loadSpriteDungeon();
-  assert.equal(G.DUNGEON_CHEST, 'assets/dungeon/chest.svg',
+  assert.equal(G.DUNGEON_CHEST, 'assets/sprites/dungeon/chest.svg',
     'G.DUNGEON_CHEST — путь спрайта сундука');
-  assert.ok(G.allAssetPaths().includes('assets/dungeon/chest.svg'),
+  assert.ok(G.allAssetPaths().includes('assets/sprites/dungeon/chest.svg'),
     'путь в allAssetPaths()');
-  assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'dungeon', 'chest.svg')),
-    'файл assets/dungeon/chest.svg существует');
+  assert.ok(fs.existsSync(path.join(ROOT, 'assets', 'sprites', 'dungeon', 'chest.svg')),
+    'файл assets/sprites/dungeon/chest.svg существует');
 });
 
 // --- Красные: требования задачи 000068 (падают до реализации) ---
@@ -3050,9 +3050,9 @@ test('подземелье UI: touchHold — интервал повтора: li
 // =====================================================================
 
 test('подземелье UI 000157.02: залежи — спрайт G.DUNGEON_DEPOSIT по виду (zoom*0.8, центр клетки); gathered — не рисуется; fog-маска 000136; фолбэк-цвета по виду (UI-DEP-1, RED)', () => {
-  const ORE = 'assets/dungeon/deposit_ore.svg';
-  const MINERAL = 'assets/dungeon/deposit_mineral.svg';
-  const GEM = 'assets/dungeon/deposit_gem.svg';
+  const ORE = 'assets/sprites/dungeon/deposit_ore.svg';
+  const MINERAL = 'assets/sprites/dungeon/deposit_mineral.svg';
+  const GEM = 'assets/sprites/dungeon/deposit_gem.svg';
   const FB = {
     'руда': ['#b5722f', '#6e4218'],
     'минерал': ['#7f8ea3', '#46525f'],

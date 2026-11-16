@@ -512,7 +512,7 @@ function rowByName(panel, name) {
 
 // --- B1: ряд иконок СВЕРХУ ---
 
-test('000145 B1: СВЕРХУ character-pane — ряд .cp-portraits: 3 иконки (hero+Эфир+наёмный) button.cp-portrait[data-memberid][title]>img; icon «assets/portraits/<icon>» (префикс у потребителя, 000142 D2); title «имя — роль»; порядок = Party.list; дефолт-подсветка Флогистона; 0 ошибок', () => {
+test('000145 B1: СВЕРХУ character-pane — ряд .cp-portraits: 3 иконки (hero+Эфир+наёмный) button.cp-portrait[data-memberid][title]>img; icon «assets/sprites/portraits/<icon>» (префикс у потребителя, 000142 D2); title «имя — роль»; порядок = Party.list; дефолт-подсветка Флогистона; 0 ошибок', () => {
   const env = makePartyEnv(true);
   const pane = characterPane(env);
   const row = portraitsRow(pane);
@@ -526,16 +526,16 @@ test('000145 B1: СВЕРХУ character-pane — ряд .cp-portraits: 3 ико�
   // порядок = Party.list (hero → efir → roster)
   assert.equal(btns[0].dataset.memberid, 'flogiston');
   assert.equal(btns[0].querySelector('img').src,
-    'assets/portraits/flogiston.svg', 'img = префикс + icon (000142 D2)');
+    'assets/sprites/portraits/flogiston.svg', 'img = префикс + icon (000142 D2)');
   assert.equal(btns[0].title, 'Флогистон — Герой', 'title «имя — роль»');
   assert.equal(btns[1].dataset.memberid, 'efir');
   assert.equal(btns[1].querySelector('img').src,
-    'assets/portraits/efir.svg');
+    'assets/sprites/portraits/efir.svg');
   assert.equal(btns[1].title, 'Эфир — Дух');
   assert.equal(btns[2].dataset.memberid, 'merc_volk',
     'id наёмного = entry.npcId (000142: иконка наёмного = npc)');
   assert.equal(btns[2].querySelector('img').src,
-    'assets/portraits/npc-000012.svg');
+    'assets/sprites/portraits/npc-000012.svg');
   assert.equal(btns[2].title, 'Вольк — Наёмник (melee)',
     'tooltip: имя, роль (ТЗ)');
   // дефолт-активный — Флогистон (подсветка className)

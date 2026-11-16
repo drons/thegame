@@ -20,6 +20,6 @@
     "assets/buildings/mage_tower.json"
   ],
   "описание": "Враг слабеет: его урон и броня падают.",
-  "icon": "assets/spell-icons/ashen_debilitation.svg",
+  "icon": "assets/sprites/spells/ashen_debilitation.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: разрушающаяся в пепле фигура, школа огонь, степень 3. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

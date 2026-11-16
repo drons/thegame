@@ -10,7 +10,7 @@
 // 6 вкладок .spoc-tab (div, R9 — НЕ <button>: DOM-счётчики кнопок
 // SB1 = 8) в порядке ТЗ 000301 [защита, исцеление, лёд, огонь,
 // природа, тень], каждая — img.spoc-tab-icon (src =
-// assets/school-icons/*.svg — 1:1 со SCHOOLS, единый источник),
+// assets/sprites/skills/*.svg — 1:1 со SCHOOLS, единый источник),
 // data-school + title = имя; дефолт «все» — активной вкладки НЕТ;
 // клик = фильтр строк книги ПО ШКОЛЕ (строки — только этой школы),
 // клик по другой — ПЕРЕКЛЮЧЕНИЕ, повторный клик по АКТИВНОЙ — снять
@@ -52,12 +52,12 @@ const NOW = 1000;
 // SCHOOLS — 6 школ (000301, единый источник Game.SpellBook.SCHOOLS);
 // порядок = порядок вкладок = порядок ТЗ.
 const SCHOOLS = [
-  { id: 'защита', name: 'Защита', icon: 'assets/school-icons/protection.svg' },
-  { id: 'исцеление', name: 'Исцеление', icon: 'assets/school-icons/healing.svg' },
-  { id: 'лёд', name: 'Лёд', icon: 'assets/school-icons/ice.svg' },
-  { id: 'огонь', name: 'Огонь', icon: 'assets/school-icons/fire.svg' },
-  { id: 'природа', name: 'Природа', icon: 'assets/school-icons/nature_school.svg' },
-  { id: 'тень', name: 'Тень', icon: 'assets/school-icons/shadow.svg' },
+  { id: 'защита', name: 'Защита', icon: 'assets/sprites/skills/protection.svg' },
+  { id: 'исцеление', name: 'Исцеление', icon: 'assets/sprites/skills/healing.svg' },
+  { id: 'лёд', name: 'Лёд', icon: 'assets/sprites/skills/ice.svg' },
+  { id: 'огонь', name: 'Огонь', icon: 'assets/sprites/skills/fire.svg' },
+  { id: 'природа', name: 'Природа', icon: 'assets/sprites/skills/nature_school.svg' },
+  { id: 'тень', name: 'Тень', icon: 'assets/sprites/skills/shadow.svg' },
 ];
 
 // --- Минимальный DOM-стаб (дубль tests/combat-ui.test.js) ---

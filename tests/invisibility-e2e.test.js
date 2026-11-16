@@ -466,7 +466,7 @@ function invGuest(over = {}) {
     параметры: { days: 1 },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Гостевое заклинание (000235.03)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.03)',
   }, over);
 }

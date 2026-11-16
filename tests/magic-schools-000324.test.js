@@ -5,11 +5,11 @@
 // 6 школ по факту диска (поле «школа» assets/spells — 172 заклинания,
 // 29/29/27/29/30/28; enum — 000301): защита, исцеление, лёд, огонь,
 // природа, тень. Имена/иконки — байт-в-байт SCHOOLS src/spellbook-oc.js
-// (000301): assets/school-icons/<id>.svg (иконки уже на диске).
+// (000301): assets/sprites/skills/<id>.svg (иконки уже на диске).
 //
 // КРАСНЫЕ (9 — осмысленные ERR_ASSERTION, не краши):
 //   A1 — 6 школьных файлов <id>.json отсутствуют (type «school»);
-//   A2 — id-набор/порядок 000301, icon = assets/school-icons/<id>.svg
+//   A2 — id-набор/порядок 000301, icon = assets/sprites/skills/<id>.svg
 //        на диске, name байт-в-байт — файлы отсутствуют;
 //   A3 — каждое различное «школа» из 169 spells совпадает ровно одной
 //        школой каталога (name.toLowerCase()) — школ нет;
@@ -46,7 +46,7 @@ const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const { validateData } = require('./json-schema.js');
 
 // Контракт 000301 (SCHOOLS src/spellbook-oc.js): порядок файлов =
-// порядок вкладок книги, name — байт-в-байт, icon — assets/school-icons.
+// порядок вкладок книги, name — байт-в-байт, icon — assets/sprites/skills.
 const SCHOOLS_EXPECTED = [
   ['protection.json', 'protection', 'Защита'],
   ['healing.json', 'healing', 'Исцеление'],
@@ -77,14 +77,14 @@ test('A1: 6 школьных файлов <id>.json (000318.09; были 000038�
   }
 });
 
-test('A2: id ровно {protection,healing,ice,fire,nature_school,shadow} в порядке 000301 (ре-пин 000318.11: «nature» → «nature_school»); icon = assets/school-icons/<id>.svg на диске; name байт-в-байт SCHOOLS', () => {
+test('A2: id ровно {protection,healing,ice,fire,nature_school,shadow} в порядке 000301 (ре-пин 000318.11: «nature» → «nature_school»); icon = assets/sprites/skills/<id>.svg на диске; name байт-в-байт SCHOOLS', () => {
   const ids = [];
   for (const [file, id, name] of SCHOOLS_EXPECTED) {
     const d = readSchoolFile(file);
     assert.equal(d.id, id, file + ': id «' + id + '» (порядок 000301)');
     ids.push(d.id);
-    assert.equal(d.icon, 'assets/school-icons/' + d.id + '.svg',
-      file + ': icon = assets/school-icons/<id>.svg');
+    assert.equal(d.icon, 'assets/sprites/skills/' + d.id + '.svg',
+      file + ': icon = assets/sprites/skills/<id>.svg');
     assert.ok(fs.existsSync(path.join(ROOT, d.icon)),
       file + ': иконка на диске: ' + d.icon);
     assert.equal(d.name, name,
@@ -225,7 +225,7 @@ const SCHOOL_FIXTURE = {
   type: 'school',
   name: 'Защита',
   desc: 'Щиты и бафы союзников, телепорт.',
-  icon: 'assets/school-icons/protection.svg',
+  icon: 'assets/sprites/skills/protection.svg',
 };
 
 test('B3: sync над миникаталогом со школьным файлом → exit 0 + SCHOOLS в регенерированном зеркале', () => {

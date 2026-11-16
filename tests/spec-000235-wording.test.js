@@ -391,8 +391,8 @@ test('SPEC 000235: spells «Архитектура хранения (катал�
     '«Архитектура хранения»: «свиток-носитель изучения — ссылка на ' +
       'него, паттерн 000133» отсутствует (поле `предметы`)');
   assert.ok(
-    a.includes('`icon` — SVG-иконка (assets/spell-icons/<id>.svg; required);'),
-    '«Архитектура хранения»: «`icon` — SVG-иконка (assets/spell-icons/' +
+    a.includes('`icon` — SVG-иконка (assets/sprites/spells/<id>.svg; required);'),
+    '«Архитектура хранения»: «`icon` — SVG-иконка (assets/sprites/spells/' +
       '<id>.svg; required);» отсутствует (000235.06: icon required)');
   assert.ok(
     a.includes('`icon_prompt` — промпт иконки (required);'),

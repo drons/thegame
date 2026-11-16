@@ -18,7 +18,7 @@ const ROOT = path.join(__dirname, '..');
 const ITEMS_DIR = path.join(ROOT, 'assets', 'items');
 const SPELLS_DIR = path.join(ROOT, 'assets', 'spells');
 const SPR_DIR = path.join(ROOT, 'assets', 'sprites', 'items');
-const SPIcons = path.join(ROOT, 'assets', 'spell-icons');
+const SPIcons = path.join(ROOT, 'assets', 'sprites', 'spells');
 const CRAFT_DIR = path.join(ROOT, 'assets', 'craft');
 const NPC_DIR = path.join(ROOT, 'assets', 'npc');
 
@@ -253,16 +253,16 @@ test('000321.11 T3: контракт spell_scroll — name/desc-шаблон, ic
   }
 });
 
-test('000321.11 T4: живые ls-предикаты — каталог ≡ реестру ≡ зеркалу; спеллы ≡ spell-icons; реестр 000001..N подряд', () => {
+test('000321.11 T4: живые ls-предикаты — каталог ≡ реестру ≡ зеркалу; спеллы ≡ sprites/spells; реестр 000001..N подряд', () => {
   const items = itemSlugFiles();
   assert.equal(items.length, REG_KEYS.length, 'каталог ≡ мощности реестра (ls-предикат)');
   assert.equal(I.allItems().length, items.length, 'зеркало items ≡ каталогу');
   const spells = spellSlugFiles();
   const iconFiles = fs.readdirSync(SPIcons).filter((f) => f.endsWith('.svg'));
-  assert.equal(spells.length, iconFiles.length, 'спеллы ≡ spell-icons (ls-предикат)');
+  assert.equal(spells.length, iconFiles.length, 'спеллы ≡ sprites/spells (ls-предикат)');
   assert.deepEqual(spells.map((f) => f.slice(0, -5)).sort(),
     iconFiles.map((f) => f.slice(0, -4)).sort(),
-    'spell-icons парно заклинаниям по id');
+    'sprites/spells парно заклинаниям по id');
   assert.equal(REG_KEYS[0], '000001', 'реестр начинается с 000001');
   assert.equal(Number(REG_KEYS[REG_KEYS.length - 1]), REG_KEYS.length,
     'реестр 000001..N подряд, без дыр');

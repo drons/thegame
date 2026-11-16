@@ -4,7 +4,7 @@
 // 4 города 51–54 × assets/sprites/cities/city_5N.svg — прецедент visuals
 // .03: имя НЕ равно id, носитель имени — спрайт) и РУКОПИСНАЯ таблица
 // BUILDING_SLUG_00031806 для 26 записей БЕЗ «спрайт» (иконки numeric
-// assets/building-icons/0000NN.svg — контракт 000293, их имена НЕ
+// assets/sprites/building/0000NN.svg — контракт 000293, их имена НЕ
 // трогаются) — прецедент .04 mob_groups/dungeons) с флипом реестра
 // ASSET_NAME_SHAPES.buildings = 'slug'. buildings ∈ REF_LINKED_CATALOGS
 // (МИШЕНЬ ссылок: ~1044 входа из craft/spells/npc/dungeons) ⇒ REF_RE
@@ -60,7 +60,7 @@
 //   * T8 — sync-npc-data.js buildRefMap: shape-aware (buildings-ключи
 //     карты — slug-файлы каталога, schema.json исключён); на РЕАЛЬНЫХ
 //     данных sync-npc резолвит все 34 npc («постройки» → целые id).
-//   * T9 — иконки 0-diff: assets/building-icons РОВНО 26 numeric-имён
+//   * T9 — иконки 0-diff: assets/sprites/building РОВНО 26 numeric-имён
 //     (контракт 000293 BI-2), assets/sprites/buildings РОВНО 53 svg,
 //     assets/sprites/cities ⊇ city_51..54; icon у всех 55 записей —
 //     прежний побайтовый; уникальность icon 55.
@@ -487,14 +487,14 @@ test('000318.06 T8: sync-npc-data.js buildRefMap — shape-aware (buildings-кл
   }
 });
 
-test('000318.06 T9: иконки 0-diff — building-icons РОВНО 26 numeric (BI-2 000293), sprites/buildings РОВНО 53 svg, city_51..54 на месте; icon записей побайтово прежние, уникальность 55', () => {
-  const iconFiles = fs.readdirSync(path.join(ROOT, 'assets', 'building-icons'));
+test('000318.06 T9: иконки 0-diff — sprites/building РОВНО 26 numeric (BI-2 000293), sprites/buildings РОВНО 53 svg, city_51..54 на месте; icon записей побайтово прежние, уникальность 55', () => {
+  const iconFiles = fs.readdirSync(path.join(ROOT, 'assets', 'sprites', 'building'));
   assert.deepEqual(iconFiles.filter((f) => f.endsWith('.svg')).sort(),
     Array.from({ length: 26 }, (_, i) =>
       String([5, 6, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
         26, 27, 28, 29, 30, 32, 33, 34, 35, 50][i]).padStart(6, '0') + '.svg')
       .sort(),
-    'assets/building-icons — те же 26 numeric-имён (rename JSON их НЕ трогает)');
+    'assets/sprites/building — те же 26 numeric-имён (rename JSON их НЕ трогает)');
   const spr = fs.readdirSync(path.join(ROOT, 'assets', 'sprites', 'buildings'));
   assert.equal(spr.filter((f) => f.endsWith('.svg')).length, 53,
     'assets/sprites/buildings — 53 svg (25 баз + 28 tier-вариантов) без изменений');
@@ -508,7 +508,7 @@ test('000318.06 T9: иконки 0-diff — building-icons РОВНО 26 numeric
     const n = data.id;
     const expected = SPRITE_BORN_00031806.has(n)
       ? data.спрайт
-      : `assets/building-icons/${String(n).padStart(6, '0')}.svg`;
+      : `assets/sprites/building/${String(n).padStart(6, '0')}.svg`;
     assert.equal(data.icon, expected,
       `${f}: icon сместился — rename НЕ трогает иконки (0-diff)`);
     assert.ok(fs.existsSync(path.join(ROOT, data.icon)),

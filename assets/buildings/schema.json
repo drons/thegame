@@ -131,7 +131,7 @@
     },
     "icon": {
       "type": "string",
-      "pattern": "^assets/(sprites/(buildings|cities)|building-icons)/[\\w]+\\.svg$"
+      "pattern": "^assets/(sprites/(buildings|cities)|sprites/building)/[\\w]+\\.svg$"
     },
     "icon_prompt": {
       "type": "string",

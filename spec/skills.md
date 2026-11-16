@@ -120,7 +120,7 @@ enum 000301). Шесть школ: защита, исцеление, лёд, о�
    порядок вкладок книги заклинаний — массив SCHOOLS src/spellbook.js, 000301): id (латиница, = имя иконки),
    type «school», name — байт-в-байт имена SCHOOLS src/spellbook-oc.js
    (000301), desc — одно предложение по факту распределения действий,
-   icon — assets/school-icons/<id>.svg (иконки 000301, не создаются).
+   icon — assets/sprites/skills/<id>.svg (иконки 000301, не создаются).
  * Зеркало: src/skills-data.js — экспорт SCHOOLS (скрипт
    scripts/sync-skills-data.js, порядок файлов каталога).
  * Дерево навыков [I] (src/ui-tab-skills.js): секция «Школы магии»

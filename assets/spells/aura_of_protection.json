@@ -22,6 +22,6 @@
     "assets/buildings/mountain_temple.json"
   ],
   "описание": "Аура защиты: партия — +1 к броне на 3 раунда.",
-  "icon": "assets/spell-icons/aura_of_protection.svg",
+  "icon": "assets/sprites/spells/aura_of_protection.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: купол над группой фигур, школа защита, степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

@@ -63,7 +63,7 @@
   const CELL_FLOOR = 1;
 
   // Типы подземелий (spec/buildings.md «Входы в пещеры»). Перенумерации НЕТ:
-  // фон боя assets/combat/bg выбирается по этим числам (задача 000049).
+  // фон боя assets/sprites/combat/bg выбирается по этим числам (задача 000049).
   const DUNGEON_TYPES = {
     CAVE: 0, CRYPT: 1, RUINS: 2, DROWNED: 3, ABYSS: 4,
   };

@@ -404,10 +404,10 @@ function heroDraws(draw) {
     (c) => assetOf(c).startsWith('assets/sprites/phlogiston/'));
 }
 
-// Текстуры тайлов (assets/tiles/*.svg).
+// Текстуры тайлов (assets/sprites/tiles/*.svg).
 function tileDraws(draw) {
   return drawImages(draw).filter(
-    (c) => assetOf(c).startsWith('assets/tiles/'));
+    (c) => assetOf(c).startsWith('assets/sprites/tiles/'));
 }
 
 // Спрайты групп мобов (assets/sprites/mobs/*.svg).

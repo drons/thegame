@@ -21,6 +21,6 @@
     "assets/buildings/mountain_temple.json"
   ],
   "описание": "Магический барьер: +3 к броне на 3 раунда.",
-  "icon": "assets/spell-icons/magical_barrier.svg",
+  "icon": "assets/sprites/spells/magical_barrier.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: шестиугольная сфера с ядром, школа защита, степень 3. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

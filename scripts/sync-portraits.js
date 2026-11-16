@@ -15,7 +15,7 @@
 //
 // Вход — ЯВНЫЙ канонический список из 8 файлов (смешанные имена
 // flogiston.json / npc-0000NN.json не охватывает фильтр 0000NN.json);
-// лишний файл с расширением .json/.svg в каталоге — ошибка
+// лишний .json в каталоге / .svg в assets/sprites/portraits/ — ошибка
 // (защита от мусора); служебные файлы (.DS_Store, Thumbs.db,
 // .gitkeep) игнорируются (прецедент sync-npc-data.js — фильтр по
 // имени молча пропускает несоответствующие). Связка наёмных
@@ -27,6 +27,7 @@ const { writeFileAtomic } = require('./lib/write-atomic.js');
 
 const ROOT = path.join(__dirname, '..');
 const PDIR = path.join(ROOT, 'assets', 'portraits');
+const SDIR = path.join(ROOT, 'assets', 'sprites', 'portraits');
 const NPC_DIR = path.join(ROOT, 'assets', 'npc');
 const OUT_FILE = path.join(ROOT, 'src', 'portraits-data.js');
 
@@ -51,18 +52,27 @@ if (!fs.existsSync(PDIR)) {
   fail('assets/portraits/ отсутствует (каталог портретов партии)');
 }
 const onDisk = new Set(fs.readdirSync(PDIR));
+const svgOnDisk = new Set(fs.readdirSync(SDIR));
 const known = new Set();
 for (const f of CANON_FILES) {
   known.add(f);
-  known.add(f.replace(/\.json$/, '.svg'));
   if (!onDisk.has(f)) fail(f + ': нет файла каталога (assets/portraits/)');
+  if (!svgOnDisk.has(f.replace(/\.json$/, '.svg'))) {
+    fail(f + ': нет SVG-иконки (assets/sprites/portraits/)');
+  }
 }
 for (const f of onDisk) {
   // Ловим только «настоящий» мусор — *.json/*.svg вне канона;
   // служебные файлы (.DS_Store, Thumbs.db, .gitkeep и т.п.)
   // не красят локальный sync (прецедент sync-npc-data.js).
   if (!known.has(f) && /\.(json|svg)$/.test(f)) {
-    fail(f + ': лишний файл в каталоге портретов (канон — 8 JSON + 8 SVG)');
+    fail(f + ': лишний файл в каталоге портретов (канон — 8 JSON)');
+  }
+}
+const canonSvg = new Set(CANON_FILES.map((f) => f.replace(/\.json$/, '.svg')));
+for (const f of svgOnDisk) {
+  if (!canonSvg.has(f) && /\.(json|svg)$/.test(f)) {
+    fail(f + ': лишний файл в assets/sprites/portraits (канон — 8 SVG)');
   }
 }
 
@@ -98,8 +108,8 @@ for (const f of CANON_FILES) {
   if (data.icon !== expectIcon) {
     fail(f + ': icon обязан быть «' + expectIcon + '» (basename JSON)');
   }
-  if (!onDisk.has(data.icon)) {
-    fail(f + ': иконка assets/portraits/' + data.icon + ' отсутствует');
+  if (!svgOnDisk.has(data.icon)) {
+    fail(f + ': иконка assets/sprites/portraits/' + data.icon + ' отсутствует');
   }
   const expectKind = f.startsWith('npc-') ? 'merc' : KIND_BY_FILE[f];
   if (data.kind !== expectKind) {

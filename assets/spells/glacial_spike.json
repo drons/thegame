@@ -16,6 +16,6 @@
     "assets/buildings/mage_tower.json"
   ],
   "описание": "Пик ледника: урон цели и root на 1 ход.",
-  "icon": "assets/spell-icons/glacial_spike.svg",
+  "icon": "assets/sprites/spells/glacial_spike.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: пик из земли, школа лёд, степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

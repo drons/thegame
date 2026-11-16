@@ -7,7 +7,7 @@
 // body-кнопка .spellbook-oc-btn (src/main.js, 36×36, fixed правый верх,
 // CSS-правило + frame-lift z-25). Фикс: 'spellbook' — четвёртое действие
 // раскладки (стопка E,I,C,B — [B] НАД [C]), 4-я кнопка .tc-action в
-// #touch-controls (иконка assets/ui/combat_spellbook.svg, та же
+// #touch-controls (иконка assets/sprites/ui/combat_spellbook.svg, та же
 // единица видимости buttons, pointerdown+preventDefault+blur как
 // сиблинги); старый DOM/CSS/z-lift удаляются. Роут тот же:
 // G.spellbookOC.toggle() (blocked-политика сохраняется).
@@ -491,7 +491,7 @@ function tcButtons(root) {
 
 function byIcon(root, name) {
   return tcButtons(root).find((b) => b.children.some(
-    (ch) => String(ch.src || '') === 'assets/ui/' + name));
+    (ch) => String(ch.src || '') === 'assets/sprites/ui/' + name));
 }
 
 test('T4 (000351): DOM — РОВНО 4-я кнопка .tc-action в #touch-controls (иконка combat_spellbook.svg); тап=pointerdown открывает; KeyB закрывает; click-слушателя и body-.spellbook-oc-btn нет', async () => {
@@ -505,7 +505,7 @@ test('T4 (000351): DOM — РОВНО 4-я кнопка .tc-action в #touch-con
     + 'книга): ' + btns.length);
   const sb = byIcon(root, 'combat_spellbook.svg');
   assert.ok(sb,
-    'RED: кнопка книги (иконка assets/ui/combat_spellbook.svg) — в '
+    'RED: кнопка книги (иконка assets/sprites/ui/combat_spellbook.svg) — в '
     + '#touch-controls, а не отдельным body-элементом');
   assert.equal(sb, btns[btns.length - 1],
     'RED: книга — КОНЕЧНАЯ кнопка блока (стопка E,I,C,B)');

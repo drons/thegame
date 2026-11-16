@@ -263,7 +263,7 @@ test('CT-1: пол пещеры (cave_1..8): базовая заливка бе�
   for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const t = TILES.find((x) => x.key === `cave_${n}`);
     assert.ok(t, `в генераторе есть тайл cave_${n}`);
-    assertSeamlessBase(read(`assets/dungeon/floor/cave_${n}.svg`), `cave_${n} (диск)`);
+    assertSeamlessBase(read(`assets/sprites/dungeon/floor/cave_${n}.svg`), `cave_${n} (диск)`);
     assertSeamlessBase(buildDungeonFloorTile(t), `cave_${n} (генератор)`);
   }
 });
@@ -275,7 +275,7 @@ test('CT-2: пол пещеры (cave_1..8): ни один текстурный 
     const t = TILES.find((x) => x.key === `cave_${n}`);
     assert.ok(t, `в генераторе есть тайл cave_${n}`);
     const sources = [
-      [`cave_${n} (диск)`, read(`assets/dungeon/floor/cave_${n}.svg`)],
+      [`cave_${n} (диск)`, read(`assets/sprites/dungeon/floor/cave_${n}.svg`)],
       [`cave_${n} (генератор)`, buildDungeonFloorTile(t)],
     ];
     for (const [label, svg] of sources) {
@@ -305,12 +305,12 @@ test('CT-3: стены каждого подземелья из каталога
     const slug = SLUG_BY_ID[c.id];
     assert.ok(slug, `тип ${c.id}: слог пола известен`);
     const floorStops = floorBaseStops(
-      read(`assets/dungeon/floor/${slug}_1.svg`), `пол ${slug}_1`);
+      read(`assets/sprites/dungeon/floor/${slug}_1.svg`), `пол ${slug}_1`);
     for (const K of c['объекты_стен']) {
       assert.ok(WALL_KINDS.includes(K),
         `${slug}: объект_стен ${K} ∈ {${WALL_KINDS.join(', ')}}`);
       const wallStops = baseGradient(
-        read(`assets/dungeon/walls/${K}_m00.svg`), `стена ${K}_m00`).stops;
+        read(`assets/sprites/dungeon/walls/${K}_m00.svg`), `стена ${K}_m00`).stops;
       for (const w of wallStops) {
         for (const fl of floorStops) {
           assert.ok(lum(w.rgb) > lum(fl.rgb),
@@ -323,7 +323,7 @@ test('CT-3: стены каждого подземелья из каталога
     }
   }
   const baseOf = (K) => baseGradient(
-    read(`assets/dungeon/walls/${K}_m00.svg`), `стена ${K}_m00`).stops
+    read(`assets/sprites/dungeon/walls/${K}_m00.svg`), `стена ${K}_m00`).stops
     .map((s) => hexOfRgb(s.rgb)).join('|');
   assert.equal(baseOf('column'), baseOf('rock'),
     `базы wall-видов различаются (межвидовая ступенька): column ${baseOf('column')} ≠ rock ${baseOf('rock')}`);
@@ -339,7 +339,7 @@ test('CT-4: стены (rock/column/stalactite × 20 = 60 плиток): баз�
     for (const name of NAMES) {
       const t = WALL_TILES.find((x) => x.style === style && x.name === name);
       assert.ok(t, `в генераторе есть плитка ${style}_${name}`);
-      assertSeamlessBase(read(`assets/dungeon/walls/${style}_${name}.svg`), `${style}_${name} (диск)`);
+      assertSeamlessBase(read(`assets/sprites/dungeon/walls/${style}_${name}.svg`), `${style}_${name} (диск)`);
       assertSeamlessBase(buildTile(t), `${style}_${name} (генератор)`);
       checked += 2;
     }
@@ -353,7 +353,7 @@ test('CT-4b (гвард): стены (60 плиток): любой элемен�
   for (const style of WALL_KINDS) {
     for (const name of NAMES) {
       const label = `${style}_${name}`;
-      const boxes = elementBoxes(read(`assets/dungeon/walls/${label}.svg`), label);
+      const boxes = elementBoxes(read(`assets/sprites/dungeon/walls/${label}.svg`), label);
       let inner = 0;
       for (const x of boxes) {
         if (isBaseRect(x) || touchesEdge(x.b)) continue;
@@ -372,8 +372,8 @@ test('CT-5 (гвард): 68 пересоздаваемых тайла на ди�
   let n = 0;
   for (const t of TILES) {
     if (!t.key.startsWith('cave_')) continue;
-    assert.equal(read(`assets/dungeon/floor/${t.key}.svg`), buildDungeonFloorTile(t),
-      `файл на диске ≠ выход генератора: assets/dungeon/floor/${t.key}.svg`);
+    assert.equal(read(`assets/sprites/dungeon/floor/${t.key}.svg`), buildDungeonFloorTile(t),
+      `файл на диске ≠ выход генератора: assets/sprites/dungeon/floor/${t.key}.svg`);
     n += 1;
   }
   for (const t of WALL_TILES) {

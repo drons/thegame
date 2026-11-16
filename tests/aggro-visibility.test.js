@@ -30,7 +30,7 @@
 //   TOL_FILL = [4, 12]: «лёгкий тон — зона читается, тайлы под тоном
 //     читаемы» («не заслоняет» — принцип 000172); замерено 5.9..10.1.
 //   ТЗ-(а): худший тайл = min ΔE по ВСЕМ фоновым цветам ВСЕХ
-//     assets/tiles/*.svg (дуга r = 2·zoom пересекает любые соседние
+//     assets/sprites/tiles/*.svg (дуга r = 2·zoom пересекает любые соседние
 //     тайлы — вода/горы; спавн групп — только passable, map.js).
 //   ПОЧЕМУ НЕ WCAG (memory §3.3): красный (255,64,56) на grass/hill —
 //     совпадение по LUMINANCE (WCAG worst: старый = новый = 1.01 —
@@ -38,7 +38,7 @@
 //     фонах несёт ХРОМА — ΔE76 её ловит (ΔE 71.6–94.1 на hill/grass).
 //
 // Фоновые цвета тайлов — ПРАВИЛО ПАРСИНГА (memory §3.3): в каждом
-// assets/tiles/*.svg — градиент, на который ссылается ПЕРВЫЙ (по порядку
+// assets/sprites/tiles/*.svg — градиент, на который ссылается ПЕРВЫЙ (по порядку
 // документа) <rect width="64" height="64" fill="url(#id)"> (фон тайла;
 // оверлей-rect — виньетка — идёт ПОСЛЕ); фоны = <stop> этого градиента
 // БЕЗ атрибута stop-opacity. Сейчас: 12 файлов, 24 стопа, 16 distinct.
@@ -149,7 +149,7 @@ function hex2rgb(h) {
 // Фоны одного тайла: ПЕРВЫЙ 64×64 rect (фон; оверлей-виньетка идёт
 // после) → градиент по id → <stop> БЕЗ stop-opacity.
 function tileBackgrounds(file) {
-  const s = fs.readFileSync(path.join(ROOT, 'assets', 'tiles', file), 'utf8');
+  const s = fs.readFileSync(path.join(ROOT, 'assets', 'sprites', 'tiles', file), 'utf8');
   const m = s.match(/<rect[^>]*width="64"[^>]*height="64"[^>]*fill="url\(#([A-Za-z0-9_-]+)\)"/);
   assert.ok(m,
     file + ': нет фонового <rect width="64" height="64" fill="url(#…)">'
@@ -175,10 +175,10 @@ function tileBackgrounds(file) {
 // иначе проба контраста проверяет не «все тайлы» → осмысленный fail,
 // не skip).
 function allTileBackgrounds() {
-  const dir = path.join(ROOT, 'assets', 'tiles');
+  const dir = path.join(ROOT, 'assets', 'sprites', 'tiles');
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.svg')).sort();
   assert.ok(files.length >= 12,
-    'ассетов тайлов assets/tiles/*.svg < 12 (найдено ' + files.length
+    'ассетов тайлов assets/sprites/tiles/*.svg < 12 (найдено ' + files.length
     + ') — проба контраста вакуумна (анти-вакуум)');
   const out = [];
   for (const f of files) {
@@ -497,7 +497,7 @@ function tileDraws(calls) {
   return calls.filter((c) => c[0] === 'drawImage'
     && c[1][0]
     && typeof c[1][0].__asset === 'string'
-    && c[1][0].__asset.startsWith('assets/tiles/'));
+    && c[1][0].__asset.startsWith('assets/sprites/tiles/'));
 }
 
 // ВСЕ arc-вызовы кадра с индексом в журнале. Спрайт-слой (drawSprites)

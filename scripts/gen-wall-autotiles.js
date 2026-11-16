@@ -1,10 +1,10 @@
 'use strict';
 // Генерация 80 SVG для автотайлинга кромки стены (задача 000258) —
 // 4 стиля × 20 плиток:
-//   city       → assets/city/walls/city_<name>.svg       (НОВОЕ каталог)
-//   rock       → assets/dungeon/walls/rock_<name>.svg
-//   column     → assets/dungeon/walls/column_<name>.svg
-//   stalactite → assets/dungeon/walls/stalactite_<name>.svg
+//   city       → assets/sprites/city/walls/city_<name>.svg       (НОВОЕ каталог)
+//   rock       → assets/sprites/dungeon/walls/rock_<name>.svg
+//   column     → assets/sprites/dungeon/walls/column_<name>.svg
+//   stalactite → assets/sprites/dungeon/walls/stalactite_<name>.svg
 // Заменяет 6 фасадных SVG 000070 (rock_1/2, column_1/2,
 // stalactite_1/2) и их генератор gen-dungeon-walls.js.
 //
@@ -60,13 +60,13 @@ const NAMES = [
 ];
 
 const STYLES = [
-  { name: 'city',       top: '#77685a', bottom: '#66594c', dir: 'assets/city/walls',    prefix: 'city_',       base: 0x57a10001,
+  { name: 'city',       top: '#77685a', bottom: '#66594c', dir: 'assets/sprites/city/walls',    prefix: 'city_',       base: 0x57a10001,
     light: '#948a7b', dark: '#332c25', edgeLightOp: 0.55, edgeDarkOp: 0.4 },
-  { name: 'rock',       top: '#9c9488', bottom: '#9c9488', dir: 'assets/dungeon/walls', prefix: 'rock_',       base: 0x57a20001,
+  { name: 'rock',       top: '#9c9488', bottom: '#9c9488', dir: 'assets/sprites/dungeon/walls', prefix: 'rock_',       base: 0x57a20001,
     light: '#b7b0a4', dark: '#322c24', edgeLightOp: 0.8, edgeDarkOp: 0.65 },
-  { name: 'column',     top: '#9c9488', bottom: '#9c9488', dir: 'assets/dungeon/walls', prefix: 'column_',     base: 0x57a30001,
+  { name: 'column',     top: '#9c9488', bottom: '#9c9488', dir: 'assets/sprites/dungeon/walls', prefix: 'column_',     base: 0x57a30001,
     light: '#b7b0a4', dark: '#322c24', edgeLightOp: 0.8, edgeDarkOp: 0.65 },
-  { name: 'stalactite', top: '#9c9488', bottom: '#9c9488', dir: 'assets/dungeon/walls', prefix: 'stalactite_', base: 0x57a40001,
+  { name: 'stalactite', top: '#9c9488', bottom: '#9c9488', dir: 'assets/sprites/dungeon/walls', prefix: 'stalactite_', base: 0x57a40001,
     light: '#b7b0a4', dark: '#322c24', edgeLightOp: 0.8, edgeDarkOp: 0.65 },
 ];
 

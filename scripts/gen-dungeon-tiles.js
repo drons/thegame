@@ -1,6 +1,6 @@
 // Генератор 40 статичных SVG-тайлов пола подземелья (задачи 000069/
 // 000294 — градиентная база, 000323 — плоская flat-база, 8 вариантов
-// на тип) — assets/dungeon/floor/<slug>_<n>.svg: 5 типов подземелий
+// на тип) — assets/sprites/dungeon/floor/<slug>_<n>.svg: 5 типов подземелий
 // (cave/crypt/ruins/drowned/abyss — те же слоги, что у фонов боя
 // 000049), по 8 вариантов на тип (n = 1..8).
 //
@@ -249,7 +249,7 @@ function buildDungeonFloorTile(t) {
 
 if (isMain) {
   const root = join(__dirname, '..');
-  const dir = join(root, 'assets', 'dungeon', 'floor');
+  const dir = join(root, 'assets', 'sprites', 'dungeon', 'floor');
   mkdirSync(dir, { recursive: true });
   for (const t of TILES) {
     const p = join(dir, t.key + '.svg');

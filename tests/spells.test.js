@@ -2140,7 +2140,7 @@ function ghostSpell0235(action, extra) {
     действие: action,
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.01)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.01)',
   };
   return Object.assign(s, extra || {});
@@ -2262,7 +2262,7 @@ test('000235.01 S3: «вне_боя» — опционально, default false;
     мани: 3, действие: 'телепорт',
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.01)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.01)',
     параметры: { mode: 'город' },
   };
@@ -2315,7 +2315,7 @@ function ocGuest0235(id, over = {}) {
     параметры: { days: 2 },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.02)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.02)',
   }, over);
 }
@@ -2541,7 +2541,7 @@ function invGuest0235(id, over = {}) {
     параметры: { days: 1 },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.03)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.03)',
   }, over);
 }
@@ -2752,7 +2752,7 @@ function portalGuest0235(id, over = {}) {
     параметры: { mode: 'город' },
     здания: ['assets/buildings/weapons_shop.json'],
     описание: 'Тестовое заклинание (000235.04)',
-    icon: 'assets/spell-icons/ghost.svg',
+    icon: 'assets/sprites/spells/ghost.svg',
     icon_prompt: 'Тестовая иконка (000235.04)',
   }, over);
 }
@@ -3302,7 +3302,7 @@ test('000235.07 W-02: 25 записей spells — id/название/школ�
     assert.equal(d.степень, degree, `${id}: степень`);
     assert.equal(d.база, base, `${id}: база`);
     assert.equal(d.мани, mana, `${id}: мани`);
-    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(d.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
@@ -3656,7 +3656,7 @@ test('000235.08 W-02: 25 записей spells — id/название/школ�
     assert.equal(d.степень, degree, `${id}: степень`);
     assert.equal(d.база, base, `${id}: база`);
     assert.equal(d.мани, mana, `${id}: мани`);
-    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(d.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
@@ -4139,7 +4139,7 @@ test('000235.09 W-02: 25 записей spells — id/название/школ�
     assert.equal(d.степень, degree, `${id}: степень`);
     assert.equal(d.база, base, `${id}: база`);
     assert.equal(d.мани, mana, `${id}: мани`);
-    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(d.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
@@ -4724,7 +4724,7 @@ test('000235.10 W-02: 25 записей spells — id/название/школ�
     assert.equal(d.степень, degree, `${id}: степень`);
     assert.equal(d.база, base, `${id}: база`);
     assert.equal(d.мани, mana, `${id}: мани`);
-    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(d.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,
@@ -6087,7 +6087,7 @@ test('000235.11 W-02: 25 записей spells — id/название/школ�
     assert.equal(d.степень, degree, `${id}: степень`);
     assert.equal(d.база, base, `${id}: база`);
     assert.equal(d.мани, mana, `${id}: мани`);
-    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(d.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof d.icon_prompt === 'string'
       && d.icon_prompt.trim().length > 0,
       `${id}: icon_prompt непустое`);
@@ -6892,7 +6892,7 @@ test('000235.12 W-02: 25 записей spells — id/название/школ�
     const [lo, hi] = bands[level];
     assert.ok(d.мани >= lo && d.мани <= hi,
       `${id}: мани в полосе L${level} [${lo}–${hi}] (000119)`);
-    assert.equal(d.icon, `assets/spell-icons/${id}.svg`, `${id}: icon`);
+    assert.equal(d.icon, `assets/sprites/spells/${id}.svg`, `${id}: icon`);
     assert.ok(typeof d.icon_prompt === 'string' && d.icon_prompt.trim().length > 0,
       `${id}: icon_prompt непустое`);
     assert.ok(typeof d.описание === 'string' && d.описание.trim().length > 0,

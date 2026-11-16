@@ -12,6 +12,6 @@
   "предметы": ["assets/items/sulfur.json", "assets/items/phoenix_feather.json"],
   "здания": ["assets/buildings/mage_tower.json"],
   "описание": "Сгусток пламени, летящий к врагу и взрывающийся. Основной урон школы Огня.",
-  "icon": "assets/spell-icons/fireball.svg",
+  "icon": "assets/sprites/spells/fireball.svg",
   "icon_prompt": "Плоская одноцветная иконка для игры «Приключения Флогистона»: шар с хвостом пламени, школа огонь, степень 1. 24×24, заливка #e8dcc0, тёмный фон, единый силуэт, без обводки, без градиентов, без текста."
 }

@@ -55,10 +55,10 @@ const controlsCode = fs.readFileSync(
 const uiCode = fs.readFileSync(path.join(ROOT, 'src', 'ui.js'), 'utf8');
 
 const KEY_BY_ICON = {
-  'assets/ui/icon_action.svg': '[E]',
-  'assets/ui/icon_inventory.svg': '[I]',
-  'assets/ui/icon_squad.svg': '[C]',
-  'assets/ui/combat_spellbook.svg': '[B]',
+  'assets/sprites/ui/icon_action.svg': '[E]',
+  'assets/sprites/ui/icon_inventory.svg': '[I]',
+  'assets/sprites/ui/icon_squad.svg': '[C]',
+  'assets/sprites/ui/combat_spellbook.svg': '[B]',
 };
 
 function declMap(body) {
@@ -537,7 +537,7 @@ function tcButtons(root) {
 
 function byIcon(root, name) {
   return tcButtons(root).find((b) => b.children.some(
-    (ch) => String(ch.src || '') === 'assets/ui/' + name));
+    (ch) => String(ch.src || '') === 'assets/sprites/ui/' + name));
 }
 
 test('T5: роут не меняется — подсказки без слушателей, тап кнопки книги открывает (KeyB закрывает), тап инвентаря открывает панель; подсказка — потомок своей кнопки', async () => {

@@ -11,7 +11,7 @@
 //   * ветки canDoAction 'spellbook' в ядре — нет («неизвестное
 //     действие: spellbook»);
 //   * полей icon / icon_prompt в 16 JSON каталога assets/spells — нет;
-//   * файлов иконок assets/spell-icons/*.svg — нет.
+//   * файлов иконок assets/sprites/spells/*.svg — нет.
 //
 // Нумерация SB1-SB11 (контракт §6, план §5).
 // SB1-SB5 — vm-песочница: цепочка как loadCombatUi в
@@ -250,8 +250,8 @@ test('SB1: нет кнопок fire/heal; ровно одна spellbook; все�
   const b = bookBtns[0];
   const imgs = b.children.filter((ch) => ch.tagName === 'img');
   assert.equal(imgs.length, 1, 'у кнопки книги ровно одна иконка');
-  assert.equal(imgs[0].src, 'assets/ui/combat_spellbook.svg',
-    'иконка кнопки — assets/ui/combat_spellbook.svg, факт: ' + imgs[0].src);
+  assert.equal(imgs[0].src, 'assets/sprites/ui/combat_spellbook.svg',
+    'иконка кнопки — assets/sprites/ui/combat_spellbook.svg, факт: ' + imgs[0].src);
   assert.ok(fs.existsSync(path.join(ROOT, imgs[0].src)),
     'файл иконки существует: ' + imgs[0].src);
   assert.equal(b.ariaLabel, 'Книга заклинаний',
@@ -332,7 +332,7 @@ test('SB3: строки = книга (порядок/имя/meta/описани�
     const img = row.children.find((ch) => ch.tagName === 'img');
     assert.ok(img, id + ': иконка <img> в строке');
     assert.equal(img.className, 'combat-spellicon', id + ': класс иконки');
-    assert.equal(img.src, 'assets/spell-icons/' + id + '.svg',
+    assert.equal(img.src, 'assets/sprites/spells/' + id + '.svg',
       id + ': src иконки = icon из JSON, факт: ' + img.src);
     assert.equal(img.alt, cat[id].название, id + ': alt = название из каталога');
     const bodyDiv = row.children.find((ch) => ch.className === 'combat-spellrow-body');
@@ -498,7 +498,7 @@ test('SB6: entriesFor — строки 1:1 с листом; некаталожн
     mana: cat.spark.мани,
     poolKey: 'spellInt',
     poolName: 'Интеллект',
-    icon: 'assets/spell-icons/spark.svg',
+    icon: 'assets/sprites/spells/spark.svg',
   }, 'строка spark — поля/значения');
   assert.deepEqual(rows[1], {
     id: 'mend',
@@ -507,7 +507,7 @@ test('SB6: entriesFor — строки 1:1 с листом; некаталожн
     mana: cat.mend.мани,
     poolKey: 'spellWis',
     poolName: 'Мудрость',
-    icon: 'assets/spell-icons/mend.svg',
+    icon: 'assets/sprites/spells/mend.svg',
   }, 'строка mend — поля/значения');
   assert.deepEqual(hero.spells, ['spark', 'mend'], 'аргумент не мутирован');
   // Некаталожный id — строка с голым id, без исключения.
@@ -616,7 +616,7 @@ test('SB9: 222 JSON — непустые icon/icon_prompt; оба поля в sc
     'schema.required — «icon_prompt» (задача 000149)');
   assert.equal(schema.properties.icon.type, 'string', 'icon — string');
   assert.equal(schema.properties.icon.pattern,
-    '^assets/[a-z0-9_-]+/[a-z][a-z0-9_]*\\.svg$',
+    '^assets/sprites/spells/[a-z][a-z0-9_]*\\.svg$',
     'pattern icon — путь от корня внутри assets/ (контракт §4)');
   assert.equal(schema.properties.icon_prompt.type, 'string',
     'icon_prompt — string');
@@ -638,25 +638,25 @@ test('SB9: 222 JSON — непустые icon/icon_prompt; оба поля в sc
 // SB10: файлы иконок; закрытость каталога
 // ---------------------------------------------------------------------------
 
-test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; assets/spells закрыт (000149)', () => {
+test('SB10: иконки — assets/sprites/spells/<id>.svg, существуют; assets/spells закрыт (000149)', () => {
   const JR = require('../scripts/lib/json-ref.js');
   const files = fs.readdirSync(SPELLS_DIR)
     .filter((f) => f !== 'schema.json'
       && JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)).sort();
   for (const f of files) {
     const d = JSON.parse(fs.readFileSync(path.join(SPELLS_DIR, f), 'utf8'));
-    const expected = 'assets/spell-icons/' + d.id + '.svg';
+    const expected = 'assets/sprites/spells/' + d.id + '.svg';
     assert.equal(d.icon, expected,
-      f + ': icon — assets/spell-icons/<id>.svg, факт: ' + d.icon);
+      f + ': icon — assets/sprites/spells/<id>.svg, факт: ' + d.icon);
     assert.ok(fs.existsSync(path.join(ROOT, expected)),
       f + ': файл иконки существует: ' + expected
           + ' (задача 000149: иконка ещё не сгенерирована)');
   }
-  // Закрытость каталога (регрессия: иконки — ТОЛЬКО в assets/spell-icons/).
+  // Закрытость каталога (регрессия: иконки — ТОЛЬКО в assets/sprites/spells/).
   for (const f of fs.readdirSync(SPELLS_DIR)) {
     assert.ok(JR.SHAPE_BASENAME_RES[JR.ASSET_NAME_SHAPES.spells].test(f)
       || f === 'schema.json',
-      'чужой файл в assets/spells: ' + f + ' (иконки — в assets/spell-icons/)');
+      'чужой файл в assets/spells: ' + f + ' (иконки — в assets/sprites/spells/)');
   }
 });
 
@@ -667,8 +667,8 @@ test('SB10: иконки — assets/spell-icons/<id>.svg, существуют; 
 test('SB11: 223 SVG (222 иконки + кнопка) существуют и проходят checkSvg (000149; ре-пин 000321.11: +50 свитковых иконок — 173 → 223; ре-пин 000333: +2 иконки навигации; ре-пин 000348: +1 Декаданс; ре-пин 000349: +1 Притяжение; ре-пин 000350: +1 Показать врагов)', () => {
   const checkSvg = loadCheckSvg();
   const { SPELLS } = require('../src/spells-data.js');
-  const rels = SPELLS.map((s) => 'assets/spell-icons/' + s.id + '.svg');
-  rels.push('assets/ui/combat_spellbook.svg');
+  const rels = SPELLS.map((s) => 'assets/sprites/spells/' + s.id + '.svg');
+  rels.push('assets/sprites/ui/combat_spellbook.svg');
   // 000163 (ребейз 000149): +resurrect.svg — 17 → 18 (memory §14).
   // Ре-пин 000235.07: +25 иконок волны Огонь — 18 → 43.
   // Ре-пин 000235.08: +25 иконок волны Лёд — 43 → 68.

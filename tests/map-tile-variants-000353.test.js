@@ -19,7 +19,7 @@
 //    (иначе «кэш отдаёт чужой паттерн» при eviction).
 //
 // КРАСНЫЕ (ERR_ASSERTION осмысленные, без краха загрузки модулей):
-//  T1: каталог assets/tiles — ровно 30 файлов (6 статичных × 4 +
+//  T1: каталог assets/sprites/tiles — ровно 30 файлов (6 статичных × 4 +
 //      water 4 + deepwater 2) — на диске 12;
 //  T2: TILE_VARIANTS — 6 типов × 4 пути, pool[0] === базовый путь
 //      TILE_FRAMES; файлы вариантов существуют; sha256 pairwise ≠
@@ -62,8 +62,8 @@ const MAP = require('../src/map.js');
 
 const TERRAIN = MAP.TERRAIN;
 const hash2 = MAP.hash2;
-const TILES_DIR = path.join(ROOT, 'assets', 'tiles');
-const WEB = 'assets/tiles/';
+const TILES_DIR = path.join(ROOT, 'assets', 'sprites', 'tiles');
+const WEB = 'assets/sprites/tiles/';
 const EXPECTED_SALT = 0x7d150353;
 
 // Статичные террейны, получающие варианты (вода — вне scope: 4/2 кадра
@@ -91,7 +91,7 @@ const readTile = (name) => fs.readFileSync(path.join(TILES_DIR, name));
 
 // --- T1: SWEEP каталога ---
 
-test('T1: assets/tiles — ровно 30 файлов: 6 статичных типов × 4 варианта (<slug>_<n>.svg, n=1..4) + water 1..4 + deepwater 1..2', () => {
+test('T1: assets/sprites/tiles — ровно 30 файлов: 6 статичных типов × 4 варианта (<slug>_<n>.svg, n=1..4) + water 1..4 + deepwater 1..2', () => {
   const files = diskTiles();
   assert.equal(files.length, 12 + STATIC.length * (N_VARIANTS - 1),
     `в каталоге ${files.length} файлов, ожидается 30 (12 прежних + 18 `
