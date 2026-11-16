@@ -257,15 +257,19 @@ test('T3. vm: пять проб value=10 всех редкостей — buy/sel
 // base_price×8^шаг внутри npcBuyPrice/npcSellPrice (RED)
 // ============================================================
 
-test('T4. NPC: свип всех входов торговли — npcBuyPrice/npcSellPrice бит-в-бит max(1,round((base_price??value)×8^(ур−1)×mult×derived)) (252 предмета без rarity → ×1 по редкости; ре-пин 000321.11: +50 свитков в сети жрецов; свитки Пергамента и жрецов 000347.02 — scroll-член 000347.01); vm-проба: rarity rare → база×8, epic без base_price → value×64', () => {
+test('T4. NPC: свип всех входов торговли — npcBuyPrice/npcSellPrice бит-в-бит max(1,round((base_price??value)×8^(ур−1)×mult×derived)) (торгуемые без rarity → ×1 по редкости; свитки Пергамента и жрецов 000347.02 — scroll-член 000347.01; счётчики цепи — ls-полы миграции 000410); vm-проба: rarity rare → база×8, epic без base_price → value×64', () => {
   const npcFiles = fs.readdirSync(NPC_DIR)
     .filter((f) => /^\d{6}\.json$/.test(f));
   let entries = 0;
   const traded = new Set();
   for (const f of npcFiles) {
-    const npc = ND.NPCS.find((n) => n.id ===
-      JSON.parse(fs.readFileSync(path.join(NPC_DIR, f), 'utf8')).id);
-    if (!npc || !npc.торговля) continue;
+    const data = JSON.parse(fs.readFileSync(path.join(NPC_DIR, f), 'utf8'));
+    const npc = ND.NPCS.find((n) => n.id === data.id);
+    if (!data.торговля) continue;
+    assert.ok(npc && npc.торговля,
+      'миграция 000410: витрина каталога ≡ зеркалу NPCS: ' + f
+      + ' — на диске «торговля» есть, в зеркале её нет '
+      + '(sync-npc-data.js не прогнан?)');
     const shop = N.createNpcShop(npc);
     for (const lvl of [0, 5]) {
       const c = charWithMerchant(lvl);
@@ -295,17 +299,14 @@ test('T4. NPC: свип всех входов торговли — npcBuyPrice/n
         'не редкостью)');
     }
   }
-  assert.equal(entries, 292,
-    'свип покрывает ВСЮ торговлю — 292 входа (76 + 4 позиции торговца '
-    + 'рудой 000320.32 + 1 позиция кузнечного наставника 000320.33 '
-    + '+ 1 позиция кузнеца Ухвата 000320.34 + 208 свитковых '
-    + 'входов сети жрецов 000347.02; ре-база №7: было 239 — '
-    + '+50 свитков; ре-пин 000320.34: 289 → 290 — +1 позиция '
-    + 'кузнеца Ухвата; ре-пин 000320.37: 290 → 292 — +2 позиции '
-    + 'рогаточника); факт: ' + entries);
-  assert.equal(traded.size, 252,
-    'уникальных торгуемых — 252 (44 + 208 свитковых целей; '
-    + 'ре-пин 000321.11: было 202 — +50 свитков); '    + 'факт: ' + traded.size);
+  assert.ok(entries >= 292,
+    'свип покрывает ВСЮ торговлю каталога — ls-пол ≥ 292 входов '
+    + '(миграция 000410; пол = диск финальной базы станции; развёртка '
+    + 'витрин — в РЕ-ПИН-блоках 000322 R1; легитимным ростом цепь пол '
+    + 'НЕ двигает); факт: ' + entries);
+  assert.ok(traded.size >= 252,
+    'уникальных торгуемых — ls-пол ≥ 252 (миграция 000410; дедуп по '
+    + 'пути — рост множества не обязателен); факт: ' + traded.size);
   const probes = [
     RING('probe_npc_rare', 'rare', 50, { base_price: 100 }),
     RING('probe_npc_common', 'common', 50, { base_price: 100 }),

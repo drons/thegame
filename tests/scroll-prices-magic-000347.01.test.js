@@ -65,11 +65,33 @@ const rarityMultOf = (rarity) => {
   return Math.pow(8, s);
 };
 const SPELL_LVL = {};
+const SPELL_SCHOOL = {};
 for (const f of fs.readdirSync(SPELL_DIR)) {
   if (!f.endsWith('.json') || f === 'schema.json') continue;
   const s = JSON.parse(fs.readFileSync(path.join(SPELL_DIR, f), 'utf8'));
   SPELL_LVL[s.id] = s.уровень;
+  SPELL_SCHOOL[s.id] = s['школа'];
 }
+// Миграция 000410: школа→продавец — РОСТЕР контракта 000347.02 (не
+// счётчик); размеры витрин выводятся из него × дисковый каталог
+// spell_scroll, каскад ре-пинов цепи снят.
+const SCROLL_SELLER_SCHOOLS = {
+  scroll_merchant: ['огонь', 'лёд'],
+  sun_priest: ['исцеление'],
+  moon_priestess: ['тень'],
+  mountain_priest: ['природа', 'защита'],
+};
+const SCROLL_SELLER_SIZE = {};
+for (const it of diskItems) {
+  if (it.kind !== 'spell_scroll') continue;
+  const spell = it.effect && it.effect.spell;
+  for (const [seller, schools] of Object.entries(SCROLL_SELLER_SCHOOLS)) {
+    if (schools.includes(SPELL_SCHOOL[spell])) {
+      SCROLL_SELLER_SIZE[seller] = (SCROLL_SELLER_SIZE[seller] || 0) + 1;
+    }
+  }
+}
+const NPC_DIR = path.join(ROOT, 'assets', 'npc');
 const scrollMultOf = (it) => {
   if (it.kind !== 'spell_scroll') return 1;
   const spell = it.effect && it.effect.spell;
@@ -236,7 +258,7 @@ test('T3. vm округление на value=1: свиток ур2 buy(w3)=round
 // прочие 70 входов торговли бит-в-бит старая формула (RED)
 // ============================================================
 
-test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); frost_bolt 45/23, 34/28 (ур1 ×1) — РЕ-ПИН 000347.02: light_heal ПЕРЕНЕСЁН к жрецу солнца (пины 560/280/420/350 живут в scroll-trade-temples-000347.02 T5), ассортимент = огонь+лёд (71 — ре-пин 000321.11: было 54); прочие входы торговли — бит-в-бит max(1,round((base_price??value)×scroll-член×mult×derived)) по таблице 4 свитковых продавцов', () => {
+test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); frost_bolt 45/23, 34/28 (ур1 ×1) — РЕ-ПИН 000347.02: light_heal ПЕРЕНЕСЁН к жрецу солнца (пины 560/280/420/350 живут в scroll-trade-temples-000347.02 T5), ассортимент = школы огонь+лёд (размер выводится из ростера школ × дисковый каталог — миграция 000410); прочие входы торговли — бит-в-бит max(1,round((base_price??value)×scroll-член×mult×derived)) по таблице свитковых продавцов', () => {
   const scroll = ND.NPCS.find((n) => n.id === 'scroll_merchant');
   assert.ok(scroll && scroll.торговля, 'Пергамент в зеркале NPC');
   const shop = N.createNpcShop(scroll);
@@ -257,33 +279,29 @@ test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); frost_bolt 45
       id + ': sell Торговец 5 === ' + s5);
   }
   const ids = scroll.торговля.предметы.map((e) => e.предмет);
-  assert.equal(ids.length, 71,
-    'ассортимент Пергамента — 71 (огонь+лёд; ре-пин 000347.02; '
-    + 'ре-пин 000321.11: было 54 — +17 свитков) '
-    + 'факт: ' + ids.length);
+  assert.equal(ids.length, SCROLL_SELLER_SIZE.scroll_merchant,
+    'ассортимент Пергамента — все свитки школ огонь+лёд (вывод из '
+    + 'каталога с диска — миграция 000410), факт: ' + ids.length
+    + ' / вывод: ' + SCROLL_SELLER_SIZE.scroll_merchant);
   assert.ok(ids.includes('fireball_scroll')
       && ids.includes('frost_bolt_scroll'),
     '000043/000045 ОСТАЛИСЬ у Пергамента (переносились не они)');
   assert.ok(!ids.includes('light_heal_scroll'),
     'light_heal 000048 УБРАН из Пергамента (перенос к жрецу солнца, '
     + '000347.02 — строго один продавец на свиток)');
-  const SCROLL_SELLERS = {
-    // ре-пин 000321.11: 54/26/27/54 → 71/34/35/71 (+17/+8/+8/+17 свитков).
-    scroll_merchant: 71,
-    sun_priest: 34,
-    moon_priestess: 35,
-    mountain_priest: 71,
-  };
   let other = 0;
   let scrolled = 0;
   for (const npc of ND.NPCS) {
     if (!npc.торговля) continue;
     const isSeller = Object.prototype.hasOwnProperty
-      .call(SCROLL_SELLERS, npc.id);
+      .call(SCROLL_SELLER_SCHOOLS, npc.id);
     if (isSeller) {
-      assert.equal(npc.торговля.предметы.length, SCROLL_SELLERS[npc.id],
-        npc.id + ': витрина — ровно ' + SCROLL_SELLERS[npc.id]
-        + ' свитковый вход (таблица 000347.02)');
+      assert.equal(npc.торговля.предметы.length,
+        SCROLL_SELLER_SIZE[npc.id],
+        npc.id + ': витрина — все свитки своих школ (вывод из '
+        + 'ростера школа→продавец × каталог — миграция 000410), '
+        + 'факт: ' + npc.торговля.предметы.length + ' / вывод: '
+        + SCROLL_SELLER_SIZE[npc.id]);
     }
     const npcShop = N.createNpcShop(npc);
     for (const lvl of [0, 5]) {
@@ -314,17 +332,26 @@ test('T4. Пергамент: fireball 480/240 (T0), 360/300 (T5); frost_bolt 45
       }
     }
   }
-  assert.equal(other, 162,
-    'регресс-свип прочих входов — РОВНО 162 прогона (81 не-свитковых '
-    + 'входа × {Т0, Т5} — 73 + 4 позиции торговца рудой 000320.32 + '
-    + '1 позиция кузнечного наставника 000320.33 + 1 позиция кузнеца '
-    + 'Ухвата 000320.34 + 2 позиции рогаточника 000320.37 — ре-пин '
-    + '000320.37: было 158); '
-    + 'факт: ' + other);
-  assert.equal(scrolled, 422,
-    'свитковый свип таблицы 4 продавцов — РОВНО 422 (211 вход × {Т0, '
-    + 'Т5}; покрытие 71+34+35+71 — T8 000347.02; '
-    + 'ре-пин 000321.11: было 322); факт: ' + scrolled);
+  let jsonEntries = 0;
+  for (const f of fs.readdirSync(NPC_DIR)) {
+    if (!/^\d{6}\.json$/.test(f)) continue;
+    const d = JSON.parse(
+      fs.readFileSync(path.join(NPC_DIR, f), 'utf8'));
+    const l = d.торговля && d.торговля.предметы;
+    if (Array.isArray(l)) jsonEntries += l.length;
+  }
+  assert.equal(other + scrolled, 2 * jsonEntries,
+    'миграция 000410: полнота свипа — (прочие + свитковые) × {Т0, Т5} '
+    + '≡ 2×входам каталога JSON (кросс-источник: свип идёт по зеркалу '
+    + 'NPCS, знаменатель — с диска; дрейф зеркала красит и здесь, и '
+    + 'зубом R1 000322), факт: ' + (other + scrolled) + ' / '
+    + (2 * jsonEntries));
+  assert.ok(other >= 162, 'регресс-свип прочих входов — ls-пол ≥ 162 '
+    + '(миграция 000410; пол = диск финальной базы станции × {Т0, Т5}; '
+    + 'легитимным ростом цепь пол НЕ двигает); факт: ' + other);
+  assert.ok(scrolled >= 422, 'свитковый свип таблицы продавцов — '
+    + 'ls-пол ≥ 422 (миграция 000410; пол наследия сети жрецов '
+    + '000347.02/000321.11 × {Т0, Т5}); факт: ' + scrolled);
 });
 
 // ============================================================
