@@ -27,11 +27,14 @@
 // (T1–T7, T9, T10; ERR_ASSERTION: шейп number, файлы numeric, зеркальный
 // порядок и комментарии числовые, REF_RE прежний source, sync-грепы не
 // найдены, numeric-пути «база»/recipe ещё есть, spec § старый), без краха
-// загрузки. T8 — ГЕЙТ-страж «вне scope не тронуто»: он зелёный и ДО (его
-// назначение — подтвердить, что rename не задел зеркало предметов), а зуб
-// у него мутационный: правка src/items-data.js в рабочем дереве красит
-// РОВНО T8 (сверка рабочего файла с блобом HEAD — конвенция npc-refs:400)
-// + счётчики 643/612/579/546/33/43 (матрица — tasks/result/000318.07.md).
+// загрузки. T8 — ГЕЙТ-страж «вне scope не тронуто» (перенесён 000395 на
+// класс live-regen, прежняя сверка с блобом HEAD снята): его зуб — tmp-
+// реген sync-items-data.js из ТЕКУЩЕГО assets/ ≡ живому src/items-data.js
+// побайтово + контент-игла (blueprint'и хранят РАЗРЕШЁННЫЙ effect.recipe
+// ∈ CRAFT-id, item/craft-пути в зеркале запрещены). Легальная регенерация
+// зелена ДО коммита, дрейф зеркала красен навсегда; анти-вакуум переноса
+// — «000395 T2» этого файла + счётчики 643/612/579/546/33/43 (матрица —
+// tasks/result/000318.07.md).
 //
 // Контракты:
 //   * T1 — ростер: шейп craft == slug, 643 файла, 0 numeric-имён,
@@ -61,9 +64,10 @@
 //     ПОБАЙТОВО ≡ закоммиченному зеркалу, повтор идемпотентен;
 //     перестановка СОДЕРЖИМОГО пары файлов — записи всё равно в id-порядке
 //     (компаратор наблюдаем).
-//   * T8 — 0-diff стражи: src/items-data.js ПОБАЙТОВО прежний (эффект
-//     чертежей хранит РАЗРЕШЁННЫЙ id, не путь) + счётчики 643/612/546/33
-//     инвариантны.
+//   * T8 — 0-diff стражи (перенос 000395): src/items-data.js ≡ побайтовому
+//     РЕГЕНУ из текущего assets/ в tmp (не HEAD-блобу) + контент-игла
+//     (эффект чертежей хранит РАЗРЕШЁННЫЙ id, не путь) + счётчики
+//     643/612/546/33 инвариантны.
 //   * T9 — SPEC-guard (прецедент 000318.05 T8/000338): § «Архитектура
 //     хранения (каталог assets/craft)» — slug-именование `<id>.json` +
 //     basename === `id`, БЕЗ «сквозная нумерация» / numeric-имён /
@@ -75,7 +79,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync, execFileSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const DIR = path.join(ROOT, 'assets', 'craft');
@@ -546,16 +550,66 @@ test('000318.07 T7: tmp-дерево — sync на полном каталоге
   }
 });
 
-test('000318.07 T8: 0-diff стражи — src/items-data.js побайтово прежний (чертежи несут РАЗРЕШЁННЫЙ id, не путь) + счётчики craft 718/612/579/546/33 (ре-пин 000321.07: 612/579/546/33 инвариантны — зелья не экипировка; ре-пин 000321.10: +25 реагентных — тоже не экипировка)', () => {
-  const before = execFileSync('git',
-    ['-C', ROOT, 'show', 'HEAD:src/items-data.js'], { encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024 });
-  const after = fs.readFileSync(path.join(ROOT, 'src', 'items-data.js'),
-    'utf8');
-  assert.equal(after, before,
-    'src/items-data.js ИЗМЕНЁНrename craft его не касается: effect.recipe '
-    + 'хранит РАЗРЕШЁННЫЙ id рецепта, а не путь файла');
+// Полная tmp-дерево по образцу makeTmpRegenTree_I08 (items-rename/000393):
+// ПОЛНЫЕ assets (генераторы читают смежные каталоги) + scripts +
+// tests/scripts/*.json (урок ENOENT sync-skills-data) + пустой src.
+function makeTmpRegenTree_000395() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'craft-rename-000395-'));
+  fs.cpSync(path.join(ROOT, 'assets'), path.join(tmp, 'assets'),
+    { recursive: true });
+  fs.cpSync(path.join(ROOT, 'scripts'), path.join(tmp, 'scripts'),
+    { recursive: true });
+  fs.cpSync(path.join(ROOT, 'tests', 'scripts'),
+    path.join(tmp, 'tests', 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+  return tmp;
+}
+
+function itemsRecipeViolations_000395(items, craftIds) {
+  const bad = [];
+  let seen = 0;
+  for (const it of items) {
+    if (!it.effect || it.effect.recipe === undefined) continue;
+    seen += 1;
+    if (!craftIds.has(it.effect.recipe)) {
+      bad.push(it.id + ': effect.recipe «' + it.effect.recipe + '» ∉ CRAFT-id');
+    }
+  }
+  return { bad, seen };
+}
+
+test('000318.07 T8 (миграция 000395): 0-diff стражи — src/items-data.js ≡ побайтовому РЕГЕНУ sync-items-data.js из ТЕКУЩЕГО assets/ в tmp (легальная регенерация зелена ДО коммита, дрейф красен навсегда; сверка с HEAD-блобом снята) + контент-игла: blueprint’и хранят РАЗРЕШЁННЫЙ effect.recipe ∈ CRAFT-id, craft-пути в зеркале запрещены + счётчики craft 718/612/579/546/33 (ре-пин 000321.07: 612/579/546/33 инвариантны — зелья не экипировка; ре-пин 000321.10: +25 реагентных — тоже не экипировка)', () => {
+  const itemsMirror = path.join(ROOT, 'src', 'items-data.js');
+  const tmp = makeTmpRegenTree_000395();
+  try {
+    const r = spawnSync(process.execPath,
+      [path.join(tmp, 'scripts', 'sync-items-data.js')], { encoding: 'utf8' });
+    assert.equal(r.status, 0, 'tmp-реген sync-items-data.js → exit 0: '
+      + String(r.stderr || r.stdout).slice(0, 400));
+    assert.ok(fs.readFileSync(path.join(tmp, 'src', 'items-data.js'))
+      .equals(fs.readFileSync(itemsMirror)),
+      'src/items-data.js ≢ побайтовому регену из ТЕКУЩЕГО assets/ (000395 '
+      + 'вместо HEAD-блоба): rename craft его не касается — зеркало отстаёт '
+      + 'от JSON (sync обязан идти в ТОМ ЖЕ коммите) либо генератор стал '
+      + 'неидемпотентным');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  const itemsText = fs.readFileSync(itemsMirror, 'utf8');
+  assert.ok(!itemsText.includes('assets/craft/'),
+    'src/items-data.js содержит craft-путь «assets/craft/» — blueprint‘и '
+    + 'обязаны хранить РАЗРЕШЁННЫЙ id рецепта, не путь файла (rename '
+    + 'каталога в зеркала не переносится)');
+  const { ITEMS } = require(itemsMirror);
   const { CRAFT } = require(MIRROR);
+  const craftIds = new Set(CRAFT.map((cr) => cr.id));
+  const igla = itemsRecipeViolations_000395(ITEMS, craftIds);
+  assert.deepEqual(igla.bad, [],
+    'effect.recipe вне множества CRAFT-id (' + igla.bad.length + '): '
+    + igla.bad.slice(0, 5).join('; ') + ' — чертёж обязан ссылаться на'
+    + ' РАЗРЕШЁННЫЙ id рецепта');
+  assert.ok(igla.seen > 0, 'анти-вакуум: в items-data нет ни одной записи'
+    + ' с effect.recipe — контент-игла вакуумна');
   assert.equal(CRAFT.length, 718, 'craft — 718 (ре-пин 000321.07: +50 рецептов зелий; ре-пин 000321.10: +25 рецептов реагентов)');
   const withRarity = CRAFT.filter((r) => {
     const it = require(path.join(ROOT, 'src', 'items.js'))
@@ -660,4 +714,61 @@ test('000318.07 T10: потребитель порядка — DISASSEMBLY_BY_IT
   assert.notEqual(CRAFT[0].id, 'iron_sword',
     'guard: iron_sword больше НЕ первый в каталоге — иначе тай-брейк '
     + 'наблюдается тривиально (проверка ничего не сторожит)');
+});
+
+test('000395 T2 (craft-носитель 000318.07): анти-вакуум перенесённого regen-зуба T8 — порт полей `name`+`value` одного предмета в tmp-ассете обязан покраснить regen src/items-data.js ≠ живому зеркалу (иначе сверка «≡ регену» ничего не сторожит — стандарт пустого зуба .393) + ПОСТОЯННАЯ таблица истинности контент-иглы itemsRecipeViolations_000395: effect.recipe вне CRAFT-id красит, легальный чертёж / предмет без effect / effect без recipe зелены, счётчик seen считает только записи с recipe', () => {
+  const tmp = makeTmpRegenTree_000395();
+  try {
+    const itemsDir = path.join(tmp, 'assets', 'items');
+    const file = fs.readdirSync(itemsDir)
+      .filter((f) => f.endsWith('.json') && f !== 'schema.json')
+      .sort()[0];
+    assert.ok(file, 'анти-вакуум: assets/items в копии пуст — порт не построить');
+    const p = path.join(itemsDir, file);
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    assert.ok(typeof j.name === 'string' && j.name.length > 0,
+      file + ': в исходном ассете нет непустого name — порт не построить');
+    j.name = j.name + ' порт';
+    j.value = (typeof j.value === 'number' ? j.value : 0) + 1;
+    fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+    const r = spawnSync(process.execPath,
+      [path.join(tmp, 'scripts', 'sync-items-data.js')],
+      { encoding: 'utf8' });
+    assert.equal(r.status, 0, 'tmp-реген с портом → exit 0: '
+      + String(r.stderr || r.stdout).slice(0, 400));
+    assert.ok(!fs.readFileSync(path.join(tmp, 'src', 'items-data.js'))
+      .equals(fs.readFileSync(path.join(ROOT, 'src', 'items-data.js'))),
+      'порт ассетных name/value оставил реген src/items-data.js'
+      + ' незакрашенным — перенесённый зуб T8 (000395) ничего не сторожит'
+      + ' (носитель: ' + file + ')');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+  const IDS = new Set(['healing_potion']);
+  const table = [
+    ['красно: recipe вне CRAFT-id',
+      [{ id: 'bp_x', effect: { kind: 'craft_recipe', recipe: 'ghost' } }],
+      true, 1],
+    ['зелено: recipe ∈ CRAFT-id',
+      [{ id: 'bp_y',
+        effect: { kind: 'craft_recipe', recipe: 'healing_potion' } }],
+      false, 1],
+    ['зелено: предмет без effect', [{ id: 'iron_sword' }], false, 0],
+    ['зелено: effect без recipe',
+      [{ id: 'torch', effect: { kind: 'light' } }], false, 0],
+  ];
+  const misses = [];
+  for (const [name, items, mustCatch, seen] of table) {
+    const got = itemsRecipeViolations_000395(items, IDS);
+    if ((got.bad.length > 0) !== mustCatch) {
+      misses.push(name + ' → ' + (mustCatch ? 'НЕ поймано' : 'ложно'));
+    }
+    if (got.seen !== seen) misses.push(name + ' → seen=' + got.seen);
+  }
+  assert.ok(table.some((r) => r[2]) && table.some((r) => !r[2]),
+    'анти-вакуум таблицы: нужны и красные, и зелёные строки');
+  assert.deepEqual(misses, [],
+    'таблица истинности контент-иглы покраснела: ' + misses.join('; ')
+    + ' — игла обязана ловить effect.recipe вне CRAFT-id и считать'
+    + ' только записи с recipe');
 });

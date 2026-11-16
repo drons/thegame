@@ -6,7 +6,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const I = require('../src/items.js');
 const ITD = require('../src/items-data.js');
@@ -499,7 +498,7 @@ test('000321.09 T9: spec/items.md — «Каталог пополнен 50 кн�
 
 // --- T10: торговля автоматикой, лут-стражи, additions-only гейт -------------
 
-test('000321.09 T10: 0-diff стражи и магазинная автоматика (src/ НЕ трогали): shopKindsFor(магазин магии) содержит «skill_book» ⇒ наши книги входят в магические лавки АВТОМАТИЧЕСКИ (сток (30,40,type 3,w 0) содержит ≥ 20 книг ростера); makeCampShop (пул food/potion/weapon/armor) НЕ содержит ни одной книги; LOOT_RARE_POOL combat.js — ни одного id волны; src/loot-equip-data.js побайтово прежний, EQUIP_POOLS 232/161/117/46/23, DISASSEMBLY_BY_ITEM 673 (ре-пин 000321.10: +25) и ни одного id волны; у всех 50 новых НЕТ поля loot (краснота: книг нет в стоках)', () => {
+test('000321.09 T10: 0-diff стражи и магазинная автоматика (src/ НЕ трогали): shopKindsFor(магазин магии) содержит «skill_book» ⇒ наши книги входят в магические лавки АВТОМАТИЧЕСКИ (сток (30,40,type 3,w 0) содержит ≥ 20 книг ростера); makeCampShop (пул food/potion/weapon/armor) НЕ содержит ни одной книги; LOOT_RARE_POOL combat.js — ни одного id волны; src/loot-equip-data.js ≡ побайтовому РЕГЕНУ невозможен (hand-файл вне REGEN-карты), HEAD-сверка снята миграцией 000395 — содержимое кроют items.test.js LF6 + адресный анти-хайджек в конце этого файла; живые стражи в силе: EQUIP_POOLS 232/161/117/46/23, DISASSEMBLY_BY_ITEM 673 (ре-пин 000321.10: +25) и ни одного id волны; у всех 50 новых НЕТ поля loot (краснота: книг нет в стоках)', () => {
   const M = require('../src/map.js');
   const B = M.BUILDING_TYPES;
   const kinds = I.shopKindsFor(B.MAGIC_SHOP);
@@ -531,14 +530,6 @@ test('000321.09 T10: 0-diff стражи и магазинная автомат�
     assert.ok(!combatText.includes("'" + id + "'"),
       id + ': книги нет в литералах combat.js (LOOT_RARE_POOL заморожен)');
   }
-  const before = execFileSync('git',
-    ['-C', ROOT, 'show', 'HEAD:src/loot-equip-data.js'],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const after = fs.readFileSync(path.join(ROOT, 'src',
-    'loot-equip-data.js'), 'utf8');
-  assert.equal(after, before,
-    'src/loot-equip-data.js ИЗМЕНЁН — книги не должны влиять на equip-пулы '
-    + 'и DROP-контракт 000230');
   const P = L.EQUIP_POOLS;
   assert.deepEqual(L.RARITY.map((t) => P[t.id].length), [232, 161, 117,
     46, 23], 'EQUIP_POOLS — 232/161/117/46/23 (не выросли); факт: '
@@ -550,3 +541,50 @@ test('000321.09 T10: 0-diff стражи и магазинная автомат�
     + ' 000321.10: +25 рецептов реагентов 648 → 673); факт: '
     + Object.keys(C.DISASSEMBLY_BY_ITEM).length);
 });
+
+// Чистый предикат адресного анти-хайджека (000395): пересечение пулов
+// EQUIP_POOLS с ростером волны. Тот же в трёх файлах волны — каждый носит
+// СВОЮ таблицу истинности на своих id, общий хелпер не заводим.
+function equipHijacks_000395(pools, ids) {
+  const roster = new Set(ids);
+  const bad = [];
+  for (const [tier, pool] of Object.entries(pools)) {
+    for (const id of pool) {
+      if (roster.has(id)) bad.push(tier + ': ' + id);
+    }
+  }
+  return bad;
+}
+
+test('000395 T5 (книги-носитель 000321.09): адресный анти-хайджек после снятия HEAD-сверки (миграция) — ни один id волны ростера не попал в живые пулы EQUIP_POOLS на диске + ПОСТОЯННАЯ таблица истинности предиката equipHijacks_000395: инъекция id красит, легальные equip-данные, пустой пул и пустой ростер зелены (зуб-пустышка исключён)', () => {
+  assert.deepEqual(equipHijacks_000395(L.EQUIP_POOLS, ROSTER_IDS), [],
+    'id книги замечен в equip-пуле (хайджек лута) — книги не выдаются'
+    + ' выпадением по редкости (DROP-контракт 000230 не трогался)');
+  const table = [
+    ['красно: id волны инжектирован в пул',
+      { common: ['iron_sword', 'zvezdopis_accuracy'] }, ['zvezdopis_accuracy'], true],
+    ['зелено: только equip-данные',
+      { common: ['iron_sword'], rare: ['steel_blade'] }, ['zvezdopis_accuracy'],
+      false],
+    ['зелено: пустой пул', { common: [] }, ['zvezdopis_accuracy'], false],
+    ['зелено: пустой ростер (волны нет)',
+      { common: ['iron_sword'] }, [], false],
+    ['красно: id в каждом пуле',
+      { common: ['zvezdopis_accuracy'], legendary: ['zvezdopis_accuracy'] }, ['zvezdopis_accuracy'],
+      true],
+  ];
+  const misses = [];
+  for (const [name, pools, ids, mustCatch] of table) {
+    const caught = equipHijacks_000395(pools, ids).length > 0;
+    if (caught !== mustCatch) {
+      misses.push(name + ' → ' + (mustCatch ? 'НЕ поймано' : 'ложно'));
+    }
+  }
+  assert.ok(table.some((r) => r[3]) && table.some((r) => !r[3]),
+    'анти-вакуум таблицы: нужны и красные, и зелёные строки');
+  assert.deepEqual(misses, [],
+    'таблица истинности анти-хайджека покраснела: ' + misses.join('; ')
+    + ' — предикат обязан ловить инжект id волны и не трогать легальные'
+    + ' equip-данные (перенос 000395 вместо побайтовой HEAD-сверки)');
+});
+

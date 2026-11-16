@@ -48,16 +48,19 @@
 //       полного каталога побайтово ≡ закоммиченному зеркалу и идемпотентен;
 //       компаратор наблюдаем (имена файлов и ids переставлены ПРОТИВОПОЛОЖНО
 //       — зеркало по id; id вне реестра — фолбэк в хвост по lex).
-// T8  — стражи 0-diff: чужие зеркала (items/spells/npc/craft/buildings) и
-//       CHANGELOG побайтово ≡ HEAD; миграция skills — ТОЛЬКО пути
-//       (данные каждого файла ≡ HEAD-версии после denorm по реестру).
+// T8  — миграционные данные: ТОЛЬКО пути (roundtrip/id/numeric каждого
+//       файла после denorm по реестру); HEAD-сверка чужих зеркал снята
+//       000395 — их кроет живой tmp-реген-свип items-rename T8 (строже
+//       HEAD: легальная регенерация зелена ДО коммита, дрейф красен
+//       навсегда); HEAD-сверка CHANGELOG/index.html (hand-файлы без
+//       regen-источника) убрана — она красила легитимные документ-волны,
+//       структура CHANGELOG сторожится changelog-day-structure.
 // T9  — spec/skills-storage.md: 38 строк (пин spec-split цел), numeric-
 //       путей и «нумерации» нет, формулировка «<id>.json».
-// T10 — данные зеркала не изменились множеством: мультимножество записей
-//       (id→содержимое) ≡ HEAD-зеркалу (изменился только ПОРЯДОК — 000384:
-//       дизайн-порядок реестра; потребители порядка — дерево [I]/ключи
-//       reprocessSkillXp, RNG-каналов skills-порядок не питает —
-//       tests/spells.test.js сидам порядок skills не нужен).
+// T10 — данные зеркала ≡ побайтовому РЕГЕНУ sync-skills-data.js из
+//       ТЕКУЩЕГО каталога в tmp (перенос 000395 с HEAD-множества 000384:
+//       реген даёт канон порядка, побайтовая форма строже; анти-вакуум
+//       переноса — «000395 T1» этого файла).
 // T11 — реестр tests/scripts/skills-num2id-000318.09.json: APPEND-ONLY
 //       против HEAD (000387: заморожены СТРОКИ, а не длина), ключи —
 //       префикс 000001..N (N живой, ≥ границы rename), значения уникальны,
@@ -200,11 +203,6 @@ function skillFilesAll() {
   return fs.readdirSync(SKILLS_DIR)
     .filter((f) => f.endsWith('.json') && f !== 'schema.json')
     .sort();
-}
-
-function gitShow(rel) {
-  return execFileSync('git', ['-C', ROOT, 'show', 'HEAD:' + rel],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
 }
 
 // denorm по реестру: numeric-путь → id; slug-путь → basename (≡ id).
@@ -571,13 +569,7 @@ test('000318.09 T7 (ре-пин 000384): tmp-дерево с реестром �
   }
 });
 
-test('000318.09 T8: стражи 0-diff — чужие зеркала и CHANGELOG побайтово ≡ HEAD; миграция skills — только пути (данные каждого файла ≡ HEAD после denorm)', () => {
-  for (const rel of ['src/items-data.js', 'src/spells-data.js',
-    'src/npc-data.js', 'src/craft-data.js', 'src/dungeons-data.js',
-    'CHANGELOG.md', 'index.html']) {
-    assert.equal(fs.readFileSync(path.join(ROOT, rel), 'utf8'),
-      gitShow(rel), rel + ': побайтово ≡ HEAD');
-  }
+test('000318.09 T8 (миграция 000395): миграционные данные — ТОЛЬКО пути (roundtrip-канон/id==basename/0 numeric-ссылок каждого файла после denorm по реестру); прежняя HEAD-сверка чужих зеркал (items/spells/npc/craft/dungeons) снята — её заменяет ЖИВОЙ tmp-реген-свип items-rename T8 (≡ регену из текущего assets — строже HEAD: легальная регенерация зелена ДО коммита, закоммиченный дрейф красен навсегда), HEAD-сверка hand-файлов CHANGELOG.md/index.html убрана вовсе (regen-источника нет; зуб красил легитимные документ-волны ещё ДО их коммита; структура CHANGELOG — changelog-day-structure)', () => {
   for (const num of Object.keys(registry)) {
     const id = registry[num];
     const p = path.join(SKILLS_DIR, id + '.json');
@@ -613,12 +605,26 @@ test('000318.09 T9: spec/skills-storage.md — 38 строк (line-neutral, пи
     'формулировка имени файла — «<id>.json»');
 });
 
-test('000318.09 T10 (ре-пин 000384): данные зеркала ≡ HEAD-зеркалу МНОЖЕСТВОМ (изменился только порядок — 000384: дизайн-порядок реестра; потребители по id/ключам intact)', () => {
-  const headText = gitShow('src/skills-data.js');
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-rename-head-'));
+test('000318.09 T10 (ре-пин 000384, миграция 000395): данные зеркала ≡ побайтовому РЕГЕНУ sync-skills-data.js из ТЕКУЩЕГО каталога в tmp (полный каталог через runSyncOn, идемпотентно) + записи/ключи модуля ≡ модулю регена (HEAD-множество снято: побайтовая форма строже, реген даёт канон порядка 000384; потребители по id/ключам intact)', () => {
+  const committed = fs.readFileSync(MIRROR, 'utf8');
+  const full = fs.readdirSync(SKILLS_DIR)
+    .map((f) => [f, fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8')]);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-rename-regen-'));
   try {
-    fs.mkdirSync(path.join(dir, 'src'), { recursive: true });
-    fs.writeFileSync(path.join(dir, 'src', 'skills-data.js'), headText);
+    const r1 = runSyncOn(full, dir);
+    assert.equal(r1.status, 0, 'regen полного каталога → exit 0: '
+      + (r1.stdout || '') + (r1.stderr || ''));
+    assert.equal(fs.readFileSync(path.join(dir, 'src', 'skills-data.js'),
+      'utf8'), committed,
+      'src/skills-data.js ≢ побайтовому регену из ТЕКУЩЕГО assets/skills '
+      + '(tmp-запуск sync-skills-data.js; 000395 вместо сверки с HEAD-зеркалом:'
+      + ' легальная регенерация зелена уже ДО коммита, закоммиченный дрейф'
+      + ' красен навсегда — HEAD-сверка на нём тавтологична)');
+    const r2 = runSyncOn(full, dir);
+    assert.equal(r2.status, 0, 'повторный tmp-реген → exit 0: '
+      + (r2.stdout || '') + (r2.stderr || ''));
+    assert.equal(fs.readFileSync(path.join(dir, 'src', 'skills-data.js'),
+      'utf8'), committed, 'идемпотентность tmp-регена');
     const H = require(path.join(dir, 'src', 'skills-data.js'));
     const M = require('../src/skills-data.js');
     const norm = (x) => JSON.stringify(x);
@@ -630,10 +636,37 @@ test('000318.09 T10 (ре-пин 000384): данные зеркала ≡ HEAD-�
       'SECONDARY — тот же набор ключей');
     for (const k of Object.keys(H.SECONDARY_SKILLS)) {
       assert.equal(norm(M.SECONDARY_SKILLS[k]), norm(H.SECONDARY_SKILLS[k]),
-        'SECONDARY.' + k + ': запись бит-в-бит ≡ HEAD');
+        'SECONDARY.' + k + ': запись бит-в-бит ≡ регену');
     }
     assert.deepEqual(byId(M.SCHOOLS), byId(H.SCHOOLS),
       'SCHOOLS — то же мультимножество записей');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('000395 T1 (skills-носитель): анти-вакуум перенесённого regen-зуба — порт ПОЛЯ одного skill-ассета в tmp (name + суффикс) обязан покраснить regen src/skills-data.js ≠ живому зеркалу (иначе сверка «≡ регену» ничего не сторожит — стандарт пустого зуба .393)', () => {
+  const committed = fs.readFileSync(MIRROR, 'utf8');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'skills-rename-vac-'));
+  try {
+    const full = fs.readdirSync(SKILLS_DIR).map((f) => {
+      const text = fs.readFileSync(path.join(SKILLS_DIR, f), 'utf8');
+      if (f === 'strength.json') {
+        const d = JSON.parse(text);
+        d.name = d.name + ' (порт)';
+        return [f, JSON.stringify(d, null, 2) + '\n'];
+      }
+      return [f, text];
+    });
+    const r = runSyncOn(full, dir);
+    assert.equal(r.status, 0, 'regen после порта → exit 0: '
+      + (r.stdout || '') + (r.stderr || ''));
+    assert.notEqual(fs.readFileSync(path.join(dir, 'src', 'skills-data.js'),
+      'utf8'), committed,
+      'порт поля name в strength.json (tmp) НЕ покрасил реген — механизм'
+      + ' «≡ побайтовому регену» вакуумный: зуб Т10 ничего не сторожит,'
+      + ' верни живой сверки (port-tooth стандарт memory/000393'
+      + '-selfgate-headguard.md п.5)');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

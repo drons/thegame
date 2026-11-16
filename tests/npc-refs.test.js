@@ -468,28 +468,47 @@ test('sync-npc-data.js: битая/чужая ссылка — exit 1, зерк�
     });
 });
 
-test('sync-npc-data.js: существует, exit 0, идемпотентен (byte-identical), зеркало в id-форме', () => {
+// Полная tmp-дерево для live-regen (000393/000395): ПОЛНЫЕ assets (sync читает
+// npc + постройки + предметы), scripts (со своим lib), tests/scripts/*.json —
+// на случай косвенных чтений — и пустой src, куда генератор пишет выход.
+function makeTmpFullTree_000395() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'npc-refs-000395-'));
+  fs.cpSync(path.join(ROOT, 'assets'), path.join(tmp, 'assets'),
+    { recursive: true });
+  fs.cpSync(path.join(ROOT, 'scripts'), path.join(tmp, 'scripts'),
+    { recursive: true });
+  fs.cpSync(path.join(ROOT, 'tests', 'scripts'),
+    path.join(tmp, 'tests', 'scripts'), { recursive: true });
+  fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+  return tmp;
+}
+
+function regenNpcMirror_000395(tmp) {
+  const res = spawnSync(process.execPath,
+    [path.join(tmp, 'scripts', 'sync-npc-data.js')], { encoding: 'utf8' });
+  assert.equal(res.status, 0,
+    'tmp-реген sync-npc-data.js → exit 0: '
+    + String(res.stderr || res.stdout).slice(0, 400));
+  return fs.readFileSync(path.join(tmp, 'src', 'npc-data.js'));
+}
+
+test('sync-npc-data.js: существует, exit 0, идемпотентен (byte-identical), зеркало в id-форме (миграция 000395: tmp-реген ПОЛНЫМ деревом ≡ живому src/npc-data.js побайтово + повторный tmp-спавн ≡; живой ЭТОТ тест больше не мутирует — прежний вариант гонял sync с cwd ROOT и сверял с HEAD-блобом)', () => {
   const script = path.join(ROOT, 'scripts', 'sync-npc-data.js');
   assert.ok(fs.existsSync(script), 'scripts/sync-npc-data.js не существует');
-  const outFile = path.join(ROOT, 'src', 'npc-data.js');
-  const committed = spawnSync('git', ['show', 'HEAD:src/npc-data.js'],
-    { cwd: ROOT });
-  assert.equal(committed.status, 0,
-    'git show HEAD:src/npc-data.js не выполнен: ' + (committed.stderr || ''));
-  const syncAndRead = () => {
-    const res = spawnSync(process.execPath, [script],
-      { cwd: ROOT, encoding: 'utf8' });
-    assert.equal(res.status, 0,
-      'скрипт завершился с ошибкой: ' + (res.stderr || res.stdout));
-    return fs.readFileSync(outFile);
-  };
-  let after = syncAndRead();
-  if (!after.equals(committed.stdout)) {
-    after = syncAndRead();
+  const tmp = makeTmpFullTree_000395();
+  try {
+    const first = regenNpcMirror_000395(tmp);
+    const second = regenNpcMirror_000395(tmp);
+    assert.ok(first.equals(second),
+      'повторный tmp-реген побайтово ≠ первого — генератор неидемпотентен');
+    assert.ok(first.equals(
+      fs.readFileSync(path.join(ROOT, 'src', 'npc-data.js'))),
+      'src/npc-data.js ≢ побайтовому регену из ТЕКУЩЕГО assets/ (000395 '
+      + 'вместо HEAD-блоба): зеркало отстаёт от JSON (sync обязан идти в '
+      + 'ТОМ ЖЕ коммите) либо генератор стал неидемпотентным');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
-  assert.deepEqual(after, committed.stdout,
-    'регенерация из JSON не совпала с закоммиченным src/npc-data.js ' +
-    '(не идемпотентно или дрейф)');
   const leaked = [];
   (function walk(v) {
     if (Array.isArray(v)) {
@@ -506,4 +525,28 @@ test('sync-npc-data.js: существует, exit 0, идемпотентен (
   })(NPCS);
   assert.deepEqual(leaked, [],
     'в зеркале строки-ссылки (зеркало обязано быть в id-форме): ' + leaked.join(', '));
+});
+
+test('000395 T6 (npc-носитель): анти-вакуум перенесённого regen-зуба — порт ПОЛЯ `имя` одного NPC-ассета в tmp-копии (+суффикс) обязан покраснить regen src/npc-data.js ≠ живому зеркалу (иначе сверка «≡ регену» ничего не сторожит — стандарт пустого зуба .393); живое дерево не мутируется', () => {
+  const tmp = makeTmpFullTree_000395();
+  try {
+    const dir = path.join(tmp, 'assets', 'npc');
+    const file = fs.readdirSync(dir)
+      .filter((f) => f.endsWith('.json') && f !== 'schema.json')
+      .sort()[0];
+    assert.ok(file, 'анти-вакуум: assets/npc в копии пуст — порт не построить');
+    const p = path.join(dir, file);
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    assert.ok(typeof j['имя'] === 'string' && j['имя'].length > 0,
+      file + ': в исходном ассете нет непустого `имя` — порт не построить');
+    j['имя'] = j['имя'] + ' порт';
+    fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+    assert.ok(!regenNpcMirror_000395(tmp).equals(
+      fs.readFileSync(path.join(ROOT, 'src', 'npc-data.js'))),
+      'порт ассетного `имя` оставил реген src/npc-data.js незакрашенным —'
+      + ' перенесённый зуб (000395) ничего не сторожит (носитель: '
+      + file + ')');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });

@@ -11,7 +11,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const I = require('../src/items.js');
 const ITD = require('../src/items-data.js');
@@ -586,15 +585,7 @@ test('000321.07 T9: spec/items.md — живой счётчик «Каталог
 
 // --- T10: 0-diff стражи ------------------------------------------------------
 
-test('000321.07 T10: 0-diff стражи — src/loot-equip-data.js побайтово прежний (зелья НЕ equip, пулы/таблицы не тронуты); EQUIP_POOLS размеры 232/161/117/46/23 инвариантны; DROP-таблица 50/30/15/4.9/0.1 ≡ 1; DISASSEMBLY_BY_ITEM — 673 канонических рецептов (598 + 50 новых базовых), единственный тай прежний (iron_sword), новых тайов нет (краснота: 598 — рецептов волны нет)', () => {
-  const before = execFileSync('git',
-    ['-C', ROOT, 'show', 'HEAD:src/loot-equip-data.js'],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const after = fs.readFileSync(path.join(ROOT, 'src',
-    'loot-equip-data.js'), 'utf8');
-  assert.equal(after, before,
-    'src/loot-equip-data.js ИЗМЕНЁН — зелья не должны влиять на '
-    + 'equip-пулы и DROP-контракт 000230');
+test('000321.07 T10 (миграция 000395): 0-diff стражи — побайтовая сверка src/loot-equip-data.js с HEAD-блобом снята (hand-файл: ни один генератор его не пишет, HEAD-зуб красил легитимные loot-волны ещё ДО их коммита и тавтологичен после; содержимое кроют items.test.js LF6 + адресный анти-хайджек в конце этого файла); живые стражи в силе: EQUIP_POOLS размеры 232/161/117/46/23 инвариантны; DROP-таблица 50/30/15/4.9/0.1 ≡ 1; DISASSEMBLY_BY_ITEM — 673 канонических рецептов (598 + 50 новых базовых), единственный тай прежний (iron_sword), новых тайов нет (краснота: 598 — рецептов волны нет)', () => {
   const P = L.EQUIP_POOLS;
   assert.deepEqual(L.RARITY.map((t) => P[t.id].length), [232, 161, 117,
     46, 23], 'EQUIP_POOLS — 232/161/117/46/23 (не выросли); факт: '
@@ -639,3 +630,50 @@ test('000321.07 T10: 0-diff стражи — src/loot-equip-data.js побайт
     assert.equal(map[id], id, id + ': канонический рецепт — свой же');
   }
 });
+
+// Чистый предикат адресного анти-хайджека (000395): пересечение пулов
+// EQUIP_POOLS с ростером волны. Тот же в трёх файлах волны — каждый носит
+// СВОЮ таблицу истинности на своих id, общий хелпер не заводим.
+function equipHijacks_000395(pools, ids) {
+  const roster = new Set(ids);
+  const bad = [];
+  for (const [tier, pool] of Object.entries(pools)) {
+    for (const id of pool) {
+      if (roster.has(id)) bad.push(tier + ': ' + id);
+    }
+  }
+  return bad;
+}
+
+test('000395 T3 (зелья-носитель 000321.07): адресный анти-хайджек после снятия HEAD-сверки (миграция) — ни один id волны ростера не попал в живые пулы EQUIP_POOLS на диске + ПОСТОЯННАЯ таблица истинности предиката equipHijacks_000395: инъекция id красит, легальные equip-данные, пустой пул и пустой ростер зелены (зуб-пустышка исключён)', () => {
+  assert.deepEqual(equipHijacks_000395(L.EQUIP_POOLS, ROSTER_IDS), [],
+    'id зелья замечен в equip-пуле (хайджек лута) — зелья не выдаются'
+    + ' выпадением по редкости (DROP-контракт 000230 не трогался)');
+  const table = [
+    ['красно: id волны инжектирован в пул',
+      { common: ['iron_sword', 'weak_healing'] }, ['weak_healing'], true],
+    ['зелено: только equip-данные',
+      { common: ['iron_sword'], rare: ['steel_blade'] }, ['weak_healing'],
+      false],
+    ['зелено: пустой пул', { common: [] }, ['weak_healing'], false],
+    ['зелено: пустой ростер (волны нет)',
+      { common: ['iron_sword'] }, [], false],
+    ['красно: id в каждом пуле',
+      { common: ['weak_healing'], legendary: ['weak_healing'] }, ['weak_healing'],
+      true],
+  ];
+  const misses = [];
+  for (const [name, pools, ids, mustCatch] of table) {
+    const caught = equipHijacks_000395(pools, ids).length > 0;
+    if (caught !== mustCatch) {
+      misses.push(name + ' → ' + (mustCatch ? 'НЕ поймано' : 'ложно'));
+    }
+  }
+  assert.ok(table.some((r) => r[3]) && table.some((r) => !r[3]),
+    'анти-вакуум таблицы: нужны и красные, и зелёные строки');
+  assert.deepEqual(misses, [],
+    'таблица истинности анти-хайджека покраснела: ' + misses.join('; ')
+    + ' — предикат обязан ловить инжект id волны и не трогать легальные'
+    + ' equip-данные (перенос 000395 вместо побайтовой HEAD-сверки)');
+});
+
