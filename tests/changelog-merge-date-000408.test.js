@@ -27,6 +27,18 @@
 // (датный заголовок «## ГГГГ-ММ-ДД» + граница токена, хвост — приписка; не-датный
 // «## » расклеивает) — но это СВОЙ минимальный парсер, НЕ require 000389:
 // require чужого .test.js удвоил бы регистрацию его тестов в едином прогоне.
+//
+// Задача 000414 (ретро-b29 долг D2): дополнительный зуб «порядок ключей манифеста
+// с датой ВЕРХНЕГО дня (insertion order) ≡ порядку буллетов КАЖДОЙ секции
+// верхнего дня». Сравнение per-секционное, НЕ флэт по дню: внутри секции буллеты
+// идут в порядке мержей (память changelog-merge-date-section), между секциями
+// действует порядок типов (зуб 000389 T2) — флэт легально краснел бы на дне со
+// второй «###»-секцией; на односекционном дне оба эквивалентны. Носители:
+// «000414 T1» (живая пара с диска) и «000414 T2» (self-check предиката на
+// синтетике, диска не читает). sha по-прежнему informational — предикат порядка
+// её не сверяет. Порядок нечисловых ключей сохраняет JSON.parse (целочисленно-
+// выглядищий bold-титул был бы переставлен движком парсера — такие титулы не
+// заводим). Git-вызовов нет (self-гейт T5 распространяется на весь текст файла).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -136,6 +148,75 @@ function coverageHits(manifest, text) {
   return hits;
 }
 
+function parseTopDaySections(text) {
+  let day = null;
+  let section = null;
+  for (const line of text.split('\n')) {
+    const dateMatch = /^## (\d{4}-\d{2}-\d{2})\b/.exec(line);
+    if (dateMatch) {
+      if (day) break;
+      day = { date: dateMatch[1], sections: [] };
+      section = null;
+      continue;
+    }
+    if (/^## /.test(line)) {
+      if (day) break;
+      continue;
+    }
+    if (!day) continue;
+    if (/^### /.test(line)) {
+      section = { heading: line.slice(4).trim(), bullets: [] };
+      day.sections.push(section);
+      continue;
+    }
+    if (/^- /.test(line)) {
+      if (!section) {
+        section = { heading: null, bullets: [] };
+        day.sections.push(section);
+      }
+      section.bullets.push(line);
+    }
+  }
+  return day;
+}
+
+function orderHits(manifest, text) {
+  const day = parseTopDaySections(text);
+  if (day === null) return [];
+  if (manifest === null || typeof manifest !== 'object' || Array.isArray(manifest)) return [];
+  const dayKeys = Object.keys(manifest).filter((k) => {
+    const v = manifest[k];
+    return v !== null && typeof v === 'object' && !Array.isArray(v) && v.date === day.date;
+  });
+  const hits = [];
+  const keySet = new Set(dayKeys);
+  for (const section of day.sections) {
+    const titles = [];
+    for (const b of section.bullets) {
+      const t = bulletTitle(b);
+      if (t !== null) titles.push(t);
+    }
+    if (titles.length === 0) continue;
+    const label = section.heading === null ? '(группа до первой «###»)' : '«' + section.heading + '»';
+    const keyless = titles.filter((t) => !keySet.has(t));
+    if (keyless.length > 0) {
+      hits.push('верхний день «' + day.date + '», секция ' + label + ': буллеты без ключа манифеста с датой этого дня ('
+        + keyless.join(', ') + ') — порядок мержей для них не определён; добавь запись в tests/data/changelog-merge-dates.json');
+      continue;
+    }
+    const titleSet = new Set(titles);
+    const projected = dayKeys.filter((k) => titleSet.has(k));
+    const differs = projected.length !== titles.length
+      || projected.some((k, i) => k !== titles[i]);
+    if (differs) {
+      hits.push('верхний день «' + day.date + '», секция ' + label + ': порядок буллетов ('
+        + titles.join(' → ') + ') ≠ порядку ключей манифеста (' + projected.join(' → ')
+        + ') — переставь ключи манифеста в фактический порядок ff-мержей (или буллеты в порядок манифеста)');
+    }
+  }
+  return hits;
+}
+
 function readManifest() {
   return JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
 }
@@ -230,4 +311,59 @@ test('000408 T5: архивная инертность — tmp-копии пар
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('000414 T1: порядок ключей манифеста (insertion order) с датой ВЕРХНЕГО дня ≡ порядку буллетов каждой секции верхнего дня (снятие долга D2 ретро-b29)', () => {
+  const text = fs.readFileSync(CHANGELOG_PATH, 'utf8');
+  const hits = orderHits(readManifest(), text);
+  assert.deepEqual(hits, [], 'порядок мержей манифеста ≠ порядку буллетов верхнего дня: ' + hits.join('; '));
+});
+
+test('000414 T2: self-check предиката порядка на синтетике — перестановка пары/середина-вставка/ключ-чужой-дня/непорядок имплицитной группы красны; чистая пара, хвостовая вставка пары, межсекционный инверс, пустой верхний день, приписка даты, не-датный «## » и не-bold буллеты зелёные', () => {
+  const D16 = '2026-11-16';
+  const D15 = '2026-11-15';
+  const cases = [
+    { name: 'а: чистая пара — буллеты в порядке ключей',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- **Альфа.** т\n- **Бета.** т\n', order: 0 },
+    { name: 'б: перестановка пары ключей манифеста',
+      manifest: { Бета: { date: D16 }, Альфа: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- **Альфа.** т\n- **Бета.** т\n', order: 1 },
+    { name: 'в: буллет вставлен в середину дня при хвостовом ключе',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D16 }, Гамма: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- **Альфа.** т\n- **Гамма.** т\n- **Бета.** т\n', order: 1 },
+    { name: 'г: хвостовая вставка пары (буллет+ключ в конец — форма ff-приёмки)',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D16 }, Намёт: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- **Альфа.** т\n- **Бета.** т\n- **Намёт.** т\n', order: 0 },
+    { name: 'д: две секции с межсекционным инверсом порядка мержей — per-секция зелёная (анти-флэт пин)',
+      manifest: { Игрек: { date: D16 }, Икс: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Интерфейс\n- **Икс.** т\n\n### Игровой процесс\n- **Игрек.** т\n', order: 0 },
+    { name: 'е: ключ буллета лежит с датой чужого дня — порядок не определён',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D15 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- **Альфа.** т\n- **Бета.** т\n', order: 1 },
+    { name: 'ж: пустой верхний день (ключи относятся к другому дню) — вакуумно зелёная',
+      manifest: { Альфа: { date: D15 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n\n## ' + D15 + '\n\n### Игровой процесс\n- **Альфа.** т\n', order: 0 },
+    { name: 'з: день с припиской даты распознаётся верхним, порядок сверяется',
+      manifest: { Бета: { date: D16 }, Альфа: { date: D16 } },
+      text: '## ' + D16 + ' (пре-релиз)\n\n### Игровой процесс\n- **Бета.** т\n- **Альфа.** т\n', order: 0 },
+    { name: 'и: не-датный «## » обрывает верхний день (буллет за ним вне сравнения)',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- **Альфа.** т\n\n## Приложение\n- **Бета.** т\n', order: 0 },
+    { name: 'к: не-bold буллет не попадает в титулы (его плечо — coverage T3)',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D16 } },
+      text: '## ' + D16 + '\n\n### Игровой процесс\n- обычный текст\n- **Альфа.** т\n- **Бета.** т\n', order: 0 },
+    { name: 'л: имплицитная группа буллетов до первой «###» сверяется порядком',
+      manifest: { Альфа: { date: D16 }, Бета: { date: D16 }, Гамма: { date: D16 } },
+      text: '## ' + D16 + '\n\n- **Бета.** т\n- **Альфа.** т\n\n### Игровой процесс\n- **Гамма.** т\n', order: 1 },
+    { name: 'м: ни одного дня в тексте — вакуумно зелёная',
+      manifest: { Альфа: { date: D16 } },
+      text: '# Заголовок\n\nтут нет датных секций\n', order: 0 },
+  ];
+  const mismatches = [];
+  for (const c of cases) {
+    const o = orderHits(c.manifest, c.text).length;
+    if (o !== c.order) mismatches.push(`${c.name}: order ${o} ≠ ${c.order}`);
+  }
+  assert.deepEqual(mismatches, [], 'предикат порядка врёт на синтетике: ' + mismatches.join('; '));
 });
