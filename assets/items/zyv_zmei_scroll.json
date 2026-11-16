@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zmei_scroll",
+  "name": "Зов змеи",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). змея сбрасывает шкуру — так и мертвец возвращается обновлённым.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zmei_scroll.svg"
+}

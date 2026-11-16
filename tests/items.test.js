@@ -1229,6 +1229,20 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         zyv_smoly_scroll: 2, zyv_tenei_scroll: 1, zyv_tishiny_scroll: 1, zyv_topei_scroll: 5, zyv_tverdyn_scroll: 5,
         zyv_utra_scroll: 5, zyv_vrat_scroll: 1, zyv_zabveniya_scroll: 3, zyv_zaslona_scroll: 2, zyv_zastavy_scroll: 2,
         zyv_zdorovya_scroll: 5, zyv_zhivitsy_scroll: 2, zyv_zhizni_scroll: 2,
+        // Ре-пин 000321.12: свитки воскрешения 001065–001114 — КОНЕЦ каталога, rng-хвост
+        // пула allItems (магазин богатства 3 — все предметы) → += 46 свитков (4 не
+        // выпали), остальные 898 ключей стока не сдвинулись (node-симуляция:
+        // seed/старые стоки byte-identical).
+        zyv_zimnego_groma_scroll: 5, zyv_zimnego_ozera_scroll: 5, zyv_zimnego_rassveta_scroll: 1, zyv_zimnego_snega_scroll: 5, zyv_zimnego_solntsa_scroll: 3,
+        zyv_zimnego_utra_scroll: 3, zyv_zimnej_nochi_scroll: 4, zyv_zimnej_zari_scroll: 4, zyv_zimnih_bur_scroll: 1, zyv_zimnih_molnij_scroll: 5,
+        zyv_zimnih_predkov_scroll: 3, zyv_zimnih_trop_scroll: 3, zyv_zimorodka_scroll: 2, zyv_zlata_scroll: 3, zyv_zlatogora_scroll: 5,
+        zyv_zlatogrivogo_scroll: 2, zyv_zlatokudrogo_scroll: 3, zyv_zlatyh_hor_scroll: 5, zyv_zloby_scroll: 1, zyv_zlyh_duhov_scroll: 1,
+        zyv_zmeev_scroll: 1, zyv_zmei_scroll: 5, zyv_znaharya_scroll: 3, zyv_znaniya_scroll: 1, zyv_znatnogo_roda_scroll: 4,
+        zyv_znatnyh_predkov_scroll: 4, zyv_znatokov_scroll: 4, zyv_znoya_scroll: 3, zyv_zolota_scroll: 5, zyv_zolotogo_klucha_scroll: 4,
+        zyv_zolotogo_veka_scroll: 3, zyv_zolotoj_osenej_scroll: 4, zyv_zolotoj_pticy_scroll: 4, zyv_zolotoj_zhily_scroll: 1, zyv_zoly_scroll: 2,
+        zyv_zorki_scroll: 3, zyv_zornicy_scroll: 1, zyv_zverej_scroll: 3, zyv_zverya_scroll: 1, zyv_zvezdopada_scroll: 4,
+        zyv_zvezdy_scroll: 5, zyv_zvona_scroll: 5, zyv_zvuka_scroll: 1, zyv_zyka_scroll: 4, zyv_zyklichem_scroll: 2,
+        zyv_zykuchego_golosa_scroll: 1,
     
       } },
   ];
@@ -2685,7 +2699,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 981, 'прочих предметов — ровно 981 (каталог 964 − 14 самородков − 14 новых − 5 исключений 000220; '
+  assert.equal(others, 1031, 'прочих предметов — ровно 1031 (ре-пин 000321.12: +50 свитков воскрешения без loot → 981 + 50 = 1031; каталог 964 − 14 самородков − 14 новых − 5 исключений 000220; '
     + 'ре-пин 000321.10: +50 реагентов zy* с loot — в исключения, прочих не тронуто; ре-пин 000321.11: +50 свитков без loot → 931 + 50 = 981; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set; 000235.12: +25 свитков волны Природа; 000333: +2 свитка навигации — все без loot; 000321.01: +50 оружия — все без loot; 000321.02: +50 брони — все без loot; 000321.03: +50 щитов — все без loot; 000321.04: +50 артефактов — все без loot; 000321.05: +50 инструментов — все без loot; 000348: +1 свиток Декаданс — без loot; 000321.06: +50 колец — все без loot; 000321.07: +50 зелий — все без loot; 000321.08: +50 еды — все без loot)');
 });
 
@@ -2952,7 +2966,7 @@ test('000191.13b (node): I.validateLoot — мусор (loot: строка/ма�
 // tests/assets-refs.test.js автоподхватит 28 icon-строк (решение —
 // memory §4.2), дублирующий sweep НЕ создаётся.
 
-test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / весь живой каталог с icon (ls-предикат; миграция 000397) (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; ре-пин 000321.07: +50 зелий с icon в items/ — в исключении, каталог 864; ре-пин 000321.08: +50 еды с icon в items/ — в исключении, каталог 964; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon; ре-пин 000321.10: +50 реагентов zy* — loot, icon в sprites/loot; ре-пин 000321.11: +50 свитков zy*_scroll с icon в items/ — в исключении, каталог — ls-предикат)", () => {
+test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<id>.svg (путь = конвенции), svg-файл существует; прочие 0 — icon undefined / весь живой каталог с icon (ls-предикат; миграция 000397) (ре-пин 000230.08: +25 head с icon в items/ — в исключении; ре-пин 000232: +6 чертежей с icon в items/ — в исключении; ре-пин 000230.09: +50 уши/шея с icon в items/ — в исключении; ре-пин 000230.10: +25 torso с icon в items/ — в исключении; ре-пин 000230.11: +50 рук с icon в items/ — в исключении; ре-пин 000230.12: +25 «правая рука» с icon в items/ — в исключении; ре-пин 000230.13: +25 left_hand с icon в items/ — в исключении; ре-пин 000230.14: +25 колец с icon в items/ — в исключении; ре-пин 000230.15: +50 ноги/ступни с icon в items/ — в исключении; ре-пин 000230.19: +2 set с icon в items/ — в исключении; ре-пин 000277: +2 set с icon в items/ — в исключении; ре-пин 000302.01: +25 свитков Огонь с icon в items/ — в исключении; ре-пин 000302.02: +25 свитков Льда с icon в items/ — в исключении; ре-пин 000302.03: +25 свитков Тени с icon в items/ — в исключении; ре-пин 000302.04: +25 свитков Исцеления с icon в items/ — в исключении; ре-пин 000302.05: +25 свитков Защиты с icon в items/ — в исключении; ре-пин 000302.06: +25 свитков Природы с icon в items/ — в исключении; ре-пин 000302.07: +20 книг/legacy-свитков с icon в items/ — в исключении; ре-пин 000302.08: +23 legacy-снаряжение/расходники — каталог иконирован полностью; ре-пин 000235.07–.12: +25 свитков × 6 волн БЕЗ icon — входят в счёт; ре-пин 000243: финальный, каталог 511; ре-пин 000333: +2 свитка навигации с icon в items/ — в исключении, каталог 513; ре-пин 000321.01: +50 оружия с icon в items/ — в исключении, каталог 563; ре-пин 000321.02: +50 брони с icon в items/ — в исключении, каталог 613; ре-пин 000321.03: +50 щитов с icon в items/ — в исключении, каталог 663; ре-пин 000321.04: +50 артефактов с icon в items/ — в исключении, каталог 713; ре-пин 000321.05: +50 инструментов с icon в items/ — в исключении, каталог 763; ре-пин 000348: +1 свиток Декаданс с icon в items/ — в исключении, каталог 764; ре-пин 000321.06: +50 колец с icon в items/ — в исключении, каталог 814; ре-пин 000321.07: +50 зелий с icon в items/ — в исключении, каталог 864; ре-пин 000321.08: +50 еды с icon в items/ — в исключении, каталог 964; пин «не тронуто»; 5 reagent'ов 000220 — с loot+icon; ре-пин 000321.10: +50 реагентов zy* — loot, icon в sprites/loot; ре-пин 000321.11: +50 свитков zy*_scroll с icon в items/ — в исключении; ре-пин 000321.12: +50 свитков воскрешения zyv_*_scroll с icon в items/ — в исключении, каталог — ls-предикат)", () => {
   const files = ITEMSFILES_I08();
   const byId = new Map();
   for (const f of files) {
@@ -3314,6 +3328,21 @@ test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<i
     'zyv_tverdyn_scroll', 'zyv_ugley_scroll', 'zyv_utra_scroll', 'zyv_vrat_scroll', 'zyv_zabveniya_scroll',
     'zyv_zaslona_scroll', 'zyv_zastavy_scroll', 'zyv_zdorovya_scroll', 'zyv_zhivitsy_scroll', 'zyv_zhizni_scroll'
   ]);
+  const RESURRECTSCROLLS_00032112 = new Set([
+    'zyv_zimnego_groma_scroll', 'zyv_zimnego_ozera_scroll', 'zyv_zimnego_rassveta_scroll', 'zyv_zimnego_snega_scroll',
+    'zyv_zimnego_solntsa_scroll', 'zyv_zimnego_utra_scroll', 'zyv_zimnej_nochi_scroll', 'zyv_zimnej_zari_scroll',
+    'zyv_zimnih_bur_scroll', 'zyv_zimnih_molnij_scroll', 'zyv_zimnih_predkov_scroll', 'zyv_zimnih_trop_scroll',
+    'zyv_zimorodka_scroll', 'zyv_zimy_scroll', 'zyv_zlata_scroll', 'zyv_zlatogora_scroll',
+    'zyv_zlatogrivogo_scroll', 'zyv_zlatokudrogo_scroll', 'zyv_zlatyh_hor_scroll', 'zyv_zloby_scroll',
+    'zyv_zlyh_duhov_scroll', 'zyv_zmeev_scroll', 'zyv_zmei_scroll', 'zyv_znaharya_scroll',
+    'zyv_znaniya_scroll', 'zyv_znatnogo_roda_scroll', 'zyv_znatnyh_predkov_scroll', 'zyv_znatokov_scroll',
+    'zyv_znoya_scroll', 'zyv_zolota_scroll', 'zyv_zolotogo_klucha_scroll', 'zyv_zolotogo_kraya_scroll',
+    'zyv_zolotogo_veka_scroll', 'zyv_zolotoj_osenej_scroll', 'zyv_zolotoj_pticy_scroll', 'zyv_zolotoj_zhily_scroll',
+    'zyv_zoly_scroll', 'zyv_zorki_scroll', 'zyv_zornicy_scroll', 'zyv_zverej_scroll',
+    'zyv_zverya_scroll', 'zyv_zvezd_scroll', 'zyv_zvezdopada_scroll', 'zyv_zvezdy_scroll',
+    'zyv_zvona_scroll', 'zyv_zvonnicy_scroll', 'zyv_zvuka_scroll', 'zyv_zyka_scroll',
+    'zyv_zyklichem_scroll', 'zyv_zykuchego_golosa_scroll'
+  ]);
   const WEAPONS_00032101 = new Set(['copper_short_sword', 'drill_sword', 'poacher_dirk', 'kopis_curved', 'legion_sword', 'battered_falx', 'merchant_sword', 'patrol_sword', 'lumber_machete', 'sapling_bow', 'trade_bow', 'patrol_bow', 'poacher_bow', 'yew_longbow', 'copper_maul', 'stone_mace', 'flanged_mace', 'lumber_axe', 'miner_pickaxe', 'campaign_maul', 'silvered_sword', 'legion_gladius', 'arming_sword', 'rebel_brand', 'warder_sword', 'silver_inlaid_bow', 'long_warbow', 'scout_bow', 'silvered_mace', 'storm_maul', 'siege_axe', 'silver_bound_staff', 'warden_quarterstaff', 'vine_staff', 'gilded_broadsword', 'damascus_blade', 'gilt_war_hammer', 'thunder_maul', 'goldstring_bow', 'windfletch_bow', 'tempest_staff', 'pyre_staff', 'hoarfrost_staff', 'archivist_staff', 'dawnedge_blade', 'gate_hammer', 'aurora_bow', 'starvault_staff', 'fate_cleaver', 'genesis_staff']);
   let others = 0;
   for (const it of byId.values()) {
@@ -3347,7 +3376,8 @@ test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<i
         || POTIONS_00032107.has(it.id)
         || FOOD_00032108.has(it.id)
         || SKILLBOOKS_00032109.has(it.id)
-        || SPELLSCROLLS_00032111.has(it.id)) continue;
+        || SPELLSCROLLS_00032111.has(it.id)
+        || RESURRECTSCROLLS_00032112.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -3866,7 +3896,7 @@ test('000230.01 E9 (ГАРД): каталог — ls-предикат (мигр�
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 475, 'прочих предметов — ровно 475 (ре-пин 000321.10: +50 реагентов без slot/rarity; ре-пин 000230.09: '
+  assert.equal(others, 525, 'прочих предметов — ровно 525 (ре-пин 000321.12: +50 свитков воскрешения без slot/rarity → 475 + 50 = 525; ре-пин 000321.10: +50 реагентов без slot/rarity; ре-пин 000230.09: '
     + '182 − 75 equip-исключений = 107 (25 head + 50 уши/шея); '
     + 'ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: '
     + '+25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны '
@@ -9784,7 +9814,7 @@ test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони
   assert.equal(I.allItems().length, files.length,
     'allItems() = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 = 1064 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 + 50 свитков воскрешения 000321.12 = 1114 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '
@@ -10264,7 +10294,7 @@ test('000230.15 LF7: зеркала — items-data ≡ каталогу (ls-пр
   assert.equal(I.allItems().length, ITEMSFILES_I08().length,
     'items-data = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 = 1064 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 + 50 свитков воскрешения 000321.12 = 1114 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '

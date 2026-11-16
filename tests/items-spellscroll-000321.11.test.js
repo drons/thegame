@@ -331,26 +331,33 @@ test('000321.11 T6: craft-guard — рецептов с результатом s
   }
 });
 
-test('000321.11 T7: реестр — хвостовой append в лекс-порядке; префикс additions-only; зеркало несёт хвост', () => {
+test('000321.11 T7: реестр — хвостовой append в лекс-порядке; префикс additions-only; зеркало несёт хвост (ре-пин 000321.12: хвост занят воскрешением 001065–001114 — блок закреплён по первому вхождению)', () => {
   const total = REG_KEYS.length;
-  const start = total - N + 1;
-  const tail = REG_KEYS.slice(start - 1);
   const sorted = [...SCROLL_SLUGS].sort();
-  assert.equal(tail.length, N, 'хвост длиной ровно ' + N);
+  const blockSet = new Set(SCROLL_SLUGS);
+  const firstIdx = REG_KEYS.findIndex((k) => blockSet.has(REG[k]));
+  const tail = REG_KEYS.slice(firstIdx, firstIdx + N);
+  assert.equal(tail.length, N, 'блок длиной ровно ' + N);
   assert.deepEqual(tail.map((k) => REG[k]), sorted,
-    'хвост реестра ' + start + '..' + total + ' == новые свитки по лекси');
-  const prefixVals = REG_KEYS.slice(0, start - 1).map((k) => REG[k]);
+    'блок реестра == новые свитки по лекси (ре-пин 000321.12: хвост'
+    + ' занят воскрешением 001065–001114)');
+  const prefixVals = REG_KEYS.slice(0, firstIdx).map((k) => REG[k]);
+  const laterVals = new Set(REG_KEYS.slice(firstIdx + N).map((k) => REG[k]));
   const diskOld = itemSlugFiles().map((f) => f.slice(0, -5))
-    .filter((s) => !SCROLL_SLUGS.includes(s));
+    .filter((s) => !blockSet.has(s) && !laterVals.has(s));
   assert.deepEqual([...prefixVals].sort(), [...diskOld].sort(),
-    'префикс реестра ≡ диску без новых (additions-only)');
+    'префикс реестра ≡ диску без новых и без поздних волн (additions-only)');
   const mirror = ITD.ITEMS.map((e) => e.id);
   assert.equal(mirror.length, total, 'зеркало items ≡ мощности реестра');
   assert.deepEqual(mirror, [...mirror].sort(), 'зеркало отсортировано по id');
-  assert.deepEqual(mirror.slice(-N), sorted, 'зеркало несёт новые свитки хвостом');
+  const mIdx = mirror.indexOf(sorted[0]);
+  assert.ok(mIdx >= 0, 'новые свитки в зеркале');
+  assert.deepEqual(mirror.slice(mIdx, mIdx + N), sorted,
+    'зеркало несёт новые свитки подряд по лекси (ре-пин 000321.12: хвост'
+    + ' после них — воскрешение)');
 });
 
-test('000321.11 T8: живые дельты +N и self-gate: запрет движущихся счётчиков-литералов в этом файле', () => {
+test('000321.11 T8: живые дельты +N и self-gate: запрет движущихся счётчиков-литералов в этом файле (ре-пин 000321.12: дельта считается над префиксом до блока, блок — spell_scroll целиком)', () => {
   for (const sid of SPELL_IDS) {
     assert.ok(fs.existsSync(path.join(ITEMS_DIR, sid + '_scroll.json')),
       sid + '_scroll.json на диске (RED: нет)');
@@ -368,8 +375,13 @@ test('000321.11 T8: живые дельты +N и self-gate: запрет дви
     return fs.existsSync(p) ? readJson(p).kind : undefined;
   };
   const kindCount = items.filter((s) => kindOf(s) === 'spell_scroll').length;
-  const prefixScrolls = REG_KEYS.slice(0, REG_KEYS.length - N)
+  const blockSet8 = new Set(SCROLL_SLUGS);
+  const firstIdx8 = REG_KEYS.findIndex((k) => blockSet8.has(REG[k]));
+  const prefixScrolls = REG_KEYS.slice(0, firstIdx8)
     .filter((k) => kindOf(REG[k]) === 'spell_scroll').length;
+  const blockScrolls = REG_KEYS.slice(firstIdx8, firstIdx8 + N)
+    .filter((k) => kindOf(REG[k]) === 'spell_scroll').length;
+  assert.equal(blockScrolls, N, 'блок реестра — все 50 spell_scroll');
   assert.equal(kindCount, prefixScrolls + N,
     'spell_scroll: дельта ровно +' + N + ' над префиксом реестра');
   const masked = fs.readFileSync(__filename, 'utf8')
@@ -387,7 +399,7 @@ test('000321.11 T8: живые дельты +N и self-gate: запрет дви
     'self-gate: паттерн «<цифры> файлов (на момент» отсутствует (counters live)');
 });
 
-test('000321.11 T9: spec/canon/c9 — line-neutral правка, байтовый лог ≡ живым байтам, счётчики канона живые', () => {
+test('000321.11 T9: spec/canon/c9 — line-neutral правка, байтовый лог ≡ живым байтам, счётчики канона живые (ре-пин 000321.12: spec-счётчик перехвачен волной — сверка живая по regex, как у 000321.10)', () => {
   const spec = fs.readFileSync(path.join(ROOT, 'spec', 'items.md'), 'utf8');
   assert.ok(!spec.endsWith('\n'), 'spec/items.md без trailing-\\n');
   const lines = spec.split('\n');
@@ -396,9 +408,13 @@ test('000321.11 T9: spec/canon/c9 — line-neutral правка, байтовы�
   assert.ok(lines.some((l) => l.includes('Каталог пополнен ' + N +
     ' свитками заклинаний 000321.11')),
     'spec: предложение волны 000321.11 в цепочке');
-  assert.ok(lines.some((l) => l.includes('Каталог assets/items — ' + liveCount +
-    ' файлов (на момент 000321.11)')),
-    'spec: счётчик == живому каталогу, «на момент 000321.11»');
+  const cm9 = spec.match(
+    /Каталог assets\/items — (\d+) файлов \(на момент ([0-9.]+)\):/);
+  assert.ok(cm9, 'spec/items.md: строки счётчика нет');
+  assert.equal(+cm9[1], liveCount,
+    'spec: счётчик == живому каталогу (' + liveCount + ')');
+  assert.ok(cm9[2] >= '000321.11',
+    'spec: счётчик «на момент ' + cm9[2] + '» не раньше 000321.11');
   const c9p = path.join(ROOT, 'memory', '000230.16-c9', '000321.11.md');
   assert.ok(fs.existsSync(c9p), 'c9-entry ' + c9p + ' существует (RED: нет)');
   const c9 = fs.readFileSync(c9p, 'utf8');

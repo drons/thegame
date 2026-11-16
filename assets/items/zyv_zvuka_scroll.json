@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zvuka_scroll",
+  "name": "Зов звука",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 140,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). первый звук до слова. повтори его — и тебя дождутся.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zvuka_scroll.svg"
+}

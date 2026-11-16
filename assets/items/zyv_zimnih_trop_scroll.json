@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnih_trop_scroll",
+  "name": "Зов зимних троп",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 140,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). снег скрыл дорогу к дому; этот зов её указывает.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnih_trop_scroll.svg"
+}

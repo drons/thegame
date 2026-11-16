@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zolotoj_pticy_scroll",
+  "name": "Зов золотой птицы",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 220,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). где перо жар-птицы падает, там мертвецы просыпаются.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zolotoj_pticy_scroll.svg"
+}

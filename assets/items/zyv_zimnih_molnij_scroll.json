@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnih_molnij_scroll",
+  "name": "Зов зимних молний",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 175,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). синяя зимняя молния открывает вратарь на единый миг.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnih_molnij_scroll.svg"
+}

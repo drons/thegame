@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zolotogo_veka_scroll",
+  "name": "Зов золотого века",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 220,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). в золотом веке смерти не было — этот свиток помнит как.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zolotogo_veka_scroll.svg"
+}

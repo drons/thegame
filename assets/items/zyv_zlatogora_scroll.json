@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zlatogora_scroll",
+  "name": "Зов златогора",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 200,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). зовут обратно с золотой горы, где спят мёртвые.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zlatogora_scroll.svg"
+}

@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnej_zari_scroll",
+  "name": "Зов зимней зари",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). написан на льдине в предрассветной мгле — мёртвые видят его как свет из-под снега.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnej_zari_scroll.svg"
+}

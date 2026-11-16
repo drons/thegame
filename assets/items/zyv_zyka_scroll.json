@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zyka_scroll",
+  "name": "Зов зыка",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 175,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). старинное слово для старинного зова — крепче молитвы.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zyka_scroll.svg"
+}

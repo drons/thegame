@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zvonnicy_scroll",
+  "name": "Зов звонницы",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 150,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). звонят не на башне, а под землёй, — и слышно.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zvonnicy_scroll.svg"
+}

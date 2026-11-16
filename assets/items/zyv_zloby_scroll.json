@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zloby_scroll",
+  "name": "Зов злобы",
+  "kind": "resurrection_scroll",
+  "weight": 0.6,
+  "value": 130,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). написан в гневе — поэтому мертвецы восстают живыми.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zloby_scroll.svg"
+}

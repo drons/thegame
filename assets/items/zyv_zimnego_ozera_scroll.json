@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnego_ozera_scroll",
+  "name": "Зов зимнего озера",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 150,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). утопленникам подо льдом отвечают из полыньи.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnego_ozera_scroll.svg"
+}

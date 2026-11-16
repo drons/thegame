@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zlatokudrogo_scroll",
+  "name": "Зов златокудрого",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 190,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). тот, кто обещал вернуться первым, — вернулся.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zlatokudrogo_scroll.svg"
+}

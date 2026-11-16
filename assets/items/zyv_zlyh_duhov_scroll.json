@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zlyh_duhov_scroll",
+  "name": "Зов злых духов",
+  "kind": "resurrection_scroll",
+  "weight": 0.6,
+  "value": 130,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). тёмному духу дают долг, и он приводит мертвеца.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zlyh_duhov_scroll.svg"
+}

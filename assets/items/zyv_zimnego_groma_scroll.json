@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnego_groma_scroll",
+  "name": "Зов зимнего грома",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 175,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). гром среди февраля — так зовут обратно.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnego_groma_scroll.svg"
+}

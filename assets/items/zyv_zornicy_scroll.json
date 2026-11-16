@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zornicy_scroll",
+  "name": "Зов зорницы",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 150,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). зорьки-сестры раздвигают небеса — для тех, кто спит.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zornicy_scroll.svg"
+}

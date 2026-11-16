@@ -1852,6 +1852,18 @@ const SHOP_GOLDEN = {
     zyv_tenei_scroll: 1, zyv_tishiny_scroll: 5, zyv_topei_scroll: 4, zyv_tropy_scroll: 3, zyv_tverdyn_scroll: 4,
     zyv_utra_scroll: 1, zyv_vrat_scroll: 4, zyv_zabveniya_scroll: 3, zyv_zaslona_scroll: 4, zyv_zastavy_scroll: 5,
     zyv_zdorovya_scroll: 1, zyv_zhivitsy_scroll: 5, zyv_zhizni_scroll: 5,
+    // Ре-пин 000321.12: свитки воскрешения 001065–001114 — КОНЕЦ каталога, rng-хвост
+    // пула allItems (universam w3) → += 41 свиток (9 не выпали), остальные 903
+    // ключа стока не сдвинулись (node-симуляция: seed/старый сток byte-identical).
+    zyv_zimnego_ozera_scroll: 3, zyv_zimnego_rassveta_scroll: 2, zyv_zimnego_snega_scroll: 4, zyv_zimnej_nochi_scroll: 1, zyv_zimnej_zari_scroll: 4,
+    zyv_zimnih_bur_scroll: 5, zyv_zimnih_trop_scroll: 3, zyv_zimy_scroll: 1, zyv_zlata_scroll: 1, zyv_zlatogora_scroll: 4,
+    zyv_zlatogrivogo_scroll: 2, zyv_zlatokudrogo_scroll: 2, zyv_zlatyh_hor_scroll: 3, zyv_zloby_scroll: 3, zyv_zlyh_duhov_scroll: 1,
+    zyv_zmeev_scroll: 5, zyv_zmei_scroll: 5, zyv_znaharya_scroll: 1, zyv_znaniya_scroll: 4, zyv_znatnogo_roda_scroll: 1,
+    zyv_znatnyh_predkov_scroll: 4, zyv_znatokov_scroll: 5, zyv_znoya_scroll: 4, zyv_zolota_scroll: 4, zyv_zolotogo_klucha_scroll: 5,
+    zyv_zolotogo_kraya_scroll: 1, zyv_zolotoj_osenej_scroll: 5, zyv_zolotoj_pticy_scroll: 2, zyv_zolotoj_zhily_scroll: 4, zyv_zoly_scroll: 5,
+    zyv_zorki_scroll: 1, zyv_zornicy_scroll: 4, zyv_zverej_scroll: 5, zyv_zverya_scroll: 2, zyv_zvezd_scroll: 2,
+    zyv_zvezdopada_scroll: 1, zyv_zvezdy_scroll: 3, zyv_zvona_scroll: 5, zyv_zyka_scroll: 4, zyv_zyklichem_scroll: 3,
+    zyv_zykuchego_golosa_scroll: 5,
 
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {

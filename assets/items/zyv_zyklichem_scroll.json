@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zyklichem_scroll",
+  "name": "Зов зычным кличем",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). крикнут с башни — отзовутся из-под кургана.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zyklichem_scroll.svg"
+}

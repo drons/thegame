@@ -1,0 +1,12 @@
+{
+  "id": "zyv_znaniya_scroll",
+  "name": "Зов знания",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). зов знания: достаточно знать, как, — и это происходит.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_znaniya_scroll.svg"
+}

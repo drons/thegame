@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zlata_scroll",
+  "name": "Зов злата",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 220,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). выписан золотом немой грамотой — золото не предаёт.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zlata_scroll.svg"
+}

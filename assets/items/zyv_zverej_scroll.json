@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zverej_scroll",
+  "name": "Зов зверей",
+  "kind": "resurrection_scroll",
+  "weight": 0.6,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). когда воют все звери сразу, лес отдаёт мертвецов.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zverej_scroll.svg"
+}

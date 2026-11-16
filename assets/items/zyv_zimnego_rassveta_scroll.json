@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnego_rassveta_scroll",
+  "name": "Зов зимнего рассвета",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). на севере рассвет длится три суток — времени хватит и на возвращение.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnego_rassveta_scroll.svg"
+}

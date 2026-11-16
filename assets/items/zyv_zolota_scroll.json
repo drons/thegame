@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zolota_scroll",
+  "name": "Зов золота",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 220,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). зов звучит как слиток — тяжело и чисто.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zolota_scroll.svg"
+}

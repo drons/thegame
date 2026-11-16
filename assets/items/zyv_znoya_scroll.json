@@ -1,0 +1,12 @@
+{
+  "id": "zyv_znoya_scroll",
+  "name": "Зов зноя",
+  "kind": "resurrection_scroll",
+  "weight": 0.6,
+  "value": 140,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). даже в полуденный зной мертвецы просят воды — верните их.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_znoya_scroll.svg"
+}

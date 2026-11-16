@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zykuchego_golosa_scroll",
+  "name": "Зов зычного голоса",
+  "kind": "resurrection_scroll",
+  "weight": 0.6,
+  "value": 150,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). громким голосом звать — и мертвец встанет.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zykuchego_golosa_scroll.svg"
+}

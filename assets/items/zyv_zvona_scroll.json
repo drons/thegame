@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zvona_scroll",
+  "name": "Зов звона",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 160,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). в колокол бьют над водой, чтобы утопленник нашёл берег.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zvona_scroll.svg"
+}

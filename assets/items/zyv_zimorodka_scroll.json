@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimorodka_scroll",
+  "name": "Зов зимородка",
+  "kind": "resurrection_scroll",
+  "weight": 0.4,
+  "value": 220,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). птица, оборачивающая зиму: где она пролетит, там и жизнь возвращается.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimorodka_scroll.svg"
+}

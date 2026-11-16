@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnego_snega_scroll",
+  "name": "Зов зимнего снега",
+  "kind": "resurrection_scroll",
+  "weight": 0.6,
+  "value": 140,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). в каждом хлопке — чьё-то имя; позванный не заблудится.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnego_snega_scroll.svg"
+}

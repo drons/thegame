@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zmeev_scroll",
+  "name": "Зов змеев",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 150,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). зовут по-змеиному, не доверяя человеческому слову.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zmeev_scroll.svg"
+}

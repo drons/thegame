@@ -1,0 +1,12 @@
+{
+  "id": "zyv_zimnego_solntsa_scroll",
+  "name": "Зов зимнего солнца",
+  "kind": "resurrection_scroll",
+  "weight": 0.5,
+  "value": 150,
+  "desc": "В бою (быстрый слот): возвращает первого погибшего союзника на поле боя (50% HP). бледное солнце, которое греет только мёртвых — и поднимает их.",
+  "effect": {
+    "kind": "resurrect"
+  },
+  "icon": "assets/sprites/items/zyv_zimnego_solntsa_scroll.svg"
+}
