@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_pera_feniksa",
+  "name": "Чертежи пера феникса",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «рунопись»: образец — Перо феникса.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_pera_feniksa.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_pera_feniksa.svg"
+}

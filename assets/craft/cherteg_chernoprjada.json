@@ -1,0 +1,31 @@
+{
+  "id": "cherteg_chernoprjada",
+  "название": "Переписывание чертежей чернопряда",
+  "тип": "зачарование",
+  "результат": {
+    "предмет": "assets/items/mushroom_ink.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/mushroom_grey.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/zybkaya_smola.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/mage_tower.json"
+  ],
+  "заклинания": [
+    "dark_presence"
+  ],
+  "уровень": 4,
+  "описание": "Мастер переносит на чистую бумагу узор изделия «Чернопряд»: зачарование, уровень 4, исходники — только под рукой."
+}

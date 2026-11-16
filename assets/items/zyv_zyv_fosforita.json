@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_fosforita",
+  "name": "Чертежи фосфорита",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 170,
+  "base_price": 170,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Фосфорит.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_fosforita.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_fosforita.svg"
+}

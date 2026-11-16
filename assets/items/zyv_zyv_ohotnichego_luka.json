@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_ohotnichego_luka",
+  "name": "Чертежи охотничьего лука",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 145,
+  "base_price": 145,
+  "desc": "Сборник чертежей вида «столярное_дело»: образец — Охотничий лук.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_ohotnichego_luka.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_ohotnichego_luka.svg"
+}

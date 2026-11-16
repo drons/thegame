@@ -1243,6 +1243,23 @@ test('makeShop: golden (x, y, type, wealth) — сток БЕЗ ИЗМЕНЕНИ
         zyv_zorki_scroll: 3, zyv_zornicy_scroll: 1, zyv_zverej_scroll: 3, zyv_zverya_scroll: 1, zyv_zvezdopada_scroll: 4,
         zyv_zvezdy_scroll: 5, zyv_zvona_scroll: 5, zyv_zvuka_scroll: 1, zyv_zyka_scroll: 4, zyv_zyklichem_scroll: 2,
         zyv_zykuchego_golosa_scroll: 1,
+        // Ре-пин 000321.13: чертежи 001115–001164 — КОНЕЦ каталога, rng-хвост пула
+        // allItems (магазин богатства 3 — все предметы) → += 41 чертёж (9 не выпали),
+        // остальные 944 ключа стока не сдвинулись (seed/старые стоки byte-identical).
+        // Состав хвоста переснят ЖИВЫМ кодом после второго перенацеливания образцов
+        // (результаты чертежей — предметы БЕЗ rarity: rarity-слот не получает второго
+        // базового рецепта, ростеры craft.test.js не задеты). Переименование id волны
+        // переставляет имена на тех же 41 позиции ⇒ кардинальность 41/9 и агрегаты
+        // (985 ключей / Σ 3011) инвариантны.
+        zyv_zyv_almaza: 2, zyv_zyv_ametista: 3, zyv_zyv_ayvy: 2, zyv_zyv_boevogo_molota: 3, zyv_zyv_boevogo_topora: 4,
+        zyv_zyv_breven: 3, zyv_zyv_cherniki: 2, zyv_zyv_chernoprjada: 4, zyv_zyv_derevyannogo_mecha: 3, zyv_zyv_dikikh_yagod: 4,
+        zyv_zyv_eliksira_manny: 4, zyv_zyv_fosforita: 5, zyv_zyv_gorechavki: 5, zyv_zyv_iscelejajushhego_zelya: 2, zyv_zyv_kamennogo_kornya: 5,
+        zyv_zyv_kamennogo_oblomka: 4, zyv_zyv_kamennoj_stameski: 5, zyv_zyv_klubniki: 5, zyv_zyv_kozhanogo_dospeha: 3, zyv_zyv_kozhi: 1,
+        zyv_zyv_kvarca: 1, zyv_zyv_lunnogo_kamnya: 3, zyv_zyv_malogo_izceleija: 2, zyv_zyv_many: 5, zyv_zyv_medi: 4,
+        zyv_zyv_obsidiana: 1, zyv_zyv_pancirja_rjazara: 5, zyv_zyv_pera_feniksa: 2, zyv_zyv_rubina: 5, zyv_zyv_safira: 4,
+        zyv_zyv_serebra: 2, zyv_zyv_solntsa: 2, zyv_zyv_stalnogo_mecha: 2, zyv_zyv_starshogo_izceleija: 1, zyv_zyv_svetlyachka: 3,
+        zyv_zyv_tlevshey_kory: 2, zyv_zyv_uglya: 4, zyv_zyv_vetra: 4, zyv_zyv_zelya_manny: 5, zyv_zyv_zheleza: 4,
+        zyv_zyv_zolota: 3
     
       } },
   ];
@@ -2699,7 +2716,7 @@ test("000158.02 L3: «самородки» — 14 СУЩЕСТВУЮЩИХ id н
       it.id + ': loot отсутствует (предмет не тронут, 000158.02)');
     others++;
   }
-  assert.equal(others, 1031, 'прочих предметов — ровно 1031 (ре-пин 000321.12: +50 свитков воскрешения без loot → 981 + 50 = 1031; каталог 964 − 14 самородков − 14 новых − 5 исключений 000220; '
+  assert.equal(others, 1081, 'прочих предметов — ровно 1081 (ре-пин 000321.13: +50 чертежей без loot → 1031 + 50 = 1081; ре-пин 000321.12: +50 свитков воскрешения без loot → 981 + 50 = 1031; каталог 964 − 14 самородков − 14 новых − 5 исключений 000220; '
     + 'ре-пин 000321.10: +50 реагентов zy* с loot — в исключения, прочих не тронуто; ре-пин 000321.11: +50 свитков без loot → 931 + 50 = 981; ре-пин 000230.08: +25 head; 000232: +6; 000235.07: +25 свитков; 000235.08: +25 свитков; 000230.09: +50; 000230.10: +25 torso; 000235.09: +25 свитков волны Тень; 000235.10: +25 свитков волны Исцеление; 000230.11: +50 руки; 000230.12: +25 «правая рука»; 000230.13: +25 left_hand; 000230.14: +25 колец; 000230.15: +50 ноги/ступни; 000230.19: +2 set; 000235.11: +25 свитков волны Защита; 000277: +2 set; 000235.12: +25 свитков волны Природа; 000333: +2 свитка навигации — все без loot; 000321.01: +50 оружия — все без loot; 000321.02: +50 брони — все без loot; 000321.03: +50 щитов — все без loot; 000321.04: +50 артефактов — все без loot; 000321.05: +50 инструментов — все без loot; 000348: +1 свиток Декаданс — без loot; 000321.06: +50 колец — все без loot; 000321.07: +50 зелий — все без loot; 000321.08: +50 еды — все без loot)');
 });
 
@@ -3328,6 +3345,18 @@ test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<i
     'zyv_tverdyn_scroll', 'zyv_ugley_scroll', 'zyv_utra_scroll', 'zyv_vrat_scroll', 'zyv_zabveniya_scroll',
     'zyv_zaslona_scroll', 'zyv_zastavy_scroll', 'zyv_zdorovya_scroll', 'zyv_zhivitsy_scroll', 'zyv_zhizni_scroll'
   ]);
+  const CRAFTSCROLLS_00032113 = new Set([
+    'zyv_zyv_almaza', 'zyv_zyv_ametista', 'zyv_zyv_ayvy', 'zyv_zyv_boevogo_molota', 'zyv_zyv_boevogo_topora',
+    'zyv_zyv_breven', 'zyv_zyv_cherniki', 'zyv_zyv_chernoprjada', 'zyv_zyv_derevyannogo_mecha', 'zyv_zyv_dikikh_yagod',
+    'zyv_zyv_eliksira_manny', 'zyv_zyv_fosforita', 'zyv_zyv_gorechavki', 'zyv_zyv_iscelejajushhego_zelya', 'zyv_zyv_isceleniya',
+    'zyv_zyv_izmruda', 'zyv_zyv_kamennogo_kornya', 'zyv_zyv_kamennogo_oblomka', 'zyv_zyv_kamennoj_stameski', 'zyv_zyv_klubniki',
+    'zyv_zyv_kolchugi', 'zyv_zyv_korotkogo_luka', 'zyv_zyv_kozhanogo_dospeha', 'zyv_zyv_kozhi', 'zyv_zyv_kvarca',
+    'zyv_zyv_lunnogo_kamnya', 'zyv_zyv_lunnogo_kornya', 'zyv_zyv_malogo_izceleija', 'zyv_zyv_many', 'zyv_zyv_medi',
+    'zyv_zyv_mifrita', 'zyv_zyv_obsidiana', 'zyv_zyv_ohotnichego_luka', 'zyv_zyv_pancirja_rjazara', 'zyv_zyv_pera_feniksa',
+    'zyv_zyv_rubina', 'zyv_zyv_safira', 'zyv_zyv_serebra', 'zyv_zyv_slivy', 'zyv_zyv_solntsa',
+    'zyv_zyv_stalnogo_mecha', 'zyv_zyv_starshogo_izceleija', 'zyv_zyv_svetlyachka', 'zyv_zyv_tlevshey_kory', 'zyv_zyv_uglya',
+    'zyv_zyv_vetra', 'zyv_zyv_yabloka', 'zyv_zyv_zelya_manny', 'zyv_zyv_zheleza', 'zyv_zyv_zolota'
+  ]);
   const RESURRECTSCROLLS_00032112 = new Set([
     'zyv_zimnego_groma_scroll', 'zyv_zimnego_ozera_scroll', 'zyv_zimnego_rassveta_scroll', 'zyv_zimnego_snega_scroll',
     'zyv_zimnego_solntsa_scroll', 'zyv_zimnego_utra_scroll', 'zyv_zimnej_nochi_scroll', 'zyv_zimnej_zari_scroll',
@@ -3377,7 +3406,8 @@ test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<i
         || FOOD_00032108.has(it.id)
         || SKILLBOOKS_00032109.has(it.id)
         || SPELLSCROLLS_00032111.has(it.id)
-        || RESURRECTSCROLLS_00032112.has(it.id)) continue;
+        || RESURRECTSCROLLS_00032112.has(it.id)
+        || CRAFTSCROLLS_00032113.has(it.id)) continue;
     assert.ok(!('icon' in it),
       it.id + ': icon НЕ задан (предмет не тронут, 000211.06)');
     others++;
@@ -3421,7 +3451,8 @@ test("000211.06 I1: 83 лут-предмета — icon = assets/sprites/loot/<i
     + 'исключении; ре-пин 000321.07: +50 зелий с icon — в '
     + 'исключении; ре-пин 000321.08: +50 еды с icon — в исключении; '
     + 'ре-пин 000321.10: +50 реагентов с icon в sprites/loot; '
-    + 'ре-пин 000321.11: +50 свитков с icon — в исключении; каталог − с icon = 0)');
+    + 'ре-пин 000321.11: +50 свитков с icon — в исключении; '
+    + 'ре-пин 000321.13: +50 сборников чертежей с icon — в исключении; каталог − с icon = 0)');
   assert.equal(
     [...byId.values()].filter((it) => 'icon' in it).length, byId.size,
     'icon — у всего живого каталога: withIcon ≡ byId (ls-предикат; ре-пин 000230.08: 33 лут + 6 чертежей '
@@ -3896,7 +3927,7 @@ test('000230.01 E9 (ГАРД): каталог — ls-предикат (мигр�
       it.id + ': affixes отсутствует (предмет не тронут, 000230.01)');
     others++;
   }
-  assert.equal(others, 525, 'прочих предметов — ровно 525 (ре-пин 000321.12: +50 свитков воскрешения без slot/rarity → 475 + 50 = 525; ре-пин 000321.10: +50 реагентов без slot/rarity; ре-пин 000230.09: '
+  assert.equal(others, 575, 'прочих предметов — ровно 575 (ре-пин 000321.13: +50 чертежей без slot/rarity → 525 + 50 = 575; ре-пин 000321.12: +50 свитков воскрешения без slot/rarity → 475 + 50 = 525; ре-пин 000321.10: +50 реагентов без slot/rarity; ре-пин 000230.09: '
     + '182 − 75 equip-исключений = 107 (25 head + 50 уши/шея); '
     + 'ре-пин 000230.10: +25 torso + 3 legacy remap; ре-пин 000235.09: '
     + '+25 свитков волны Тень; ре-пин 000235.10: +25 свитков волны '
@@ -9814,7 +9845,7 @@ test('000230.15 LF1: +50 — set(ids slot legs) = 32 id (§2.1 25 + 7 брони
   assert.equal(I.allItems().length, files.length,
     'allItems() = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 + 50 свитков воскрешения 000321.12 = 1114 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 + 50 свитков воскрешения 000321.12 + 50 чертежей крафта 000321.13 = 1164 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '
@@ -10294,7 +10325,7 @@ test('000230.15 LF7: зеркала — items-data ≡ каталогу (ls-пр
   assert.equal(I.allItems().length, ITEMSFILES_I08().length,
     'items-data = 486 + 25 свитков 000235.12 + 2 свитка 000333 + 50 '
     + 'оружия 000321.01 + 50 брони 000321.02 + 50 щитов 000321.03 '
-    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 + 50 свитков воскрешения 000321.12 = 1114 '
+    + '+ 50 артефактов 000321.04 + 50 инструментов 000321.05 + 1 свиток Декаданс 000348 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08 + 50 реагентов 000321.10 + 50 свитков 000321.11 + 50 свитков воскрешения 000321.12 + 50 чертежей крафта 000321.13 = 1164 '
     + '(ре-пин 000235.11: +25 свитков волны Защита; '
     + 'ре-пин 000277: +2 set; '
     + 'ре-пин 000235.12: +25 свитков волны Природа; '
@@ -10302,7 +10333,7 @@ test('000230.15 LF7: зеркала — items-data ≡ каталогу (ls-пр
     + 'краснота: зеркало не '
     + 'регенерировано; факт: ' + I.allItems().length + ')');
   const CD = require('../src/craft-data.js');
-  assert.equal(CD.CRAFT.length, 718,
+  assert.equal(CD.CRAFT.length, 768,
     'craft-data = 283 + 56 + 2 + 2 = 343 + 50 рецептов 000321.01 = '
     + '393 + 50 рецептов 000321.02 = 443 + 50 рецептов 000321.03 '
     + '= 493 + 50 рецептов 000321.04 = 543 + 50 рецептов 000321.05 = 593 + 50 рецептов 000321.06 = 643 + 50 рецептов 000321.07 = 693 + 25 рецептов 000321.10 = 718 '

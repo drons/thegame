@@ -1,0 +1,30 @@
+{
+  "id": "cherteg_starshogo_izceleija",
+  "название": "Переписывание чертежей старшего исцеления",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/greater_healing.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/stone_chunk.json",
+      "количество": 2
+    },
+    {
+      "предмет": "assets/items/wood_log.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 20,
+  "описание": "Мастер переносит на чистую бумагу узор изделия «Большое зелье лечения»: рунопись, уровень 20, исходники — только под рукой."
+}

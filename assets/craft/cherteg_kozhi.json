@@ -1,0 +1,30 @@
+{
+  "id": "cherteg_kozhi",
+  "название": "Переписывание чертежей кожи",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/hide.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/wood_log.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/zybkaya_smola.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 3,
+  "описание": "Мастер переносит на чистую бумагу узор изделия «Кожа»: рунопись, уровень 3, исходники — только под рукой."
+}

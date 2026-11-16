@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_starshogo_izceleija",
+  "name": "Чертежи старшего исцеления",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 125,
+  "base_price": 125,
+  "desc": "Сборник чертежей вида «рунопись»: образец — Большое зелье лечения.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_starshogo_izceleija.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_starshogo_izceleija.svg"
+}

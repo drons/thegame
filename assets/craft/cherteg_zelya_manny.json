@@ -1,0 +1,30 @@
+{
+  "id": "cherteg_zelya_manny",
+  "название": "Переписывание чертежей зелья манны",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/mana_potion.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/fruit_apple.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/zybkaya_glina.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 14,
+  "описание": "Мастер переносит на чистую бумагу узор изделия «Зелье маны»: рунопись, уровень 14, исходники — только под рукой."
+}

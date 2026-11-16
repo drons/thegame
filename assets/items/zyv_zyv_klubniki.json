@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_klubniki",
+  "name": "Чертежи клубники",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 165,
+  "base_price": 165,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Клубника.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_klubniki.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_klubniki.svg"
+}

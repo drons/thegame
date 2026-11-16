@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_slivy",
+  "name": "Чертежи сливы",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 130,
+  "base_price": 130,
+  "desc": "Сборник чертежей вида «резьба_по_камню»: образец — Слива.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_slivy.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_slivy.svg"
+}

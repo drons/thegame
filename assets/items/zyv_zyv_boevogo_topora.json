@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_boevogo_topora",
+  "name": "Чертежи боевого топора",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «столярное_дело»: образец — Боевой топор.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_boevogo_topora.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_boevogo_topora.svg"
+}

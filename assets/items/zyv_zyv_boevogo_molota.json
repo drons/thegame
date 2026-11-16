@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_boevogo_molota",
+  "name": "Чертежи боевого молота",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 130,
+  "base_price": 130,
+  "desc": "Сборник чертежей вида «столярное_дело»: образец — Боевой молот.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_boevogo_molota.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_boevogo_molota.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_zelya_manny",
+  "name": "Чертежи зелья манны",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 135,
+  "base_price": 135,
+  "desc": "Сборник чертежей вида «рунопись»: образец — Зелье маны.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_zelya_manny.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_zelya_manny.svg"
+}

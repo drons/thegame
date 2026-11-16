@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_chernoprjada",
+  "name": "Чертежи чернопряда",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Чернопряд.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_chernoprjada.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_chernoprjada.svg"
+}

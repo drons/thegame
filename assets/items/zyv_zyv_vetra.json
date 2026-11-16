@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_vetra",
+  "name": "Чертежи ветра",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 145,
+  "base_price": 145,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Ветряная трава.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_vetra.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_vetra.svg"
+}

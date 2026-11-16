@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_kamennogo_oblomka",
+  "name": "Чертежи каменного обломка",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 165,
+  "base_price": 165,
+  "desc": "Сборник чертежей вида «резьба_по_камню»: образец — Каменный обломок.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_kamennogo_oblomka.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_kamennogo_oblomka.svg"
+}

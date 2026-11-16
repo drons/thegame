@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_kolchugi",
+  "name": "Чертежи кольчуги",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 220,
+  "base_price": 220,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Кольчуга.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_kolchugi.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_kolchugi.svg"
+}

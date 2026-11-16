@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_medi",
+  "name": "Чертежи меди",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 130,
+  "base_price": 130,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Медная руда.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_medi.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_medi.svg"
+}

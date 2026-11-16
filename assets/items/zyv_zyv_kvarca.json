@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_kvarca",
+  "name": "Чертежи кварца",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Кварц.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_kvarca.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_kvarca.svg"
+}

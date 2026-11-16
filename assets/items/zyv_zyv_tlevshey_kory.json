@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_tlevshey_kory",
+  "name": "Чертежи тлеющей коры",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 160,
+  "base_price": 160,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Огненный корень.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_tlevshey_kory.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_tlevshey_kory.svg"
+}

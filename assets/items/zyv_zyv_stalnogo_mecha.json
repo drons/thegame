@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_stalnogo_mecha",
+  "name": "Чертежи стального меча",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 175,
+  "base_price": 175,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Стальной меч.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_stalnogo_mecha.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_stalnogo_mecha.svg"
+}

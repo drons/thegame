@@ -500,14 +500,14 @@ const ORES_015701 = ['silver_ore', 'gold_ore', 'mithril_ore', 'quartz',
 // номерам сняты — номера потеряли смысл (имя файла === id); существование
 // рецептов каждой волны закреплено ростерами C1/C2/T9/T10/R12/LF9/LF10 по
 // id, здесь — счётчик каталога и целостность имён.
-test('000157.04 R1: каталог — ровно 718 файлов (ре-пин 000321.10: +25 рецептов реагентов; ре-пин 000321.07: +50 рецептов зелий; 000318.07: имя === id, сегменты «подряд» сняты — цепочка роста по волнам в сообщении)', () => {
+test('000157.04 R1: каталог — ровно 768 файлов (ре-пин 000321.13: +50 рецептов-чертежей cherteg_*; ре-пин 000321.10: +25 рецептов реагентов; ре-пин 000321.07: +50 рецептов зелий; 000318.07: имя === id, сегменты «подряд» сняты — цепочка роста по волнам в сообщении)', () => {
   const files = listCraftFiles();
-  assert.equal(files.length, 718,
-    'ровно 718 рецепт (31 до 000230.08 + 28 head 000230.08 + 56 уши/шея .09 '
+  assert.equal(files.length, 768,
+    'ровно 768 рецепт (31 до 000230.08 + 28 head 000230.08 + 56 уши/шея .09 '
     + '+ 28 torso .10 + 56 рук .11 + 28 right-hand .12 + 28 left_hand .13 '
     + '+ 28 колец .14 + 56 ног/ступней .15 + 2 set .19 + 2 set 000277 '
     + '+ 50 оружия 000321.01 + 50 брони .02 + 50 щитов .03 + 50 артефактов .04 '
-    + '+ 50 инструментов .05 + 50 рецептов колец .06 + 50 рецептов зелий .07 + 25 рецептов реагентов .10), а есть: '
+    + '+ 50 инструментов .05 + 50 рецептов колец .06 + 50 рецептов зелий .07 + 25 рецептов реагентов .10 + 50 рецептов-чертежей .13), а есть: '
     + files.length);
   const ids = files.map((f) => JSON.parse(
     fs.readFileSync(path.join(DIR, f), 'utf8')).id);
@@ -670,57 +670,60 @@ test('000191.14: КАЖДЫЙ рецепт типа «зачарование» �
   assert.deepEqual(
     enchants.map((x) => x.data.id).sort(),
     [
-      'aegis_mantle', 'aegis_mantle_mithril', 'amber_bead', 'amethyst_boots', 'amethyst_choker',
-      'amethyst_collar', 'amethyst_dangle', 'amethyst_pants', 'amethyst_ring', 'arcane_diadem',
-      'arcane_eye', 'arcane_eye_diamond', 'arcane_nexus', 'archivist_staff', 'archmage_eye',
-      'ash_band', 'ash_charm', 'augur_band', 'aurora_bow', 'bark_idol',
-      'blade_braid', 'bone_charm', 'bone_fetish', 'bone_graver', 'brass_tongs',
-      'caldera_core', 'chill_totem', 'cinder_charm', 'cinder_eye', 'cinder_lamp',
-      'clay_lens', 'clay_warden', 'crown_of_ages', 'damascus_hammer', 'dawn_ear_cuff',
-      'dawn_pendant', 'dawn_pendant_diamond', 'deep_breath_robe', 'dew_fetish', 'dread_seal',
-      'dusk_greaves', 'eclipse_band', 'ember_bead', 'ember_core', 'ember_focus',
-      'ember_pants', 'ember_robe', 'ember_staff', 'emerald_amulet', 'emerald_signet',
-      'emerald_stud', 'engraved_bracers', 'faith_amulet', 'faith_necklace', 'faith_stud',
-      'flame_sigil', 'flame_staff', 'flint_idol', 'forewarning', 'frost_bead',
-      'frost_charm', 'frost_core', 'frost_orb', 'frost_ring', 'frost_sandals',
-      'frost_squall', 'frostgrip_gauntlets', 'genesis_staff', 'ghost_cuff', 'glass_athanor',
-      'glass_eye', 'glass_measure', 'gold_chain', 'gold_dangle', 'golden_athanor',
-      'goldstring_bow', 'golem_gauntlets', 'guard_amulet', 'haste_wraps', 'hawk_eye',
-      'hawk_eye_ring', 'heart_of_elements', 'heart_of_elements_mithril', 'hide_tassel', 'hoarfrost_staff',
-      'hunting_bow', 'hunting_bow_sapphire', 'ice_sigil', 'ice_staff', 'icewalker',
-      'ink_signet', 'ink_tablet', 'jet_bead', 'knight_plate', 'knight_plate_ruby',
-      'long_warbow', 'marksman_loop', 'meditating_robe', 'mind_lattice', 'mind_pendant',
-      'moon_balance', 'moon_crown', 'moonstone_chain', 'moonstone_dangle', 'moonstone_stud',
-      'moss_eye', 'mystic_breeches', 'mystic_cloth', 'mystic_earring', 'mystic_sandals',
-      'mystic_sutan', 'mystic_wraps', 'night_gloves', 'obsidian_cloth', 'obsidian_greaves',
-      'obsidian_sandals', 'oil_lamp', 'pathfinder_boots', 'pebble_charm', 'phantom_gloves',
-      'philosopher_staff', 'philosopher_staff_mithril', 'phoenix_ring', 'phoenix_ring_mithril', 'phoenix_still',
-      'pilgrim_sutan', 'pilgrim_sutan_mithril', 'prima_vessel', 'prism_focus', 'pyre_staff',
-      'quartz_cloth', 'reed_charm', 'resin_bead', 'rime_charm', 'rime_staff',
-      'root_braid', 'ruby_bell', 'ruby_pendant', 'ruby_ring', 'rune_alloy',
-      'rune_boots', 'rune_boots_mithril', 'rune_bracers', 'rune_bracers_mithril', 'rune_charm',
-      'rune_chisel', 'rune_circlet', 'rune_gauntlets', 'rune_gauntlets_mithril', 'rune_greaves',
-      'rune_greaves_mithril', 'rune_hoop', 'rune_hoop_mithril', 'rune_necklace', 'rune_necklace_diamond',
-      'rune_ring', 'rune_sphere', 'rune_staff', 'rune_stone', 'rune_stylus',
-      'rune_tablet', 'runeglass', 'runic_cuff', 'sage_staff', 'sage_staff_mithril',
-      'salt_eye', 'scholar_lens', 'scholar_pendant', 'scholar_ring', 'scout_bow',
-      'seer_monocle', 'seer_stone', 'selenite_ring', 'shadow_robe', 'shadow_wrap',
-      'shell_charm', 'sigil_greaves', 'silver_alembic', 'silver_bound_staff', 'silver_frost',
-      'silver_inlaid_bow', 'silver_retort', 'silver_signet', 'snow_focus', 'snow_focus_mithril',
-      'soul_bell', 'soul_bell_mithril', 'spark_totem', 'star_armguard', 'star_armguard_diamond',
-      'star_compass', 'star_earring', 'star_earring_mithril', 'star_gloves', 'star_gloves_diamond',
-      'star_hoop', 'star_hoop_mithril', 'star_pendant', 'star_pendant_mithril', 'star_signet',
-      'star_signet_mithril', 'starvault_staff', 'stone_robe', 'storm_leggings', 'storm_leggings_diamond',
-      'storm_sandals', 'storm_sandals_diamond', 'straw_idol', 'sun_reliquary', 'swift_boots',
-      'swift_boots_diamond', 'swift_brace', 'tempest_staff', 'thorn_band', 'thorn_boots',
-      'tidebreath', 'tin_charm', 'trade_seal', 'twilight_necklace', 'umbral_band',
-      'undying_bough', 'vigil_plate', 'vine_staff', 'void_gauntlet', 'void_gauntlet_mithril',
-      'void_ring', 'void_ring_diamond', 'void_robe', 'void_robe_diamond', 'ward_crystal',
-      'ward_prism', 'ward_stone', 'warden_quarterstaff', 'warder_pendant', 'watch_stone',
-      'whetstone_ring', 'whisper_hoop', 'whisper_hoop_diamond', 'wind_gloves', 'windfletch_bow',
-      'windwalker_ring', 'wood_lens', 'wool_tassel', 'worldforge_hammer'
+      "aegis_mantle", "aegis_mantle_mithril", "amber_bead", "amethyst_boots", "amethyst_choker",
+      "amethyst_collar", "amethyst_dangle", "amethyst_pants", "amethyst_ring", "arcane_diadem",
+      "arcane_eye", "arcane_eye_diamond", "arcane_nexus", "archivist_staff", "archmage_eye",
+      "ash_band", "ash_charm", "augur_band", "aurora_bow", "bark_idol",
+      "blade_braid", "bone_charm", "bone_fetish", "bone_graver", "brass_tongs",
+      "caldera_core", "cherteg_ayvy", "cherteg_cherniki", "cherteg_chernoprjada", "cherteg_dikikh_yagod",
+      "cherteg_kamennoj_stameski", "cherteg_klubniki", "cherteg_kolchugi", "cherteg_lunnogo_kamnya", "cherteg_pancirja_rjazara",
+      "cherteg_stalnogo_mecha", "chill_totem", "cinder_charm", "cinder_eye", "cinder_lamp",
+      "clay_lens", "clay_warden", "crown_of_ages", "damascus_hammer", "dawn_ear_cuff",
+      "dawn_pendant", "dawn_pendant_diamond", "deep_breath_robe", "dew_fetish", "dread_seal",
+      "dusk_greaves", "eclipse_band", "ember_bead", "ember_core", "ember_focus",
+      "ember_pants", "ember_robe", "ember_staff", "emerald_amulet", "emerald_signet",
+      "emerald_stud", "engraved_bracers", "faith_amulet", "faith_necklace", "faith_stud",
+      "flame_sigil", "flame_staff", "flint_idol", "forewarning", "frost_bead",
+      "frost_charm", "frost_core", "frost_orb", "frost_ring", "frost_sandals",
+      "frost_squall", "frostgrip_gauntlets", "genesis_staff", "ghost_cuff", "glass_athanor",
+      "glass_eye", "glass_measure", "gold_chain", "gold_dangle", "golden_athanor",
+      "goldstring_bow", "golem_gauntlets", "guard_amulet", "haste_wraps", "hawk_eye",
+      "hawk_eye_ring", "heart_of_elements", "heart_of_elements_mithril", "hide_tassel", "hoarfrost_staff",
+      "hunting_bow", "hunting_bow_sapphire", "ice_sigil", "ice_staff", "icewalker",
+      "ink_signet", "ink_tablet", "jet_bead", "knight_plate", "knight_plate_ruby",
+      "long_warbow", "marksman_loop", "meditating_robe", "mind_lattice", "mind_pendant",
+      "moon_balance", "moon_crown", "moonstone_chain", "moonstone_dangle", "moonstone_stud",
+      "moss_eye", "mystic_breeches", "mystic_cloth", "mystic_earring", "mystic_sandals",
+      "mystic_sutan", "mystic_wraps", "night_gloves", "obsidian_cloth", "obsidian_greaves",
+      "obsidian_sandals", "oil_lamp", "pathfinder_boots", "pebble_charm", "phantom_gloves",
+      "philosopher_staff", "philosopher_staff_mithril", "phoenix_ring", "phoenix_ring_mithril", "phoenix_still",
+      "pilgrim_sutan", "pilgrim_sutan_mithril", "prima_vessel", "prism_focus", "pyre_staff",
+      "quartz_cloth", "reed_charm", "resin_bead", "rime_charm", "rime_staff",
+      "root_braid", "ruby_bell", "ruby_pendant", "ruby_ring", "rune_alloy",
+      "rune_boots", "rune_boots_mithril", "rune_bracers", "rune_bracers_mithril", "rune_charm",
+      "rune_chisel", "rune_circlet", "rune_gauntlets", "rune_gauntlets_mithril", "rune_greaves",
+      "rune_greaves_mithril", "rune_hoop", "rune_hoop_mithril", "rune_necklace", "rune_necklace_diamond",
+      "rune_ring", "rune_sphere", "rune_staff", "rune_stone", "rune_stylus",
+      "rune_tablet", "runeglass", "runic_cuff", "sage_staff", "sage_staff_mithril",
+      "salt_eye", "scholar_lens", "scholar_pendant", "scholar_ring", "scout_bow",
+      "seer_monocle", "seer_stone", "selenite_ring", "shadow_robe", "shadow_wrap",
+      "shell_charm", "sigil_greaves", "silver_alembic", "silver_bound_staff", "silver_frost",
+      "silver_inlaid_bow", "silver_retort", "silver_signet", "snow_focus", "snow_focus_mithril",
+      "soul_bell", "soul_bell_mithril", "spark_totem", "star_armguard", "star_armguard_diamond",
+      "star_compass", "star_earring", "star_earring_mithril", "star_gloves", "star_gloves_diamond",
+      "star_hoop", "star_hoop_mithril", "star_pendant", "star_pendant_mithril", "star_signet",
+      "star_signet_mithril", "starvault_staff", "stone_robe", "storm_leggings", "storm_leggings_diamond",
+      "storm_sandals", "storm_sandals_diamond", "straw_idol", "sun_reliquary", "swift_boots",
+      "swift_boots_diamond", "swift_brace", "tempest_staff", "thorn_band", "thorn_boots",
+      "tidebreath", "tin_charm", "trade_seal", "twilight_necklace", "umbral_band",
+      "undying_bough", "vigil_plate", "vine_staff", "void_gauntlet", "void_gauntlet_mithril",
+      "void_ring", "void_ring_diamond", "void_robe", "void_robe_diamond", "ward_crystal",
+      "ward_prism", "ward_stone", "warden_quarterstaff", "warder_pendant", "watch_stone",
+      "whetstone_ring", "whisper_hoop", "whisper_hoop_diamond", "wind_gloves", "windfletch_bow",
+      "windwalker_ring", "wood_lens", "wool_tassel", "worldforge_hammer"
+
     ],
-    'анти-вакуумность: ровно 244 зачарование с этим составом id '
+    'анти-вакуумность: ровно 254 зачарование с этим составом id (ре-пин 000321.13: +10 чертежей-зачарований cherteg_*) '
     + '(ре-пин 000321.06: +25 зачарований колец (000670–000719: '
     + 'rare 9 + epic 10 + legendary 4 + impossible 2) — у каждого '
     + 'РОВНО 1 «заклинание») '
@@ -854,7 +857,7 @@ test('000208 R1: schema.json — поля-ссылки зафиксирован�
     'здания[] — ссылка на файл assets/buildings (000318.06: slug)');
 });
 
-test('000208 R2: все 718 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000321.07: +50 рецептов зелий (potion); ре-пин 000321.06: +50 рецептов колец 000670–000719; ре-пин 000321.05: +50 рецептов инструментов 000620–000669; ре-пин 000321.04: +50 рецептов артефактов 000570–000619; ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов; ре-пин 000230.15: +56 legs/feet-рецептов; ре-пин 000230.19: +2 set-рецептов; ре-пин 000277: +2 set-рецептов; ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.03: +50 рецептов щитов 000520–000569)', () => {
+test('000208 R2: все 768 рецепт — результат/исходники/навыки/здания — ссылки на файлы каталогов, резолв в id каталога (ре-пин 000321.13: +50 рецептов-чертежей; ре-пин 000321.07: +50 рецептов зелий (potion); ре-пин 000321.06: +50 рецептов колец 000670–000719; ре-пин 000321.05: +50 рецептов инструментов 000620–000669; ре-пин 000321.04: +50 рецептов артефактов 000570–000619; ре-пин 000230.08: +28 head-рецептов; ре-пин 000230.09: +56 уши/шея-рецептов; ре-пин 000230.10: +28 torso-рецептов; ре-пин 000230.11: +56 рук-рецептов; ре-пин 000230.12: +28 right-hand-рецептов; ре-пин 000230.13: +28 left_hand-рецептов; ре-пин 000230.14: +28 ring-рецептов; ре-пин 000230.15: +56 legs/feet-рецептов; ре-пин 000230.19: +2 set-рецептов; ре-пин 000277: +2 set-рецептов; ре-пин 000321.01: +50 оружия 000420–000469; ре-пин 000321.02: +50 брони 000470–000519; ре-пин 000321.03: +50 рецептов щитов 000520–000569)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
@@ -884,9 +887,9 @@ test('000208 R2: все 718 рецепт — результат/исходник
     }
   }
   // Анти-вакуум: точные счётчики ссылок (контракт 000208 §1).
-  assert.equal(itemRefs, 2530, 'анти-вакуум: 2530 item-ссылок (ре-пин 000321.10: +77 = 25 результатов + 52 исходника; ре-пин 000230.08: 114+99; ре-пин 000230.09: +208; ре-пин 000230.10: +106; ре-пин 000230.11: +203; ре-пин 000230.12: +108; ре-пин 000230.13: +102; ре-пин 000230.14: +106; ре-пин 000230.15: +199; ре-пин 000230.19: +7; ре-пин 000277: +7; ре-пин 000321.01: +203 = 50 результатов + 153 исходника; ре-пин 000321.02: +186 = 50 результатов + 136 исходника; ре-пин 000321.03: +179 = 50 результатов + 129 исходника; ре-пин 000321.04: +139 = 50 результатов + 89 исходника; ре-пин 000321.05: +170 = 50 результатов + 120 исходника; ре-пин 000321.06: +161 = 50 результатов + 111 исходника; ре-пин 000321.07: +156 = 50 результатов + 106 исходника)');
-  assert.equal(skillRefs, 983, 'анти-вакуум: 983 skill-ссылок (ре-пин 000321.10: +29 = алхимия 12 + резьба 9 + рунопись 4×2; ре-пин 000230.08: 44+35; ре-пин 000230.09: +81; ре-пин 000230.10: +39; ре-пин 000230.11: +74; ре-пин 000230.12: +39; ре-пин 000230.13: +44; ре-пин 000230.14: +41; ре-пин 000230.15: +74; ре-пин 000230.19: +3; ре-пин 000277: +3; ре-пин 000321.01: +65 — 15 зачарований ×2 навыка; ре-пин 000321.02: +65 — зачарование 15×2 + кузнечное/столярное/резьба по 1; ре-пин 000321.03: +50 — кузнечное 30×1 + столярное 20×1; ре-пин 000321.04: +100 — 50 зачарований ×2 навыка (runes 000027 + навык-аффикс результата; errata 000360: навыка enchanting в assets/skills нет, «зачарование» — ТИП рецепта, запинено T8); ре-пин 000321.05: +69 — зачарование 13×2 + кузнечное 6×2 + 17×1 + алхимия 14×1; ре-пин 000321.06: +75 — зачарование 25×2 (runes 000027 + навык-аффикс результата) + резьба 25×1; ре-пин 000321.07: +53 = 47 рецептов ×1 навык + 3 природных ×2)');
-  assert.equal(buildingRefs, 984, 'анти-вакуум: 984 building-ссылок (ре-пин 000321.10: +42 = алхимия 12×1 + резьба 9×2 + рунопись 4×3; ре-пин 000230.08: 54+39; ре-пин 000230.09: +87; ре-пин 000230.10: +28; ре-пин 000230.11: +78; ре-пин 000230.12: +34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; ре-пин 000230.15: +74; ре-пин 000250: +2 (кожаные брони → [8, 25]); ре-пин 000230.19: +2; ре-пин 000277: +2; ре-пин 000321.01: +65 — 15 рецептов Оружейной → [8, 25]; ре-пин 000321.02: +71 — кузнечное 13×[8,25] + столярное 14×[5] + зачарование 15×[18] + резьба 8×[40,48]; ре-пин 000321.03: +66 — кузнечное 30×[8] + 16×[25] + столярное 20×[5]; ре-пин 000321.04: +50 — 50 зачарований ×[18]; ре-пин 000321.05: +56 — кузнечное 17×[8] + 6×[8,25] + алхимия 14×[17] + зачарование 13×[18]; ре-пин 000321.06: +75 — резьба 25×[rune_stone, ruins] + зачарование 25×[mage_tower]; ре-пин 000321.07: +86 — alchemy_lab 50 + apothecary 23 + mage_tower 13; ре-пин 000321.10: +42 — алхимия 12×[alchemy_lab] + резьба 9×[rune_stone,ruins] + рунопись 4×[rune_stone,library,obelisk])');
+  assert.equal(itemRefs, 2679, 'анти-вакуум: 2679 item-ссылок (ре-пин 000321.13: +149 = 50 результатов + 99 исходника; ре-пин 000321.10: +77 = 25 результатов + 52 исходника; ре-пин 000230.08: 114+99; ре-пин 000230.09: +208; ре-пин 000230.10: +106; ре-пин 000230.11: +203; ре-пин 000230.12: +108; ре-пин 000230.13: +102; ре-пин 000230.14: +106; ре-пин 000230.15: +199; ре-пин 000230.19: +7; ре-пин 000277: +7; ре-пин 000321.01: +203 = 50 результатов + 153 исходника; ре-пин 000321.02: +186 = 50 результатов + 136 исходника; ре-пин 000321.03: +179 = 50 результатов + 129 исходника; ре-пин 000321.04: +139 = 50 результатов + 89 исходника; ре-пин 000321.05: +170 = 50 результатов + 120 исходника; ре-пин 000321.06: +161 = 50 результатов + 111 исходника; ре-пин 000321.07: +156 = 50 результатов + 106 исходника)');
+  assert.equal(skillRefs, 1049, 'анти-вакуум: 1049 skill-ссылок (ре-пин 000321.13: +66 = кузнечное 10 + алхимия 8 + зачарование 10×2 + столярное 8 + резьба 8 + рунопись 6×2; ре-пин 000321.10: +29 = алхимия 12 + резьба 9 + рунопись 4×2; ре-пин 000230.08: 44+35; ре-пин 000230.09: +81; ре-пин 000230.10: +39; ре-пин 000230.11: +74; ре-пин 000230.12: +39; ре-пин 000230.13: +44; ре-пин 000230.14: +41; ре-пин 000230.15: +74; ре-пин 000230.19: +3; ре-пин 000277: +3; ре-пин 000321.01: +65 — 15 зачарований ×2 навыка; ре-пин 000321.02: +65 — зачарование 15×2 + кузнечное/столярное/резьба по 1; ре-пин 000321.03: +50 — кузнечное 30×1 + столярное 20×1; ре-пин 000321.04: +100 — 50 зачарований ×2 навыка (runes 000027 + навык-аффикс результата; errata 000360: навыка enchanting в assets/skills нет, «зачарование» — ТИП рецепта, запинено T8); ре-пин 000321.05: +69 — зачарование 13×2 + кузнечное 6×2 + 17×1 + алхимия 14×1; ре-пин 000321.06: +75 — зачарование 25×2 (runes 000027 + навык-аффикс результата) + резьба 25×1; ре-пин 000321.07: +53 = 47 рецептов ×1 навык + 3 природных ×2)');
+  assert.equal(buildingRefs, 1054, 'анти-вакуум: 1054 building-ссылки (ре-пин 000321.13: +70 = 10×1+8×1+10×1+8×1+8×2+6×3; ре-пин 000321.10: +42 = алхимия 12×1 + резьба 9×2 + рунопись 4×3; ре-пин 000230.08: 54+39; ре-пин 000230.09: +87; ре-пин 000230.10: +28; ре-пин 000230.11: +78; ре-пин 000230.12: +34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; ре-пин 000230.15: +74; ре-пин 000250: +2 (кожаные брони → [8, 25]); ре-пин 000230.19: +2; ре-пин 000277: +2; ре-пин 000321.01: +65 — 15 рецептов Оружейной → [8, 25]; ре-пин 000321.02: +71 — кузнечное 13×[8,25] + столярное 14×[5] + зачарование 15×[18] + резьба 8×[40,48]; ре-пин 000321.03: +66 — кузнечное 30×[8] + 16×[25] + столярное 20×[5]; ре-пин 000321.04: +50 — 50 зачарований ×[18]; ре-пин 000321.05: +56 — кузнечное 17×[8] + 6×[8,25] + алхимия 14×[17] + зачарование 13×[18]; ре-пин 000321.06: +75 — резьба 25×[rune_stone, ruins] + зачарование 25×[mage_tower]; ре-пин 000321.07: +86 — alchemy_lab 50 + apothecary 23 + mage_tower 13; ре-пин 000321.10: +42 — алхимия 12×[alchemy_lab] + резьба 9×[rune_stone,ruins] + рунопись 4×[rune_stone,library,obelisk])');
 });
 
 test('000208 R3: sync-craft-data.js запекает ссылки в id-форму (tmp-репозиторий)', () => {
@@ -2805,13 +2808,13 @@ test('000230.12 R12: 28 рецептов (199 → 227): 25 базовых (ро�
   }
 });
 
-test('000230.12 R13: ре-пин 000208-R2 — каталог 718 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01) + 50 брони (000321.02) + 50 рецептов щитов (000321.03) + 50 рецептов артефактов (000321.04) + 50 рецептов инструментов (000321.05) + 50 рецептов колец (000321.06) + 50 рецептов зелий (000321.07)), ВСЕ ссылки резолвятся; анти-вакуум счётчики: item-ссылки 730 → 838 (+108 = 28 результат + 80 исходников) → 940 (+102, 000230.13) → 1046 (+106, 000230.14) → 1245 (+199, 000230.15) → 1252 (+7, 000230.19) → 1259 (+7, 000277) → 1462 (+203 = 50 результатов + 153 исходника, 000321.01) → 1648 (+186 = 50 результатов + 136 исходника, 000321.02) → 1827 (+179 = 50 результатов + 129 исходника, 000321.03) → 1966 (+139 = 50 результатов + 89 исходника, 000321.04) → 2136 (+170 = 50 результатов + 120 исходника, 000321.05) → 2297 (+161 = 50 результатов + 111 исходника, 000321.06) → 2453 (+156 = 50 результатов + 106 исходника, 000321.07), skill-ссылки 273 → 312 (+39) → 356 (+44, 000230.13) → 397 (+41, 000230.14) → 471 (+74, 000230.15) → 474 (+3, 000230.19) → 477 (+3, 000277) → 542 (+65, 000321.01) → 607 (+65, 000321.02) → 657 (+50, 000321.03) → 757 (+100, 000321.04) → 826 (+69, 000321.05) → 901 (+75, 000321.06) → 954 (+53, 000321.07), building-ссылки 286 → 320 (+34) → 350 (+30, 000230.13) → 393 (+43, 000230.14) → 467 (+74, 000230.15) → 469 (+2, 000250) → 471 (+2, 000230.19) → 473 (+2, 000277) → 538 (+65, 000321.01) → 609 (+71, 000321.02) → 675 (+66, 000321.03) → 725 (+50, 000321.04) → 781 (+56, 000321.05) → 856 (+75, 000321.06) → 942 (+86, 000321.07) — точные дельты зафиксированы ростером R12 (у improved здания/навыки = базовые) (краснота: рецептов волны нет — счётчики до-волновые)', () => {
+test('000230.12 R13: ре-пин 000208-R2 — каталог 768 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01) + 50 брони (000321.02) + 50 рецептов щитов (000321.03) + 50 рецептов артефактов (000321.04) + 50 рецептов инструментов (000321.05) + 50 рецептов колец (000321.06) + 50 рецептов зелий (000321.07)), ВСЕ ссылки резолвятся; анти-вакуум счётчики: item-ссылки 730 → 838 (+108 = 28 результат + 80 исходников) → 940 (+102, 000230.13) → 1046 (+106, 000230.14) → 1245 (+199, 000230.15) → 1252 (+7, 000230.19) → 1259 (+7, 000277) → 1462 (+203 = 50 результатов + 153 исходника, 000321.01) → 1648 (+186 = 50 результатов + 136 исходника, 000321.02) → 1827 (+179 = 50 результатов + 129 исходника, 000321.03) → 1966 (+139 = 50 результатов + 89 исходника, 000321.04) → 2136 (+170 = 50 результатов + 120 исходника, 000321.05) → 2297 (+161 = 50 результатов + 111 исходника, 000321.06) → 2453 (+156 = 50 результатов + 106 исходника, 000321.07) → 2530 (+77, 000321.10) → 2679 (+149 = 50 результатов + 99 исходника, 000321.13), skill-ссылки 273 → 312 (+39) → 356 (+44, 000230.13) → 397 (+41, 000230.14) → 471 (+74, 000230.15) → 474 (+3, 000230.19) → 477 (+3, 000277) → 542 (+65, 000321.01) → 607 (+65, 000321.02) → 657 (+50, 000321.03) → 757 (+100, 000321.04) → 826 (+69, 000321.05) → 901 (+75, 000321.06) → 954 (+53, 000321.07) → 983 (+29, 000321.10) → 1049 (+66, 000321.13), building-ссылки 286 → 320 (+34) → 350 (+30, 000230.13) → 393 (+43, 000230.14) → 467 (+74, 000230.15) → 469 (+2, 000250) → 471 (+2, 000230.19) → 473 (+2, 000277) → 538 (+65, 000321.01) → 609 (+71, 000321.02) → 675 (+66, 000321.03) → 725 (+50, 000321.04) → 781 (+56, 000321.05) → 856 (+75, 000321.06) → 942 (+86, 000321.07) → 984 (+42, 000321.10) → 1054 (+70, 000321.13) — точные дельты зафиксированы ростером R12 (у improved здания/навыки = базовые) (краснота: рецептов волны нет — счётчики до-волновые)', () => {
   const { byId } = loadCatalog();
   const knownSkill = (id) =>
     SECONDARY_SKILLS[id] !== undefined ||
     PRIMARY_SKILLS.some((p) => p.id === id);
-  assert.equal(byId.size, 718,
-    'каталог — 718 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01) + 50 брони (000321.02) + 50 рецептов щитов (000321.03) + 50 рецептов артефактов (000321.04) + 50 рецептов инструментов (000321.05) + 50 рецептов колец (000321.06) + 25 рецептов реагентов (000321.10)); факт: ' + byId.size);
+  assert.equal(byId.size, 768,
+    'каталог — 768 рецепт (199 + 28 волны + 28 left_hand (000230.13) + 28 колец (000230.14) + 56 legs/feet (000230.15) + 2 set (000230.19) + 2 set (000277) + 50 оружия (000321.01) + 50 брони (000321.02) + 50 рецептов щитов (000321.03) + 50 рецептов артефактов (000321.04) + 50 рецептов инструментов (000321.05) + 50 рецептов колец (000321.06) + 25 рецептов реагентов (000321.10) + 50 рецептов-чертежей (000321.13)); факт: ' + byId.size);
   let itemRefs = 0;
   let skillRefs = 0;
   let buildingRefs = 0;
@@ -2836,8 +2839,8 @@ test('000230.12 R13: ре-пин 000208-R2 — каталог 718 рецепт (
         `${file}: цель ссылки ${ref} (id ${id}) нет в assets/buildings`);
     }
   }
-  assert.equal(itemRefs, 2530,
-    'анти-вакуум: 2530 item-ссылок (730 + 28 результатов + 80 '
+  assert.equal(itemRefs, 2679,
+    'анти-вакуум: 2679 item-ссылок (730 + 28 результатов + 80 '
     + 'исходников; ре-пин 000230.12: +108; ре-пин 000230.13: +102; '
     + 'ре-пин 000230.14: +106; ре-пин 000230.15: +199; '
     + 'ре-пин 000230.19: +7; ре-пин 000277: +7; '
@@ -2845,10 +2848,10 @@ test('000230.12 R13: ре-пин 000208-R2 — каталог 718 рецепт (
     + 'ре-пин 000321.03: +179; ре-пин 000321.04: +139 = 50 результатов + 89 исходника; '
     + 'ре-пин 000321.05: +170; ре-пин 000321.06: +161 = 50 результатов + 111 исходника; '
     + 'ре-пин 000321.07: +156 = 50 результатов + 106 исходника; '
-    + 'ре-пин 000321.10: +77 = 25 результатов + 52 исходника); факт: '
+    + 'ре-пин 000321.10: +77 = 25 результатов + 52 исходника; ре-пин 000321.13: +149 = 50 результатов + 99 исходника); факт: '
     + itemRefs);
-  assert.equal(skillRefs, 983,
-    'анти-вакуум: 983 skill-ссылок (273 + 39; ре-пин 000230.12: +39; '
+  assert.equal(skillRefs, 1049,
+    'анти-вакуум: 1049 skill-ссылок (273 + 39; ре-пин 000230.12: +39; '
     + 'ре-пин 000230.13: +44; ре-пин 000230.14: +41; '
     + 'ре-пин 000230.15: +74; ре-пин 000230.19: +3; '
     + 'ре-пин 000277: +3; ре-пин 000321.01: +65; '
@@ -2856,9 +2859,9 @@ test('000230.12 R13: ре-пин 000208-R2 — каталог 718 рецепт (
     + 'ре-пин 000321.04: +100 = 50 рецептов × 2 навыка; '
     + 'ре-пин 000321.05: +69; ре-пин 000321.06: +75 = зачарование 25×2 + резьба 25×1; '
     + 'ре-пин 000321.07: +53 = 47 рецептов ×1 навык + 3 природных ×2; '
-    + 'ре-пин 000321.10: +29 = алхимия 12 + резьба 9 + рунопись 4×2); факт: ' + skillRefs);
-  assert.equal(buildingRefs, 984,
-    'анти-вакуум: 984 building-ссылок (286 + 34; ре-пин 000230.12: '
+    + 'ре-пин 000321.10: +29 = алхимия 12 + резьба 9 + рунопись 4×2; ре-пин 000321.13: +66 = 10+8+10×2+8+8+6×2); факт: ' + skillRefs);
+  assert.equal(buildingRefs, 1054,
+    'анти-вакуум: 1054 building-ссылки (286 + 34; ре-пин 000230.12: '
     + '+34; ре-пин 000230.13: +30; ре-пин 000230.14: +43; '
     + 'ре-пин 000230.15: +74; ре-пин 000250: +2 (кожаные брони → '
     + '[8, 25]); ре-пин 000230.19: +2; '

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_svetlyachka",
+  "name": "Чертежи светлячка",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Светящийся гриб.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_svetlyachka.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_svetlyachka.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_kozhanogo_dospeha",
+  "name": "Чертежи кожаного доспеха",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 160,
+  "base_price": 160,
+  "desc": "Сборник чертежей вида «столярное_дело»: образец — Кожаный доспех.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_kozhanogo_dospeha.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_kozhanogo_dospeha.svg"
+}

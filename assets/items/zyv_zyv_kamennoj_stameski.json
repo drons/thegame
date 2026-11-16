@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_kamennoj_stameski",
+  "name": "Чертежи каменной стамески",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 210,
+  "base_price": 210,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Каменный резец.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_kamennoj_stameski.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_kamennoj_stameski.svg"
+}

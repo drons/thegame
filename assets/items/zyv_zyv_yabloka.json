@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_yabloka",
+  "name": "Чертежи яблока",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 125,
+  "base_price": 125,
+  "desc": "Сборник чертежей вида «резьба_по_камню»: образец — Яблоко.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_yabloka.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_yabloka.svg"
+}

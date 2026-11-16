@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_almaza",
+  "name": "Чертежи алмаза",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «резьба_по_камню»: образец — Алмаз.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_almaza.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_almaza.svg"
+}

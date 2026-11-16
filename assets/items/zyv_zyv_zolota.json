@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_zolota",
+  "name": "Чертежи золота",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 180,
+  "base_price": 180,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Золотая руда.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_zolota.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_zolota.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_safira",
+  "name": "Чертежи сапфира",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 135,
+  "base_price": 135,
+  "desc": "Сборник чертежей вида «резьба_по_камню»: образец — Сапфир.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_safira.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_safira.svg"
+}

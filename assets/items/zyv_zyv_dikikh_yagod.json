@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_dikikh_yagod",
+  "name": "Чертежи диких ягод",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 125,
+  "base_price": 125,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Дикая ягода.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_dikikh_yagod.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_dikikh_yagod.svg"
+}

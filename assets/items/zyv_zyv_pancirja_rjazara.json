@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_pancirja_rjazara",
+  "name": "Чертежи рыцарского панциря",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 140,
+  "base_price": 140,
+  "desc": "Сборник чертежей вида «зачарование»: образец — Рыцарский доспех.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_pancirja_rjazara.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_pancirja_rjazara.svg"
+}

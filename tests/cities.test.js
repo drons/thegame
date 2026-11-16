@@ -1864,6 +1864,21 @@ const SHOP_GOLDEN = {
     zyv_zorki_scroll: 1, zyv_zornicy_scroll: 4, zyv_zverej_scroll: 5, zyv_zverya_scroll: 2, zyv_zvezd_scroll: 2,
     zyv_zvezdopada_scroll: 1, zyv_zvezdy_scroll: 3, zyv_zvona_scroll: 5, zyv_zyka_scroll: 4, zyv_zyklichem_scroll: 3,
     zyv_zykuchego_golosa_scroll: 5,
+    // Ре-пин 000321.13: чертежи zyv_zyv_* 001115–001164 — КОНЕЦ каталога, rng-хвост
+    // пула allItems (клетка 100,−40 / 7,5 / bt44 / w3, seed 3425630131) → += 45
+    // чертежей (5 не выпали), остальные 944 ключа стока не сдвинулись. Хвост переснят
+    // ЖИВЫМ кодом после второго перенацеливания образцов (результаты чертежей —
+    // БЕЗ rarity); переименование id волны переставляет имена на тех же 45 позиции ⇒
+    // кардинальность 45/5 и агрегаты (989 ключей / Σ 2859) инвариантны.
+    zyv_zyv_almaza: 3, zyv_zyv_ametista: 1, zyv_zyv_ayvy: 1, zyv_zyv_boevogo_molota: 2, zyv_zyv_boevogo_topora: 1,
+    zyv_zyv_breven: 3, zyv_zyv_cherniki: 4, zyv_zyv_chernoprjada: 4, zyv_zyv_derevyannogo_mecha: 2, zyv_zyv_dikikh_yagod: 1,
+    zyv_zyv_fosforita: 3, zyv_zyv_gorechavki: 1, zyv_zyv_iscelejajushhego_zelya: 4, zyv_zyv_isceleniya: 4, zyv_zyv_izmruda: 2,
+    zyv_zyv_kamennogo_kornya: 1, zyv_zyv_kamennogo_oblomka: 1, zyv_zyv_kamennoj_stameski: 4, zyv_zyv_klubniki: 5, zyv_zyv_kolchugi: 4,
+    zyv_zyv_korotkogo_luka: 2, zyv_zyv_kozhi: 1, zyv_zyv_kvarca: 5, zyv_zyv_lunnogo_kamnya: 1, zyv_zyv_lunnogo_kornya: 2,
+    zyv_zyv_malogo_izceleija: 5, zyv_zyv_many: 3, zyv_zyv_mifrita: 4, zyv_zyv_obsidiana: 1, zyv_zyv_ohotnichego_luka: 3,
+    zyv_zyv_pancirja_rjazara: 4, zyv_zyv_pera_feniksa: 4, zyv_zyv_rubina: 2, zyv_zyv_safira: 4, zyv_zyv_serebra: 1,
+    zyv_zyv_solntsa: 2, zyv_zyv_stalnogo_mecha: 5, zyv_zyv_starshogo_izceleija: 3, zyv_zyv_svetlyachka: 3, zyv_zyv_tlevshey_kory: 1,
+    zyv_zyv_uglya: 2, zyv_zyv_yabloka: 2, zyv_zyv_zelya_manny: 2, zyv_zyv_zheleza: 5, zyv_zyv_zolota: 1
 
   } },
   '-114,-119,1,1,1,1': { seed: 550380853, stock: {

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_malogo_izceleija",
+  "name": "Чертежи малого исцеления",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 145,
+  "base_price": 145,
+  "desc": "Сборник чертежей вида «столярное_дело»: образец — Малое зелье лечения.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_malogo_izceleija.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_malogo_izceleija.svg"
+}

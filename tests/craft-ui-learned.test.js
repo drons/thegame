@@ -283,8 +283,9 @@ test('UCL-2: после чертёжа рунописи — ТОЛЬКО рец�
   assert.equal(env.errors.length, 0,
     'open: 0 ошибок: ' + env.errors.join('; '));
   const ov = findOverlay(env);
-  assert.equal(findAll(ov, '.craft-recipe').length, 6,
-    '000232: только рунопись (2 + 4 реагента 000321.10 = 6); RED: 9 — все виды здания');
+  assert.equal(findAll(ov, '.craft-recipe').length, 12,
+    '000232: только рунопись (2 + 4 реагента 000321.10 + 6 рецептов-чертежей '
+    + '000321.13 = 12); RED: 9 — все виды здания');
   assert.deepEqual([...shownRecipes(ov)].sort(),
     [...expectIds(env, 40, ['рунопись'])],
     'показаны РОВНО рецепты рунописи здания 40 (data-driven); '

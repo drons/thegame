@@ -1,0 +1,30 @@
+{
+  "id": "cherteg_pera_feniksa",
+  "название": "Переписывание чертежей пера феникса",
+  "тип": "рунопись",
+  "результат": {
+    "предмет": "assets/items/phoenix_feather.json",
+    "количество": 1
+  },
+  "исходники": [
+    {
+      "предмет": "assets/items/herb_wind.json",
+      "количество": 1
+    },
+    {
+      "предмет": "assets/items/root_rock.json",
+      "количество": 1
+    }
+  ],
+  "навыки": [
+    "assets/skills/runes.json",
+    "assets/skills/scholar.json"
+  ],
+  "здания": [
+    "assets/buildings/rune_stone.json",
+    "assets/buildings/library.json",
+    "assets/buildings/obelisk.json"
+  ],
+  "уровень": 6,
+  "описание": "Мастер переносит на чистую бумагу узор изделия «Перо феникса»: рунопись, уровень 6, исходники — только под рукой."
+}

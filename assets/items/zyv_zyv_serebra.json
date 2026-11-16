@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_serebra",
+  "name": "Чертежи серебра",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 160,
+  "base_price": 160,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Серебряная руда.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_serebra.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_serebra.svg"
+}

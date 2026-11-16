@@ -115,7 +115,7 @@ test('CR-1: items.js — ITEM_KINDS.CRAFT_SCROLL / EFFECT_KINDS.CRAFT_RECIPE; sc
     'effect.additionalProperties:false сохранён (recipe — объявленный ключ)');
 });
 
-test('CR-2: каталог — ровно 6 чертежей (000077-000082, append после 000076), по одному на каждый из 6 видов; JSON: effect {kind craft_recipe, recipe — явная ссылка на JSON рецепта}; зеркало items-data.js ≡ JSON (recipe — id-форма); нестаккуемые', () => {
+test('CR-2: каталог — 56 чертежей (ре-пин 000321.13: +50 сборников «Чертежи …» 001115–001164 поверх эталонных 6 (000077-000082, append после 000076), виды: зачарование 11 / кузнечное 11 / столярное 9 / резьба 9 / алхимия 9 / рунопись 7; JSON: effect {kind craft_recipe, recipe — явная ссылка на JSON рецепта}; зеркало items-data.js ≡ JSON (recipe — id-форма); нестаккуемые', () => {
   const byFile = itemsByFile();
   for (const e of BLUEPRINTS_000232) {
     const j = byFile.get(e.file);
@@ -158,13 +158,17 @@ test('CR-2: каталог — ровно 6 чертежей (000077-000082, app
     assert.equal(slots[0].qty, 1, e.id + ': qty 1 (не стопка)');
   }
   const all = I.allItems().filter((it) => it.kind === 'craft_scroll');
-  assert.equal(all.length, 6,
-    'ровно 6 craft_scroll (ни больше, ни меньше); факт: ' + all.length);
+  assert.equal(all.length, 56,
+    'craft_scroll: 6 эталонов + 50 волны 000321.13; факт: ' + all.length);
   const types = all
     .map((it) => C.CRAFT_BY_ID[it.effect.recipe].тип)
     .sort();
-  assert.deepEqual(types, [...C.CRAFT_TYPES].sort(),
-    'по одному на каждый из 6 видов; факт: ' + JSON.stringify(types));
+  const hist = {};
+  for (const t of types) hist[t] = (hist[t] || 0) + 1;
+  assert.deepEqual(hist, {
+    'зачарование': 11, 'кузнечное_дело': 11, 'столярное_дело': 9,
+    'резьба_по_камню': 9, 'алхимия': 9, 'рунопись': 7,
+  }, 'распределение по 6 видам (эталон + волна); факт: ' + JSON.stringify(hist));
 });
 
 test('CR-3: useItem чертёж — успех: изучен ВИД (из якорного рецепта), ровно 1 шт. списан, res.craft = тип, message «Изучено: «<название рецепта>»»', () =>

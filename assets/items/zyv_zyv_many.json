@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_many",
+  "name": "Чертежи манны",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 155,
+  "base_price": 155,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Манная трава.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_many.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_many.svg"
+}

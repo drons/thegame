@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_gorechavki",
+  "name": "Чертежи горечавки",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 130,
+  "base_price": 130,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Горечавка.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_gorechavki.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_gorechavki.svg"
+}

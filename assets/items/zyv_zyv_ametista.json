@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_ametista",
+  "name": "Чертежи аметиста",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 190,
+  "base_price": 190,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Аметист.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_ametista.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_ametista.svg"
+}

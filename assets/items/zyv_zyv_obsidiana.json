@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_obsidiana",
+  "name": "Чертежи обсидиана",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 150,
+  "base_price": 150,
+  "desc": "Сборник чертежей вида «кузнечное_дело»: образец — Обсидиан.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_obsidiana.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_obsidiana.svg"
+}

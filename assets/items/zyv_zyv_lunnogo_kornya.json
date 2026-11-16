@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_lunnogo_kornya",
+  "name": "Чертежи лунного корня",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 160,
+  "base_price": 160,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Лунный корень.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_lunnogo_kornya.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_lunnogo_kornya.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_solntsa",
+  "name": "Чертежи солнца",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 165,
+  "base_price": 165,
+  "desc": "Сборник чертежей вида «алхимия»: образец — Солнечная трава.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_solntsa.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_solntsa.svg"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "zyv_zyv_korotkogo_luka",
+  "name": "Чертежи короткого лука",
+  "kind": "craft_scroll",
+  "weight": 0.2,
+  "value": 155,
+  "base_price": 155,
+  "desc": "Сборник чертежей вида «столярное_дело»: образец — Короткий лук.",
+  "effect": {
+    "kind": "craft_recipe",
+    "recipe": "assets/craft/cherteg_korotkogo_luka.json"
+  },
+  "icon": "assets/sprites/items/zyv_zyv_korotkogo_luka.svg"
+}

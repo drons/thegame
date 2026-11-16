@@ -356,10 +356,10 @@ test('000321.10 T5: иконки — 50 новых в assets/sprites/loot (ка�
 
 // --- T6: рецепты --------------------------------------------------------------
 
-test('000321.10 T6: craft — РОВНО 718 (693 + 25 новых: алхимия 12 [alchemy_lab] / резьба_по_камню 9 [rune_stone+ruins] / рунопись 4 [rune_stone+library+obelisk]); итоговые типы 244/173/114/95/86/6; новые валидны по assets/craft/schema.json, результат — наш reagent, исходники существуют; вторичный свип по 718: НИ ОДИН рецепт не сломан (результат и исходники резолвятся); DISASSEMBLY_BY_ITEM 648→673 (+25 результатов, база ни у кого не заведена) (краснота: craft 693)', () => {
+test('000321.10 T6: craft — РОВНО 768 (693 + 25 новых: алхимия 12 [alchemy_lab] / резьба_по_камню 9 [rune_stone+ruins] / рунопись 4 [rune_stone+library+obelisk]); итоговые типы 254/183/122/103/94/12; новые валидны по assets/craft/schema.json, результат — наш reagent, исходники существуют; вторичный свип по 768: НИ ОДИН рецепт не сломан (результат и исходники резолвятся); DISASSEMBLY_BY_ITEM 648→673 (+25 результатов, база ни у кого не заведена); ре-пин 000321.13: итог 705 (32 ключа чертежей (непокрытые образцы), 18 tied-целей ключей не добавили) (краснота: craft 693)', () => {
   const files = recFiles();
-  assert.equal(files.length, 718,
-    'craft — 718 файла (693 + 25 волны); факт: ' + files.length);
+  assert.equal(files.length, 768,
+    'craft — 768 файла (693 + 25 волны); факт: ' + files.length);
   const schema = JSON.parse(
     fs.readFileSync(path.join(CRAFT_DIR, 'schema.json'), 'utf8'));
   const byType = {};
@@ -387,12 +387,12 @@ test('000321.10 T6: craft — РОВНО 718 (693 + 25 новых: алхими�
   assert.equal(ours.length, 25,
     'рецептов с результатом волны — 25; факт: ' + ours.length);
   assert.deepEqual(byType, {
-    'зачарование': 244, 'кузнечное_дело': 173, 'столярное_дело': 114,
-    'резьба_по_камню': 95, 'алхимия': 86, 'рунопись': 6,
-  }, 'типы рецептов — 244/173/114/95/86/6; факт: ' + JSON.stringify(byType));
+    'зачарование': 254, 'кузнечное_дело': 183, 'столярное_дело': 122,
+    'резьба_по_камню': 103, 'алхимия': 94, 'рунопись': 12,
+  }, 'типы рецептов — 254/183/122/103/94/12; факт: ' + JSON.stringify(byType));
   const C = require(path.join(ROOT, 'src', 'craft.js'));
-  assert.equal(Object.keys(C.DISASSEMBLY_BY_ITEM).length, 673,
-    'DISASSEMBLY_BY_ITEM — 673 (648 + 25 результатов); факт: '
+  assert.equal(Object.keys(C.DISASSEMBLY_BY_ITEM).length, 705,
+    'DISASSEMBLY_BY_ITEM — 705 (648 + 25 результатов .10 + 32 непокрытых ключа .13); факт: '
     + Object.keys(C.DISASSEMBLY_BY_ITEM).length);
 });
 
@@ -413,9 +413,20 @@ test('000321.10 T7: зеркало src/items-data.js ≡ каталогу (ls-п
   }
   const ours = ids.filter((v) => ROSTER_SET.has(v));
   assert.equal(ours.length, 50, 'в зеркале — все 50 реагентов волны');
-  assert.deepEqual(ours, ids.slice(-150, -100),
-    'наши 50 — перед хвостами свитков 000321.11 и воскрешения 000321.12'
-    + ' (additions-only; ре-пин 000321.12: хвост занят zyv_*-свитками)');
+  // additions-only: гард переведён в successor-tolerant форму (ре-пин 000321.13).
+  const NUMBY = new Map(Object.entries(NUM2ID).map(([k, v]) => [v, Number(k)]));
+  assert.ok(ours.every((v) => NUMBY.has(v)), 'у наших 50 есть реестровые номера');
+  const ourStart = ids.indexOf(ours[0]);
+  assert.deepEqual(ids.slice(ourStart, ourStart + 50), ours,
+    'блок 50 — непрерывен в зеркале');
+  const ourLo = Math.min(...ours.map((v) => NUMBY.get(v)));
+  const ourHi = Math.max(...ours.map((v) => NUMBY.get(v)));
+  assert.ok(ids.slice(0, ourStart).every((v) => NUMBY.get(v) < ourLo),
+    'всё перед блоком заведено РАНЬШЕ волны (реестр-номер меньше)');
+  assert.ok(ids.slice(ourStart + 50).every((v) => NUMBY.get(v) > ourHi),
+    'successor-tolerant: всё после блока заведено ПОЗЖЕ волны (реестр-номер '
+    + 'больше) — новым волнам ре-пин этой строки не нужен; сейчас после блока '
+    + (ids.length - ourStart - 50) + ' id: свитки 000321.11, воскрешение 000321.12, чертежи 000321.13; было: жёсткий slice(-150, -100)');
   const nums = Object.keys(NUM2ID);
   assert.equal(nums.length, diskCount,
     'реестр ≡ каталогу (ls-предикат); факт: реестр ' + nums.length + ', диск ' + diskCount);
@@ -466,7 +477,7 @@ test('000321.10 T8: регресс-канарейки ЖИВЫМИ выраже�
   }
   const recRest = recs.filter((f) => !ROSTER_SET.has(f.replace(/\.json$/, '')));
   assert.equal(recs.length - recRest.length, 25,
-    'рецептов +25 (693 → 718); факт: ' + recs.length);
+    'рецептов +25 (693 → 768); факт: ' + recs.length);
   assert.equal(
     all.filter((it) => 'rarity' in it).length
     - rest.filter((it) => 'rarity' in it).length, 0,
