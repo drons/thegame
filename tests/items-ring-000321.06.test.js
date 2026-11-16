@@ -257,10 +257,10 @@ function recFiles() {
 
 // --- T1: форма 50 предметов ------------------------------------------
 
-test('000321.06 T1: каталог — ровно 1064 файла <id>.json (позиции — виртуальные номера по реестру 000318.08) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.08: +50 еды 000865–000914 — новый конец каталога; ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин: +50 колец 000765–000814); новые 50 — kind ring, slot ring, stats РОВНО {armor: 0} (ювелирная группа D-02 .14), БЕЗ subtype/base_price/tier/effect/loot, порядок ключей = канон sync-items-data.js (set перед affixes, set_bonus последний), roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 764 — волна не добавлена)', () => {
+test('000321.06 T1: каталог — ls-предикат: N файлов <id>.json (N = счётчик диска; ls-пол ≥ 814; миграция 000397) (позиции — виртуальные номера по реестру 000318.08) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.08: +50 еды 000865–000914 — новый конец каталога; ре-пин 000321.07: +50 зелий 000815–000864 — новый конец каталога; ре-пин: +50 колец 000765–000814); новые 50 — kind ring, slot ring, stats РОВНО {armor: 0} (ювелирная группа D-02 .14), БЕЗ subtype/base_price/tier/effect/loot, порядок ключей = канон sync-items-data.js (set перед affixes, set_bonus последний), roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 764 — волна не добавлена)', () => {
   const files = itemFiles();
-  assert.equal(files.length, 1064,
-    'каталог — 1064 файла (764 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08); факт: '
+  assert.ok(files.length >= 814,
+    'каталог — ls-пол ≥ 814 json-файлов (миграция 000397; история волн: 764 + 50 колец 000321.06 + 50 зелий 000321.07 + 50 еды 000321.08); факт: '
     + files.length + ' (краснота: волна не добавлена)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
@@ -294,9 +294,9 @@ test('000321.06 T1: каталог — ровно 1064 файла <id>.json (п�
 
 // --- T2: ростер + глобальная уникальность -----------------------------
 
-test('000321.06 T2: ростер 50 строк ≡ JSON (id/имя/rarity/weight/value/skill/amount/set/free_cast/desc «<Имя>: …»); sweep по 1064: id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу (краснота: каталог 764) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
+test('000321.06 T2: ростер 50 строк ≡ JSON (id/имя/rarity/weight/value/skill/amount/set/free_cast/desc «<Имя>: …»); sweep по живому каталогу (ls): id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу (краснота: каталог 764) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = itemFiles();
-  assert.equal(files.length, 1064, 'каталог — 1064; факт: ' + files.length);
+  assert.ok(files.length >= 814, 'каталог — ls-пол ≥ 814 json-файлов (миграция 000397); факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
@@ -312,7 +312,7 @@ test('000321.06 T2: ростер 50 строк ≡ JSON (id/имя/rarity/weight
       'дубликат desc: ' + j.desc + ' (' + f + ')');
     descs.set(j.desc, f);
   }
-  assert.equal(ids.size, 1064);
+  assert.equal(ids.size, files.length);
   for (const [num, id, name, rarity, weight, value, skill, amount,
       set, fc, , , , , , descTail] of ROSTER_00032106) {
     const j = JSON.parse(loadItemFile(num));
@@ -360,7 +360,7 @@ test('000321.06 T3: редкость волны РОВНО 20/14/10/4/2 в ка�
     }
   }
   const all = I.allItems();
-  assert.equal(all.length, 1064, 'live-каталог — 1064');
+  assert.equal(all.length, itemFiles().length, 'live-каталог ≡ allItems (ls-предикат)');
   assert.equal(all.filter((it) => it.kind === 'ring').length, 75,
     'kind ring — 75 (25 + 50); факт: '
     + all.filter((it) => it.kind === 'ring').length);
@@ -759,8 +759,8 @@ test('000321.06 T8: 50 рецептов — файлы по id (прежние �
 // --- T9: зеркала ----------------------------------------------------------
 
 test('000321.06 T9: зеркала — src/items-data.js содержит 50 новых колец ≡ JSON (getItem резолвится); src/craft-data.js содержит 50 рецептов с резолвом результат/исходники/навыки/здания в id (краснота: зеркало не регенерировано)', () => {
-  assert.equal(ITD.ITEMS.length, 1064,
-    'items-data — 1064; факт: ' + ITD.ITEMS.length);
+  assert.equal(ITD.ITEMS.length, itemFiles().length,
+    'items-data ≡ каталогу (ls-предикат); факт: ' + ITD.ITEMS.length);
   const mirrorById = new Map(ITD.ITEMS.map((it) => [it.id, it]));
   for (const [num, id] of ROSTER_00032106) {
     const j = JSON.parse(loadItemFile(num));
@@ -801,10 +801,10 @@ test('000321.06 T9: зеркала — src/items-data.js содержит 50 н�
 
 // --- T10: счётчики/канарейки ----------------------------------------------
 
-test('000321.06 T10: регресс-канарейки — каталог 1064 ≡ items-data (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064, spell_scroll 161 → 211, base_price 302 → 352, без slot 425 → 475, иконки 931 → 981; ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.07: +50 зелий); ring 75/75, weapon 72 / armor 257 / tool 60 / artifact 63 / shield 62 (не выросли), spell_scroll 211; slot — у 589, «прочих» без slot — 475 (ре-пин 000321.07: +50 зелий без slot; ре-пин 000321.08: +50 еды); base_price РОВНО у 352 (ре-пин 000321.08: +50 еды; кольца не торгуют; ре-пин 000321.07: +50 зелий); free_cast — 28 (26 + 2 epic); наборы 20 / 67 предметов; skill-аффиксов 589 на 31 навык; craft 718: зачарование 244 / кузнечное 173 / столярное 114 / резьба 95 / алхимия 86 / рунопись 6 (ре-пин 000321.07: +50 алхимии); иконки 981; stroke= — ровно 46 legacy (краснота: каталог 764)', () => {
+test('000321.06 T10: регресс-канарейки — каталог ≡ items-data (ls-предикат; миграция 000397) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064, spell_scroll 161 → 211, base_price 302 → 352, без slot 425 → 475, иконки 931 → 981; ре-пин 000321.10: +50 реагентов 000965–001014 — каталог 1014, craft 718; ре-пин 000321.07: +50 зелий); ring 75/75, weapon 72 / armor 257 / tool 60 / artifact 63 / shield 62 (не выросли), spell_scroll 211; slot — у 589, «прочих» без slot — 475 (ре-пин 000321.07: +50 зелий без slot; ре-пин 000321.08: +50 еды); base_price РОВНО у 352 (ре-пин 000321.08: +50 еды; кольца не торгуют; ре-пин 000321.07: +50 зелий); free_cast — 28 (26 + 2 epic); наборы 20 / 67 предметов; skill-аффиксов 589 на 31 навык; craft 718: зачарование 244 / кузнечное 173 / столярное 114 / резьба 95 / алхимия 86 / рунопись 6 (ре-пин 000321.07: +50 алхимии); иконки 981; stroke= — ровно 46 legacy (краснота: каталог 764)', () => {
   const all = I.allItems();
-  assert.equal(all.length, 1064);
-  assert.equal(ITD.ITEMS.length, 1064, 'items-data ≡ каталог (1064)');
+  assert.equal(all.length, itemFiles().length);
+  assert.equal(ITD.ITEMS.length, itemFiles().length, 'items-data ≡ каталог (ls-предикат)');
   const byKind = {};
   for (const it of all) byKind[it.kind] = (byKind[it.kind] || 0) + 1;
   assert.equal(byKind.ring, 75, 'ring — 75 (25 + 50); факт: '

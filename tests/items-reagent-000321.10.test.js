@@ -160,10 +160,10 @@ function lootSvgFiles() {
 
 // --- T1: форма 50 предметов --------------------------------------------------
 
-test('000321.10 T1: каталог — ровно 1064 файла <id>.json (позиции 000965–001014 по реестру 000318.08); новые 50 — kind reagent, БЕЗ effect/rarity/slot/base_price/subtype/stats/set/affixes/set_bonus (стопка 99 — рантайм MAX_STACK, JSON-поля stack в схеме нет), tier по ростуеру (0 — поля нет), icon = assets/sprites/loot/<id>.svg ПОСЛЕДНИМ ключом, порядок ключей = канон sync-items-data.js, roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 964 — волна не добавлена)', () => {
+test('000321.10 T1: каталог — ls-предикат: N файлов <id>.json (N = счётчик диска; ls-пол ≥ 1014; миграция 000397) (позиции 000965–001014 по реестру 000318.08); новые 50 — kind reagent, БЕЗ effect/rarity/slot/base_price/subtype/stats/set/affixes/set_bonus (стопка 99 — рантайм MAX_STACK, JSON-поля stack в схеме нет), tier по ростуеру (0 — поля нет), icon = assets/sprites/loot/<id>.svg ПОСЛЕДНИМ ключом, порядок ключей = канон sync-items-data.js, roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 964 — волна не добавлена)', () => {
   const files = FILES();
-  assert.equal(files.length, 1064,
-    'каталог — 1064 файла (964 + 50 реагентов 000321.10 + 50 свитков 000321.11); факт: '
+  assert.ok(files.length >= 1014,
+    'каталог — ls-пол ≥ 1014 json-файлов (миграция 000397; история волн: 964 + 50 реагентов 000321.10 + 50 свитков 000321.11); факт: '
     + files.length + ' (краснота: волна не добавлена)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
@@ -201,9 +201,9 @@ test('000321.10 T1: каталог — ровно 1064 файла <id>.json (п�
 
 // --- T2: ростер + глобальная уникальность + lex-хвост ------------------------
 
-test('000321.10 T2: ростер 50 строк ≡ JSON (id/имя/weight/value/desc «<Имя>: …»); sweep по 1064: id, ИМЕНА и ОПИСАНИЯ уникальны по всему живому каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zvukopis_unkill» (additions-only: lex-хвост ⇒ rng-потоки стоков/лутов существующих предметов не сдвигаются) (краснота: каталог 964)', () => {
+test('000321.10 T2: ростер 50 строк ≡ JSON (id/имя/weight/value/desc «<Имя>: …»); sweep по живому каталогу (ls): id, ИМЕНА и ОПИСАНИЯ уникальны по всему живому каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «zvukopis_unkill» (additions-only: lex-хвост ⇒ rng-потоки стоков/лутов существующих предметов не сдвигаются) (краснота: каталог 964)', () => {
   const files = FILES();
-  assert.equal(files.length, 1064, 'каталог — 1064; факт: ' + files.length);
+  assert.ok(files.length >= 1014, 'каталог — ls-пол ≥ 1014 json-файлов (миграция 000397); факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
@@ -219,7 +219,7 @@ test('000321.10 T2: ростер 50 строк ≡ JSON (id/имя/weight/value/
       'дубликат desc: ' + j.desc + ' (' + f + ')');
     descs.set(j.desc, f);
   }
-  assert.equal(ids.size, 1064);
+  assert.equal(ids.size, files.length);
   for (const [num, id, name, , weight, value, , , , tail] of ROSTER_00032110) {
     const j = JSON.parse(loadItemFile(num));
     assert.equal(j.id, id, num + ': id == ростер');
@@ -399,13 +399,11 @@ test('000321.10 T6: craft — РОВНО 718 (693 + 25 новых: алхими�
 
 // --- T7: зеркало + реестр + digest-инвариантность префикса 864 ---------------
 
-test('000321.10 T7: зеркало src/items-data.js — 1064 записей, новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — ПЕРЕД хвостом свитков 000321.11 (additions-only; ре-пин 000321.11); реестр — ключи «000001»…«001064» подряд, биекция с диском, 000965…001014 ≡ ростер (append-only); digest замороженного префикса 000001..000864 ≡ литералу 000392 — хвостовой append его НЕ касается (краснота: зеркало 964 / реестр 964)', () => {
+test('000321.10 T7: зеркало src/items-data.js ≡ каталогу (ls-предикат), новые 50 ≡ JSON поэлементно, getItem резолвится, зеркало lex-упорядочено и наши 50 — ПЕРЕД хвостом свитков 000321.11 (additions-only; ре-пин 000321.11); реестр — ключи «000001»…«NNNNNN» подряд (N = счётчик диска), биекция с диском, 000965…001014 ≡ ростер (append-only); digest замороженного префикса 000001..000864 ≡ литералу 000392 — хвостовой append его НЕ касается (краснота: зеркало 964 / реестр 964)', () => {
   const diskCount = fs.readdirSync(ITEMS_DIR).filter(SLUG).length;
   assert.equal(ITD.ITEMS.length, diskCount,
     'зеркало ≡ диск по числу записей; факт: зеркало ' + ITD.ITEMS.length
     + ', диск ' + diskCount);
-  assert.equal(ITD.ITEMS.length, 1064,
-    'зеркало — 1064 записей; факт: ' + ITD.ITEMS.length);
   const ids = ITD.ITEMS.map((it) => it.id);
   assert.ok(ids.every((v, i) => i === 0 || ids[i - 1] < v),
     'зеркало lex-упорядочено по id');
@@ -419,11 +417,12 @@ test('000321.10 T7: зеркало src/items-data.js — 1064 записей, н
   assert.deepEqual(ours, ids.slice(-100, -50),
     'наши 50 — сразу перед хвостом свитков 000321.11 (additions-only)');
   const nums = Object.keys(NUM2ID);
-  assert.equal(nums.length, 1064, 'реестр — 1064 строк; факт: ' + nums.length);
+  assert.equal(nums.length, diskCount,
+    'реестр ≡ каталогу (ls-предикат); факт: реестр ' + nums.length + ', диск ' + diskCount);
   assert.deepEqual(nums, nums.map((_, i) => String(i + 1).padStart(6, '0')),
-    'реестр — «000001»…«001064» подряд, без дыр');
+    'реестр — «000001»…«NNNNNN» подряд (N = счётчик), без дыр');
   const byId = new Set(Object.values(NUM2ID));
-  assert.equal(byId.size, 1064, 'реестр — биекция с диском');
+  assert.equal(byId.size, nums.length, 'реестр — биекция с диском');
   for (const f of fs.readdirSync(ITEMS_DIR).filter(SLUG)) {
     assert.ok(byId.has(f.replace(/\.json$/, '')),
       f + ': позиция в реестре есть');

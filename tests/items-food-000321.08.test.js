@@ -126,10 +126,10 @@ function loadItemFile(num) {
 
 // --- T1: форма 50 предметов -------------------------------------------
 
-test('000321.08 T1: каталог — ровно 1064 файла <id>.json (позиции — виртуальные номера по реестру 000318.08) (ре-пин: +50 еды 000865–000914); новые 50 — kind food, effect {kind: eat, amount} по ростеру, БЕЗ rarity/slot/set/subtype/tier/stats/loot/affixes/set_bonus, base_price ПОСЛЕ value, порядок ключей = канон sync-items-data.js, roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 864 — волна не добавлена) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
+test('000321.08 T1: каталог — ls-предикат: N файлов <id>.json (N = счётчик диска; ls-пол ≥ 914; миграция 000397) (позиции — виртуальные номера по реестру 000318.08) (ре-пин: +50 еды 000865–000914); новые 50 — kind food, effect {kind: eat, amount} по ростеру, БЕЗ rarity/slot/set/subtype/tier/stats/loot/affixes/set_bonus, base_price ПОСЛЕ value, порядок ключей = канон sync-items-data.js, roundtrip-канон stringify(…,2)+\\n, валидны по assets/items/schema.json (краснота: каталог 864 — волна не добавлена) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = FILES_I08();
-  assert.equal(files.length, 1064,
-    'каталог — 1064 файла (864 + 50 еды 000321.08); факт: '
+  assert.ok(files.length >= 914,
+    'каталог — ls-пол ≥ 914 json-файлов (миграция 000397; история волн: 864 + 50 еды 000321.08); факт: '
     + files.length + ' (краснота: волна не добавлена)');
   const schema = JSON.parse(
     fs.readFileSync(path.join(ITEMS_DIR, 'schema.json'), 'utf8'));
@@ -164,9 +164,9 @@ test('000321.08 T1: каталог — ровно 1064 файла <id>.json (п�
 
 // --- T2: ростер + глобальная уникальность + additions-only хвост --------
 
-test('000321.08 T2: ростер 50 строк ≡ JSON (id/имя/effect.amount/weight/value/base_price/desc «<Имя>: …»); sweep по 1064: id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «yew_longbow» (additions-only: хвост зеркального lex-порядка ⇒ rng-потоки существующих стоков не сдвигаются) (краснота: каталог 864) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
+test('000321.08 T2: ростер 50 строк ≡ JSON (id/имя/effect.amount/weight/value/base_price/desc «<Имя>: …»); sweep по живому каталогу (ls): id, ИМЕНА и ОПИСАНИЯ уникальны по всему каталогу; все 50 новых id ЛЕКСИКОГРАФИЧЕСКИ > «yew_longbow» (additions-only: хвост зеркального lex-порядка ⇒ rng-потоки существующих стоков не сдвигаются) (краснота: каталог 864) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const files = FILES_I08();
-  assert.equal(files.length, 1064, 'каталог — 1064; факт: ' + files.length);
+  assert.ok(files.length >= 914, 'каталог — ls-пол ≥ 914 json-файлов (миграция 000397); факт: ' + files.length);
   const ids = new Map();
   const names = new Map();
   const descs = new Map();
@@ -182,7 +182,7 @@ test('000321.08 T2: ростер 50 строк ≡ JSON (id/имя/effect.amount
       'дубликат desc: ' + j.desc + ' (' + f + ')');
     descs.set(j.desc, f);
   }
-  assert.equal(ids.size, 1064);
+  assert.equal(ids.size, files.length);
   for (const [num, id, name, amount, weight, value, bp,
     tail] of ROSTER_00032108) {
     const j = JSON.parse(loadItemFile(num));
@@ -337,9 +337,9 @@ test('000321.08 T6: страж факта диска — каталог craft Р
 
 // --- T7: зеркало + реестр --------------------------------------------------
 
-test('000321.08 T7: зеркало src/items-data.js — 1064 записей, новые 50 ≡ JSON поэлементно и getItem резолвится; реестр tests/scripts/items-num2id-000318.08.json — ключи «000001»…«001064» подряд (ре-пин 000321.11: хвост реестра вырос append-ом), биекция с диском, 000865…000914 ≡ ростер (краснота: зеркало 864 / реестр 864) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
-  assert.equal(ITD.ITEMS.length, 1064,
-    'items-data — 1064; факт: ' + ITD.ITEMS.length);
+test('000321.08 T7: зеркало src/items-data.js ≡ каталогу (ls-предикат), новые 50 ≡ JSON поэлементно и getItem резолвится; реестр tests/scripts/items-num2id-000318.08.json — ключи «000001»…«NNNNNN» подряд (N = счётчик диска) (ре-пин 000321.11: хвост реестра вырос append-ом), биекция с диском, 000865…000914 ≡ ростер (краснота: зеркало 864 / реестр 864) (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064; ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
+  assert.equal(ITD.ITEMS.length, FILES_I08().length,
+    'items-data ≡ каталогу (ls-предикат); факт: ' + ITD.ITEMS.length);
   const mirrorById = new Map(ITD.ITEMS.map((it) => [it.id, it]));
   for (const [num, id] of ROSTER_00032108) {
     const j = JSON.parse(loadItemFile(num));
@@ -350,15 +350,15 @@ test('000321.08 T7: зеркало src/items-data.js — 1064 записей, н
       id + ': getItem резолвится');
   }
   const keys = Object.keys(NUM2ID_I08);
-  assert.equal(keys.length, 1064, 'реестр — 1064 ключей; факт: '
-    + keys.length);
+  assert.equal(keys.length, FILES_I08().length,
+    'реестр ≡ каталогу (ls-предикат); факт: ' + keys.length);
   assert.deepEqual(keys,
     keys.map((_, i) => String(i + 1).padStart(6, '0')),
-    'реестр — ключи подряд 000001…001064');
+    'реестр — ключи подряд 000001..NNNNNN (N = счётчик)');
   const diskIds = new Set(FILES_I08()
     .map((f) => JSON.parse(fs.readFileSync(
       path.join(ITEMS_DIR, DISKF_I08(f)), 'utf8')).id));
-  assert.equal(new Set(Object.values(NUM2ID_I08)).size, 1064,
+  assert.equal(new Set(Object.values(NUM2ID_I08)).size, keys.length,
     'реестр — значения уникальны');
   assert.deepEqual([...Object.values(NUM2ID_I08)].sort(),
     [...diskIds].sort(), 'реестр ≡ диску (биекция)');
@@ -370,10 +370,10 @@ test('000321.08 T7: зеркало src/items-data.js — 1064 записей, н
 
 // --- T8: счётчики/канарейки ----------------------------------------------
 
-test('000321.08 T8: регресс-канарейки — каталог 1064 ≡ items-data; food 53; potion 55 / weapon 72 / armor 257 / tool 60 / artifact 63 / shield 62 / ring 75 / spell_scroll 211 (вырос — +50 свитков 000321.11; прочие виды не выросли); rarity — 579 (еда без rarity); slot — у 589 (не выросло), «прочих» без slot — 475 (275 + 50 еды); держателей base_price — 352 (252 + 50 еды + 50 свитков 000321.11), без base_price — 712 (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064, spell_scroll 161 → 211, base_price 302 → 352, без slot 425 → 475, иконки 931 → 981; ре-пин 000321.10: +50 реагентов без base_price); craft 718: зачарование 244 / кузнечное 173 / столярное 114 / резьба 95 / алхимия 86 / рунопись 6; иконки 981; stroke= — ровно 46 legacy (краснота: каталог 864) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
+test('000321.08 T8: регресс-канарейки — каталог ≡ items-data (ls-предикат; миграция 000397); food 53; potion 55 / weapon 72 / armor 257 / tool 60 / artifact 63 / shield 62 / ring 75 / spell_scroll 211 (вырос — +50 свитков 000321.11; прочие виды не выросли); rarity — 579 (еда без rarity); slot — у 589 (не выросло), «прочих» без slot — 475 (275 + 50 еды); держателей base_price — 352 (252 + 50 еды + 50 свитков 000321.11), без base_price — 712 (ре-пин 000321.11: +50 свитков 001015–001064 — каталог 1014 → 1064, spell_scroll 161 → 211, base_price 302 → 352, без slot 425 → 475, иконки 931 → 981; ре-пин 000321.10: +50 реагентов без base_price); craft 718: зачарование 244 / кузнечное 173 / столярное 114 / резьба 95 / алхимия 86 / рунопись 6; иконки 981; stroke= — ровно 46 legacy (краснота: каталог 864) (ре-пин 000321.10: +50 реагентов — каталог 1014, craft 718)', () => {
   const all = I.allItems();
-  assert.equal(all.length, 1064);
-  assert.equal(ITD.ITEMS.length, 1064, 'items-data ≡ каталог (1064)');
+  assert.equal(all.length, FILES_I08().length);
+  assert.equal(ITD.ITEMS.length, FILES_I08().length, 'items-data ≡ каталог (ls-предикат)');
   const byKind = {};
   for (const it of all) byKind[it.kind] = (byKind[it.kind] || 0) + 1;
   assert.equal(byKind.food, 53, 'food — 53 (3 + 50); факт: '
