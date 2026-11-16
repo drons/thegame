@@ -66,17 +66,27 @@ tests/scripts/items-num2id-000318.08.json — РЕЕСТР НЕ дополняе
   предложение.
 - Постройки [assets/buildings/blacksmith.json]; в зеркале — id [8].
   npcForBuilding(NPCS,8) — по-прежнему Торн (ПЕРВЫЙ по номеру файла;
-  cities/HUD «Здесь:» не двигаются). npcsForBuilding(8) — ДВОЕ.
-  npcsForBuilding(NPCS,8) порядок каталога [blacksmith, ore_merchant].
+  cities/HUD «Здесь:» не двигаются). npcsForBuilding(8) — ДВОЕ (ЭРРАТА b27:
+  истина ТОЛЬКО на базе волны 000320.32; после 000320.33 (Дымарь
+  forge_instructor) — ТРОЕ (диск df875b67), после 000320.34 (Ухват
+  tool_smith, ff 7215d6a7) — ЧЕТВЕРО (диск 6b4ba25c — пины T7
+  npc-000320.32/.33/.34 «ЧЕТВЕРО Кузницы»); перепин в голый present-tense
+  здесь НЕ вносить: живой сиблинг .35 снова двинет ростер).
+  npcsForBuilding(NPCS,8) порядок каталога [blacksmith, ore_merchant]
+  (на базе .32; после .33 — +forge_instructor, после .34 — +tool_smith;
+  полный актуальный ростер — memory/000320-tool_smith.md).
 - Зеркало: regen scripts/sync-npc-data.js в ТОМ ЖЕ коммите —
   NPCS[52]=ore_merchant (канон 000393: легитимный regen зелён, дрейф
   красен); свой T1 guard: NPCS[51]=arena_doctor.
-- [E]-оверлей дома 8 (T8): РОВНО 3 строки ['dialog',
-  'dialog:ore_merchant', 'craft'] — craft-строка СИНТЕЗИРУЕТСЯ
-  buildingActions ПОСЛЕДНЕЙ (000126: рецепты здания 8), требует
-  `globalThis.Game = { Craft: C }` на момент вызова (паттерн
+- [E]-оверлей дома 8 (T8): РОВНО 3 строки (ЭРРАТА b27: счёт по базе 000320.32)
+  ['dialog', 'dialog:ore_merchant', 'craft']; после 000320.33 — РОВНО 4 строки
+  с 'dialog:forge_instructor', хоткеи Digit1..4 (диск df875b67), после
+  000320.34 — РОВНО 5 строк с 'dialog:tool_smith', хоткеи Digit1..5
+  (диск 6b4ba25c, пины T8 npc-000320.32/.33/.34 «ровно 5 строк»). Craft-строка
+  СИНТЕЗИРУЕТСЯ buildingActions ПОСЛЕДНЕЙ (000126: рецепты здания 8),
+  требует `globalThis.Game = { Craft: C }` на момент вызова (паттерн
   craft-mentor:81; try/finally — вернуть как было); эффектов у дома 8
-  нет (effectIds пуст); хоткеи Digit1..3.
+  нет (effectIds пуст).
 
 ## Диалог и запрет-лист (forbid-цепь 000372)
 
