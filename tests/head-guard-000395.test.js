@@ -27,7 +27,6 @@ const HEAD_BAN_ALLOW_000395 = {
   'items-rename-000318.08.test.js': ['LEDGER_I08_REL'],
   'skills-rename-000318.09.test.js': ['REGISTRY_REL_I09'],
   'items-spec-bytes-log-000386.test.js': ['t'],
-  'items-reagent-000321.10.test.js': ['rel'],
 };
 
 function HEAD_BAN_HITS_000395(text, allow) {

@@ -7,7 +7,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 const { createHash } = require('node:crypto');
 const I = require('../src/items.js');
 const ITD = require('../src/items-data.js');
@@ -570,7 +569,7 @@ test('000321.10 T9: spec/items.md — «Каталог пополнен 50 ре�
 
 // --- T10: автоматика магазинов/лутов + стражи 0-diff --------------------------
 
-test('000321.10 T10: src/ НЕ трогали: shopKindsFor(магазин магии) содержит reagent ⇒ новые входят в bt3-лавки АВТОМАТИЧЕСКИ (сток (30,40,bt3,w0) ⊇ ≥20 наших; w3-смесь ⊇ ≥35 наших); live-скан loot — РОВНО 83 предмета с полем loot (33 + 50); барахолка camp (виды food/potion/weapon/armor) НЕ содержит ни одного нашего; LOOT_RARE_POOL: src/combat.js не содержит ни одного id волны; src/items.js и src/map.js побайтово ≡ HEAD (F1-страж); у старых 33 лут-предметов канальне индексы не сдвинулись (append в хвост lex-зеркала) (краснота: реагентов нет в стоках)', () => {
+test('000321.10 T10: src/ НЕ трогали: shopKindsFor(магазин магии) содержит reagent ⇒ новые входят в bt3-лавки АВТОМАТИЧЕСКИ (сток (30,40,bt3,w0) ⊇ ≥20 наших; w3-смесь ⊇ ≥35 наших); live-скан loot — РОВНО 83 предмета с полем loot (33 + 50); барахолка camp (виды food/potion/weapon/armor) НЕ содержит ни одного нашего; LOOT_RARE_POOL: src/combat.js не содержит ни одного id волны; src/items.js и src/map.js — сид-каналы лута/барахолки запинены ВЫРАЖЕНИЯМИ + отсутствие numeric-путей и анти-хайджек id волны литералами (миграция 000412 вместо снятого 0-diff стража ≡ HEAD); у старых 33 лут-предметов канальне индексы не сдвинулись (append в хвост lex-зеркала) (краснота: реагентов нет в стоках)', () => {
   const M = require('../src/map.js');
   const B = M.BUILDING_TYPES;
   const kinds = I.shopKindsFor(B.MAGIC_SHOP);
@@ -611,12 +610,38 @@ test('000321.10 T10: src/ НЕ трогали: shopKindsFor(магазин ма�
     assert.ok(!combatText.includes("'" + id + "'"),
       id + ': реагента нет в литералах combat.js (LOOT_RARE_POOL заморожен)');
   }
+  // Миграция 000412 (долг 000395 §3): побайтовая сверка hand-файлов src/items.js и
+  // src/map.js с HEAD-блобом снята — зуб был ложнокрасен для волн, правящих items.js
+  // до коммита, и тавтологичен после (000393 п.6). Каналы лута/лагерного стока
+  // пинуются ВЫРАЖЕНИЯМИ сида + отсутствием numeric-путей (покрытие
+  // items-rename-000318.08 T10); поведение зеркала закреплено живым срезом
+  // T7 (items-data ≡ диску) и живыми assert-ами выше.
+  const SEED_PINS_000412 = [
+    ['src/map.js', /^\s*const LOOT_SEED = GLOBAL_SEED \^ 0x4C4F4F54;$/m,
+      '0x4C4F4F54'],
+    ['src/items.js', /^\s*const CAMP_STOCK_SEED = 0x43414d50;/m,
+      '0x43414d50'],
+  ];
+  for (const pin of SEED_PINS_000412) {
+    const text = fs.readFileSync(path.join(ROOT, pin[0]), 'utf8');
+    assert.ok(pin[1].test(text),
+      pin[0] + ': выражение сида канала изменилось (ожидалось точное '
+      + pin[1] + ') — канал лута/лагерного стока сдвигает ВСЕ золотые этого'
+      + ' файла: пересъём живым кодом в том же коммите (map.test / items.test'
+      + ' / cities); миграция 000412');
+    assert.ok(text.includes(pin[2]),
+      pin[0] + ': сид-константа ' + pin[2] + ' пропала');
+    assert.doesNotMatch(text, /assets\/items\/\d{6}\.json/,
+      pin[0] + ': numeric-пути каталога items в src запрещены (флип шейпа'
+      + ' 000318.08; миграция 000412)');
+  }
   for (const rel of ['src/items.js', 'src/map.js']) {
-    const before = execFileSync('git',
-      ['-C', ROOT, 'show', 'HEAD:' + rel],
-      { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-    const after = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-    assert.equal(after, before, rel + ' ИЗМЕНЁН — торговля/лут-механика '
-      + 'должны ловить новый вид автоматически (0-diff страж F1)');
+    const text = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+    for (const id of ROSTER_IDS) {
+      assert.ok(!text.includes("'" + id + "'"),
+        rel + ': id волны «' + id + '» захардкожен литералом — торговля/лут'
+        + ' обязаны ловить новый вид автоматически (замена снятого 0-diff'
+        + ' стража, миграция 000412)');
+    }
   }
 });
