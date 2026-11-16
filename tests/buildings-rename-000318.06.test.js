@@ -59,11 +59,13 @@
 //     вынесла бы abandoned_temple в начало).
 //   * T8 — sync-npc-data.js buildRefMap: shape-aware (buildings-ключи
 //     карты — slug-файлы каталога, schema.json исключён); на РЕАЛЬНЫХ
-//     данных sync-npc резолвит все 34 npc («постройки» → целые id).
+//     данных sync-npc резолвит все NPC каталога («постройки» → целые id).
 //   * T9 — иконки 0-diff: assets/sprites/building РОВНО 26 numeric-имён
 //     (контракт 000293 BI-2), assets/sprites/buildings РОВНО 53 svg,
-//     assets/sprites/cities ⊇ city_51..54; icon у всех 55 записей —
-//     прежний побайтовый; уникальность icon 55.
+//     assets/sprites/cities ⊇ city_51..54; icon у КАЖДОЙ записи
+//     каталога построек — прежний побайтовый; уникальность icon —
+//     код-пин T9 ниже (счётчик каталога живёт в нём, в комментарий
+//     не дублируется).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

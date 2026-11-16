@@ -171,7 +171,7 @@ test('T1. RARITY_PRICE_STEPS/rarityPriceMult: 1/8/64/512/4096, без редко
     if (it.rarity) withRarity++;
   }
   assert.ok(withRarity >= 500,
-    'свип覆盖 rarity-предметов (факт: ' + withRarity + ')');
+    'свип покрывает rarity-предметов (факт: ' + withRarity + ')');
 });
 
 // ============================================================
