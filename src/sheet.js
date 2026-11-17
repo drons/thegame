@@ -544,6 +544,7 @@
       spellActionsWis: 1 + Math.floor(P.wisdom / 10),
       // Точность и урон.
       swordHitBonus: pct('swordsman'),
+      staffHitBonus: pct('staff'),
       archerHitBonus: pct('archer'),
       heavyDamageBonus: pct('heavy'),
       fistDamageBonus: pct('fists'),

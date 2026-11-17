@@ -1554,6 +1554,7 @@
           ((eb && eb.right_hand && eb.right_hand.damage) || 0) + st.damage;
         out.subtype = it.subtype;
         if (it.subtype === 'sword') out.hitBonus = d.swordHitBonus;
+        else if (it.subtype === 'staff') out.hitBonus = d.staffHitBonus;
         else if (it.subtype === 'bow') {
           out.hitBonus = d.archerHitBonus;
           out.dmgBonus = d.rangedDamageBonus;

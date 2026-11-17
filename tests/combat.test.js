@@ -10062,7 +10062,7 @@ test('000230.12 R9: remap бит-в-бит — 7 legacy-оружий: JSON-по�
   }
 });
 
-test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (maxDist = isBow?4:1, combat.js:1409 — посох не лук), урон = stats.damage (eq.dmgBonus = 0: staff не в sword/bow/heavy-ветках equipmentStats), skillId "staff" (D-02, ре-пин 000337): practice("staff") → {applied: 3} — опыт в skillXp.staff (навык «Владение посохом» ∈ каталог, 000044); equipmentStats {damage: stats.damage, subtype: "staff", hitBonus 0, dmgBonus 0, armor 0} (краснота: предметов subtype staff нет в каталоге)', () => {
+test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (maxDist = isBow?4:1, combat.js:1409 — посох не лук), урон = stats.damage (eq.dmgBonus = 0; eq.hitBonus = staffHitBonus — staff-ветка equipmentStats с 000421, ре-пин: strongHero без уровня staff → 0.05·0 = 0), skillId "staff" (D-02, ре-пин 000337): practice("staff") → {applied: 3} — опыт в skillXp.staff (навык «Владение посохом» ∈ каталог, 000044); equipmentStats {damage: stats.damage, subtype: "staff", hitBonus 0, dmgBonus 0, armor 0} (краснота: предметов subtype staff нет в каталоге)', () => {
   // [id, stats.damage] — ростер §2.1 (7 staff).
   const staffs = [
     ['ember_staff', 5], ['rime_staff', 5], ['rune_staff', 6],
@@ -10080,8 +10080,9 @@ test('000230.12 R10: staff — 7 посохов: дальность МЕЛ 1 (ma
     assert.deepEqual(I.equipmentStats(p),
       { damage: dmg, subtype: 'staff', hitBonus: 0, dmgBonus: 0,
         armor: 0 },
-      id + ': equipmentStats — staff проходит ВСЕ ветки: '
-      + 'hitBonus/dmgBonus 0, damage = stats.damage');
+      id + ': equipmentStats — staff: dmgBonus 0 (без ветки урона), '
+      + 'hitBonus = staffHitBonus = 0.05·0 (ре-пин 000421), '
+      + 'damage = stats.damage');
     const c = createCombat({
       player: p, groupType: 3, seed: 5, width: 7, height: 4,
     });

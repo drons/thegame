@@ -4460,7 +4460,7 @@ test('000230.02 M5 (vm): 4+4 кольца — 8 equip заполняют ring_le
   assert.equal(G.totalQty(c, 'x_ring'), 1);
 });
 
-test('000230.02 M6 (vm+node): equipmentStats — интерфейс {damage, subtype, hitBonus, dmgBonus, armor} не меняется: armor = СУММА stats.armor всех слотов (+ бонус качества надетого, 000046); damage/subtype/hitBonus/dmgBonus — ТОЛЬКО из right_hand; staff — damage без бонусов; tool БЕЗ stats.damage — 0/null без падения; ghost — вклад 0', () => {
+test('000230.02 M6 (vm+node): equipmentStats — интерфейс {damage, subtype, hitBonus, dmgBonus, armor} не меняется: armor = СУММА stats.armor всех слотов (+ бонус качества надетого, 000046); damage/subtype/hitBonus/dmgBonus — ТОЛЬКО из right_hand; staff — damage без бонусов, hitBonus = staffHitBonus (ре-пин 000421: staff-ветка добавлена, уровень посоха в фикстуре не выставлен → 0); tool БЕЗ stats.damage — 0/null без падения; ghost — вклад 0', () => {
   const fixtures = [
     { id: 'x_head6', name: 'Тестовый шлем', kind: 'armor',
       stats: { armor: 1 }, slot: 'head', weight: 1, value: 10, desc: 'т' },
@@ -4524,7 +4524,9 @@ test('000230.02 M6 (vm+node): equipmentStats — интерфейс {damage, sub
   st = G.equipmentStats(c);
   assert.equal(st.damage, 7, 'staff — damage');
   assert.equal(st.subtype, 'staff');
-  assert.equal(st.hitBonus, 0, 'staff — без hitBonus (карты бонусов нет)');
+  assert.equal(st.hitBonus, 0,
+    'staff — hitBonus = staffHitBonus (ре-пин 000421: вторичный staff '
+    + 'в фикстуре НЕ выставлен → 0.05·0)');
   assert.equal(st.dmgBonus, 0, 'staff — без dmgBonus');
   G.equip(c, 'x_tool6');
   st = G.equipmentStats(c);
