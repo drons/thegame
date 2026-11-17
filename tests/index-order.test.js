@@ -79,6 +79,9 @@ test('index.html: нужные модули подключены', () => {
     // 000221: слот спец-модулей «Хранилище» (город, id 55) — после
     // fullrest, до hud.js (пин порядка IO4).
     'src/building-effect-storage.js',
+    // 000419: мировая миникарта (Game.minimap) — слот после storage,
+    // до hud.js/main.js (UMD-ловушка 000038; пин IO5 ниже).
+    'src/minimap.js',
     'src/hud.js',
     // Слот спец-модулей 000128 (после hud.js, до visuals-data.js);
     // добавлено на зелёной стадии (план красной — см. коммит
@@ -1675,6 +1678,27 @@ test('IO4. 000221: спец-модуль «Хранилище» — тег src/b
     + '(слот спец-модулей, задача 000221)');
   assert.ok(pos('src/building-effect-storage.js') < pos('src/main.js'),
     'src/building-effect-storage.js должен быть ДО src/main.js '
+    + '(UMD-ловушка 000038: main.js снимает Game один раз)');
+});
+
+// ====================================================================
+// 000419: модуль мировой миникарты src/minimap.js («мировая миникарта»
+// смотровых башен) — тег в слоте после building-effect-storage.js, до
+// hud.js/main.js. Пин ТОЛЬКО порядка — контракт G.minimap обязан попасть
+// в снапшот Game до IIFE main.js (UMD-ловушка 000038). Имя IO5:
+// IO1/IO2/IO3/IO4 заняты 000137/000162/000200/000221.
+// ====================================================================
+
+test('IO5. 000419: мировая миникарта — тег src/minimap.js в index.html (ПОСЛЕ building-effect-storage.js, ДО hud.js и main.js)', () => {
+  assert.notEqual(pos('src/minimap.js'), -1,
+    'src/minimap.js не подключён в index.html (задача 000419)');
+  assert.ok(pos('src/building-effect-storage.js') < pos('src/minimap.js'),
+    'src/minimap.js — в слоте спец-модулей (ПОСЛЕ '
+    + 'building-effect-storage.js, задача 000419)');
+  assert.ok(pos('src/minimap.js') < pos('src/hud.js'),
+    'src/minimap.js должен быть ДО src/hud.js (слот, задача 000419)');
+  assert.ok(pos('src/minimap.js') < pos('src/main.js'),
+    'src/minimap.js должен быть ДО src/main.js '
     + '(UMD-ловушка 000038: main.js снимает Game один раз)');
 });
 

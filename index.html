@@ -41,6 +41,42 @@
       pointer-events: none;
       white-space: pre-line;
     }
+    /* Мировая миникарта (задача 000419, src/minimap.js): union окон
+       исследованных башен вокруг героя + метка героя; ПРАВЫЙ верхний
+       угол (левый занят #hud). z-index 16 — НОВАЯ ступень лестницы:
+       ВЫШЕ .fs-btn 15, НИЖЕ оверлеев боя/подземелья/resurrect 20,
+       #touch-controls 30, .spellbook-oc 35, start-window 40 (в бою и
+       подземелье панель гасится ими сверху). Панель скрыта (display
+       none) — показывает JS при открытии; кнопка-переключатель
+       живёт отдельной fixed-ступенью той же ниши (панель скрывается
+       вместе с содержимым, кнопка остаётся). Свой canvas — ВНЕ
+       чанкового bake (000263-контракт: оверлей ПОВЕРХ, не в bake). */
+    #minimap {
+      position: fixed;
+      right: 12px;
+      top: 44px;
+      z-index: 16;
+      display: none;
+      pointer-events: none;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid #6b6248;
+      border-radius: 10px;
+      padding: 6px;
+    }
+    #minimap-canvas { display: block; }
+    #minimap-toggle {
+      position: fixed;
+      right: 12px;
+      top: 12px;
+      z-index: 16;
+      color: #e8dcc0;
+      font: 13px/1.4 ui-monospace, monospace;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid #6b6248;
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
     /* Полноэкранная двухколоночная панель (задача 000096): накрывает
        карту; 000377: top/left/right/bottom = 0 — ВЕСЬ экран (ранее
        кромки 12px + нижняя полоса 56px под .fs-btn съедали ~68px
@@ -1056,8 +1092,8 @@
        логотип + «Продолжить» (зелёный) / «Начать заново» (красный);
        «Начать заново» — тройное переспрашивание (Да/Нет/Да) перед
        стиранием сохранений. z-index 40 — НОВАЯ верхняя ступень
-       лестницы (.char-panel 10 < .fs-btn 15 < оверлеи боя/
-       подземелья 20 < #touch-controls 30 < .spellbook-oc 35 <
+       лестницы (.char-panel 10 < .fs-btn 15 < #minimap 16 < оверлеи
+       боя/подземелья 20 < #touch-controls 30 < .spellbook-oc 35 <
        start-window 40).
        Панель подтверждения (.start-window-confirm) показывается
        inline display:flex из src/start-window.js (базовый display
@@ -1307,6 +1343,10 @@
   <canvas id="game"></canvas>
   <canvas id="sprites"></canvas>
   <div id="hud">Загрузка мира…</div>
+  <!-- Мировая миникарта (задача 000419): статичные элементы оверлея —
+       кнопка [M] и панель со СВОИМ canvas (не #game/#sprites). -->
+  <button id="minimap-toggle">МИНИКАРТА [M]</button>
+  <div id="minimap"><canvas id="minimap-canvas"></canvas></div>
   <!-- Обычные <script> (не модули): игра открывается двойным кликом
        по index.html без локального сервера. API собирается в globalThis.Game. -->
   <script src="src/global-settings.js"></script>
@@ -1510,6 +1550,15 @@
        (паттерн UMD), ДО hud.js/main.js (UMD-ловушка 000038). Пин
        порядка — tests/index-order.test.js. -->
   <script src="src/building-effect-storage.js"></script>
+  <!-- Мировая миникарта (задача 000419): src/minimap.js — чистый UMD
+       (ноль DOM/чтений Game/консоли на загрузке, паттерн 000053):
+       union-модель из живой Map explored + окно Чебышёва (радиус — из
+       каталога 46), рисование в СВОЙ canvas #minimap-canvas (вне
+       чанкового bake — 000263-контракт не затронут). Слот: ПОСЛЕ
+       building-effect-storage.js, ДО hud.js/main.js (UMD-ловушка
+       000038: main.js снимает Game один раз). Пин порядка — IO5 в
+       tests/index-order.test.js. -->
+  <script src="src/minimap.js"></script>
   <!-- HUD (задача 000129, разбиение main.js 3/4): строки мира/
        подземелья/города. После building-actions.js (доменная группа
        серии 000127→000130), ДО main.js (UMD-ловушка 000038: main.js
