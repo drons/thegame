@@ -18,8 +18,8 @@ a3-tests.md} — расхождения между ними разрешены �
 
 | # | решение | почему |
 |---|---|---|
-| R1 | Иконки заклинаний — в **отдельном каталоге `assets/spell-icons/<id>.svg`**, НЕ в `assets/spells/` | Каталог заклинаний закрыт тестом «чужих файлов нет (только NNNNNN.json и schema.json)» (tests/spells.test.js L84-89) — ослаблять защитника ради ассетов нельзя; иконка — ассет, не данные (source of truth каталога — JSON + зеркало spells-data.js) |
-| R2 | JSON-поля: **`"icon"`** (строка, путь ОТ КОРНЯ: `assets/spell-icons/<id>.svg`) + **`"icon_prompt"`** (строка, непустая); оба в `required` схемы | `icon` — имя поля уже существует в проекте (assets/portraits, 000142 D2); путь от корня, а не basename, т.к. иконка лежит в ДРУГОМ каталоге, чем JSON (прецедент basename работает только при colocate); `icon_prompt` самодокументирующая пара к `icon` (голое `prompt` — неоднозначно; русские `иконка`/`промпт_иконки` отклонены — поле-иконка в проекте уже английское) |
+| R1 | Иконки заклинаний — в **отдельном каталоге `assets/spell-icons/<id>.svg`**, НЕ в `assets/spells/` (ЭРРАТА b30: с ре-орга 000329 каталог иконок живёт по адресу `assets/sprites/spells/` — путь `assets/spell-icons/` мёртв; само правило «отдельный каталог, не JSON-каталог `assets/spells/`» в силе) | Каталог заклинаний закрыт тестом «чужих файлов нет (только NNNNNN.json и schema.json)» (tests/spells.test.js L84-89) — ослаблять защитника ради ассетов нельзя; иконка — ассет, не данные (source of truth каталога — JSON + зеркало spells-data.js) |
+| R2 | JSON-поля: **`"icon"`** (строка, путь ОТ КОРНЯ: `assets/spell-icons/<id>.svg`; ЭРРАТА b30: живой каталог с ре-орга 000329 — `assets/sprites/spells/<id>.svg` @904790f7, формат «путь от корня» в силе) + **`"icon_prompt"`** (строка, непустая); оба в `required` схемы | `icon` — имя поля уже существует в проекте (assets/portraits, 000142 D2); путь от корня, а не basename, т.к. иконка лежит в ДРУГОМ каталоге, чем JSON (прецедент basename работает только при colocate); `icon_prompt` самодокументирующая пара к `icon` (голое `prompt` — неоднозначно; русские `иконка`/`промпт_иконки` отклонены — поле-иконка в проекте уже английское) |
 | R3 | Имя действия — **`spellbook`**; клавиши **KeyQ (primary) + KeyR** — дублирующая пара, обе открывают книгу | «Книга заклинаний» = spellbook — точное имя под aria-label; обе бывшие «магические» клавиши ведут в одну книгу (мышь/клавиатура унифицированы, muscle memory сохранён; прецедент дублей KeyJ/KeyK, KeyT/KeyU в combat-keys.js); иконка кнопки выводится деривацией `assets/ui/combat_spellbook.svg` — без спец-кейса |
 | R4 | **Аддитивная ветка `canDoAction(c, 'spellbook')` в combat.js** (после ветки 'heal'): checkTurn → checkBlocked → пустая книга → `{ok:false, reason:'заклинаний нет'}` → ok | Цикл disabled-кнопок в render() (`G.canDoAction(c, b.dataset.act, …)`) и handleCode (`st.canDo = G.canDoAction(c, entry.action, …)`) уже читают canDoAction для КЛЮЧА И КНОПКИ — нулевые правки disabled-логики (красное ТЗ), контракт 000037 «одна причина — одно поведение», один источник доступности; отклонён a2-вариант «синтез st.canDo в handleCode + спецкейс в render» — дупликация canDo-логики в двух местах UI, что 000037 и запрещал |
 | R5 | Кнопка книги enabled, если книга **непуста**; доступность отдельных заклинаний (мана/пул/цель) — **НЕ** сводится в кнопку, живёт в строках (зеркало canCastSpell) | Кнопка — opener; её единственная canDo-причина = «заклинаний нет»; иначе N вызовов canCastSpell на render и неоднозначный reason на кнопке (чьи «не хватает маны» показывать?) |
@@ -54,7 +54,7 @@ a3-tests.md} — расхождения между ними разрешены �
 * модуль `src/spellbook.js` (`Game.SpellBook.entriesFor`) — чистые
   данные строк;
 * ветка `canDoAction(c, 'spellbook')` в combat.js (аддитивная, R4);
-* `assets/spell-icons/<id>.svg` ×16 (R18) + поля `icon`/`icon_prompt`
+* `assets/spell-icons/<id>.svg` ×16 (R18) + поля `icon`/`icon_prompt` (ЭРРАТА b30: снимок @000149-эпохи; с ре-орга 000329 — `assets/sprites/spells/`)
   в 16 JSON + schema.json (R2, R15) + перегенерированный
   `src/spells-data.js` (зеркало несёт и новые ключи);
 * тесты: `tests/spellbook.test.js` (SB1-SB11) + технические репины
@@ -198,7 +198,8 @@ if (action === 'spellbook') {
   `icon_prompt` `{type:'string', pattern:'^\\S(.*\\S)?$'}` (непустая);
   +оба в `required` (конец массива); `additionalProperties:false` —
   как есть.
-* 16 JSON: в конце объекта `"icon": "assets/spell-icons/<id>.svg"`,
+* 16 JSON: в конце объекта `"icon": "assets/spell-icons/<id>.svg"`, (ЭРРАТА b30:
+  шаг внедрения @000149-эпохи; живое значение поля — `assets/sprites/spells/<id>.svg`)
   `"icon_prompt": "<промпт>"` — порядок в файле не значим для
   sync (канонический порядок вывода — KEYS).
 * sync-spells-data.js: `KEYS += 'icon', 'icon_prompt'` (хвост
@@ -255,7 +256,7 @@ L808/809/836) + `spellbook.js` ПЕРЕД combat-ui.js; в красной фаз
 | SB7 | (node) COMBAT_KEYS: значений action НЕТ 'fire'/'heal'; ЕСТЬ 'spellbook'; KeyQ primary + KeyR (дубль); describeCombatKeys — 7 записей, spellbook: label «Книга заклинаний», primaryKey KeyQ, keys ['KeyQ','KeyR'] | таблица fire/heal, 8 записей |
 | SB8 | (node) canDoAction(c,'spellbook'): непустая книга + фаза игрока → ok; пустая → {ok:false, reason:'заклинаний нет'}; phase 'mob' → 'не ваш ход' | «неизвестное действие: spellbook» |
 | SB9 | (node) каждый из 16 JSON assets/spells: `icon` — непустая строка (форма схемы), `icon_prompt` — непустая; schema.required содержит оба | полей нет |
-| SB10 | (node) файл по `icon` существует; иконки в `assets/spell-icons/` с именем `id + '.svg'`; в assets/spells — только NNNNNN.json + schema.json (регрессия закрытости) | файлов нет |
+| SB10 | (node) файл по `icon` существует; иконки в `assets/spell-icons/` с именем `id + '.svg'`; в assets/spells — только NNNNNN.json + schema.json (регрессия закрытости) (ЭРРАТА b30: @000149-эпоха; живые проверки сверяют `assets/sprites/spells/` — ре-орг 000329) | файлов нет |
 | SB11 | (node) каждый новый SVG (16 + combat_spellbook) — checkSvg → [] (well-formedness + корень svg + xmlns + viewBox 4 числа + без NaN) — DO каталога | файлов нет |
 
 **Ожидаемо красных — ТОЛЬКО SB1-SB11** (11), весь остальной набор —
@@ -349,7 +350,8 @@ L808/809/836) + `spellbook.js` ПЕРЕД combat-ui.js; в красной фаз
   ссылаёт; ~439 пинов) — кандидат на ОТДЕЛЬНУЮ cleanup-задачу
   (НЕ в 000149: ядро не трогаем — инвариант «не больше, чем просит
   ТЗ»).
-* **Иконки**: при изменении каталога `assets/spell-icons/` или
+* **Иконки**: при изменении каталога `assets/sprites/spells/` (ЭРРАТА b30: живой
+  путь с ре-орга 000329; исторически введён как `assets/spell-icons/`) или
   формата `icon` — синхронно: schema (pattern), JSON (16),
   sync KEYS, spells-data.js, SB10 (имя/каталог), svg.test.js
   (счётчик). Промпт генерации — в JSON (`icon_prompt`) — source of
@@ -400,7 +402,8 @@ L808/809/836) + `spellbook.js` ПЕРЕД combat-ui.js; в красной фаз
    + этот файл. npm test: база зелёная + 11 красных.
 2. **Данные**: assets/spells/schema.json + 16 JSON (icon/icon_prompt)
    + sync KEYS + регенерация spells-data.js + 16 SVG
-   assets/spell-icons/ (каждый — svg.test.js ДО каталога) +
+   assets/spell-icons/ (каждый — svg.test.js ДО каталога) + (ЭРРАТА b30:
+   шаг плана @000149; живой каталог — assets/sprites/spells/, ре-орг 000329)
    assets/ui/combat_spellbook.svg + удаление combat_fire/heal.svg.
 3. **Код**: src/spellbook.js + combat-keys.js (таблица/лейблы) +
    combat.js (ветка) + combat-ui.js (build/runAction/render/click)
@@ -423,7 +426,7 @@ L808/809/836) + `spellbook.js` ПЕРЕД combat-ui.js; в красной фаз
 | `index.html` | тег spellbook.js (после spells.js, +3 c комментом) + CSS-блок (конец <style>, ~22) | +25 |
 | `assets/spells/schema.json` | +icon/+icon_prompt (properties+required) | +12 |
 | `assets/spells/0000*.json` ×16 | +icon +icon_prompt | +2×16 |
-| `assets/spell-icons/*.svg` ×16 | НОВЫЕ (24×24, #e8dcc0, один путь, R18) | ~+4×16 |
+| `assets/spell-icons/*.svg` ×16 | НОВЫЕ (24×24, #e8dcc0, один путь, R18) (ЭРРАТА b30: состояние @000149; файлы перенесены ре-оргом 000329 в `assets/sprites/spells/`) | ~+4×16 |
 | `assets/ui/combat_spellbook.svg` | НОВОЕ (открытая книга) | +4 |
 | `assets/ui/combat_fire.svg`, `combat_heal.svg` | УДАЛИТЬ | −8 |
 | `scripts/sync-spells-data.js` | KEYS += icon, icon_prompt | ±1 |
@@ -530,7 +533,8 @@ tests/combat-ui.test.js (доки loadCombatUi — сохранены ОБЕ:
 Решение стадии мержа (без смены поведения):
  * assets/spells/000017.json: +icon/icon_prompt (перо феникса —
    предмет phoenix_feather, школа исцеление, степень 1);
- * assets/spell-icons/resurrect.svg — 24×24, fill #e8dcc0,
+ * assets/spell-icons/resurrect.svg — 24×24, fill #e8dcc0, (ЭРРАТА b30:
+   решение стадии мержа @000149-эпохи; файл живёт assets/sprites/spells/resurrect.svg)
    единый силуэт (проверено checkSvg, инвариант 000120);
  * src/spells-data.js — перегенерирован scripts/sync-spells-data.js
    (зеркало byte-идентично повторному прогону; 17 записей);
