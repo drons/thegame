@@ -278,7 +278,7 @@
   const POISON_TURNS = 2;     // сколько ходов держится
   const FLEE_HP_FRAC = 0.3;   // пугливые убегают ниже 30% HP
   const WEB_CHANCE = 0.25;
-  const WEB_TURNS = 2;
+  const WEB_TURNS = 3;
   const WEB_SLOW_VALUE = 0.15;
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }

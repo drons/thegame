@@ -108,7 +108,9 @@ test('000420 T2: mobAttack — попадание паука вешает на �
     'дебаф-стат — «ход_вниз» (потребитель 000235.08.01)');
   assert.ok(c.ps.debuff.value > 0,
     'значимая величина > 0 (гейт SLOW_INITIATIVE_PENALTY: > 0)');
-  assert.equal(c.ps.debuff.turns, 2, 'длительность — 2 хода (WEB_TURNS)');
+  // ре-пин 000427 (вердикт (a)): WEB_TURNS 2→3 — окно turns−1 очередей.
+  assert.equal(c.ps.debuff.turns, 3,
+    'длительность — 3 хода (WEB_TURNS: ровно 2 замедленные очереди, ре-пин 000427)');
   assert.ok(c.log.includes(WEB_LOG_PLAYER),
     'лог-строка попадания паутины: ' + c.log.join(' | '));
   assert.equal(c.ps.poison, 2,
@@ -162,14 +164,16 @@ test('000420 T3: mobAttackAlly — попадание паука по союзн
   assert.equal(a.debuff.stat, 'ход_вниз',
     'дебаф-стат на союзнике — «ход_вниз»');
   assert.ok(a.debuff.value > 0, 'значимая величина > 0');
-  assert.equal(a.debuff.turns, 2, 'длительность — 2 хода (WEB_TURNS)');
+  // ре-пин 000427: та же константа на союзнике (t.debuff).
+  assert.equal(a.debuff.turns, 3,
+    'длительность — 3 хода (WEB_TURNS: 2 замедленные очереди, ре-пин 000427)');
   assert.ok(c.log.includes(WEB_LOG_ALLY),
     'лог-строка паутины по союзнику: ' + c.log.join(' | '));
   assert.ok(!c.ps.debuff,
     'паук бил союзника — у игрока дебафа нет (цель одна)');
 });
 
-test('000420 T4: очередь инициативы — замедленный игрок/союзник в конце; тик по ходам 2→1→0 — позиция возвращается (тик не-мобов — новый)', () => {
+test('000420 T4: очередь инициативы — замедленный игрок/союзник в конце; тик по ходам 3→2→1→0 — позиция возвращается (тик не-мобов — новый)', () => {
   // (a) игрок: web от паука (ходом дальше — волк-филер БЕЗ web —
   // трейт-гейт ⇒ паутина не обновляется). Игрок fastHero (init 200):
   // без web очередь ['player','m0','m1'] — замедление видно как перенос
@@ -182,25 +186,40 @@ test('000420 T4: очередь инициативы — замедленный 
   c._rng = () => 0.05;
   for (let i = 0; i < 12 && !c.ps.debuff; i++) c.endTurn();
   assert.ok(c.ps.debuff, 'паутина висит (см. T2)');
-  assert.equal(c.ps.debuff.turns, 2,
-    'RED: свежая запись — 2 хода (тик ещё не было: применение в раунде R)');
+  // ре-пин 000427: сегменты границы 3→2 / 2→1 / 1→0 — измеряют РОВНО
+  // 2 хвостовые замедленные очереди после ОДНОГО применения (обещание
+  // CHANGELOG «два хода последним» = turns−1 очередей).
+  assert.equal(c.ps.debuff.turns, 3,
+    'RED: свежая запись — 3 хода (тик ещё не было: применение в раунде R)');
   assert.deepEqual(buildTurnOrder(c), ['m0', 'm1', 'player'],
     'RED: замедленный игрок (init 200 − SLOW_INITIATIVE_PENALTY) — '
     + 'в конце очереди');
   combatInternals.dealDamageToMob(c, s, 9999);
   let r = c.round;
   for (let i = 0; i < 8 && c.round === r; i++) c.endTurn();
-  assert.equal(c.ps.debuff.turns, 1,
-    'RED: тик c.ps.debuff в начале раунда 2→1 (ритм — моб-тик 000235.01, '
+  assert.equal(c.ps.debuff.turns, 2,
+    'RED: тик c.ps.debuff в начале раунда 3→2 (ритм — моб-тик 000235.01, '
     + 'ДО пересборки очереди)');
   assert.deepEqual(buildTurnOrder(c), ['m1', 'player'],
-    'ход 1 из 2 — всё ещё в конце');
+    '1-я из 2 замедленных очередей — всё ещё в конце');
+  r = c.round;
+  for (let i = 0; i < 8 && c.round === r; i++) c.endTurn();
+  assert.equal(c.ps.debuff.turns, 1,
+    'RED: тик 2→1 — вторая замедленная очередь');
+  assert.deepEqual(buildTurnOrder(c), ['m1', 'player'],
+    '2-я из 2 замедленных очередей — всё ещё в конце');
   r = c.round;
   for (let i = 0; i < 8 && c.round === r; i++) c.endTurn();
   assert.equal(c.ps.debuff.turns, 0,
     'RED: тик 1→0 — эффект истёк (без тика паутина вечна)');
   assert.deepEqual(buildTurnOrder(c), ['player', 'm1'],
     'истечение — позиция возвращена (init-ключ чистый)');
+  // Потреблённая очередь НОВОГО раунда строится в startRound ПОСЛЕ тика —
+  // страховка от переноса тика за buildTurnOrder (третий путь, отвергнут
+  // 000427): там очередь раунда собралась бы с turns=1 и игрок остался бы
+  // в хвосте ещё на раунд.
+  assert.deepEqual(c.turnOrder, ['player', 'm1'],
+    'очередь, зафиксированная startRound — игрок в голове (тик ДО пересборки)');
 
   // (b) союзник: запись в a.debuff (тот же слот, что пишет
   // mobAttackAlly — см. T3) тикает в startRound (цикл живых союзников).
