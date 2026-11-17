@@ -357,9 +357,11 @@ test('000321.12 T9: spec/canon/c9 — line-neutral правка, байтовы�
     return mm !== null && Number(mm[1]) === liveBytes;
   });
   if (takenLater) {
-    assert.ok(Number(m[1]) < liveBytes,
-      'c9: преемственность — байты ' + m[1] + ' меньше живых ' + liveBytes
-      + ' (поздняя волна переняла счётчик spec/items.md)');
+    assert.notEqual(Number(m[1]), liveBytes,
+      'c9: преемственность — байты ' + m[1] + ' не равны живым ' + liveBytes
+      + ' (поздняя волна переняла счётчик spec/items.md; ре-пин 000428:'
+      + ' направление «<» было допущением только роста — line-neutral'
+      + ' правка ряда Оружие умеет и усекать файл)');
   } else {
     assert.equal(Number(m[1]), liveBytes,
       'c9: байты ≡ живому Buffer.byteLength(spec/items.md)');
