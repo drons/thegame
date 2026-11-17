@@ -28,7 +28,8 @@
         "poison": { "type": "boolean" },
         "lifesteal": { "type": "boolean" },
         "regen": { "type": "boolean" },
-        "debuff": { "type": "boolean" }
+        "debuff": { "type": "boolean" },
+        "web": { "type": "boolean" }
       },
       "additionalProperties": false
     },

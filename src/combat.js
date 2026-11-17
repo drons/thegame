@@ -167,7 +167,7 @@
     wolf_pack:      { id: 'wolf_pack', name: 'Волчья стая', role: 'swarm', aggro: 'territorial', dmg: 0.7, hp: 0.8, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'leather_armor', chance: 0.15 }] },
     boar:           { id: 'boar', name: 'Казённый вепрь', role: 'melee', aggro: 'neutral', dmg: 1.0, hp: 1.5, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'meat', chance: 0.3 }] },
     cave_bear:      { id: 'cave_bear', name: 'Пещерный медведь', role: 'shield', aggro: 'territorial', dmg: 1.3, hp: 2.0, dexterity: 1, intelligence: 1, armor: 1, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['endurance'], spells: [], loot: [{ item: 'meat', chance: 0.3 }, { item: 'honey_cake', chance: 0.1 }] },
-    spider:         { id: 'spider', name: 'Гигантский паук', role: 'swarm', aggro: 'territorial', dmg: 0.8, hp: 0.8, dexterity: 3, intelligence: 1, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
+    spider:         { id: 'spider', name: 'Гигантский паук', role: 'swarm', aggro: 'territorial', dmg: 0.8, hp: 0.8, dexterity: 3, intelligence: 1, traits: { poison: true, web: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
     troll:          { id: 'troll', name: 'Тролль', role: 'leader', aggro: 'neutral', dmg: 1.5, hp: 2.5, dexterity: 2, intelligence: 2, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'blueprint_woodwork', chance: 0.05 }] },
     // Насекомые
     ant:            { id: 'ant', name: 'Пещерный муравей', role: 'swarm', aggro: 'territorial', dmg: 0.5, hp: 0.5, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'honey_cake', chance: 0.15 }] },
@@ -277,6 +277,9 @@
   const POISON_TICK = 2;      // урона за ход
   const POISON_TURNS = 2;     // сколько ходов держится
   const FLEE_HP_FRAC = 0.3;   // пугливые убегают ниже 30% HP
+  const WEB_CHANCE = 0.25;
+  const WEB_TURNS = 2;
+  const WEB_SLOW_VALUE = 0.15;
 
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -295,7 +298,7 @@
   }
 
   function unitDebuffValue(c, u, stat) {
-    const eff = u && u.debuff;
+    const eff = u === c.player ? c.ps.debuff : (u && u.debuff);
     return eff && eff.stat === stat && eff.turns > 0 ? eff.value : 0;
   }
 
@@ -2059,6 +2062,11 @@
       c.ps.poison = POISON_TURNS;
       log(c, 'Вы отравлены!');
     }
+    if (u.traits.web && c._rng() < WEB_CHANCE) {
+      c.ps.debuff = { stat: 'ход_вниз', value: WEB_SLOW_VALUE,
+        turns: WEB_TURNS };
+      log(c, 'Паутина: вы замедлены!');
+    }
     // 000283.01.01: «дебафф» суккуба — полный провал действия цели
     // (гейта 0.25/magicResistMult сохранена, пул-роул убран);
     // «иммунитет_контроля» — гейт ДО мутации (чистое чтение).
@@ -2084,7 +2092,8 @@
   // Удар моба по СОЮЗНИКУ (задача 000080): те же бросок/ослабление;
   // трейты (яд/вампиризм) действуют ТОЛЬКО на игрока — сюда не
   // переносятся; «дебафф» — 000283.01.01 перенесён как контроль
-  // (мультипликатор магического сопротивления союзника = 1). Гибель
+  // (мультипликатор магического сопротивления союзника = 1); web —
+  // 000420 перенесён как замедление (t.debuff «ход_вниз»). Гибель
   // союзника — НЕ поражение (dealDamageToAlly).
   function mobAttackAlly(c, u, t) {
     // 000117: уклонение Эфира (эффект precog) — 4-й аргумент ТОГО
@@ -2125,6 +2134,11 @@
         t.bind = { turns: 1 };
         log(c, `${t.name}: следующий ход пропущен.`);
       }
+    }
+    if (dealt > 0 && u.traits.web && c._rng() < WEB_CHANCE) {
+      t.debuff = { stat: 'ход_вниз', value: WEB_SLOW_VALUE,
+        turns: WEB_TURNS };
+      log(c, `${t.name}: паутина замедляет!`);
     }
     if (t.buff && t.buff.stat === 'отражение'
         && t.buff.turns > 0) {
@@ -3043,6 +3057,7 @@
     if (c.ps.buff && c.ps.buff.stat === 'реген' && c.ps.buff.turns > 0)
       healAlly(c, c.player, c.ps.buff.value);
     if (c.ps.buff && c.ps.buff.turns > 0) c.ps.buff.turns -= 1;
+    if (c.ps.debuff && c.ps.debuff.turns > 0) c.ps.debuff.turns -= 1;
     // Щит Эфира (задача 000112): тик — тот же ритм; идёт и ПОСЛЕ
     // ГИБЕЛИ Эфира (тик в efirTurn дал бы вечный щит у мёртвого духа
     // — «2 хода» именно 2; D5).
@@ -3114,6 +3129,7 @@
       if (a.buff && a.buff.stat === 'реген' && a.buff.turns > 0)
         healAlly(c, a, a.buff.value);
       if (a.buff && a.buff.turns > 0) a.buff.turns -= 1;
+      if (a.debuff && a.debuff.turns > 0) a.debuff.turns -= 1;
       // 000272: traits.regen союзника — тот же моб-паттерн, что mobAct (+10% maxHP), молча; рассеивающийся выше continue.
       if (a.traits.regen)
         a.hp = Math.min(a.maxHP, a.hp + Math.max(1, Math.round(a.maxHP * 0.1)));
@@ -3717,6 +3733,7 @@
         shield: { armor: 0, turns: 0 },
         // 000235.01: баф игрока («баф» без targetId).
         buff: null,
+        debuff: null,
         // 000283.01.01: контроль по игроку (тик в advanceQueue).
         bind: null,
       },

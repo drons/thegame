@@ -9,7 +9,8 @@
   "dexterity": 3,
   "intelligence": 1,
   "traits": {
-    "poison": true
+    "poison": true,
+    "web": true
   },
   "size": {
     "w": 1,
