@@ -652,6 +652,7 @@
             out.purified = t.id;
             log(c, `${spell.название}: дебаф с ${t.name} снят.`);
           } else {
+            c.ps.debuff = null;
             out.purified = null;
             log(c, `${spell.название}: очищено.`);
           }
@@ -688,6 +689,7 @@
             total += healAlly(c, a, amount);
           }
           if (spellId === 'mass_holy_light') {
+            c.ps.debuff = null;
             for (const a of livingAllies(c)) a.debuff = null;
           }
           log(c, `${spell.название}: +${total}.`);
