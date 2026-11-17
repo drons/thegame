@@ -153,7 +153,7 @@
     orc_rider:      { id: 'orc_rider', name: 'Орк-наездник на волке', role: 'melee', aggro: 'aggressive', dmg: 1.1, hp: 1.0, dexterity: 5, intelligence: 1, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [{ item: 'sulfur', chance: 0.1 }] },
     orc_mad:        { id: 'orc_mad', name: 'Орк-бешеный', role: 'melee', aggro: 'aggressive', dmg: 1.4, hp: 0.7, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [] },
     orc_captain:    { id: 'orc_captain', name: 'Орк-капитан', role: 'leader', aggro: 'aggressive', dmg: 1.3, hp: 1.5, dexterity: 2, intelligence: 2, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.1 }, { item: 'chainmail', chance: 0.1 }] },
-    orc_chief:      { id: 'orc_chief', name: 'Орк-вождь', role: 'leader', aggro: 'aggressive', dmg: 1.6, hp: 2.0, dexterity: 2, intelligence: 2, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'chainmail', chance: 0.15 }, { item: 'greater_healing', chance: 0.1 }] },
+    orc_chief:      { id: 'orc_chief', name: 'Орк-вождь', role: 'leader', aggro: 'aggressive', dmg: 1.6, hp: 2.0, dexterity: 2, intelligence: 2, traits: { reinforce: 'orc_grunt' }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'chainmail', chance: 0.15 }, { item: 'greater_healing', chance: 0.1 }] },
     // Нежить
     skeleton:       { id: 'skeleton', name: 'Скелет', role: 'melee', aggro: 'neutral', dmg: 0.8, hp: 0.8, dexterity: 2, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'sulfur', chance: 0.15 }] },
     skeleton_archer:{ id: 'skeleton_archer', name: 'Скелет-лучник', role: 'ranged', aggro: 'aggressive', dmg: 0.8, hp: 0.8, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['archer'], spells: [], loot: [{ item: 'short_bow', chance: 0.1 }] },
@@ -171,7 +171,7 @@
     troll:          { id: 'troll', name: 'Тролль', role: 'leader', aggro: 'neutral', dmg: 1.5, hp: 2.5, dexterity: 2, intelligence: 2, size: { w: 2, h: 2 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'war_hammer', chance: 0.15 }, { item: 'blueprint_woodwork', chance: 0.05 }] },
     // Насекомые
     ant:            { id: 'ant', name: 'Пещерный муравей', role: 'swarm', aggro: 'territorial', dmg: 0.5, hp: 0.5, dexterity: 3, intelligence: 1, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: [], spells: [], loot: [{ item: 'honey_cake', chance: 0.15 }] },
-    ant_queen:      { id: 'ant_queen', name: 'Матка', role: 'leader', aggro: 'territorial', dmg: 1.0, hp: 2.0, dexterity: 2, intelligence: 2, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'honey_cake', chance: 0.3 }] },
+    ant_queen:      { id: 'ant_queen', name: 'Матка', role: 'leader', aggro: 'territorial', dmg: 1.0, hp: 2.0, dexterity: 2, intelligence: 2, traits: { swarmRout: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['leader'], spells: [], loot: [{ item: 'honey_cake', chance: 0.3 }] },
     scorpion:       { id: 'scorpion', name: 'Скорпион', role: 'melee', aggro: 'neutral', dmg: 0.9, hp: 0.9, dexterity: 2, intelligence: 1, traits: { poison: true }, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['alchemy'], spells: [], loot: [{ item: 'sulfur', chance: 0.2 }] },
     centipede:      { id: 'centipede', name: 'Многоножка', role: 'melee', aggro: 'aggressive', dmg: 1.0, hp: 0.9, dexterity: 5, intelligence: 1, fast: true, size: { w: 1, h: 1 }, xp: { base: 8, perLevel: 4 }, skills: ['step'], spells: [], loot: [] },
     // Стихийники и магия
@@ -1013,6 +1013,14 @@
       u.hp = 0;
       u.alive = false;
       log(c, `${u.name} повержен!`);
+      if (u.traits.swarmRout) {
+        let routed = 0;
+        for (const m of livingMobs(c)) {
+          m.fled = true;
+          routed += 1;
+        }
+        if (routed > 0) log(c, 'Рой разбежался.');
+      }
       checkVictory(c);
     }
     return { dmg, killed: !u.alive };
@@ -2169,6 +2177,30 @@
     if (u.bind && u.bind.turns > 0) {
       u.bind.turns -= 1;
       log(c, `${u.name} скован — пропускает действие.`);
+      return;
+    }
+    if (typeof u.traits.reinforce === 'string'
+        && MOB_TYPES[u.traits.reinforce] && !c.reinforcementCalled) {
+      c.reinforcementCalled = true;
+      const cells = [];
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          if (rectFree(c, u.x + dx, u.y + dy, 1, 1, u)) {
+            cells.push({ x: u.x + dx, y: u.y + dy });
+          }
+        }
+      }
+      if (cells.length > 0) {
+        const cell = cells[Math.floor(c._rng() * cells.length)];
+        const leaderAlive = livingMobs(c).some((m) => m.role === MOB_ROLES.LEADER);
+        const mob = makeMob(u.traits.reinforce, u.level, c.units.length,
+          leaderAlive, resolveDifficulty(c.difficulty));
+        mob.x = cell.x;
+        mob.y = cell.y;
+        c.units.push(mob);
+        log(c, `${u.name} созывает подмогу: ${mob.name}.`);
+      }
       return;
     }
     // Расширенная модель целей (задача 000080): ближайшая цель СТОРОНЫ
@@ -3724,6 +3756,7 @@
       // в сейв не идут (v1 не меняется); новый бой — чистые.
       walls: [],
       zone: null,
+      reinforcementCalled: false,
       ps: {
         moveLeft: 0, attack: 0, spellInt: 0, spellWis: 0,
         quickItem: 0, invItem: 0, block: 0,

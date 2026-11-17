@@ -8,6 +8,9 @@
   "hp": 2,
   "dexterity": 2,
   "intelligence": 2,
+  "traits": {
+    "reinforce": "orc_grunt"
+  },
   "size": {
     "w": 1,
     "h": 1

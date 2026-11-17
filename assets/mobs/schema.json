@@ -29,7 +29,9 @@
         "lifesteal": { "type": "boolean" },
         "regen": { "type": "boolean" },
         "debuff": { "type": "boolean" },
-        "web": { "type": "boolean" }
+        "web": { "type": "boolean" },
+        "swarmRout": { "type": "boolean" },
+        "reinforce": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
       },
       "additionalProperties": false
     },
