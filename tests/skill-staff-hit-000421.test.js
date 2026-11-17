@@ -257,12 +257,13 @@ test('000421 T5: assets/skills/staff.json — effectType/desc больше не 
   }, 'RED: зеркало skills-data.js отстало от JSON (нужен sync-skills-data)');
 });
 
-test('000421 T6: spec/skills.md — сноска ОТСРОЧЕНО снята ТОЛЬКО у «Владение посохом»; маркёр «потребителей стата в коде нет» остаётся ровно 1 (acro, до 000422)', () => {
+test('000421 T6 (ре-пин 000422): spec/skills.md — сноска ОТСРОЧЕНО снята и у «Владение посохом» (000421), и у «Акробатика» (000422); маркёр «потребителей стата в коде нет» = 0', () => {
   const src = fs.readFileSync(path.join(ROOT, 'spec', 'skills.md'), 'utf8');
   const rows = src.split('\n');
-  assert.equal(src.split('потребителей стата в коде нет').length - 1, 1,
-    'RED: маркёр «потребителей стата в коде нет» должен остаться ровно '
-    + 'у строки «Акробатика» (acro, до 000422); фактических вхождений: '
+  assert.equal(src.split('потребителей стата в коде нет').length - 1, 0,
+    'RED: маркёр «потребителей стата в коде нет» снят 000422 и у '
+    + '«Акробатика» (acroBonus получил горного потребителя); '
+    + 'фактических вхождений: '
     + (src.split('потребителей стата в коде нет').length - 1));
   const staffRow = rows.find((r) => r.includes('Владение посохом'));
   assert.ok(staffRow, 'строка «Владение посохом» в таблице');
@@ -271,8 +272,11 @@ test('000421 T6: spec/skills.md — сноска ОТСРОЧЕНО снята �
   assert.ok(staffRow.includes('вероятность попадания посохом'),
     'строка посоха описывает реализованное влияние: ' + staffRow);
   const acroRow = rows.find((r) => r.includes('Акробатика'));
-  assert.ok(acroRow.includes('ОТСРОЧЕНО'),
-    'acro-строка НЕ тронута (до 000422): ' + acroRow);
+  assert.ok(acroRow, 'строка «Акробатика» в таблице');
+  assert.equal(acroRow.includes('ОТСРОЧЕНО'), false,
+    'RED: acro-строка обязана быть без ОТСРОЧЕНО (000422): ' + acroRow);
+  assert.ok(acroRow.includes('взойти в горы'),
+    'acro-строка обязана описывать горный потребитель (000422): ' + acroRow);
 });
 
 test('000421 T7: spec/items.md — ряд Оружие больше не лжёт «посох — только урон (без бонусов…)»; новая форма в той же строке (line-neutral, без trailing-переноса)', () => {

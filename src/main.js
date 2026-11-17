@@ -2665,16 +2665,41 @@
   // 000235.08: frost_walk — проходимость тайла для героя (мир):
   // базовая проходимость + активная запись frost_walk (1 день)
   // открывает ОБА водных тайла (WATER/DEEP_WATER). Деградация
-  // (экспорта нет) — passable-only.
+  // (экспорта нет) — passable-only. 000422 (a): горы — стоЯчие при
+  // acroChance > 0 БЕЗ кубика (кубик входа — только tryMove:
+  // сейв-позиция/onDay читают этот предикат о ТЕКУЩЕЙ клетке).
+  const ACRO_MOUNTAIN_SEED = 0x4143524f;
+
+  function acroChance() {
+    const dd = G.derived ? G.derived(hero) : null;
+    const b = dd ? dd.acroBonus : 0;
+    if (typeof b !== 'number' || !Number.isFinite(b)) return 0;
+    return Math.max(0, Math.min(1, b));
+  }
+
   function heroPassable(t, day0) {
     if (t.passable) return true;
+    const T = G.TERRAIN;
+    if (T && t.terrain === T.MOUNTAIN) return acroChance() > 0;
     if (G.Spells && typeof G.Spells.isHeroFrostWalk === 'function'
         && G.Spells.isHeroFrostWalk(hero, day0)) {
-      const T = G.TERRAIN;
       return !!(T && (t.terrain === T.WATER
                       || t.terrain === T.DEEP_WATER));
     }
     return false;
+  }
+
+  function acroMountainEnterOk(t) {
+    const T = G.TERRAIN;
+    if (!T || !t || t.terrain !== T.MOUNTAIN) return true;
+    const chance = acroChance();
+    if (chance <= 0) return false;
+    const cur = map.tileAt(player.x, player.y);
+    if (cur && cur.terrain === T.MOUNTAIN) return true;
+    if (chance >= 1) return true;
+    const q = ((G.hash2(t.x, t.y, ACRO_MOUNTAIN_SEED)
+      ^ ((clock.day + 1) * 0x9E3779B9)) >>> 0) / 4294967296;
+    return q < chance;
   }
 
   // 000235.12.01: path_of_vines — стоимость МИРОВОГО шага (тайл-цель):
@@ -2682,7 +2707,11 @@
   // isHeroPathOfVines (expiresDay >= day) — 1; прочее — 1.
   // Деградация (таблицы/экспорта нет) — 1 (поведение до механики).
   // Чистая функция (тайл, запись, день): без rng, без мутаций.
+  // 000422: горы (thick:false) — 2 хода ЯВНОЙ веткой до thick-проверки;
+  // лозы их НЕ удешевляют (thick-контракт = только густые тайлы).
   function worldStepCost(t, day0) {
+    const T = G.TERRAIN;
+    if (T && t && t.terrain === T.MOUNTAIN) return 2;
     const d = G.TERRAIN_DATA && t ? G.TERRAIN_DATA[t.terrain] : null;
     if (!d || !d.thick) return 1;
     if (G.Spells && typeof G.Spells.isHeroPathOfVines === 'function'
@@ -2694,7 +2723,7 @@
     for (const k of keys) { // порядок в Set = порядок нажатий
       const [dx, dy] = G.deltaForMoveKey(k);
       const t = map.tileAt(player.x + dx, player.y + dy);
-      if (heroPassable(t, clock.day)) {
+      if (heroPassable(t, clock.day) && acroMountainEnterOk(t)) {
         prevPos.x = player.x;
         prevPos.y = player.y;
         player.x += dx;
@@ -4676,6 +4705,7 @@
       return JSON.parse(JSON.stringify(worldShops));
     },
     worldShopFor,
+    acroMountainEnterOk: (x, y) => acroMountainEnterOk(map.tileAt(x, y)),
     // Природный лут (задача 000158.04): 'x,y' → день сбора.
     // Поверхностная копия объекта (паттерн getter cities);
     // мутации копии не попадают в состояние.

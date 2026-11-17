@@ -18,27 +18,27 @@
    enum «террейны» assets/visuals/schema.json, имена файлов assets/sprites/tiles/*.svg) связаны
    с таблицей тестами; имена файлов не переименовывать.
 
- * Hero-level проходимость (frost_walk, 000235.08): статичный
-   `passable` НЕ меняется — `heroPassable(t, day)` (src/main.js) =
-   `t.passable` ИЛИ (frost_walk активен, `expiresDay > day`, И
-   `t.terrain` ∈ {WATER, DEEP_WATER}); через heroPassable — tryMove
-   и позиция-сейв (не heroPassable → console.warn «Сейв: позиция
-   непроходима — остаюсь на спавне.», герой на спавне); деградация
-   без G.Spells — passable-only; подземелья не затрагивает; при
-   смене дня — spec/game-time.md «При смене дня»; TERRAIN_DATA и
-   потребители (passableTiles/denseTiles, TILE_BASE, TILE_COLORS) —
-   статичны (буллет выше).
+ * Hero-level проходимость (frost_walk, 000235.08; горы — 000422):
+   статичный `passable` НЕ меняется — `heroPassable(t, day)`
+   (src/main.js) = `t.passable` ИЛИ (frost_walk активен,
+   `expiresDay > day`, И `t.terrain` ∈ {WATER, DEEP_WATER}) ИЛИ
+   (`t.terrain` = MOUNTAIN И acroBonus > 0): стоять на горе можно
+   БЕЗ кубика — кубик входа по (клетка, день) только в tryMove
+   (сейв-позиция и onDay его не бросают: с занятой горы герой НЕ
+   выталкивается); acroBonus ≤ 0 — горы непроходимы; деградация
+   без G.Spells — passable-only; подземелья не затрагивает; TERRAIN_DATA
+   статична; смена дня — spec/game-time.md «При смене дня».
 
  * Плотность движения (path_of_vines, 000235.12.01): `thick`
    (TERRAIN_DATA; статичное, только FOREST) — стоимость МИРОВОГО
    шага (src/main.js, frame loop, по тайлу, на котором герой встал):
-   на thick — 2 хода, остальные проходимые — 1; активная запись
-   path_of_vines (isHeroPathOfVines, expiresDay >= day, 1 день) —
-   шаг на thick стоит 1 (плотное = открытое). Истечение — onDay
-   (expiresDay <= day); вступление в бой запись не снимает.
-   Подземелье/город (клетки без террейна) — 1/клетку;
-   flame_step-лендинг (000239 D1) — 1 шаг за ландинг (каст),
-   НЕ за клетку; счётчик — общий steps_per_day (spec/game-time.md).
+   на thick — 2 хода; горы (MOUNTAIN, `thick: false`) — тоже 2 хода
+   явной веткой ДО thick-проверки (000422), лозы их НЕ удешевляют;
+   остальные проходимые — 1; активная запись path_of_vines
+   (isHeroPathOfVines, expiresDay >= day, 1 день) — шаг на thick
+   стоит 1 (плотное = открытое); истечение — onDay, бой запись не
+   снимает. Подземелье/город (клетки без террейна) — 1/клетку;
+   flame_step-лендинг (000239 D1) — 1 шаг за ландинг (каст), НЕ за клетку; счётчик — общий steps_per_day (spec/game-time.md).
 
  * Процедурно генерируемый лабиринт нескольких типов пещеры/подземелья.
    Подземелье многоэтажное. Глубина (код `d.depth`) — каноническое имя
