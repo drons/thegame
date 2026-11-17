@@ -34,7 +34,8 @@
 // Файл НЕ содержит старой линейной цитаты (SPEC-453-GONE, скан
 // tests/+src/ — needle собирается из частей; этот файл скан читает
 // сам — литерала в нём НЕТ) и НЕ создаёт файлов в spec/
-// (R1 spec-split: ровно 23 файла).
+// (актуальный счётчик файлов spec/ пинит ls-предикат R1
+// в tests/spec-split.test.js).
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

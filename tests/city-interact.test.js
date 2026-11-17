@@ -2523,7 +2523,7 @@ test('CI-134A. город с Лавкой: [E] → buildingUI → «Диалог
     const it = G.getItem(p.предмет);
     assert.ok(
       trade.includes(it.name + ' (ост. ' + p.количество + ')'),
-      'строка «' + it.name + ' (ост. ' + p.количество + '）»: ' +
+      'строка «' + it.name + ' (ост. ' + p.количество + ')»: ' +
         trade.slice(0, 300));
     assert.ok(
       trade.includes('покупка ' +
