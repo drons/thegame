@@ -458,16 +458,17 @@ test('000320.35 T6: ДАННЫЕ обучения как ОБЯЗАННОСТЬ 
     + 'строками id, прецедент .26–.34 T6)');
 });
 
-// --- T7: ростер Стрельбища — ШЕСТЕРО (ре-пин .39), Лейна первая; чужие не тронуты
+// --- T7: ростер Стрельбища — СЕМВЕРО (ре-пин .40), Лейна первая; чужие не тронуты
 
-test('000320.35 T7: npcsForBuilding(NPCS, 10) — ШЕСТЕРО Стрельбища в порядке каталога [archery_master, archery_instructor, accuracy_instructor, crossbowman, scout, hunter] (ре-пин 000320.39); npcForBuilding(10) — по-прежнему Лейна; Кузница (8) — ЧЕТВЕРО не тронута (.34-ростер); Арена (7) — СЕВЕРО, Гладиаторский двор (9) — ОДИН не тронуты', () => {
+test('000320.35 T7: npcsForBuilding(NPCS, 10) — СЕМВЕРО Стрельбища в порядке каталога [archery_master, archery_instructor, accuracy_instructor, crossbowman, scout, hunter, range_dummy] (ре-пин 000320.40); npcForBuilding(10) — по-прежнему Лейна; Кузница (8) — ЧЕТВЕРО не тронута (.34-ростер); Арена (7) — СЕВЕРО, Гладиаторский двор (9) — ОДИН не тронуты', () => {
   const list = N.npcsForBuilding(NPCS, 10);
   assert.deepEqual(list.map((n) => n.id),
-    ['archery_master', ID, 'accuracy_instructor', 'crossbowman', 'scout', 'hunter'],
+    ['archery_master', ID, 'accuracy_instructor', 'crossbowman', 'scout',
+      'hunter', 'range_dummy'],
     'Стрельбище (10): Лейна (000007) + наставник Кречет (000056) + '
     + 'наставник Намёт (000057, ре-пин 000320.36) + рогаточник Канитель '
     + '(000058, ре-пин 000320.37) + разведчик Хожалый '
-    + '(000059, ре-пин 000320.38) + охотник Глухарь (000060, ре-пин 000320.39), '
+    + '(000059, ре-пин 000320.38) + охотник Глухарь (000060, ре-пин 000320.39) + мишень Пугало (000061, ре-пин 000320.40), '
     + 'порядок = нумерация файлов; Лейна ПЕРВАЯ (её файл не тронут); '
     + 'факт: ' + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 10).id, 'archery_master',
@@ -487,9 +488,9 @@ test('000320.35 T7: npcsForBuilding(NPCS, 10) — ШЕСТЕРО Стрельб�
     + JSON.stringify(yard.map((n) => n.id)));
 });
 
-// --- T8: [E]-оверлей Стрельбища — ровно 6 dialog-строк (ре-пин .38) --------
+// --- T8: [E]-оверлей Стрельбища — ровно 7 dialog-строк (ре-пин .38) --------
 
-test('000320.35 T8: [E]-оверлей Стрельбища — ровно 6 строк: dialog (Лейна), dialog:archery_instructor (Кречет), dialog:accuracy_instructor (Намёт, ре-пин 000320.36), dialog:crossbowman (Канитель, ре-пин 000320.37), dialog:scout (Хожалый, ре-пин 000320.38), dialog:hunter (Глухарь, ре-пин 000320.39); эффектов у дома 10 нет — effectIds пуст; крафт-строки НЕТ (10 ∉ зданий рецептов — под Game.Craft wiring список всё равно 6 строк); подписи «Диалог: Лейна»/«Диалог: Кречет»/«Диалог: Намёт»/«Диалог: Канитель»/«Диалог: Хожалый»/«Диалог: Глухарь»; хоткеи Digit1..6 — граница /^Digit([1-9])$/ не превышена', () => {
+test('000320.35 T8: [E]-оверлей Стрельбища — ровно 7 строк: dialog (Лейна), dialog:archery_instructor (Кречет), dialog:accuracy_instructor (Намёт, ре-пин 000320.36), dialog:crossbowman (Канитель, ре-пин 000320.37), dialog:scout (Хожалый, ре-пин 000320.38), dialog:hunter (Глухарь, ре-пин 000320.39), dialog:range_dummy (Пугало, ре-пин 000320.40); эффектов у дома 10 нет — effectIds пуст; крафт-строки НЕТ (10 ∉ зданий рецептов — под Game.Craft wiring список всё равно 7 строк); подписи «Диалог: Лейна»/«Диалог: Кречет»/«Диалог: Намёт»/«Диалог: Канитель»/«Диалог: Хожалый»/«Диалог: Глухарь»/«Диалог: Пугало»; хоткеи Digit1..7 — граница /^Digit([1-9])$/ не превышена', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings',
     'archery_range.json'));
   assert.equal(b.id, 10, 'здание archery_range — id 10 (фикс размещения)');
@@ -511,30 +512,33 @@ test('000320.35 T8: [E]-оверлей Стрельбища — ровно 6 с�
     if (prevGame === undefined) delete globalThis.Game;
     else globalThis.Game = prevGame;
   }
-  assert.equal(rows.length, 6,
-    'список здания 10 = dialog-строки по каждому NPC (РОВНО ШЕСТЬ после '
-    + '.39 — ре-пин 000320.39) БЕЗ крафт-строки (не дом 8: рецептов на '
+  assert.equal(rows.length, 7,
+    'список здания 10 = dialog-строки по каждому NPC (РОВНО СЕМЬ после '
+    + '.40 — ре-пин 000320.40) БЕЗ крафт-строки (не дом 8: рецептов на '
     + 'Стрельбище нет), '
     + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
     ['dialog', 'dialog:' + ID, 'dialog:accuracy_instructor',
-      'dialog:crossbowman', 'dialog:scout', 'dialog:hunter'],
+      'dialog:crossbowman', 'dialog:scout', 'dialog:hunter',
+      'dialog:range_dummy'],
     'порядок строк = нумерация файлов каталога, Лейна по-прежнему '
     + 'ПЕРВАЯ (суффикс «:<id>» со второй строки — механизм '
     + 'building-effects); факт: '
     + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
     ['Диалог: Лейна', 'Диалог: ' + NAME, 'Диалог: Намёт',
-      'Диалог: Канитель', 'Диалог: Хожалый', 'Диалог: Глухарь'],
+      'Диалог: Канитель', 'Диалог: Хожалый', 'Диалог: Глухарь',
+      'Диалог: Пугало'],
     'подписи — «Диалог: <имя>», факт: '
     + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['archery_master', ID, 'accuracy_instructor', 'crossbowman', 'scout', 'hunter'],
+    ['archery_master', ID, 'accuracy_instructor', 'crossbowman', 'scout',
+      'hunter', 'range_dummy'],
     'каждая dialog-строка несёт npcId своего NPC (роутинг клика)');
   for (let i = 0; i < rows.length; i++) {
     assert.match('Digit' + (i + 1), /^Digit([1-9])$/,
       'хоткеи Digit1..' + rows.length + ' — общий механизм '
-      + 'src/building-ui.js /^Digit([1-9])$/ (шестая строка в границе)');
+      + 'src/building-ui.js /^Digit([1-9])$/ (седьмая строка в границе)');
   }
 });
 
