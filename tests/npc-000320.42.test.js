@@ -150,6 +150,8 @@ function aggregateThrough(ledger, upto) {
 
 const aggregateAll = (ledger) => aggregateThrough(ledger, Number.MAX_SAFE_INTEGER);
 
+const SELF_LINK = 42;
+
 function extractGuardAt(file, marker) {
   const src = fs.readFileSync(file, 'utf8');
   const at = src.indexOf("test('" + marker);
@@ -421,10 +423,13 @@ test('000320.42 T5: диалог валиден по схеме, РОВНО 3 о
       + 'внесён — правило 000424; его пишет реестру следующее звено)');
   }
   const ownInline = extractGuardAt(__filename, '000320.42 T5:');
-  assert.deepEqual(ownInline, aggregateAll(readLedger()),
-    'инлайн-гард этого файла ≡ aggregate(реестра) ЖИВЬЁМ (prev читается '
-    + 'из JSON-реестра; литеральный массив — только провенанс-якорь '
-    + 'зубов 000424 T4/T5; расхождение транскрипции/дампа красное)');
+  assert.deepEqual(ownInline, aggregateThrough(readLedger(), SELF_LINK),
+    'инлайн-гард этого файла ≡ aggregate(реестра) ЧЕРЕЗ МОЁ звено '
+    + SELF_LINK + ' ЖИВЬЁМ (prev читается из JSON-реестра; литеральный '
+    + 'массив — только провенанс-якорь зубов 000424 T4/T5; хвост цепи '
+    + 'переехал на .43 — ре-пин 000320.43, полный агрегат сторожит '
+    + 'зуб хвоста 000424 T5 и гард .43; расхождение транскрипции/дампа '
+    + 'красное)');
 });
 
 // --- T6: обязанность обучения (контракт «школы») + зеркало ------------------
@@ -538,16 +543,17 @@ test('000320.42 T6: ДАННЫЕ обучения как ОБЯЗАННОСТЬ 
     + 'строками id, прецедент .26–.41 T6)');
 });
 
-// --- T7: ростер Школы акробатов — ТРОЕ, Фикка первая; чужие дома не тронуты --
+// --- T7: ростер Школы акробатов — ЧЕТВЕРО (ре-пин .43), Фикка первая; чужие дома не тронуты --
 
-test('000320.42 T7: npcsForBuilding(NPCS, 11) — ТРОЕ Школы акробатов в порядке каталога [acro_master, acro_instructor, air_performer]; npcForBuilding(11) — по-прежнему Фикка; Стрельбище (10) — СЕМВЕРО не тронуто (.40-ростер); Кузница (8) — ЧЕТВЕРО не тронута (.34-ростер)', () => {
+test('000320.42 T7: npcsForBuilding(NPCS, 11) — ЧЕТВЕРО Школы акробатов в порядке каталога [acro_master, acro_instructor, air_performer, rope_walker] (ре-пин 000320.43); npcForBuilding(11) — по-прежнему Фикка; Стрельбище (10) — СЕМВЕРО не тронуто (.40-ростер); Кузница (8) — ЧЕТВЕРО не тронута (.34-ростер)', () => {
   const list = N.npcsForBuilding(NPCS, 11);
   assert.deepEqual(list.map((n) => n.id),
-    ['acro_master', 'acro_instructor', ID],
-    'Школа акробатов (11): Фикка (000008) + наставник Кувырок (000062, '
-    + 'ре-пин 000320.41) + воздушный исполнитель Воздун (000063), '
-    + 'порядок = нумерация файлов; Фикка ПЕРВАЯ (её файл не тронут); '
-    + 'факт: ' + JSON.stringify(list.map((n) => n.id)));
+    ['acro_master', 'acro_instructor', ID, 'rope_walker'],
+    'Школа акробатов (11): Фикка (000008) + наставник Кувырок (000062) '
+    + '+ воздушный исполнитель Воздун (000063, ре-пин 000320.42) + '
+    + 'канатходец Затяж (000064, ре-пин 000320.43), порядок = нумерация '
+    + 'файлов; Фикка ПЕРВАЯ (её файл не тронут); факт: '
+    + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 11).id, 'acro_master',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Фикка; HUD/«Здесь:» '
     + 'не тронуты — города и cities-снапы не двигаются)');
@@ -564,9 +570,9 @@ test('000320.42 T7: npcsForBuilding(NPCS, 11) — ТРОЕ Школы акроб
     + JSON.stringify(smith.map((n) => n.id)));
 });
 
-// --- T8: [E]-оверлей Школы акробатов — ровно 3 dialog-строки ----------------
+// --- T8: [E]-оверлей Школы акробатов — ровно 4 dialog-строки (ре-пин .43) ----
 
-test('000320.42 T8: [E]-оверлей Школы акробатов — ровно 3 строки: dialog (Фикка), dialog:acro_instructor (Кувырок), dialog:air_performer (Воздун); эффектов у дома 11 нет — effectIds пуст; крафт-строки НЕТ (11 ∉ зданий рецептов — под Game.Craft wiring список всё равно 3 строки); подписи «Диалог: Фикка»/«Диалог: Кувырок»/«Диалог: Воздун»; хоткеи Digit1..3 — граница /^Digit([1-9])$/ не превышена', () => {
+test('000320.42 T8: [E]-оверлей Школы акробатов — ровно 4 строки: dialog (Фикка), dialog:acro_instructor (Кувырок), dialog:air_performer (Воздун), dialog:rope_walker (Затяж) (ре-пин 000320.43); эффектов у дома 11 нет — effectIds пуст; крафт-строки НЕТ (11 ∉ зданий рецептов — под Game.Craft wiring список всё равно 4 строки); подписи «Диалог: Фикка»/«Диалог: Кувырок»/«Диалог: Воздун»/«Диалог: Затяж»; хоткеи Digit1..4 — граница /^Digit([1-9])$/ не превышена', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings',
     'academy.json'));
   assert.equal(b.id, 11, 'здание academy — id 11 (фикс размещения)');
@@ -588,33 +594,36 @@ test('000320.42 T8: [E]-оверлей Школы акробатов — ров�
     if (prevGame === undefined) delete globalThis.Game;
     else globalThis.Game = prevGame;
   }
-  assert.equal(rows.length, 3,
-    'список здания 11 = dialog-строки по каждому NPC (РОВНО ТРИ после '
-    + '.42) БЕЗ крафт-строки (не дом 8: рецептов на Школе нет), '
-    + 'факт: ' + JSON.stringify(rows.map((r) => r.id)));
+  assert.equal(rows.length, 4,
+    'список здания 11 = dialog-строки по каждому NPC (РОВНО ЧЕТЫРЕ после '
+    + '.43 — ре-пин 000320.43) БЕЗ крафт-строки (не дом 8: рецептов на '
+    + 'Школе нет), факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:acro_instructor', 'dialog:' + ID],
+    ['dialog', 'dialog:acro_instructor', 'dialog:' + ID,
+      'dialog:rope_walker'],
     'порядок строк = нумерация файлов каталога, Фикка по-прежнему '
     + 'ПЕРВАЯ, суффикс «:<id>» со второй строки — механизм '
     + 'building-effects); факт: '
     + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Фикка', 'Диалог: Кувырок', 'Диалог: ' + NAME],
+    ['Диалог: Фикка', 'Диалог: Кувырок', 'Диалог: ' + NAME,
+      'Диалог: Затяж'],
     'подписи — «Диалог: <имя>», факт: '
     + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['acro_master', 'acro_instructor', ID],
+    ['acro_master', 'acro_instructor', ID, 'rope_walker'],
     'каждая dialog-строка несёт npcId своего NPC (роутинг клика)');
   for (let i = 0; i < rows.length; i++) {
     assert.match('Digit' + (i + 1), /^Digit([1-9])$/,
       'хоткеи Digit1..' + rows.length + ' — общий механизм '
-      + 'src/building-ui.js /^Digit([1-9])$/ (третья строка в границе)');
+      + 'src/building-ui.js /^Digit([1-9])$/ (четвёртая строка в '
+      + 'границе)');
   }
 });
 
 // --- T9: forbid-цепь под реестром 000424 -------------------------------------
 
-test('000320.42 T9: forbid-цепь под реестром (000424) — звено "42" существует, РОВНО 4 фразы и ≡ дисковой MINE-константе файла .41 (машинное извлечение, EXPECT_ADDS-третьих-копий НЕ заводим), инлайн-гард T5 этого файла ≡ aggregate(реестра) ЦЕЛИКОМ, длина агрегата — ФОРМУЛОЙ базис + 4×число_звеньев (литерал числа запрещён), prev (агрегат до последнего звена) ⊆ own, анти-вакуум: инжект каждой prev-фразы ловится сканером и вырез элемента guard-копии красит предикат, СВОИ 4 оборота НЕ в guard-массиве (резерв звена "43") и не пересекаются substring-в-обе-стороны ни с цепью (агрегат + литералы всех звеньев и legacy-массивов tests/npc-000320.*.test.js), ни с текстами каталога assets/npc', () => {
+test('000320.42 T9: forbid-цепь под реестром (000424) — звено "42" существует, РОВНО 4 фразы и ≡ дисковой MINE-константе файла .41 (машинное извлечение, EXPECT_ADDS-третьих-копий НЕ заводим), инлайн-гард T5 этого файла ≡ aggregate(реестра) ЧЕРЕЗ МОЁ звено "42" (ре-пин 000320.43: хвост — .43), длина — ФОРМУЛОЙ базис + 4×число_звеньев_через_42 (литерал числа запрещён), prev (агрегат до звена "41") ⊆ own, анти-вакуум: инжект каждой prev-фразы ловится сканером и вырез элемента guard-копии красит предикат, СВОИ 4 оборота НЕ в guard-массиве, ≡ звену "43" реестра (резерв погашен коммитом .43) и не пересекаются substring-в-обе-стороны ни с цепью (агрегат + литералы всех звеньев и legacy-массивов tests/npc-000320.*.test.js), ни с текстами каталога assets/npc', () => {
   const ledger = readLedger();
   assert.ok(Object.prototype.hasOwnProperty.call(ledger.links, '42'),
     'RED: звено "42" ещё не дописано в реестр — его пишет коммит .42 '
@@ -628,19 +637,19 @@ test('000320.42 T9: forbid-цепь под реестром (000424) — зве�
     + 'провенанс зуба 000424 T4; машинное извлечение — ручной '
     + 'транскрипции нет); факт диска: ' + JSON.stringify(discMine41));
   const own = extractGuardAt(__filename, '000320.42 T5:');
-  const agg = aggregateAll(ledger);
+  const agg = aggregateThrough(ledger, SELF_LINK);
   assert.deepEqual(own, agg,
-    'инлайн-гард этого файла ≡ aggregate(реестра) ПОБЛАГО (и порядок, и '
-    + 'значения; prev = ledger, 000424)');
-  const keys = linkKeysOf(ledger.links);
+    'инлайн-гард этого файла ≡ aggregate(реестра) ЧЕРЕЗ звено "' + SELF_LINK
+    + '" ПОБЛАГО (и порядок, и значения; prev = ledger, 000424; полный '
+    + 'агрегат ≡ гарду хвоста — зуб 000424 T5; ре-пин 000320.43)');
+  const keys = linkKeysOf(ledger.links).filter((k) => k <= SELF_LINK);
   assert.equal(own.length, ledger.basis.length + 4 * keys.length,
-    'длина агрегата — ФОРМУЛА базис + 4×звенья (не литерал): '
-    + ledger.basis.length + ' + 4×' + keys.length + '; факт: '
-    + own.length);
+    'длина агрегата через моё звено — ФОРМУЛА базис + 4×звенья (не '
+    + 'литерал): ' + ledger.basis.length + ' + 4×' + keys.length
+    + '; факт: ' + own.length);
   assert.equal(new Set(agg).size, agg.length,
-    'в агрегате реестра нет дублей; длина: ' + agg.length);
-  const lastKey = keys[keys.length - 1];
-  const prev = aggregateThrough(ledger, lastKey - 1);
+    'в агрегате через моё звено нет дублей; длина: ' + agg.length);
+  const prev = aggregateThrough(ledger, SELF_LINK - 1);
   const ownSet = new Set(own);
   const lost = prev.filter((x) => !ownSet.has(x));
   assert.deepEqual(lost, [],
@@ -658,11 +667,14 @@ test('000320.42 T9: forbid-цепь под реестром (000424) — зве�
       'зуб не вакуумный: инжект prev-фразы «' + phrase.slice(0, 24)
       + '…» обязан быть пойман сканером');
   }
+  assert.deepEqual(ledger.links[String(SELF_LINK + 1)], MINE,
+    'резерв погашен: звено "43" реестра ≡ моей MINE-константе побла́го '
+    + '(провенанс 000424 T4; вписано коммитом .43 — ре-пин 000320.43)');
   for (const m of MINE) {
     assert.ok(!agg.includes(m),
-      'свой оборот «' + m + '» НЕ в guard-массиве и НЕ в реестре — '
-      + 'резерв звена "43" (звено "43" пишет его на мерже .43, '
-      + 'правило 000424; в этом файле пинится только циклом '
+      'свой оборот «' + m + '» НЕ в guard-массиве (агрегат через моё '
+      + 'звено его не содержит — правило 000424: звено пишет резерв '
+      + 'ПРЕДЫДУЩЕГО, а не свой; в этом файле свои 4 пинятся циклом '
       + 'присутствия в T5)');
   }
   assert.equal(new Set(MINE).size, MINE.length,

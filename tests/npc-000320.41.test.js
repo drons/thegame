@@ -541,16 +541,17 @@ test('000320.41 T6: ДАННЫЕ обучения профиля «обучен�
     + 'строками id, прецедент .26–.40 T6)');
 });
 
-// --- T7: ростер Школы акробатов — ТРОЕ (ре-пин .42), Фикка первая; чужие дома не тронуты --
+// --- T7: ростер Школы акробатов — ЧЕТВЕРО (ре-пин .43), Фикка первая; чужие дома не тронуты --
 
-test('000320.41 T7: npcsForBuilding(NPCS, 11) — ТРОЕ Школы акробатов в порядке каталога [acro_master, acro_instructor, air_performer] (ре-пин 000320.42); npcForBuilding(11) — по-прежнему Фикка; Стрельбище (10) — СЕМВЕРО не тронуто (.40-ростер); Кузница (8) — ЧЕТВЕРО не тронута (.34-ростер)', () => {
+test('000320.41 T7: npcsForBuilding(NPCS, 11) — ЧЕТВЕРО Школы акробатов в порядке каталога [acro_master, acro_instructor, air_performer, rope_walker] (ре-пин 000320.43); npcForBuilding(11) — по-прежнему Фикка; Стрельбище (10) — СЕМВЕРО не тронуто (.40-ростер); Кузница (8) — ЧЕТВЕРО не тронута (.34-ростер)', () => {
   const list = N.npcsForBuilding(NPCS, 11);
   assert.deepEqual(list.map((n) => n.id),
-    ['acro_master', ID, 'air_performer'],
+    ['acro_master', ID, 'air_performer', 'rope_walker'],
     'Школа акробатов (11): Фикка (000008) + наставник Кувырок (000062) '
-    + '+ воздушный исполнитель Воздун (000063, ре-пин 000320.42), '
-    + 'порядок = нумерация файлов; Фикка ПЕРВАЯ (её файл не тронут); '
-    + 'факт: ' + JSON.stringify(list.map((n) => n.id)));
+    + '+ воздушный исполнитель Воздун (000063) + канатходец Затяж '
+    + '(000064, ре-пин 000320.43), порядок = нумерация файлов; Фикка '
+    + 'ПЕРВАЯ (её файл не тронут); факт: '
+    + JSON.stringify(list.map((n) => n.id)));
   assert.equal(N.npcForBuilding(NPCS, 11).id, 'acro_master',
     'npcForBuilding — ПЕРВЫЙ по номеру файла (Фикка; HUD/«Здесь:» '
     + 'не тронуты — города и cities-снапы не двигаются)');
@@ -567,9 +568,9 @@ test('000320.41 T7: npcsForBuilding(NPCS, 11) — ТРОЕ Школы акроб
     + JSON.stringify(smith.map((n) => n.id)));
 });
 
-// --- T8: [E]-оверлей Школы акробатов — ровно 3 dialog-строки (ре-пин .42) ----
+// --- T8: [E]-оверлей Школы акробатов — ровно 4 dialog-строки (ре-пин .43) ----
 
-test('000320.41 T8: [E]-оверлей Школы акробатов — ровно 3 строки: dialog (Фикка), dialog:acro_instructor (Кувырок), dialog:air_performer (Воздун) (ре-пин 000320.42); эффектов у дома 11 нет — effectIds пуст; крафт-строки НЕТ (11 ∉ зданий рецептов — под Game.Craft wiring список всё равно 3 строки); подписи «Диалог: Фикка»/«Диалог: Кувырок»/«Диалог: Воздун»; хоткеи Digit1..3 — граница /^Digit([1-9])$/ не превышена', () => {
+test('000320.41 T8: [E]-оверлей Школы акробатов — ровно 4 строки: dialog (Фикка), dialog:acro_instructor (Кувырок), dialog:air_performer (Воздун), dialog:rope_walker (Затяж) (ре-пин 000320.43); эффектов у дома 11 нет — effectIds пуст; крафт-строки НЕТ (11 ∉ зданий рецептов — под Game.Craft wiring список всё равно 4 строки); подписи «Диалог: Фикка»/«Диалог: Кувырок»/«Диалог: Воздун»/«Диалог: Затяж»; хоткеи Digit1..4 — граница /^Digit([1-9])$/ не превышена', () => {
   const b = readJson(path.join(ROOT, 'assets', 'buildings',
     'academy.json'));
   assert.equal(b.id, 11, 'здание academy — id 11 (фикс размещения)');
@@ -591,27 +592,30 @@ test('000320.41 T8: [E]-оверлей Школы акробатов — ров�
     if (prevGame === undefined) delete globalThis.Game;
     else globalThis.Game = prevGame;
   }
-  assert.equal(rows.length, 3,
-    'список здания 11 = dialog-строки по каждому NPC (РОВНО ТРИ после '
-    + '.42 — ре-пин 000320.42) БЕЗ крафт-строки (не дом 8: рецептов на '
+  assert.equal(rows.length, 4,
+    'список здания 11 = dialog-строки по каждому NPC (РОВНО ЧЕТЫРЕ после '
+    + '.43 — ре-пин 000320.43) БЕЗ крафт-строки (не дом 8: рецептов на '
     + 'Школе нет), факт: ' + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.id),
-    ['dialog', 'dialog:' + ID, 'dialog:air_performer'],
+    ['dialog', 'dialog:' + ID, 'dialog:air_performer',
+      'dialog:rope_walker'],
     'порядок строк = нумерация файлов каталога, Фикка по-прежнему '
     + 'ПЕРВАЯ, суффикс «:<id>» со второй строки — механизм '
     + 'building-effects); факт: '
     + JSON.stringify(rows.map((r) => r.id)));
   assert.deepEqual(rows.map((r) => r.имя),
-    ['Диалог: Фикка', 'Диалог: ' + NAME, 'Диалог: Воздун'],
+    ['Диалог: Фикка', 'Диалог: ' + NAME, 'Диалог: Воздун',
+      'Диалог: Затяж'],
     'подписи — «Диалог: <имя>», факт: '
     + JSON.stringify(rows.map((r) => r.имя)));
   assert.deepEqual(rows.map((r) => r.npcId),
-    ['acro_master', ID, 'air_performer'],
+    ['acro_master', ID, 'air_performer', 'rope_walker'],
     'каждая dialog-строка несёт npcId своего NPC (роутинг клика)');
   for (let i = 0; i < rows.length; i++) {
     assert.match('Digit' + (i + 1), /^Digit([1-9])$/,
       'хоткеи Digit1..' + rows.length + ' — общий механизм '
-      + 'src/building-ui.js /^Digit([1-9])$/ (третья строка в границе)');
+      + 'src/building-ui.js /^Digit([1-9])$/ (четвёртая строка в '
+      + 'границе)');
   }
 });
 
