@@ -10,7 +10,7 @@ mobs.md 146), счёт TAP не двигается, src/ tests/ assets/ CHANGELO
   НЕ зависит; Сила в уроне — только безоружная база
   `3 + Math.floor(p.primary.strength * 0.8) + Math.floor(p.level * 0.5)` (там же, else-ветка).
 * «Быстрые предметы»: `c.ps.quickItem = 1 + Math.floor(p.primary.dexterity / 10)`
-  (src/combat.js, refillPools) и союзники — тем же дexterity-полем (mirror-строка в
+  (src/combat.js, refillPools) и союзники — тем же dexterity-полем (mirror-строка в
   createAllyUnit); Харизма в src/combat.js НЕ имеет НИ ОДНОГО потребителя (grep «charisma|харизм»
   = 0). Потребители Харизмы: src/npc.js (гейт диалога req.харизма), src/companions.js (шанс
   отказа найма; лояльность старта), src/efir.js (стартовый лист). Колонка «на карте мира»
@@ -42,7 +42,7 @@ mobs.md 146), счёт TAP не двигается, src/ tests/ assets/ CHANGELO
   врагов», «Регенерирует вне боя», «отступает при ранении» отсутствуют в двух файлах
   (новая формулировка тролля не содержит исходной последовательности целиком).
 
-## ГРАНЬ greп-критерия (важно для внешней проверки)
+## ГРАНЬ grep-критерия (важно для внешней проверки)
 
 Критерий приёмки ограничен файлами spec/skills.md + spec/mobs.md. Те же лживые строки живут ПЕРВОИСТОЧНИКОМ
 в `assets/skills/{strength,charisma}.json` (поле `combat`, байт-в-байт), генерятся скриптом
@@ -72,3 +72,13 @@ RED /tmp/docs426-red.tap = 5 not ok (T1–T4, T10) все ERR_ASSERTION без �
 GREEN /tmp/docs426-green.tap = 10/10. Срез 21 файла читаетелей spec-файлов + head-guard =
 /tmp/docs426-slice1.tap 131/131/0; skills*-срез = 82/82/0. Мутационная матрица M1–M7 —
 tasks/result/000426.md.
+
+## ЭРРАТА ретро-b33 (2026-11-18, append; источник правды — код)
+* Символьный якорь «createAllyUnit» (:14) в src/ НЕ существует (git grep = 0 хитов на
+  ab895b31); проводка союзников — функция makeAlly (комментарии src/ally-spells.js:155,
+  src/combat-ui.js:1659/1708 называют именно её).
+* «к Харизме не привязан» (:21) — overclaim: fright — навык ДЕРЕВА Харизмы
+  (assets/skills/fright.json: primary=charisma, requires charisma level 5), effect
+  fearChance (sheet.js:569) потребляется в бою (src/combat.js:1536). Истинно другое:
+  подсистемы морали врагов нет, прямого чтения primary.charisma в src/combat.js = 0,
+  «Застращивание» — не мораль (боевая ячейка «ОТСРОЧЕНО: мораль…» этим не лжёт).
